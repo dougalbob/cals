@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 
 // Main application
 const App = {
@@ -53,6 +53,11 @@ const App = {
         });
         document.getElementById('current-date')?.addEventListener('click', () => {
             this.goToToday();
+        });
+
+        // New recipe button
+        document.getElementById('new-recipe-btn')?.addEventListener('click', () => {
+            Recipes.showEditor();
         });
 
         // Settings form
@@ -128,6 +133,9 @@ const App = {
             case 'today':
                 this.loadTodayView();
                 break;
+            case 'recipes':
+                Recipes.loadList();
+                break;
             case 'settings':
                 this.loadSettings();
                 break;
@@ -152,20 +160,17 @@ const App = {
     },
 
     async loadTodayView() {
-        // Update date display
         const dateDisplay = document.getElementById('current-date');
         if (dateDisplay) {
             const isToday = this.currentDate === Dates.today();
             dateDisplay.textContent = isToday ? 'Today' : Dates.formatDisplay(this.currentDate);
         }
 
-        // Show/hide next button (can't go to future)
         const nextBtn = document.getElementById('next-date');
         if (nextBtn) {
             nextBtn.style.visibility = this.currentDate >= Dates.today() ? 'hidden' : 'visible';
         }
         
-        // Load diary and bank from server
         try {
             this.diaryData = await API.getDiary(this.currentDate);
             this.bankData = await API.getBank(this.currentDate);
@@ -217,7 +222,6 @@ const App = {
             totalEl.textContent = mealCalories > 0 ? `${Math.round(mealCalories)} kcal` : '';
         });
 
-        // Update ring - now based on today's available (goal + bank)
         const totalCalories = this.diaryData?.totals?.calories || 0;
         this.updateCalorieRing(totalCalories);
     },
@@ -227,11 +231,9 @@ const App = {
         const goalEl = document.getElementById('today-goal');
         const waterGoalEl = document.getElementById('water-goal');
         
-        // Update water goal
         waterGoalEl.textContent = this.user?.daily_water_goal_ml || 2000;
         
         if (!this.bankData || !this.bankData.start_date) {
-            // No bank start date set
             goalEl.textContent = this.bankData?.daily_goal || this.user?.daily_calorie_goal || 2000;
             bankEl.textContent = 'Set start date';
             bankEl.classList.remove('positive', 'negative');
@@ -241,10 +243,8 @@ const App = {
         const todayAvailable = this.bankData.today_available;
         const bankBalance = this.bankData.bank_balance;
         
-        // Update the goal display to show today's available
         goalEl.textContent = todayAvailable;
         
-        // Update bank display
         if (bankBalance > 0) {
             bankEl.textContent = `+${bankBalance} banked`;
             bankEl.classList.remove('negative');
@@ -260,7 +260,6 @@ const App = {
     },
 
     updateCalorieRing(consumed) {
-        // Use today's available (goal + bank) as the target
         const available = this.bankData?.today_available || this.user?.daily_calorie_goal || 2000;
         const progress = Math.min(consumed / available, 1.5);
         const circumference = 2 * Math.PI * 45;

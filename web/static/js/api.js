@@ -82,5 +82,46 @@ const API = {
     // Bank
     getBank(date) {
         return this.request('GET', `/api/bank?date=${date}`);
+    },
+
+    // Recipes
+    listRecipes() {
+        return this.request('GET', '/api/recipes');
+    },
+
+    getRecipe(id) {
+        return this.request('GET', `/api/recipes/${id}`);
+    },
+
+    createRecipe(data) {
+        return this.request('POST', '/api/recipes', data);
+    },
+
+    updateRecipe(id, data) {
+        return this.request('PUT', `/api/recipes/${id}`, data);
+    },
+
+    deleteRecipe(id) {
+        return this.request('DELETE', `/api/recipes/${id}`);
+    },
+
+    async uploadRecipeImage(recipeId, file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch(`/api/recipes/${recipeId}/image`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+
+        return response.json();
+    },
+
+    getRecipeImageUrl(recipeId, type = 'thumb') {
+        return `/api/images/recipes/${recipeId}/${type}`;
     }
 };

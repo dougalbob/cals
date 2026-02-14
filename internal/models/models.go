@@ -18,78 +18,94 @@ type User struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
-// Food represents a food item (from API or manually created)
+// Food represents a food item
 type Food struct {
-	ID              int64          `json:"id"`
-	FatSecretID     sql.NullString `json:"fatsecret_id,omitempty"`
-	Name            string         `json:"name"`
-	Brand           sql.NullString `json:"brand,omitempty"`
-	CaloriesPer100g float64        `json:"calories_per_100g"`
-	ProteinPer100g  float64        `json:"protein_per_100g"`
-	CarbsPer100g    float64        `json:"carbs_per_100g"`
-	FatPer100g      float64        `json:"fat_per_100g"`
-	FibrePer100g    float64        `json:"fibre_per_100g"`
-	ServingName     sql.NullString `json:"serving_name,omitempty"`
+	ID              int64           `json:"id"`
+	FatSecretID     sql.NullString  `json:"fatsecret_id,omitempty"`
+	Name            string          `json:"name"`
+	Brand           sql.NullString  `json:"brand,omitempty"`
+	CaloriesPer100g float64         `json:"calories_per_100g"`
+	ProteinPer100g  float64         `json:"protein_per_100g"`
+	CarbsPer100g    float64         `json:"carbs_per_100g"`
+	FatPer100g      float64         `json:"fat_per_100g"`
+	FibrePer100g    float64         `json:"fibre_per_100g"`
+	ServingName     sql.NullString  `json:"serving_name,omitempty"`
 	ServingGrams    sql.NullFloat64 `json:"serving_grams,omitempty"`
-	IsEdited        bool           `json:"is_edited"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	Servings        []FoodServing  `json:"servings,omitempty"`
+	IsEdited        bool            `json:"is_edited"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	Servings        []FoodServing   `json:"servings,omitempty"`
 }
 
 // FoodServing represents a predefined serving size
 type FoodServing struct {
-	ID                  int64          `json:"id"`
-	FoodID              int64          `json:"food_id"`
-	FatSecretServingID  sql.NullString `json:"fatsecret_serving_id,omitempty"`
-	Description         string         `json:"description"`
-	Grams               float64        `json:"grams"`
+	ID                 int64          `json:"id"`
+	FoodID             int64          `json:"food_id"`
+	FatSecretServingID sql.NullString `json:"fatsecret_serving_id,omitempty"`
+	Description        string         `json:"description"`
+	Grams              float64        `json:"grams"`
 }
 
 // Recipe represents a user-created recipe
 type Recipe struct {
-	ID              int64              `json:"id"`
-	Name            string             `json:"name"`
-	CreatedByUserID int64              `json:"created_by_user_id"`
-	TotalWeightGrams float64           `json:"total_weight_grams"`
-	WeightIsManual  bool               `json:"weight_is_manual"`
-	TotalCalories   float64            `json:"total_calories"`
-	TotalProtein    float64            `json:"total_protein"`
-	TotalCarbs      float64            `json:"total_carbs"`
-	TotalFat        float64            `json:"total_fat"`
-	TotalFibre      float64            `json:"total_fibre"`
-	CreatedAt       time.Time          `json:"created_at"`
-	UpdatedAt       time.Time          `json:"updated_at"`
-	Ingredients     []RecipeIngredient `json:"ingredients,omitempty"`
+	ID               int64                  `json:"id"`
+	Name             string                 `json:"name"`
+	Description      string                 `json:"description,omitempty"`
+	Instructions     string                 `json:"instructions,omitempty"`
+	ImageFilename    string                 `json:"image_filename,omitempty"`
+	Serves           int                    `json:"serves"`
+	CreatedByUserID  int64                  `json:"created_by_user_id"`
+	CreatedByName    string                 `json:"created_by_name,omitempty"`
+	TotalWeightGrams float64                `json:"total_weight_grams"`
+	WeightIsManual   bool                   `json:"weight_is_manual"`
+	TotalCalories    float64                `json:"total_calories"`
+	TotalProtein     float64                `json:"total_protein"`
+	TotalCarbs       float64                `json:"total_carbs"`
+	TotalFat         float64                `json:"total_fat"`
+	TotalFibre       float64                `json:"total_fibre"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+	Ingredients      []RecipeIngredient     `json:"ingredients,omitempty"`
+	TextIngredients  []RecipeTextIngredient `json:"text_ingredients,omitempty"`
 }
 
-// RecipeIngredient represents an ingredient in a recipe
+// RecipeIngredient represents a food ingredient in a recipe
 type RecipeIngredient struct {
 	ID            int64   `json:"id"`
 	RecipeID      int64   `json:"recipe_id"`
 	FoodID        int64   `json:"food_id"`
+	FoodName      string  `json:"food_name,omitempty"`
 	QuantityGrams float64 `json:"quantity_grams"`
-	Food          *Food   `json:"food,omitempty"`
+	Calories      float64 `json:"calories,omitempty"`
+	SortOrder     int     `json:"sort_order"`
+}
+
+// RecipeTextIngredient represents a free-text ingredient (no calories)
+type RecipeTextIngredient struct {
+	ID          int64  `json:"id"`
+	RecipeID    int64  `json:"recipe_id"`
+	Description string `json:"description"`
+	SortOrder   int    `json:"sort_order"`
 }
 
 // DiaryEntry represents a logged food or recipe
 type DiaryEntry struct {
-	ID            int64          `json:"id"`
-	UserID        int64          `json:"user_id"`
-	Date          string         `json:"date"`
-	Meal          string         `json:"meal"`
-	FoodID        sql.NullInt64  `json:"food_id,omitempty"`
-	RecipeID      sql.NullInt64  `json:"recipe_id,omitempty"`
-	QuantityGrams float64        `json:"quantity_grams"`
-	Calories      float64        `json:"calories"`
-	Protein       float64        `json:"protein"`
-	Carbs         float64        `json:"carbs"`
-	Fat           float64        `json:"fat"`
-	Fibre         float64        `json:"fibre"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	Food          *Food          `json:"food,omitempty"`
-	Recipe        *Recipe        `json:"recipe,omitempty"`
+	ID            int64         `json:"id"`
+	UserID        int64         `json:"user_id"`
+	Date          string        `json:"date"`
+	Meal          string        `json:"meal"`
+	FoodID        sql.NullInt64 `json:"food_id,omitempty"`
+	RecipeID      sql.NullInt64 `json:"recipe_id,omitempty"`
+	QuantityGrams float64       `json:"quantity_grams"`
+	Calories      float64       `json:"calories"`
+	Protein       float64       `json:"protein"`
+	Carbs         float64       `json:"carbs"`
+	Fat           float64       `json:"fat"`
+	Fibre         float64       `json:"fibre"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+	Food          *Food         `json:"food,omitempty"`
+	Recipe        *Recipe       `json:"recipe,omitempty"`
 }
 
 // WaterEntry represents a water intake log
@@ -112,9 +128,9 @@ type WeightEntry struct {
 
 // MeasurementEntry represents body measurements
 type MeasurementEntry struct {
-	ID         int64          `json:"id"`
-	UserID     int64          `json:"user_id"`
-	Date       string         `json:"date"`
+	ID         int64           `json:"id"`
+	UserID     int64           `json:"user_id"`
+	Date       string          `json:"date"`
 	BustCM     sql.NullFloat64 `json:"bust_cm,omitempty"`
 	ChestCM    sql.NullFloat64 `json:"chest_cm,omitempty"`
 	WaistCM    sql.NullFloat64 `json:"waist_cm,omitempty"`
@@ -143,11 +159,4 @@ type DailyNote struct {
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// CalorieBankStatus represents the cumulative calorie bank status
-type CalorieBankStatus struct {
-	BankBalance float64 `json:"bank_balance"`
-	StartDate   string  `json:"start_date"`
-	AsOfDate    string  `json:"as_of_date"`
 }

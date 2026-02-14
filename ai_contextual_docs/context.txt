@@ -292,3 +292,71 @@ NOTES:
 - fatsecret-foods-use-food_servings-table
 - grams-always-available-as-fallback
 - ui-shows-"Xg = Y kcal"-calculation
+
+---
+UPDATE:2025-02-15
+VERSION:1.4.1
+PHASE:5-recipes
+
+CHANGES:
++internal/handlers/recipes.go:recipe-crud-with-ingredients
++internal/handlers/images.go:recipe-image-upload-and-serve
++web/static/js/components/recipes.js:recipe-management-ui
+~internal/database/migrations.go:added-recipe-tables-and-fields
+~internal/models/models.go:recipe-structs-with-image-fields
+~cmd/server/main.go:recipe-and-image-routes
+~web/static/js/api.js:recipe-api-methods
+~web/static/css/style.css:recipe-card-and-editor-styling
+~web/templates/index.html:recipes-view-section
+
+DB_TABLES_ADDED:
+recipes(id,name,description,instructions,image_filename,serves,created_by_user_id,total_weight_grams,weight_is_manual,total_calories,total_protein,total_carbs,total_fat,total_fibre,created_at,updated_at)
+recipe_ingredients(id,recipe_id,food_id,quantity_grams,sort_order)
+recipe_text_ingredients(id,recipe_id,description,sort_order)
+
+API_ENDPOINTS_ACTIVE:
+GET /api/recipes:list-all-recipes
+GET /api/recipes/{id}:recipe-with-ingredients
+POST /api/recipes:create-recipe
+PUT /api/recipes/{id}:update-recipe
+DELETE /api/recipes/{id}:delete-recipe
+POST /api/recipes/{id}/image:upload-recipe-image
+GET /api/images/recipes/{id}/{type}:serve-recipe-image(thumb|original)
+
+FEATURES_COMPLETE:
++recipe-list-with-thumbnails
++recipe-create-edit-delete
++recipe-image-upload-with-camera
++recipe-thumbnail-generation(400px)
++recipe-food-ingredients-with-calories
++recipe-text-ingredients(no-calories)
++recipe-total-nutrition-calculation
++recipe-manual-weight-override
++recipe-serves-field
++recipe-add-to-diary-by-serving-or-weight
++recipe-view-thumbnail-in-header
+
+BUGFIXES:
+~recipe-ingredient-fatsecret-foods:now-uses-search-data-directly
+~recipe-ingredient-calories:fixed-0kcal-for-uncached-foods
+~recipe-image-display:thumbnail-in-header-not-cropped-fullwidth
+
+RECIPE_FLOW:
+1. create-recipe:name,description,serves
+2. add-food-ingredients:search-foods,select-quantity-in-grams
+3. add-text-ingredients:free-text-for-non-tracked-items
+4. set-weight:auto-calculated-or-manual-override
+5. add-photo:camera-or-file-upload
+6. save:calculates-totals,stores-ingredients
+7. add-to-diary:by-servings-or-weighed-portion
+
+IMAGE_STORAGE:
+/app/data/images/recipes/{id}_original.jpg
+/app/data/images/recipes/{id}_thumb.jpg
+
+NOTES:
+- recipe-ingredients-stored-by-food_id-and-grams
+- nutrition-calculated-from-food-per-100g-values
+- fatsecret-foods-work-without-prior-caching
+- images-converted-to-jpeg-on-upload
+- thumbnail-80x80-in-recipe-view-header

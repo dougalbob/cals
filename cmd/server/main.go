@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.4.0"
+const AppVersion = "1.4.1"
 
 func main() {
 	cfg, err := config.Load()
@@ -88,6 +88,17 @@ func main() {
 
 	// Bank
 	mux.Handle("GET /api/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBank)))
+
+	// Recipes
+	mux.Handle("GET /api/recipes", cfAuth.Middleware(http.HandlerFunc(handlers.HandleListRecipes)))
+	mux.Handle("GET /api/recipes/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetRecipe)))
+	mux.Handle("POST /api/recipes", cfAuth.Middleware(http.HandlerFunc(handlers.HandleCreateRecipe)))
+	mux.Handle("PUT /api/recipes/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateRecipe)))
+	mux.Handle("DELETE /api/recipes/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteRecipe)))
+
+	// Recipe images
+	mux.Handle("POST /api/recipes/{id}/image", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUploadRecipeImage)))
+	mux.Handle("GET /api/images/recipes/{id}/{type}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetRecipeImage)))
 
 	// Index page - catch all for SPA
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

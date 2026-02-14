@@ -94,8 +94,11 @@
         </div>
 
         <div id="view-recipes" class="view">
-            <h2>Recipes</h2>
-            <p>Coming in Phase 5</p>
+            <div class="view-header">
+                <h2>Recipes</h2>
+                <button class="btn-primary" id="new-recipe-btn">+ New Recipe</button>
+            </div>
+            <div id="recipes-list" class="recipes-list"></div>
         </div>
 
         <div id="view-progress" class="view">
@@ -154,6 +157,7 @@
     <script src="/static/js/api.js"></script>
     <script src="/static/js/components/modal.js"></script>
     <script src="/static/js/components/search.js"></script>
+    <script src="/static/js/components/recipes.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
         if (typeof APP_VERSION !== 'undefined') {

@@ -51,6 +51,10 @@ func RunMigrations() error {
 		`CREATE TABLE IF NOT EXISTS recipes (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
+			description TEXT,
+			instructions TEXT,
+			image_filename TEXT,
+			serves INTEGER DEFAULT 1,
 			created_by_user_id INTEGER NOT NULL,
 			total_weight_grams REAL NOT NULL DEFAULT 0,
 			weight_is_manual BOOLEAN NOT NULL DEFAULT 0,
@@ -69,8 +73,17 @@ func RunMigrations() error {
 			recipe_id INTEGER NOT NULL,
 			food_id INTEGER NOT NULL,
 			quantity_grams REAL NOT NULL,
+			sort_order INTEGER DEFAULT 0,
 			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
 			FOREIGN KEY (food_id) REFERENCES foods(id)
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS recipe_text_ingredients (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			recipe_id INTEGER NOT NULL,
+			description TEXT NOT NULL,
+			sort_order INTEGER DEFAULT 0,
+			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
 		)`,
 
 		`CREATE TABLE IF NOT EXISTS diary_entries (
@@ -161,13 +174,18 @@ func RunMigrations() error {
 		`ALTER TABLE users ADD COLUMN bank_start_date DATE`,
 		`ALTER TABLE foods ADD COLUMN serving_name TEXT`,
 		`ALTER TABLE foods ADD COLUMN serving_grams REAL`,
+		`ALTER TABLE recipes ADD COLUMN description TEXT`,
+		`ALTER TABLE recipes ADD COLUMN instructions TEXT`,
+		`ALTER TABLE recipes ADD COLUMN image_filename TEXT`,
+		`ALTER TABLE recipes ADD COLUMN serves INTEGER DEFAULT 1`,
+		`ALTER TABLE recipe_ingredients ADD COLUMN sort_order INTEGER DEFAULT 0`,
 	}
 
 	for _, migration := range migrations {
 		_, err := DB.Exec(migration)
 		if err != nil {
-			// Ignore "duplicate column" errors from ALTER TABLE
-			if !strings.Contains(err.Error(), "duplicate column") {
+			if !strings.Contains(err.Error(), "duplicate column") && 
+			   !strings.Contains(err.Error(), "already exists") {
 				log.Printf("Migration note: %v", err)
 			}
 		}
