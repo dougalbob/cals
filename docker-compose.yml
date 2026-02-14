@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  cals:
+    container_name: cals-counter
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8150:8150"
+    volumes:
+      - /mnt/user/appdata/cals:/app/data
+    environment:
+      - TZ=Europe/London
+    restart: unless-stopped

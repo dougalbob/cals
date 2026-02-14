@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="description" content="Calorie tracking for the household">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Cals">
+    <title>Cals</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" href="/static/icons/favicon.ico">
+    <link rel="apple-touch-icon" href="/public/icons/icon-192.png">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Cals</h1>
+        <nav class="main-nav">
+            <button class="nav-btn active" data-view="today">Today</button>
+            <button class="nav-btn" data-view="history">History</button>
+            <button class="nav-btn" data-view="recipes">Recipes</button>
+            <button class="nav-btn" data-view="progress">Progress</button>
+            <button class="nav-btn" data-view="settings">Settings</button>
+        </nav>
+        <div class="user-info">
+            <span id="user-name"></span>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <div id="view-today" class="view active">
+            <div class="today-summary">
+                <div class="calorie-ring">
+                    <svg viewBox="0 0 100 100">
+                        <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
+                        <circle class="ring-progress" cx="50" cy="50" r="45" id="calorie-progress"></circle>
+                    </svg>
+                    <div class="ring-text">
+                        <span class="consumed" id="today-consumed">0</span>
+                        <span class="goal">/ <span id="today-goal">2000</span></span>
+                    </div>
+                </div>
+                <div class="bank-status">
+                    <span class="bank-label">Weekly Bank</span>
+                    <span class="bank-value" id="bank-balance">0</span>
+                </div>
+                <div class="water-status">
+                    <span class="water-label">Water</span>
+                    <span class="water-value"><span id="water-consumed">0</span> / <span id="water-goal">2000</span> ml</span>
+                </div>
+            </div>
+
+            <div class="meals">
+                <section class="meal-section" data-meal="breakfast">
+                    <h2>Breakfast</h2>
+                    <div class="meal-entries"></div>
+                    <button class="add-food-btn">+ Add Food</button>
+                </section>
+                <section class="meal-section" data-meal="lunch">
+                    <h2>Lunch</h2>
+                    <div class="meal-entries"></div>
+                    <button class="add-food-btn">+ Add Food</button>
+                </section>
+                <section class="meal-section" data-meal="dinner">
+                    <h2>Dinner</h2>
+                    <div class="meal-entries"></div>
+                    <button class="add-food-btn">+ Add Food</button>
+                </section>
+                <section class="meal-section" data-meal="snacks">
+                    <h2>Snacks</h2>
+                    <div class="meal-entries"></div>
+                    <button class="add-food-btn">+ Add Food</button>
+                </section>
+            </div>
+
+            <div class="day-note">
+                <button class="note-btn" id="note-btn">Add Note</button>
+            </div>
+        </div>
+
+        <div id="view-history" class="view">
+            <h2>History</h2>
+            <p>Coming in Phase 3</p>
+        </div>
+
+        <div id="view-recipes" class="view">
+            <h2>Recipes</h2>
+            <p>Coming in Phase 5</p>
+        </div>
+
+        <div id="view-progress" class="view">
+            <h2>Progress</h2>
+            <p>Coming in Phase 7</p>
+        </div>
+
+        <div id="view-settings" class="view">
+            <h2>Settings</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label for="setting-name">Display Name</label>
+                    <input type="text" id="setting-name" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label for="setting-calorie-goal">Daily Calorie Goal</label>
+                    <input type="number" id="setting-calorie-goal" min="500" max="10000">
+                </div>
+                <div class="form-group">
+                    <label for="setting-water-goal">Daily Water Goal (ml)</label>
+                    <input type="number" id="setting-water-goal" min="500" max="5000">
+                </div>
+                <div class="form-group">
+                    <label for="setting-weight-unit">Weight Unit</label>
+                    <select id="setting-weight-unit">
+                        <option value="stones">Stones & Pounds</option>
+                        <option value="kg">Kilograms</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="save-settings">Save Settings</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal container -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 class="modal-title"></h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-content"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils/format.js"></script>
+    <script src="/static/js/utils/dates.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/components/modal.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/public/sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+</html>

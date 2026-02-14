@@ -1,0 +1,586 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #4a90d9;
+    --primary-dark: #357abd;
+    --success: #28a745;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --bg: #f5f7fa;
+    --bg-card: #ffffff;
+    --text: #333333;
+    --text-light: #666666;
+    --border: #e0e0e0;
+    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100%;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Allow text selection in inputs */
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Header */
+.app-header {
+    background: var(--primary);
+    color: white;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding-top: env(safe-area-inset-top, 0.75rem);
+}
+
+.app-header h1 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.main-nav {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.main-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    touch-action: manipulation;
+}
+
+.nav-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.nav-btn.active {
+    background: white;
+    color: var(--primary);
+}
+
+.user-info {
+    position: absolute;
+    top: 0.75rem;
+    top: calc(env(safe-area-inset-top, 0.75rem) + 0.25rem);
+    right: 1rem;
+    font-size: 0.8rem;
+}
+
+/* Main content */
+.app-main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0.75rem;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 1rem);
+}
+
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+}
+
+/* Today summary */
+.today-summary {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.calorie-ring {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+
+.calorie-ring svg {
+    transform: rotate(-90deg);
+}
+
+.ring-bg {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 8;
+}
+
+.ring-progress {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.ring-progress.over {
+    stroke: var(--danger);
+}
+
+.ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.ring-text .consumed {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.ring-text .goal {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+.bank-status, .water-status {
+    text-align: center;
+    min-width: 80px;
+}
+
+.bank-label, .water-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bank-value, .water-value {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.bank-value.positive {
+    color: var(--success);
+}
+
+.bank-value.negative {
+    color: var(--danger);
+}
+
+/* Meal sections */
+.meal-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+}
+
+.meal-section h2 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meal-section h2 .meal-total {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.meal-entries {
+    min-height: 10px;
+}
+
+.meal-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.meal-entry:last-child {
+    border-bottom: none;
+}
+
+.meal-entry-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.meal-entry-name {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.meal-entry-qty {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.meal-entry-cals {
+    font-weight: bold;
+    margin-left: 0.5rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.meal-entry-actions {
+    margin-left: 0.5rem;
+}
+
+.meal-entry-delete {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    opacity: 0.6;
+}
+
+.meal-entry-delete:hover {
+    opacity: 1;
+}
+
+.add-food-btn {
+    width: 100%;
+    padding: 0.6rem;
+    margin-top: 0.5rem;
+    background: transparent;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    touch-action: manipulation;
+}
+
+.add-food-btn:hover, .add-food-btn:active {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Day note */
+.day-note {
+    text-align: center;
+    margin-top: 0.75rem;
+}
+
+.note-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    touch-action: manipulation;
+}
+
+.note-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.note-btn.has-note {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Settings */
+.settings-form {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    touch-action: manipulation;
+}
+
+.btn-primary:hover, .btn-primary:active {
+    background: var(--primary-dark);
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--bg-card);
+    border-radius: 12px 12px 0 0;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+}
+
+.modal-title {
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 0.25rem;
+}
+
+.modal-content {
+    padding: 1rem;
+}
+
+/* Search input */
+.search-container {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem;
+    padding-right: 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.search-clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.search-results {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-result {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.search-result:hover, .search-result:active {
+    background: var(--bg);
+}
+
+.search-result-name {
+    font-weight: 500;
+}
+
+.search-result-info {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+.search-loading, .search-empty {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-light);
+}
+
+/* Quantity input modal */
+.quantity-form {
+    text-align: center;
+}
+
+.quantity-food-name {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.quantity-per100 {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+}
+
+.quantity-input-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.quantity-input-group input {
+    width: 100px;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.quantity-calc {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.quantity-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.quantity-preset {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.quantity-preset:hover, .quantity-preset:active {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Responsive */
+@media (min-width: 600px) {
+    .modal-overlay {
+        align-items: center;
+    }
+    
+    .modal {
+        border-radius: 12px;
+        max-height: 80vh;
+    }
+    
+    .calorie-ring {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .ring-text .consumed {
+        font-size: 1.5rem;
+    }
+}

@@ -1,0 +1,140 @@
+PROJECT:cals
+DOMAIN:cals.duncandoes.uk
+PORT:8150
+CONTAINER:cals-counter
+STACK:go1.22,sqlite,vanillajs,websocket
+AUTH:cloudflare-zero-trust-jwt
+DEPLOYMENT:docker-unraid
+
+PATHS:
+SOURCE:/mnt/user/data/pythonscripts/cals
+APPDATA:/mnt/user/appdata/cals
+DB:/mnt/user/appdata/cals/cals.db
+
+STRUCTURE:
+cmd/server/main.go:entrypoint
+internal/auth/cloudflare.go:jwt-validation
+internal/config/config.go:env-loader
+internal/database/database.go:sqlite-connection
+internal/database/migrations.go:schema-definitions
+internal/handlers/users.go:user-crud
+internal/models/models.go:all-structs
+internal/fatsecret/client.go:api-client[PENDING]
+internal/handlers/foods.go:food-search[PENDING]
+internal/handlers/diary.go:food-logging[PENDING]
+internal/handlers/recipes.go:recipe-crud[PENDING]
+internal/handlers/weight.go:weight-measurements[PENDING]
+internal/handlers/water.go:water-tracking[PENDING]
+internal/handlers/goals.go:calorie-weight-goals[PENDING]
+internal/handlers/notes.go:daily-notes[PENDING]
+internal/services/calorie.go:banking-calculations[PENDING]
+internal/services/stats.go:trends-projections[PENDING]
+web/static/js/app.go:main-spa-logic
+web/static/js/api.js:fetch-wrapper
+web/static/js/components/modal.js:modal-handler
+web/templates/index.html:spa-shell
+
+ENV_VARS:
+PORT,LOG_LEVEL,DB_PATH,FATSECRET_CLIENT_ID,FATSECRET_CLIENT_SECRET,CF_TEAM_DOMAIN,CF_POLICY_AUD
+
+DB_TABLES:
+users(id,email,name,daily_calorie_goal,daily_water_goal_ml,weight_unit,created_at,updated_at)
+foods(id,fatsecret_id,name,brand,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,fibre_per_100g,is_edited,created_at,updated_at)
+food_servings(id,food_id,fatsecret_serving_id,description,grams)
+recipes(id,name,created_by_user_id,total_weight_grams,weight_is_manual,total_calories,total_protein,total_carbs,total_fat,total_fibre,created_at,updated_at)
+recipe_ingredients(id,recipe_id,food_id,quantity_grams)
+diary_entries(id,user_id,date,meal,food_id,recipe_id,quantity_grams,calories,protein,carbs,fat,fibre,created_at,updated_at)
+water_entries(id,user_id,date,amount_ml,created_at)
+weight_entries(id,user_id,date,weight_kg,created_at)
+measurement_entries(id,user_id,date,bust_cm,chest_cm,waist_cm,hips_cm,upper_arm_cm,thigh_cm,neck_cm,created_at)
+weight_goals(id,user_id,month,target_loss_kg,start_weight_kg,created_at)
+daily_notes(id,user_id,date,note,created_at,updated_at)
+
+API_ENDPOINTS_ACTIVE:
+GET /health:unprotected
+GET /public/*:unprotected,pwa-assets
+GET /static/*:protected,static-files
+GET /api/users/me:current-user
+PUT /api/users/me:update-user
+GET /api/users:list-all-users
+
+API_ENDPOINTS_PENDING:
+GET /api/foods/search?q=:fuzzy-search-local-then-fatsecret
+GET /api/foods/{id}:food-details-with-servings
+PUT /api/foods/{id}:edit-nutritional-values
+POST /api/foods:manual-food-entry
+GET /api/recipes:list-recipes
+GET /api/recipes/{id}:recipe-with-ingredients
+POST /api/recipes:create-recipe
+PUT /api/recipes/{id}:update-recipe
+DELETE /api/recipes/{id}:delete-recipe
+GET /api/diary?date=:entries-for-date
+GET /api/diary/range?from=&to=:entries-for-range
+POST /api/diary:add-entry
+PUT /api/diary/{id}:edit-entry
+DELETE /api/diary/{id}:remove-entry
+GET /api/water?date=:water-entries
+POST /api/water:add-water
+DELETE /api/water/{id}:remove-water
+GET /api/weight:all-weight-entries
+POST /api/weight:add-weight
+DELETE /api/weight/{id}:remove-weight
+GET /api/measurements:all-measurements
+POST /api/measurements:add-measurement
+DELETE /api/measurements/{id}:remove-measurement
+GET /api/goals/calories:calorie-goal
+PUT /api/goals/calories:update-calorie-goal
+GET /api/goals/weight:weight-goals
+POST /api/goals/weight:set-monthly-target
+GET /api/goals/water:water-goal
+PUT /api/goals/water:update-water-goal
+GET /api/notes?date=:note-for-date
+PUT /api/notes:create-update-note
+DELETE /api/notes?date=:delete-note
+GET /api/stats/banking:7day-rolling-balance
+GET /api/stats/weight-trend:weight-with-trendline
+
+FEATURES_COMPLETE:
+- cloudflare-jwt-auth
+- user-auto-creation
+- settings-crud
+- sqlite-wal-mode
+- pwa-manifest
+- service-worker-no-js-cache
+- mobile-optimised-css
+- bottom-sheet-modals
+
+FEATURES_PENDING:
+- fatsecret-oauth2-integration
+- food-search-fuzzy-as-you-type
+- local-food-cache
+- edit-nutritional-values
+- diary-logging-by-grams
+- calorie-ring-visualisation
+- 7day-rolling-bank
+- recipe-builder-with-weight
+- recipe-portion-by-weight
+- water-tracking-ml
+- weight-logging-stones-lbs-kg
+- measurements-female-anatomy
+- weight-goal-monthly-target
+- weight-trend-graph
+- daily-notes-modal
+- multi-user-view-others
+- websocket-realtime-updates
+
+BUILD_PHASES:
+1:COMPLETE:foundation,docker,auth,db,users
+2:PENDING:fatsecret-integration,food-search,local-cache
+3:PENDING:diary-logging,daily-view
+4:PENDING:calorie-goals,7day-banking
+5:PENDING:recipe-builder
+6:PENDING:water-tracking
+7:PENDING:weight-measurements-graphs
+8:PENDING:monthly-weight-goals
+9:PENDING:daily-notes,multi-user-viewing
+10:PENDING:polish-testing
+
+VERSION:1.0.0
+LAST_UPDATE:2025-02-14
+PHASE:1-complete
