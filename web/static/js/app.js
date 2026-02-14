@@ -1,30 +1,25 @@
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.3.0';
 
 // Main application
 const App = {
     user: null,
     currentView: 'today',
-    todayEntries: [],
+    currentDate: null,
+    diaryData: null,
+    bankData: null,
 
     async init() {
         console.log(`Cals v${APP_VERSION} initializing...`);
         
-        // Show version in settings - with null check
-        const versionEl = document.getElementById('app-version');
-        if (versionEl) {
-            versionEl.textContent = APP_VERSION;
-            console.log('Version element updated');
-        } else {
-            console.error('Version element not found!');
-        }
+        document.getElementById('app-version').textContent = APP_VERSION;
         
         Modal.init();
         
-        // Check for updates
+        this.currentDate = Dates.today();
+        
         this.checkForUpdates();
         setInterval(() => this.checkForUpdates(), 5 * 60 * 1000);
         
-        // Load current user
         try {
             this.user = await API.getCurrentUser();
             this.updateUserDisplay();
@@ -49,13 +44,24 @@ const App = {
             });
         });
 
+        // Date navigation
+        document.getElementById('prev-date')?.addEventListener('click', () => {
+            this.changeDate(-1);
+        });
+        document.getElementById('next-date')?.addEventListener('click', () => {
+            this.changeDate(1);
+        });
+        document.getElementById('current-date')?.addEventListener('click', () => {
+            this.goToToday();
+        });
+
         // Settings form
         document.getElementById('save-settings').addEventListener('click', () => {
             this.saveSettings();
         });
 
         // Load initial data
-        this.loadTodayView();
+        await this.loadTodayView();
     },
 
     async checkForUpdates() {
@@ -133,18 +139,48 @@ const App = {
         nameEl.textContent = this.user.name || this.user.email;
     },
 
-    loadTodayView() {
-        document.getElementById('today-goal').textContent = this.user?.daily_calorie_goal || 2000;
-        document.getElementById('water-goal').textContent = this.user?.daily_water_goal_ml || 2000;
-        this.renderTodayEntries();
+    changeDate(days) {
+        const current = new Date(this.currentDate);
+        current.setDate(current.getDate() + days);
+        this.currentDate = Dates.format(current);
+        this.loadTodayView();
     },
 
-    renderTodayEntries() {
+    goToToday() {
+        this.currentDate = Dates.today();
+        this.loadTodayView();
+    },
+
+    async loadTodayView() {
+        // Update date display
+        const dateDisplay = document.getElementById('current-date');
+        if (dateDisplay) {
+            const isToday = this.currentDate === Dates.today();
+            dateDisplay.textContent = isToday ? 'Today' : Dates.formatDisplay(this.currentDate);
+        }
+
+        // Show/hide next button (can't go to future)
+        const nextBtn = document.getElementById('next-date');
+        if (nextBtn) {
+            nextBtn.style.visibility = this.currentDate >= Dates.today() ? 'hidden' : 'visible';
+        }
+        
+        // Load diary and bank from server
+        try {
+            this.diaryData = await API.getDiary(this.currentDate);
+            this.bankData = await API.getBank(this.currentDate);
+            this.renderDiary();
+            this.renderBank();
+        } catch (err) {
+            console.error('Failed to load diary:', err);
+        }
+    },
+
+    renderDiary() {
         const meals = ['breakfast', 'lunch', 'dinner', 'snacks'];
-        let totalCalories = 0;
 
         meals.forEach(meal => {
-            const entries = this.todayEntries.filter(e => e.meal === meal);
+            const entries = this.diaryData?.entries?.filter(e => e.meal === meal) || [];
             const container = document.getElementById(`${meal}-entries`);
             const totalEl = document.getElementById(`${meal}-total`);
             
@@ -155,10 +191,11 @@ const App = {
             } else {
                 container.innerHTML = entries.map(entry => {
                     mealCalories += entry.calories;
+                    const name = entry.food_name || entry.recipe_name || 'Unknown';
                     return `
                         <div class="meal-entry" data-entry-id="${entry.id}">
                             <div class="meal-entry-info">
-                                <div class="meal-entry-name">${entry.food?.name || entry.recipe?.name || 'Unknown'}</div>
+                                <div class="meal-entry-name">${name}</div>
                                 <div class="meal-entry-qty">${Math.round(entry.quantity_grams)}g</div>
                             </div>
                             <div class="meal-entry-cals">${Math.round(entry.calories)}</div>
@@ -170,57 +207,103 @@ const App = {
                 }).join('');
 
                 container.querySelectorAll('.meal-entry-delete').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        this.deleteEntry(parseInt(btn.dataset.entryId));
+                        await this.deleteEntry(parseInt(btn.dataset.entryId));
                     });
                 });
             }
 
             totalEl.textContent = mealCalories > 0 ? `${Math.round(mealCalories)} kcal` : '';
-            totalCalories += mealCalories;
         });
 
+        // Update ring - now based on today's available (goal + bank)
+        const totalCalories = this.diaryData?.totals?.calories || 0;
         this.updateCalorieRing(totalCalories);
     },
 
+    renderBank() {
+        const bankEl = document.getElementById('bank-balance');
+        const goalEl = document.getElementById('today-goal');
+        const waterGoalEl = document.getElementById('water-goal');
+        
+        // Update water goal
+        waterGoalEl.textContent = this.user?.daily_water_goal_ml || 2000;
+        
+        if (!this.bankData || !this.bankData.start_date) {
+            // No bank start date set
+            goalEl.textContent = this.bankData?.daily_goal || this.user?.daily_calorie_goal || 2000;
+            bankEl.textContent = 'Set start date';
+            bankEl.classList.remove('positive', 'negative');
+            return;
+        }
+        
+        const todayAvailable = this.bankData.today_available;
+        const bankBalance = this.bankData.bank_balance;
+        
+        // Update the goal display to show today's available
+        goalEl.textContent = todayAvailable;
+        
+        // Update bank display
+        if (bankBalance > 0) {
+            bankEl.textContent = `+${bankBalance} banked`;
+            bankEl.classList.remove('negative');
+            bankEl.classList.add('positive');
+        } else if (bankBalance < 0) {
+            bankEl.textContent = `${bankBalance} deficit`;
+            bankEl.classList.remove('positive');
+            bankEl.classList.add('negative');
+        } else {
+            bankEl.textContent = '0 banked';
+            bankEl.classList.remove('positive', 'negative');
+        }
+    },
+
     updateCalorieRing(consumed) {
-        const goal = this.user?.daily_calorie_goal || 2000;
-        const progress = Math.min(consumed / goal, 1.5);
+        // Use today's available (goal + bank) as the target
+        const available = this.bankData?.today_available || this.user?.daily_calorie_goal || 2000;
+        const progress = Math.min(consumed / available, 1.5);
         const circumference = 2 * Math.PI * 45;
         const offset = circumference * (1 - Math.min(progress, 1));
 
         const ring = document.getElementById('calorie-progress');
         ring.style.strokeDashoffset = offset;
-        ring.classList.toggle('over', consumed > goal);
+        ring.classList.toggle('over', consumed > available);
 
         document.getElementById('today-consumed').textContent = Math.round(consumed);
     },
 
     async addFoodEntry(food, grams, meal) {
-        const calories = (food.calories_per_100g * grams / 100);
         const entry = {
-            id: Date.now(),
+            date: this.currentDate,
             meal: meal,
             food_id: food.id,
-            food: food,
             quantity_grams: grams,
-            calories: calories,
+            calories: (food.calories_per_100g * grams / 100),
             protein: (food.protein_per_100g * grams / 100),
             carbs: (food.carbs_per_100g * grams / 100),
             fat: (food.fat_per_100g * grams / 100),
             fibre: (food.fibre_per_100g * grams / 100)
         };
 
-        this.todayEntries.push(entry);
-        this.renderTodayEntries();
-
-        console.log(`Added ${grams}g of ${food.name} to ${meal}: ${Math.round(calories)} kcal`);
+        try {
+            await API.createDiaryEntry(entry);
+            await this.loadTodayView();
+            console.log(`Added ${grams}g of ${food.name} to ${meal}`);
+        } catch (err) {
+            alert('Failed to save entry: ' + err.message);
+        }
     },
 
-    deleteEntry(entryId) {
-        this.todayEntries = this.todayEntries.filter(e => e.id !== entryId);
-        this.renderTodayEntries();
+    async deleteEntry(entryId) {
+        if (!confirm('Delete this entry?')) return;
+        
+        try {
+            await API.deleteDiaryEntry(entryId);
+            await this.loadTodayView();
+        } catch (err) {
+            alert('Failed to delete: ' + err.message);
+        }
     },
 
     loadSettings() {
@@ -230,12 +313,7 @@ const App = {
         document.getElementById('setting-calorie-goal').value = this.user.daily_calorie_goal;
         document.getElementById('setting-water-goal').value = this.user.daily_water_goal_ml;
         document.getElementById('setting-weight-unit').value = this.user.weight_unit;
-        
-        // Update version display when loading settings view
-        const versionEl = document.getElementById('app-version');
-        if (versionEl) {
-            versionEl.textContent = APP_VERSION;
-        }
+        document.getElementById('setting-bank-start').value = this.user.bank_start_date || '';
     },
 
     async saveSettings() {
@@ -243,7 +321,8 @@ const App = {
             name: document.getElementById('setting-name').value,
             daily_calorie_goal: parseInt(document.getElementById('setting-calorie-goal').value),
             daily_water_goal_ml: parseInt(document.getElementById('setting-water-goal').value),
-            weight_unit: document.getElementById('setting-weight-unit').value
+            weight_unit: document.getElementById('setting-weight-unit').value,
+            bank_start_date: document.getElementById('setting-bank-start').value
         };
 
         try {

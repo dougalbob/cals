@@ -13,22 +13,19 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.2.1"
+const AppVersion = "1.3.0"
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize database
 	if err := database.Initialize(cfg.DBPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer database.Close()
 
-	// Initialize FatSecret client
 	if cfg.FatSecretClientID != "" && cfg.FatSecretClientSecret != "" {
 		handlers.FatSecretClient = fatsecret.NewClient(cfg.FatSecretClientID, cfg.FatSecretClientSecret)
 		log.Println("FatSecret client initialized")
@@ -36,10 +33,8 @@ func main() {
 		log.Println("Warning: FatSecret credentials not configured")
 	}
 
-	// Initialize Cloudflare auth
 	cfAuth := auth.NewCloudflareAuth(cfg.CFTeamDomain, cfg.CFPolicyAUD)
 
-	// Create router
 	mux := http.NewServeMux()
 
 	// Health check (unprotected)
@@ -55,16 +50,15 @@ func main() {
 		w.Write([]byte(`{"version":"` + AppVersion + `"}`))
 	})
 
-	// Debug endpoint (temporary - remove after FatSecret testing)
+	// Debug endpoint (temporary)
 	mux.HandleFunc("GET /api/debug/fatsecret", handlers.HandleTestFatSecret)
 
-	// Public files - unprotected (for PWA install)
+	// Public files (unprotected - PWA assets)
 	publicFS := http.FileServer(http.Dir("web/public"))
 	mux.Handle("GET /public/", http.StripPrefix("/public/", publicFS))
 
 	// Static files with no-cache for JS
 	mux.HandleFunc("GET /static/", func(w http.ResponseWriter, r *http.Request) {
-		// No-cache headers for JS files
 		if strings.HasSuffix(r.URL.Path, ".js") {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Pragma", "no-cache")
@@ -85,6 +79,16 @@ func main() {
 	mux.Handle("PUT /api/foods/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateFood)))
 	mux.Handle("POST /api/foods", cfAuth.Middleware(http.HandlerFunc(handlers.HandleCreateFood)))
 
+	// Diary
+	mux.Handle("GET /api/diary", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDiary)))
+	mux.Handle("GET /api/diary/range", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDiaryRange)))
+	mux.Handle("POST /api/diary", cfAuth.Middleware(http.HandlerFunc(handlers.HandleCreateDiaryEntry)))
+	mux.Handle("PUT /api/diary/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateDiaryEntry)))
+	mux.Handle("DELETE /api/diary/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteDiaryEntry)))
+
+	// Bank
+	mux.Handle("GET /api/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBank)))
+
 	// Index page - catch all for SPA
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
@@ -94,7 +98,6 @@ func main() {
 		http.ServeFile(w, r, "web/templates/index.html")
 	})
 
-	// Start server
 	log.Printf("Starting Cals v%s on port %s", AppVersion, cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
 		log.Fatalf("Server failed: %v", err)

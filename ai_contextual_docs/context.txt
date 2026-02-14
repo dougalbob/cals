@@ -204,3 +204,51 @@ NOTES:
 - foods-cached-in-db-on-selection
 - diary-entries-memory-only-until-phase3
 - rebuild-required-for-code-changes(no-volume-mount)
+
+---
+UPDATE:2025-02-14
+VERSION:1.3.0
+PHASE:3-complete
+
+CHANGES:
++internal/handlers/diary.go:diary-crud,date-queries
++internal/handlers/bank.go:cumulative-bank-calculation
+~internal/handlers/users.go:added-bank_start_date
+~internal/models/models.go:added-bank_start_date-to-user
+~internal/database/migrations.go:added-bank_start_date-column
+~cmd/server/main.go:added-diary-and-bank-routes
+~web/static/js/api.js:added-diary-and-bank-methods
+~web/static/js/app.js:diary-persistence,bank-display,date-navigation
+~web/templates/index.html:date-nav,bank-start-setting
+
+API_ENDPOINTS_ACTIVE:
+GET /api/diary?date=:entries-for-date
+GET /api/diary/range?from=&to=:entries-for-range
+POST /api/diary:add-entry
+PUT /api/diary/{id}:edit-entry
+DELETE /api/diary/{id}:remove-entry
+GET /api/bank?date=:cumulative-bank-as-of-date
+
+DB_CHANGES:
+users.bank_start_date:DATE:user-configurable-bank-start
+
+FEATURES_COMPLETE:
++diary-entries-persisted-to-db
++date-navigation-prev-next
++delete-diary-entries
++cumulative-calorie-bank
++bank-start-date-configurable
++today-available-display(goal+bank)
++ring-based-on-available-not-goal
+
+BANK_LOGIC:
+- bank_balance = (days_since_start × daily_goal) - total_consumed
+- today_available = daily_goal + bank_balance
+- ring fills based on today_available
+- positive bank = green "+X banked"
+- negative bank = red "X deficit"
+
+NOTES:
+- date-navigation-arrows-fixed-width
+- bank-shows-0-on-start-date
+- viewing-past-dates-shows-bank-as-of-that-date

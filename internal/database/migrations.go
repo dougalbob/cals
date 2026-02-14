@@ -13,6 +13,7 @@ func RunMigrations() error {
 			daily_calorie_goal INTEGER NOT NULL DEFAULT 2000,
 			daily_water_goal_ml INTEGER NOT NULL DEFAULT 2000,
 			weight_unit TEXT NOT NULL DEFAULT 'stones',
+			bank_start_date DATE,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -152,15 +153,34 @@ func RunMigrations() error {
 			FOREIGN KEY (user_id) REFERENCES users(id),
 			UNIQUE(user_id, date)
 		)`,
+
+		// Migration: Add bank_start_date to existing users table if missing
+		`ALTER TABLE users ADD COLUMN bank_start_date DATE`,
 	}
 
 	for _, migration := range migrations {
-		if _, err := DB.Exec(migration); err != nil {
-			log.Printf("Migration failed: %s\nError: %v", migration, err)
-			return err
+		_, err := DB.Exec(migration)
+		if err != nil {
+			// Ignore "duplicate column" errors from ALTER TABLE
+			if !contains(err.Error(), "duplicate column") {
+				log.Printf("Migration note: %v", err)
+			}
 		}
 	}
 
 	log.Println("Database migrations completed successfully")
 	return nil
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsImpl(s, substr))
+}
+
+func containsImpl(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

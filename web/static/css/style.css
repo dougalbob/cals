@@ -700,3 +700,77 @@ input, textarea {
     position: static;
     font-size: 0.85rem;
 }
+
+/* Date navigation */
+.date-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: var(--bg-card);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.date-nav-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.date-nav-btn:hover {
+    background: var(--primary-dark);
+}
+
+.date-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.date-display {
+    font-size: 1.1rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* Fix date navigation buttons */
+.date-nav-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    line-height: 1;
+}
+
+/* Form hint text */
+.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+/* Bank balance styling */
+.bank-value {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.bank-value.positive {
+    color: var(--success);
+}
+
+.bank-value.negative {
+    color: var(--danger);
+}

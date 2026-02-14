@@ -55,5 +55,32 @@ const API = {
 
     createFood(data) {
         return this.request('POST', '/api/foods', data);
+    },
+
+    // Diary
+    getDiary(date) {
+        const param = date ? `?date=${date}` : '';
+        return this.request('GET', `/api/diary${param}`);
+    },
+
+    getDiaryRange(fromDate, toDate) {
+        return this.request('GET', `/api/diary/range?from=${fromDate}&to=${toDate}`);
+    },
+
+    createDiaryEntry(data) {
+        return this.request('POST', '/api/diary', data);
+    },
+
+    updateDiaryEntry(id, data) {
+        return this.request('PUT', `/api/diary/${id}`, data);
+    },
+
+    deleteDiaryEntry(id) {
+        return this.request('DELETE', `/api/diary/${id}`);
+    },
+
+    // Bank
+    getBank(date) {
+        return this.request('GET', `/api/bank?date=${date}`);
     }
 };

@@ -33,6 +33,12 @@
 
     <main class="app-main">
         <div id="view-today" class="view active">
+            <div class="date-nav">
+                <button class="date-nav-btn" id="prev-date">‹</button>
+                <span class="date-display" id="current-date">Today</span>
+                <button class="date-nav-btn" id="next-date">›</button>
+            </div>
+
             <div class="today-summary">
                 <div class="calorie-ring">
                     <svg viewBox="0 0 100 100">
@@ -45,7 +51,7 @@
                     </div>
                 </div>
                 <div class="bank-status">
-                    <span class="bank-label">Weekly Bank</span>
+                    <span class="bank-label">Calorie Bank</span>
                     <span class="bank-value" id="bank-balance">0</span>
                 </div>
                 <div class="water-status">
@@ -84,7 +90,7 @@
 
         <div id="view-history" class="view">
             <h2>History</h2>
-            <p>Coming in Phase 3</p>
+            <p>Coming soon</p>
         </div>
 
         <div id="view-recipes" class="view">
@@ -119,6 +125,11 @@
                         <option value="kg">Kilograms</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="setting-bank-start">Calorie Bank Start Date</label>
+                    <input type="date" id="setting-bank-start">
+                    <small class="form-hint">Bank calculates savings/overspend from this date</small>
+                </div>
                 <button class="btn-primary" id="save-settings">Save Settings</button>
             </div>
             <div class="version-info" id="version-info">
@@ -145,12 +156,10 @@
     <script src="/static/js/components/search.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
-        // Immediately set version from app.js constant
         if (typeof APP_VERSION !== 'undefined') {
             document.getElementById('app-version').textContent = APP_VERSION;
         }
         
-        // Register service worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/public/sw.js')
                 .then(reg => console.log('SW registered'))

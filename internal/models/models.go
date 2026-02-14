@@ -12,7 +12,8 @@ type User struct {
 	Name             string    `json:"name"`
 	DailyCalorieGoal int       `json:"daily_calorie_goal"`
 	DailyWaterGoalML int       `json:"daily_water_goal_ml"`
-	WeightUnit       string    `json:"weight_unit"` // "stones" or "kg"
+	WeightUnit       string    `json:"weight_unit"`
+	BankStartDate    string    `json:"bank_start_date"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -73,8 +74,8 @@ type RecipeIngredient struct {
 type DiaryEntry struct {
 	ID            int64          `json:"id"`
 	UserID        int64          `json:"user_id"`
-	Date          string         `json:"date"` // YYYY-MM-DD
-	Meal          string         `json:"meal"` // breakfast, lunch, dinner, snacks
+	Date          string         `json:"date"`
+	Meal          string         `json:"meal"`
 	FoodID        sql.NullInt64  `json:"food_id,omitempty"`
 	RecipeID      sql.NullInt64  `json:"recipe_id,omitempty"`
 	QuantityGrams float64        `json:"quantity_grams"`
@@ -126,7 +127,7 @@ type MeasurementEntry struct {
 type WeightGoal struct {
 	ID            int64     `json:"id"`
 	UserID        int64     `json:"user_id"`
-	Month         string    `json:"month"` // YYYY-MM
+	Month         string    `json:"month"`
 	TargetLossKG  float64   `json:"target_loss_kg"`
 	StartWeightKG float64   `json:"start_weight_kg"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -142,19 +143,9 @@ type DailyNote struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// CalorieBankStatus represents the 7-day rolling calorie status
+// CalorieBankStatus represents the cumulative calorie bank status
 type CalorieBankStatus struct {
-	DailyGoal     int     `json:"daily_goal"`
-	TodayConsumed float64 `json:"today_consumed"`
-	TodayRemaining float64 `json:"today_remaining"`
-	BankBalance   float64 `json:"bank_balance"` // Positive = saved, Negative = overspent
-	Days          []DayStatus `json:"days"`
-}
-
-// DayStatus represents calorie status for a single day
-type DayStatus struct {
-	Date     string  `json:"date"`
-	Goal     int     `json:"goal"`
-	Consumed float64 `json:"consumed"`
-	Delta    float64 `json:"delta"` // Positive = under, Negative = over
+	BankBalance float64 `json:"bank_balance"`
+	StartDate   string  `json:"start_date"`
+	AsOfDate    string  `json:"as_of_date"`
 }
