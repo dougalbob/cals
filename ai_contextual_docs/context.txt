@@ -252,3 +252,43 @@ NOTES:
 - date-navigation-arrows-fixed-width
 - bank-shows-0-on-start-date
 - viewing-past-dates-shows-bank-as-of-that-date
+
+---
+UPDATE:2025-02-14
+VERSION:1.4.0
+PHASE:3-enhanced
+
+CHANGES:
++custom-serving-sizes:serving_name,serving_grams-fields
++serving-quantity-buttons:[½][1][1½][2][3]
++serving-multiplier-input:custom-servings-field
++grams-fallback:when-no-serving-defined
+~internal/database/migrations.go:added-serving_name,serving_grams
+~internal/models/models.go:added-serving-fields-to-food
+~internal/handlers/foods.go:serving-fields-in-crud
+~web/static/js/components/search.js:new-quantity-ui
+~web/static/css/style.css:quantity-form-styling
+
+DB_CHANGES:
+foods.serving_name:TEXT:optional-serving-name
+foods.serving_grams:REAL:optional-serving-weight
+
+QUANTITY_UI_FLOW:
+1. food-with-custom-serving:show-fraction-buttons[½,1,1½,2,3]+servings-input
+2. food-with-api-servings:show-api-serving-buttons
+3. food-without-serving:show-gram-presets[50,100,150,200]+grams-input
+4. all-foods:grams-input-always-available
+
+FEATURES_COMPLETE:
++custom-food-serving-sizes
++serving-quantity-buttons
++fractional-servings(0.5,1.5)
++custom-servings-input
++edit-food-serving-details
++quantity-calculation-display
+
+NOTES:
+- serving-fields-only-for-custom-foods
+- fatsecret-foods-use-food_servings-table
+- grams-always-available-as-fallback
+- ui-shows-"Xg = Y kcal"-calculation

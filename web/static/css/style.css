@@ -774,3 +774,125 @@ input, textarea {
 .bank-value.negative {
     color: var(--danger);
 }
+
+/* Quantity form sections */
+.quantity-section {
+    margin-bottom: 1rem;
+}
+
+.quantity-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.quantity-divider {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.quantity-divider::before,
+.quantity-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    height: 1px;
+    background: var(--border);
+}
+
+.quantity-divider::before {
+    left: 0;
+}
+
+.quantity-divider::after {
+    right: 0;
+}
+
+.quantity-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.quantity-input-row input {
+    flex: 1;
+    max-width: 120px;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.quantity-input-row span {
+    color: var(--text-light);
+}
+
+.quantity-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.quantity-preset {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.quantity-preset:hover,
+.quantity-preset:active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(74, 144, 217, 0.05);
+}
+
+.serving-presets .quantity-preset {
+    min-width: 44px;
+}
+
+.api-servings .serving-btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+}
+
+.quantity-calc {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 1rem;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.quantity-edit-link {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+/* Form section titles */
+.form-section-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--primary);
+    margin: 1.5rem 0 0.75rem 0;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Search result serving info */
+.search-result-serving {
+    color: var(--primary);
+    font-size: 0.85em;
+}

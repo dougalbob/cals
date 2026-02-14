@@ -2,6 +2,7 @@ package database
 
 import (
 	"log"
+	"strings"
 )
 
 func RunMigrations() error {
@@ -28,6 +29,8 @@ func RunMigrations() error {
 			carbs_per_100g REAL NOT NULL DEFAULT 0,
 			fat_per_100g REAL NOT NULL DEFAULT 0,
 			fibre_per_100g REAL NOT NULL DEFAULT 0,
+			serving_name TEXT,
+			serving_grams REAL,
 			is_edited BOOLEAN NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -154,15 +157,17 @@ func RunMigrations() error {
 			UNIQUE(user_id, date)
 		)`,
 
-		// Migration: Add bank_start_date to existing users table if missing
+		// Migrations for existing tables
 		`ALTER TABLE users ADD COLUMN bank_start_date DATE`,
+		`ALTER TABLE foods ADD COLUMN serving_name TEXT`,
+		`ALTER TABLE foods ADD COLUMN serving_grams REAL`,
 	}
 
 	for _, migration := range migrations {
 		_, err := DB.Exec(migration)
 		if err != nil {
 			// Ignore "duplicate column" errors from ALTER TABLE
-			if !contains(err.Error(), "duplicate column") {
+			if !strings.Contains(err.Error(), "duplicate column") {
 				log.Printf("Migration note: %v", err)
 			}
 		}
@@ -170,17 +175,4 @@ func RunMigrations() error {
 
 	log.Println("Database migrations completed successfully")
 	return nil
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsImpl(s, substr))
-}
-
-func containsImpl(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

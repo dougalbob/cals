@@ -26,7 +26,6 @@ const FoodSearch = {
 
         Modal.open(`Add to ${this.capitalise(meal)}`, content);
 
-        // Set up event listeners
         const input = document.getElementById('food-search-input');
         const clearBtn = document.getElementById('search-clear');
         const resultsDiv = document.getElementById('search-results');
@@ -46,7 +45,6 @@ const FoodSearch = {
             this.showCreateFood();
         });
 
-        // Focus input after modal animation
         setTimeout(() => input.focus(), 100);
     },
 
@@ -85,13 +83,13 @@ const FoodSearch = {
                     ${food.is_edited ? '<span class="search-result-edited">✎</span>' : ''}
                 </div>
                 <div class="search-result-info">
-                    ${Math.round(food.calories_per_100g)} kcal per 100g
+                    ${Math.round(food.calories_per_100g)} kcal/100g
+                    ${food.serving_name ? `<span class="search-result-serving">• ${food.serving_name}</span>` : ''}
                     ${food.is_local ? '<span class="local-badge">Local</span>' : ''}
                 </div>
             </div>
         `).join('');
 
-        // Add click handlers
         container.querySelectorAll('.search-result').forEach(el => {
             el.addEventListener('click', () => {
                 const foodId = el.dataset.foodId;
@@ -103,7 +101,6 @@ const FoodSearch = {
 
     async selectFood(foodId, fatSecretId) {
         try {
-            // If it's a FatSecret result without local ID, fetch and cache it
             const id = foodId || `fs_${fatSecretId}`;
             const food = await API.getFood(id);
             this.showQuantityInput(food);
@@ -113,81 +110,173 @@ const FoodSearch = {
     },
 
     showQuantityInput(food) {
+        const hasServing = food.serving_name?.Valid && food.serving_grams?.Valid;
+        const servingName = hasServing ? food.serving_name.String : null;
+        const servingGrams = hasServing ? food.serving_grams.Float64 : null;
+
+        // Also check for FatSecret servings
+        const hasApiServings = food.servings && food.servings.length > 0;
+
         const content = document.createElement('div');
         content.className = 'quantity-form';
-        content.innerHTML = `
+
+        let html = `
             <div class="quantity-food-name">${food.name}</div>
             <div class="quantity-per100">${Math.round(food.calories_per_100g)} kcal per 100g</div>
-            
-            <div class="quantity-input-group">
-                <input type="number" id="quantity-grams" value="100" min="1" max="2000" step="1">
-                <span>grams</span>
-            </div>
-            
-            <div class="quantity-calc">
-                <span id="calc-calories">${Math.round(food.calories_per_100g)}</span> kcal
-            </div>
-            
-            ${food.servings && food.servings.length > 0 ? `
-                <div class="quantity-presets">
-                    ${food.servings.map(s => `
-                        <button class="quantity-preset" data-grams="${s.grams}">
-                            ${s.description}
-                        </button>
-                    `).join('')}
+        `;
+
+        if (hasServing) {
+            // Custom serving defined
+            html += `
+                <div class="quantity-section">
+                    <div class="quantity-label">Servings (${servingName} = ${servingGrams}g):</div>
+                    <div class="quantity-presets serving-presets">
+                        <button class="quantity-preset" data-servings="0.5">½</button>
+                        <button class="quantity-preset" data-servings="1">1</button>
+                        <button class="quantity-preset" data-servings="1.5">1½</button>
+                        <button class="quantity-preset" data-servings="2">2</button>
+                        <button class="quantity-preset" data-servings="3">3</button>
+                    </div>
+                    <div class="quantity-input-row">
+                        <input type="number" id="quantity-servings" placeholder="Custom" step="0.5" min="0">
+                        <span>servings</span>
+                    </div>
                 </div>
-            ` : ''}
+                <div class="quantity-divider">or</div>
+            `;
+        } else if (hasApiServings) {
+            // FatSecret servings
+            html += `
+                <div class="quantity-section">
+                    <div class="quantity-label">Select serving:</div>
+                    <div class="quantity-presets api-servings">
+                        ${food.servings.map(s => `
+                            <button class="quantity-preset serving-btn" data-grams="${s.grams}">
+                                ${s.description}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="quantity-divider">or</div>
+            `;
+        }
+
+        html += `
+            <div class="quantity-section">
+                <div class="quantity-label">Enter grams:</div>
+                <div class="quantity-input-row">
+                    <input type="number" id="quantity-grams" placeholder="Weight" min="1" step="1">
+                    <span>g</span>
+                </div>
+                <div class="quantity-presets gram-presets">
+                    <button class="quantity-preset" data-grams="50">50g</button>
+                    <button class="quantity-preset" data-grams="100">100g</button>
+                    <button class="quantity-preset" data-grams="150">150g</button>
+                    <button class="quantity-preset" data-grams="200">200g</button>
+                </div>
+            </div>
+
+            <div class="quantity-calc">
+                <span id="calc-grams">0</span>g = <span id="calc-calories">0</span> kcal
+            </div>
+
+            <button class="btn-primary" id="add-food-confirm">Add to ${this.capitalise(this.currentMeal)}</button>
             
-            <button class="btn-primary" id="add-food-confirm" style="width: 100%;">Add to ${this.capitalise(this.currentMeal)}</button>
-            
-            <div style="margin-top: 1rem; text-align: center;">
+            <div class="quantity-edit-link">
                 <button class="btn-link" id="edit-food-btn">Edit nutritional values</button>
             </div>
         `;
 
+        content.innerHTML = html;
         Modal.open('Select Quantity', content);
 
+        // Elements
+        const servingsInput = document.getElementById('quantity-servings');
         const gramsInput = document.getElementById('quantity-grams');
-        const calcDisplay = document.getElementById('calc-calories');
+        const calcGrams = document.getElementById('calc-grams');
+        const calcCalories = document.getElementById('calc-calories');
         const confirmBtn = document.getElementById('add-food-confirm');
         const editBtn = document.getElementById('edit-food-btn');
 
-        const updateCalc = () => {
-            const grams = parseFloat(gramsInput.value) || 0;
+        let currentGrams = 0;
+
+        const updateCalc = (grams) => {
+            currentGrams = grams;
             const calories = (food.calories_per_100g * grams / 100);
-            calcDisplay.textContent = Math.round(calories);
+            calcGrams.textContent = Math.round(grams);
+            calcCalories.textContent = Math.round(calories);
         };
 
-        gramsInput.addEventListener('input', updateCalc);
-
-        // Preset buttons
-        content.querySelectorAll('.quantity-preset').forEach(btn => {
+        // Serving preset buttons
+        content.querySelectorAll('.serving-presets .quantity-preset').forEach(btn => {
             btn.addEventListener('click', () => {
-                gramsInput.value = btn.dataset.grams;
-                updateCalc();
+                const servings = parseFloat(btn.dataset.servings);
+                const grams = servings * servingGrams;
+                if (servingsInput) servingsInput.value = servings;
+                if (gramsInput) gramsInput.value = '';
+                updateCalc(grams);
             });
         });
 
-        confirmBtn.addEventListener('click', () => {
+        // Servings input
+        if (servingsInput) {
+            servingsInput.addEventListener('input', () => {
+                const servings = parseFloat(servingsInput.value) || 0;
+                const grams = servings * servingGrams;
+                if (gramsInput) gramsInput.value = '';
+                updateCalc(grams);
+            });
+        }
+
+        // API serving buttons
+        content.querySelectorAll('.api-servings .serving-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const grams = parseFloat(btn.dataset.grams);
+                if (gramsInput) gramsInput.value = grams;
+                updateCalc(grams);
+            });
+        });
+
+        // Gram preset buttons
+        content.querySelectorAll('.gram-presets .quantity-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const grams = parseFloat(btn.dataset.grams);
+                gramsInput.value = grams;
+                if (servingsInput) servingsInput.value = '';
+                updateCalc(grams);
+            });
+        });
+
+        // Grams input
+        gramsInput.addEventListener('input', () => {
             const grams = parseFloat(gramsInput.value) || 0;
-            if (grams <= 0) {
-                alert('Please enter a valid quantity');
+            if (servingsInput) servingsInput.value = '';
+            updateCalc(grams);
+        });
+
+        // Confirm button
+        confirmBtn.addEventListener('click', () => {
+            if (currentGrams <= 0) {
+                alert('Please select a quantity');
                 return;
             }
             if (this.onFoodSelected) {
-                this.onFoodSelected(food, grams, this.currentMeal);
+                this.onFoodSelected(food, currentGrams, this.currentMeal);
             }
             Modal.close();
         });
 
+        // Edit button
         editBtn.addEventListener('click', () => {
             this.showEditFood(food);
         });
-
-        setTimeout(() => gramsInput.select(), 100);
     },
 
     showEditFood(food) {
+        const servingName = food.serving_name?.Valid ? food.serving_name.String : '';
+        const servingGrams = food.serving_grams?.Valid ? food.serving_grams.Float64 : '';
+        const brand = food.brand?.Valid ? food.brand.String : (food.brand || '');
+
         const content = document.createElement('div');
         content.className = 'edit-food-form';
         content.innerHTML = `
@@ -197,29 +286,39 @@ const FoodSearch = {
             </div>
             <div class="form-group">
                 <label>Brand (optional)</label>
-                <input type="text" id="edit-brand" value="${food.brand?.String || food.brand || ''}">
+                <input type="text" id="edit-brand" value="${brand}">
             </div>
+            <div class="form-section-title">Nutritional Values per 100g</div>
             <div class="form-group">
-                <label>Calories per 100g</label>
+                <label>Calories</label>
                 <input type="number" id="edit-calories" value="${food.calories_per_100g}" step="0.1">
             </div>
             <div class="form-group">
-                <label>Protein per 100g</label>
+                <label>Protein (g)</label>
                 <input type="number" id="edit-protein" value="${food.protein_per_100g}" step="0.1">
             </div>
             <div class="form-group">
-                <label>Carbs per 100g</label>
+                <label>Carbs (g)</label>
                 <input type="number" id="edit-carbs" value="${food.carbs_per_100g}" step="0.1">
             </div>
             <div class="form-group">
-                <label>Fat per 100g</label>
+                <label>Fat (g)</label>
                 <input type="number" id="edit-fat" value="${food.fat_per_100g}" step="0.1">
             </div>
             <div class="form-group">
-                <label>Fibre per 100g</label>
+                <label>Fibre (g)</label>
                 <input type="number" id="edit-fibre" value="${food.fibre_per_100g}" step="0.1">
             </div>
-            <button class="btn-primary" id="save-food-btn" style="width: 100%;">Save Changes</button>
+            <div class="form-section-title">Default Serving (optional)</div>
+            <div class="form-group">
+                <label>Serving name (e.g., "1 piece", "1 tin")</label>
+                <input type="text" id="edit-serving-name" value="${servingName}" placeholder="e.g., 1 piece">
+            </div>
+            <div class="form-group">
+                <label>Serving weight (g)</label>
+                <input type="number" id="edit-serving-grams" value="${servingGrams}" step="1" placeholder="e.g., 133">
+            </div>
+            <button class="btn-primary" id="save-food-btn">Save Changes</button>
         `;
 
         Modal.open('Edit Food', content);
@@ -232,7 +331,9 @@ const FoodSearch = {
                 protein_per_100g: parseFloat(document.getElementById('edit-protein').value),
                 carbs_per_100g: parseFloat(document.getElementById('edit-carbs').value),
                 fat_per_100g: parseFloat(document.getElementById('edit-fat').value),
-                fibre_per_100g: parseFloat(document.getElementById('edit-fibre').value)
+                fibre_per_100g: parseFloat(document.getElementById('edit-fibre').value),
+                serving_name: document.getElementById('edit-serving-name').value || null,
+                serving_grams: parseFloat(document.getElementById('edit-serving-grams').value) || null
             };
 
             try {
@@ -250,33 +351,43 @@ const FoodSearch = {
         content.innerHTML = `
             <div class="form-group">
                 <label>Name *</label>
-                <input type="text" id="create-name" placeholder="e.g., Aldi Cowbelle Semi-skimmed Milk">
+                <input type="text" id="create-name" placeholder="e.g., Aldi Breaded Cod">
             </div>
             <div class="form-group">
                 <label>Brand (optional)</label>
                 <input type="text" id="create-brand" placeholder="e.g., Aldi">
             </div>
+            <div class="form-section-title">Nutritional Values per 100g</div>
             <div class="form-group">
-                <label>Calories per 100g *</label>
+                <label>Calories *</label>
                 <input type="number" id="create-calories" step="0.1">
             </div>
             <div class="form-group">
-                <label>Protein per 100g</label>
+                <label>Protein (g)</label>
                 <input type="number" id="create-protein" value="0" step="0.1">
             </div>
             <div class="form-group">
-                <label>Carbs per 100g</label>
+                <label>Carbs (g)</label>
                 <input type="number" id="create-carbs" value="0" step="0.1">
             </div>
             <div class="form-group">
-                <label>Fat per 100g</label>
+                <label>Fat (g)</label>
                 <input type="number" id="create-fat" value="0" step="0.1">
             </div>
             <div class="form-group">
-                <label>Fibre per 100g</label>
+                <label>Fibre (g)</label>
                 <input type="number" id="create-fibre" value="0" step="0.1">
             </div>
-            <button class="btn-primary" id="create-food-confirm" style="width: 100%;">Create Food</button>
+            <div class="form-section-title">Default Serving (optional)</div>
+            <div class="form-group">
+                <label>Serving name (e.g., "1 piece", "1 tin")</label>
+                <input type="text" id="create-serving-name" placeholder="e.g., 1 piece">
+            </div>
+            <div class="form-group">
+                <label>Serving weight (g)</label>
+                <input type="number" id="create-serving-grams" step="1" placeholder="e.g., 133">
+            </div>
+            <button class="btn-primary" id="create-food-confirm">Create Food</button>
         `;
 
         Modal.open('Create Custom Food', content);
@@ -301,7 +412,9 @@ const FoodSearch = {
                 protein_per_100g: parseFloat(document.getElementById('create-protein').value) || 0,
                 carbs_per_100g: parseFloat(document.getElementById('create-carbs').value) || 0,
                 fat_per_100g: parseFloat(document.getElementById('create-fat').value) || 0,
-                fibre_per_100g: parseFloat(document.getElementById('create-fibre').value) || 0
+                fibre_per_100g: parseFloat(document.getElementById('create-fibre').value) || 0,
+                serving_name: document.getElementById('create-serving-name').value.trim() || null,
+                serving_grams: parseFloat(document.getElementById('create-serving-grams').value) || null
             };
 
             try {

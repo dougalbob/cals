@@ -29,6 +29,8 @@ type Food struct {
 	CarbsPer100g    float64        `json:"carbs_per_100g"`
 	FatPer100g      float64        `json:"fat_per_100g"`
 	FibrePer100g    float64        `json:"fibre_per_100g"`
+	ServingName     sql.NullString `json:"serving_name,omitempty"`
+	ServingGrams    sql.NullFloat64 `json:"serving_grams,omitempty"`
 	IsEdited        bool           `json:"is_edited"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
