@@ -138,3 +138,36 @@ BUILD_PHASES:
 VERSION:1.0.0
 LAST_UPDATE:2025-02-14
 PHASE:1-complete
+
+---
+UPDATE:2025-02-14
+PHASE:2-complete
+
+CHANGES:
++internal/fatsecret/client.go:oauth2-token-management,search,getfood
++internal/handlers/foods.go:search-local-then-api,cache-on-select,edit,create
++web/static/js/components/search.js:fuzzy-search-ui,quantity-input,edit-food
+~web/static/js/api.js:added-food-methods
+~web/static/js/app.js:food-selection-flow,temp-entries
+~cmd/server/main.go:fatsecret-init,food-routes
+
+API_ENDPOINTS_ACTIVE:
+GET /api/foods/search?q=:fuzzy-local-then-fatsecret
+GET /api/foods/{id}:food-details,fs_prefix-for-api-fetch
+PUT /api/foods/{id}:edit-nutritional-values
+POST /api/foods:create-manual-food
+
+FEATURES_COMPLETE:
++fatsecret-oauth2-integration
++food-search-fuzzy-as-you-type
++local-food-cache-on-select
++edit-nutritional-values
++create-custom-food
+
+NOTES:
+-food-entries-currently-local-only,diary-api-in-phase3
+-search-debounce-300ms
+-foods-stored-as-per-100g,servings-stored-with-grams
+-fatsecret-token-cached-with-5min-safety-margin
+
+VERSION:1.1.0

@@ -38,5 +38,22 @@ const API = {
 
     listUsers() {
         return this.request('GET', '/api/users');
+    },
+
+    // Foods
+    searchFoods(query) {
+        return this.request('GET', `/api/foods/search?q=${encodeURIComponent(query)}`);
+    },
+
+    getFood(id) {
+        return this.request('GET', `/api/foods/${id}`);
+    },
+
+    updateFood(id, data) {
+        return this.request('PUT', `/api/foods/${id}`, data);
+    },
+
+    createFood(data) {
+        return this.request('POST', '/api/foods', data);
     }
 };
