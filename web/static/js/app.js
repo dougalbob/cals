@@ -1,12 +1,28 @@
-// Main application
+const APP_VERSION = '1.2.1';
 
+// Main application
 const App = {
     user: null,
     currentView: 'today',
     todayEntries: [],
 
     async init() {
+        console.log(`Cals v${APP_VERSION} initializing...`);
+        
+        // Show version in settings - with null check
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) {
+            versionEl.textContent = APP_VERSION;
+            console.log('Version element updated');
+        } else {
+            console.error('Version element not found!');
+        }
+        
         Modal.init();
+        
+        // Check for updates
+        this.checkForUpdates();
+        setInterval(() => this.checkForUpdates(), 5 * 60 * 1000);
         
         // Load current user
         try {
@@ -42,20 +58,66 @@ const App = {
         this.loadTodayView();
     },
 
+    async checkForUpdates() {
+        try {
+            const response = await fetch('/api/version');
+            const data = await response.json();
+            
+            if (data.version !== APP_VERSION) {
+                console.log(`Update available: ${APP_VERSION} -> ${data.version}`);
+                this.showUpdateBanner(data.version);
+            }
+        } catch (err) {
+            console.log('Version check failed:', err);
+        }
+    },
+
+    showUpdateBanner(newVersion) {
+        const existing = document.getElementById('update-banner');
+        if (existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'update-banner';
+        banner.innerHTML = `
+            <span>Update available: v${newVersion}</span>
+            <button id="update-btn">Update Now</button>
+        `;
+        document.body.appendChild(banner);
+
+        document.getElementById('update-btn').addEventListener('click', () => {
+            this.applyUpdate();
+        });
+    },
+
+    async applyUpdate() {
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                await registration.unregister();
+            }
+        }
+
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            for (const name of cacheNames) {
+                await caches.delete(name);
+            }
+        }
+
+        window.location.href = '/?update=' + Date.now();
+    },
+
     switchView(viewName) {
-        // Update nav buttons
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === viewName);
         });
 
-        // Update views
         document.querySelectorAll('.view').forEach(view => {
             view.classList.toggle('active', view.id === `view-${viewName}`);
         });
 
         this.currentView = viewName;
 
-        // Load view data
         switch (viewName) {
             case 'today':
                 this.loadTodayView();
@@ -72,11 +134,8 @@ const App = {
     },
 
     loadTodayView() {
-        // Update goals display
         document.getElementById('today-goal').textContent = this.user?.daily_calorie_goal || 2000;
         document.getElementById('water-goal').textContent = this.user?.daily_water_goal_ml || 2000;
-        
-        // Render any entries we have (will be populated in Phase 3)
         this.renderTodayEntries();
     },
 
@@ -110,7 +169,6 @@ const App = {
                     `;
                 }).join('');
 
-                // Add delete handlers
                 container.querySelectorAll('.meal-entry-delete').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -123,14 +181,13 @@ const App = {
             totalCalories += mealCalories;
         });
 
-        // Update ring
         this.updateCalorieRing(totalCalories);
     },
 
     updateCalorieRing(consumed) {
         const goal = this.user?.daily_calorie_goal || 2000;
-        const progress = Math.min(consumed / goal, 1.5); // Cap at 150%
-        const circumference = 2 * Math.PI * 45; // r=45
+        const progress = Math.min(consumed / goal, 1.5);
+        const circumference = 2 * Math.PI * 45;
         const offset = circumference * (1 - Math.min(progress, 1));
 
         const ring = document.getElementById('calorie-progress');
@@ -141,10 +198,9 @@ const App = {
     },
 
     async addFoodEntry(food, grams, meal) {
-        // For now, just add to local array (Phase 3 will save to server)
         const calories = (food.calories_per_100g * grams / 100);
         const entry = {
-            id: Date.now(), // Temporary ID
+            id: Date.now(),
             meal: meal,
             food_id: food.id,
             food: food,
@@ -159,7 +215,6 @@ const App = {
         this.todayEntries.push(entry);
         this.renderTodayEntries();
 
-        // Show confirmation
         console.log(`Added ${grams}g of ${food.name} to ${meal}: ${Math.round(calories)} kcal`);
     },
 
@@ -175,6 +230,12 @@ const App = {
         document.getElementById('setting-calorie-goal').value = this.user.daily_calorie_goal;
         document.getElementById('setting-water-goal').value = this.user.daily_water_goal_ml;
         document.getElementById('setting-weight-unit').value = this.user.weight_unit;
+        
+        // Update version display when loading settings view
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) {
+            versionEl.textContent = APP_VERSION;
+        }
     },
 
     async saveSettings() {
@@ -196,7 +257,6 @@ const App = {
     }
 };
 
-// Start app when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });

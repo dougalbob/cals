@@ -5,18 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#4a90d9">
     <meta name="description" content="Calorie tracking for the household">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Cals">
     <title>Cals</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="/public/manifest.json">
     <link rel="icon" href="/static/icons/favicon.ico">
     <link rel="apple-touch-icon" href="/public/icons/icon-192.png">
 </head>
 <body>
     <header class="app-header">
-        <h1>Cals</h1>
+        <div class="header-top">
+            <h1>Cals</h1>
+            <div class="user-info">
+                <span id="user-name"></span>
+            </div>
+        </div>
         <nav class="main-nav">
             <button class="nav-btn active" data-view="today">Today</button>
             <button class="nav-btn" data-view="history">History</button>
@@ -24,9 +29,6 @@
             <button class="nav-btn" data-view="progress">Progress</button>
             <button class="nav-btn" data-view="settings">Settings</button>
         </nav>
-        <div class="user-info">
-            <span id="user-name"></span>
-        </div>
     </header>
 
     <main class="app-main">
@@ -119,6 +121,9 @@
                 </div>
                 <button class="btn-primary" id="save-settings">Save Settings</button>
             </div>
+            <div class="version-info" id="version-info">
+                Version: <span id="app-version">loading...</span>
+            </div>
         </div>
     </main>
 
@@ -140,6 +145,11 @@
     <script src="/static/js/components/search.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
+        // Immediately set version from app.js constant
+        if (typeof APP_VERSION !== 'undefined') {
+            document.getElementById('app-version').textContent = APP_VERSION;
+        }
+        
         // Register service worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/public/sw.js')

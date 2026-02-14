@@ -649,3 +649,54 @@ input, textarea {
 .edit-food-form input {
     padding: 0.5rem;
 }
+
+/* Update banner */
+#update-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f59e0b;
+    color: white;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 300;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 0.75rem);
+}
+
+#update-banner button {
+    background: white;
+    color: #f59e0b;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Version info in settings */
+.version-info {
+    margin-top: 2rem;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+/* Header layout */
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.header-top h1 {
+    margin: 0;
+}
+
+.user-info {
+    position: static;
+    font-size: 0.85rem;
+}

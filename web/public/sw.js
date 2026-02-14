@@ -1,45 +1,47 @@
-const CACHE_NAME = 'cals-v1';
+const APP_VERSION = '1.2.1';
+const CACHE_NAME = 'cals-v' + APP_VERSION;
 
-// Assets to cache (excluding JS files for easy updates)
+// Only cache CSS and images - never JS
 const STATIC_ASSETS = [
-  '/static/css/style.css',
-  '/static/manifest.json'
+  '/static/css/style.css'
 ];
 
-// Install - cache static assets only
+// Install
 self.addEventListener('install', (event) => {
+  console.log(`Service Worker v${APP_VERSION} installing...`);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // Activate immediately
   self.skipWaiting();
 });
 
 // Activate - clean old caches
 self.addEventListener('activate', (event) => {
+  console.log(`Service Worker v${APP_VERSION} activating...`);
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
+            .map((key) => {
+              console.log(`Deleting old cache: ${key}`);
+              return caches.delete(key);
+            })
       );
     })
   );
-  // Take control immediately
   self.clients.claim();
 });
 
-// Fetch strategy
+// Fetch
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Always fetch JS files from network (no caching)
+  // NEVER cache JS files - always fetch from network
   if (url.pathname.endsWith('.js')) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
-        .catch(() => caches.match(event.request))
     );
     return;
   }
@@ -50,28 +52,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Static assets - cache first, then network
-  if (url.pathname.startsWith('/static/') || url.pathname.startsWith('/public/')) {
+  // HTML - network first, no caching
+  if (url.pathname === '/' || url.pathname.endsWith('.html')) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        return cached || fetch(event.request).then((response) => {
-          // Cache new static assets
-          if (response.ok && !url.pathname.endsWith('.js')) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        });
-      })
+      fetch(event.request, { cache: 'no-store' })
     );
     return;
   }
   
-  // HTML pages - network first
+  // CSS and images - cache first
   event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match('/'))
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      });
+    })
   );
 });

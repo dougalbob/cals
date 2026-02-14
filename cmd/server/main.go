@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.1.0"
+const AppVersion = "1.2.1"
 
 func main() {
 	// Load configuration
@@ -33,7 +33,7 @@ func main() {
 		handlers.FatSecretClient = fatsecret.NewClient(cfg.FatSecretClientID, cfg.FatSecretClientSecret)
 		log.Println("FatSecret client initialized")
 	} else {
-		log.Println("Warning: FatSecret credentials not configured - check FATSECRET_CLIENT_ID and FATSECRET_CLIENT_SECRET in .env")
+		log.Println("Warning: FatSecret credentials not configured")
 	}
 
 	// Initialize Cloudflare auth
@@ -51,19 +51,27 @@ func main() {
 	// Version endpoint (unprotected)
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Write([]byte(`{"version":"` + AppVersion + `"}`))
 	})
 
-	// Debug endpoint (temporary - remove after testing)
+	// Debug endpoint (temporary - remove after FatSecret testing)
 	mux.HandleFunc("GET /api/debug/fatsecret", handlers.HandleTestFatSecret)
 
 	// Public files - unprotected (for PWA install)
 	publicFS := http.FileServer(http.Dir("web/public"))
 	mux.Handle("GET /public/", http.StripPrefix("/public/", publicFS))
 
-	// Static files
-	staticFS := http.FileServer(http.Dir("web/static"))
-	mux.Handle("GET /static/", http.StripPrefix("/static/", staticFS))
+	// Static files with no-cache for JS
+	mux.HandleFunc("GET /static/", func(w http.ResponseWriter, r *http.Request) {
+		// No-cache headers for JS files
+		if strings.HasSuffix(r.URL.Path, ".js") {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+		}
+		http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))).ServeHTTP(w, r)
+	})
 
 	// API routes (protected)
 	// Users
@@ -79,7 +87,6 @@ func main() {
 
 	// Index page - catch all for SPA
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Don't serve index.html for /api/ routes that weren't matched
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
 			return

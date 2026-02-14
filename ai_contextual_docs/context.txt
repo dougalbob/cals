@@ -171,3 +171,36 @@ NOTES:
 -fatsecret-token-cached-with-5min-safety-margin
 
 VERSION:1.1.0
+
+---
+UPDATE:2025-02-14
+VERSION:1.2.1
+PHASE:2-complete-with-versioning
+
+CHANGES:
++update-version.sh:updates-version-in-3-files
++version-endpoint:/api/version-unprotected
++version-check:app.js-checks-every-5min
++update-banner:orange-banner-when-update-available
++no-cache-headers:js-files-served-with-no-cache
+~manifest.json:moved-to-public-folder-for-cf-bypass
+~sw.js:never-caches-js-or-html
+~index.html:fixed-meta-tags,version-display
+
+PWA_ASSETS_LOCATION:/public/
+- manifest.json
+- sw.js
+- icons/icon-192.png
+- icons/icon-512.png
+
+CF_BYPASS_PATHS:
+- /public/*
+- /api/version
+- /health
+
+FATSECRET_STATUS:working,ip-whitelisted
+
+NOTES:
+- foods-cached-in-db-on-selection
+- diary-entries-memory-only-until-phase3
+- rebuild-required-for-code-changes(no-volume-mount)
