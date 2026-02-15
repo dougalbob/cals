@@ -56,6 +56,7 @@ func RunMigrations() error {
 			image_filename TEXT,
 			serves INTEGER DEFAULT 1,
 			created_by_user_id INTEGER NOT NULL,
+			calculated_weight_grams REAL NOT NULL DEFAULT 0,
 			total_weight_grams REAL NOT NULL DEFAULT 0,
 			weight_is_manual BOOLEAN NOT NULL DEFAULT 0,
 			total_calories REAL NOT NULL DEFAULT 0,
@@ -178,6 +179,7 @@ func RunMigrations() error {
 		`ALTER TABLE recipes ADD COLUMN instructions TEXT`,
 		`ALTER TABLE recipes ADD COLUMN image_filename TEXT`,
 		`ALTER TABLE recipes ADD COLUMN serves INTEGER DEFAULT 1`,
+		`ALTER TABLE recipes ADD COLUMN calculated_weight_grams REAL DEFAULT 0`,
 		`ALTER TABLE recipe_ingredients ADD COLUMN sort_order INTEGER DEFAULT 0`,
 	}
 
@@ -190,6 +192,17 @@ func RunMigrations() error {
 			}
 		}
 	}
+
+	// Backfill calculated_weight_grams for existing recipes
+	_, _ = DB.Exec(`
+		UPDATE recipes 
+		SET calculated_weight_grams = (
+			SELECT COALESCE(SUM(ri.quantity_grams), 0)
+			FROM recipe_ingredients ri
+			WHERE ri.recipe_id = recipes.id
+		)
+		WHERE calculated_weight_grams = 0 OR calculated_weight_grams IS NULL
+	`)
 
 	log.Println("Database migrations completed successfully")
 	return nil

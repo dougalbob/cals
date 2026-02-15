@@ -48,25 +48,31 @@ type FoodServing struct {
 
 // Recipe represents a user-created recipe
 type Recipe struct {
-	ID               int64                  `json:"id"`
-	Name             string                 `json:"name"`
-	Description      string                 `json:"description,omitempty"`
-	Instructions     string                 `json:"instructions,omitempty"`
-	ImageFilename    string                 `json:"image_filename,omitempty"`
-	Serves           int                    `json:"serves"`
-	CreatedByUserID  int64                  `json:"created_by_user_id"`
-	CreatedByName    string                 `json:"created_by_name,omitempty"`
-	TotalWeightGrams float64                `json:"total_weight_grams"`
-	WeightIsManual   bool                   `json:"weight_is_manual"`
-	TotalCalories    float64                `json:"total_calories"`
-	TotalProtein     float64                `json:"total_protein"`
-	TotalCarbs       float64                `json:"total_carbs"`
-	TotalFat         float64                `json:"total_fat"`
-	TotalFibre       float64                `json:"total_fibre"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
-	Ingredients      []RecipeIngredient     `json:"ingredients,omitempty"`
-	TextIngredients  []RecipeTextIngredient `json:"text_ingredients,omitempty"`
+	ID                    int64                  `json:"id"`
+	Name                  string                 `json:"name"`
+	Description           string                 `json:"description,omitempty"`
+	Instructions          string                 `json:"instructions,omitempty"`
+	ImageFilename         string                 `json:"image_filename,omitempty"`
+	Serves                int                    `json:"serves"`
+	CreatedByUserID       int64                  `json:"created_by_user_id"`
+	CreatedByName         string                 `json:"created_by_name,omitempty"`
+	CalculatedWeightGrams float64                `json:"calculated_weight_grams"`
+	TotalWeightGrams      float64                `json:"total_weight_grams"`
+	WeightIsManual        bool                   `json:"weight_is_manual"`
+	TotalCalories         float64                `json:"total_calories"`
+	TotalProtein          float64                `json:"total_protein"`
+	TotalCarbs            float64                `json:"total_carbs"`
+	TotalFat              float64                `json:"total_fat"`
+	TotalFibre            float64                `json:"total_fibre"`
+	CaloriesPer100g       float64                `json:"calories_per_100g"`
+	ProteinPer100g        float64                `json:"protein_per_100g"`
+	CarbsPer100g          float64                `json:"carbs_per_100g"`
+	FatPer100g            float64                `json:"fat_per_100g"`
+	FibrePer100g          float64                `json:"fibre_per_100g"`
+	CreatedAt             time.Time              `json:"created_at"`
+	UpdatedAt             time.Time              `json:"updated_at"`
+	Ingredients           []RecipeIngredient     `json:"ingredients,omitempty"`
+	TextIngredients       []RecipeTextIngredient `json:"text_ingredients,omitempty"`
 }
 
 // RecipeIngredient represents a food ingredient in a recipe
@@ -104,8 +110,8 @@ type DiaryEntry struct {
 	Fibre         float64       `json:"fibre"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
-	Food          *Food         `json:"food,omitempty"`
-	Recipe        *Recipe       `json:"recipe,omitempty"`
+	FoodName      string        `json:"food_name,omitempty"`
+	RecipeName    string        `json:"recipe_name,omitempty"`
 }
 
 // WaterEntry represents a water intake log

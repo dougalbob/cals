@@ -1395,3 +1395,166 @@ textarea:focus {
     color: var(--text-light);
     margin-top: 0.25rem;
 }
+
+/* Meal actions row with two buttons */
+.meal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.meal-actions .add-food-btn,
+.meal-actions .add-recipe-btn {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.add-recipe-btn {
+    background: var(--bg-card);
+    border: 1px dashed var(--primary);
+    color: var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-recipe-btn:hover {
+    background: var(--primary);
+    color: white;
+    border-style: solid;
+}
+
+/* Recipe picker modal */
+.recipe-picker {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.recipe-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.recipe-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.recipe-picker-item:hover {
+    background: var(--border);
+}
+
+.recipe-picker-image {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+
+.recipe-picker-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.recipe-picker-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.recipe-picker-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recipe-picker-meta {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+/* Recipe weight reduction note */
+.recipe-weight-note {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    background: var(--bg);
+    padding: 0.5rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+/* Serving buttons for recipe ingredients */
+.serving-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.serving-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.serving-btn:hover {
+    border-color: var(--primary);
+    background: white;
+}
+
+.serving-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+}
+
+.serving-btn .serving-detail {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.serving-btn.active .serving-detail {
+    opacity: 0.9;
+}
+
+.quantity-divider {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin: 0.75rem 0;
+}
+
+.serving-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.serving-presets .quantity-preset {
+    min-width: 40px;
+}

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.5.0';
 
 // Main application
 const App = {
@@ -41,6 +41,14 @@ const App = {
                 FoodSearch.show(meal, (food, grams, meal) => {
                     this.addFoodEntry(food, grams, meal);
                 });
+            });
+        });
+
+        // Add recipe buttons
+        document.querySelectorAll('.add-recipe-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const meal = btn.dataset.meal;
+                Recipes.showRecipePickerForMeal(meal);
             });
         });
 

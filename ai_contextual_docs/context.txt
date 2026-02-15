@@ -360,3 +360,54 @@ NOTES:
 - fatsecret-foods-work-without-prior-caching
 - images-converted-to-jpeg-on-upload
 - thumbnail-80x80-in-recipe-view-header
+
+---
+UPDATE:2025-02-15
+VERSION:1.5.0
+PHASE:5-recipes-complete
+
+CHANGES:
++recipe-add-from-diary:add-recipe-button-per-meal-section
++recipe-picker-modal:streamlined-recipe-selection-for-meals
++recipe-cooked-weight:calculated_weight_grams-stored-separately
++recipe-concentration:auto-adjusts-kcal-per-100g-for-water-loss
++ingredient-servings:recipe-ingredients-now-show-custom-servings
++ingredient-servings:recipe-ingredients-now-show-fatsecret-servings
+~internal/database/migrations.go:added-calculated_weight_grams
+~internal/models/models.go:added-per-100g-fields-to-recipe
+~internal/handlers/recipes.go:calculates-per-100g-from-cooked-weight
+~internal/handlers/foods.go:clean-json-response-for-servings
+~web/static/js/components/recipes.js:full-serving-ui-for-ingredients
+~web/static/js/app.js:add-recipe-button-handlers
+~web/templates/index.html:add-recipe-buttons-per-meal
+~web/static/css/style.css:serving-buttons-and-recipe-picker-styles
+
+DB_CHANGES:
+recipes.calculated_weight_grams:REAL:raw-ingredient-weight-sum
+
+API_RESPONSE_CHANGES:
+foods:serving_grams-now-plain-float64-not-sql.NullFloat64
+foods:serving_name-now-plain-string
+recipes:calories_per_100g,protein_per_100g,etc-calculated-from-cooked-weight
+
+FEATURES_COMPLETE:
++add-recipe-directly-from-meal-section
++recipe-picker-shows-kcal-per-100g
++cooked-weight-concentration-factor
++weight-reduction-display-in-recipe-view
++custom-servings-in-recipe-ingredients
++fatsecret-servings-in-recipe-ingredients
++serving-quantity-buttons-half-1-1.5-2-3
+
+RECIPE_WEIGHT_LOGIC:
+1. calculated_weight_grams:sum-of-raw-ingredients
+2. total_weight_grams:final-cooked-weight(user-entered)
+3. concentration:calculated/total-ratio
+4. calories_per_100g:total_calories/total_weight*100
+5. portion-calculation:portion_grams*calories_per_100g/100
+
+NOTES:
+- cooked-weight-less-than-raw=concentrated-calories
+- serving-buttons-work-same-as-diary-food-search
+- recipe-picker-skips-meal-selection-step
+- per-100g-values-used-for-all-diary-calculations

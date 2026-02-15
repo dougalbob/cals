@@ -3,10 +3,10 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"cals/internal/database"
 	"cals/internal/fatsecret"
@@ -15,55 +15,138 @@ import (
 
 var FatSecretClient *fatsecret.Client
 
-// FoodSearchResult represents a food in search results
-type FoodSearchResult struct {
-	ID              int64    `json:"id"`
-	FatSecretID     string   `json:"fatsecret_id,omitempty"`
-	Name            string   `json:"name"`
-	Brand           string   `json:"brand,omitempty"`
-	CaloriesPer100g float64  `json:"calories_per_100g"`
-	ServingName     string   `json:"serving_name,omitempty"`
-	ServingGrams    float64  `json:"serving_grams,omitempty"`
-	IsLocal         bool     `json:"is_local"`
-	IsEdited        bool     `json:"is_edited"`
+// FoodResponse is a clean JSON response structure
+type FoodResponse struct {
+	ID              interface{}       `json:"id"`
+	FatSecretID     string            `json:"fatsecret_id,omitempty"`
+	Name            string            `json:"name"`
+	Brand           string            `json:"brand,omitempty"`
+	CaloriesPer100g float64           `json:"calories_per_100g"`
+	ProteinPer100g  float64           `json:"protein_per_100g"`
+	CarbsPer100g    float64           `json:"carbs_per_100g"`
+	FatPer100g      float64           `json:"fat_per_100g"`
+	FibrePer100g    float64           `json:"fibre_per_100g"`
+	ServingName     string            `json:"serving_name,omitempty"`
+	ServingGrams    float64           `json:"serving_grams,omitempty"`
+	IsEdited        bool              `json:"is_edited"`
+	Servings        []ServingResponse `json:"servings,omitempty"`
+}
+
+type ServingResponse struct {
+	ID          int64   `json:"id"`
+	Description string  `json:"description"`
+	Grams       float64 `json:"grams"`
+}
+
+func foodToResponse(f *models.Food) FoodResponse {
+	resp := FoodResponse{
+		ID:              f.ID,
+		Name:            f.Name,
+		CaloriesPer100g: f.CaloriesPer100g,
+		ProteinPer100g:  f.ProteinPer100g,
+		CarbsPer100g:    f.CarbsPer100g,
+		FatPer100g:      f.FatPer100g,
+		FibrePer100g:    f.FibrePer100g,
+		IsEdited:        f.IsEdited,
+	}
+
+	if f.FatSecretID.Valid {
+		resp.FatSecretID = f.FatSecretID.String
+	}
+	if f.Brand.Valid {
+		resp.Brand = f.Brand.String
+	}
+	if f.ServingName.Valid {
+		resp.ServingName = f.ServingName.String
+	}
+	if f.ServingGrams.Valid {
+		resp.ServingGrams = f.ServingGrams.Float64
+	}
+
+	for _, s := range f.Servings {
+		resp.Servings = append(resp.Servings, ServingResponse{
+			ID:          s.ID,
+			Description: s.Description,
+			Grams:       s.Grams,
+		})
+	}
+
+	return resp
+}
+
+// parseStringFloat safely parses a string to float64, returns 0 on error
+func parseStringFloat(s string) float64 {
+	if s == "" {
+		return 0
+	}
+	val, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil {
+		return 0
+	}
+	return val
 }
 
 // HandleSearchFoods searches local DB first, then FatSecret API
 func HandleSearchFoods(w http.ResponseWriter, r *http.Request) {
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	if query == "" || len(query) < 2 {
+	query := r.URL.Query().Get("q")
+	if len(query) < 2 {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]FoodSearchResult{})
+		w.Write([]byte("[]"))
 		return
 	}
 
-	var results []FoodSearchResult
+	var results []FoodResponse
 
-	// Search local database first (fuzzy match)
-	localResults, err := searchLocalFoods(query)
-	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		return
+	// Search local database first
+	rows, err := database.DB.Query(`
+		SELECT id, fatsecret_id, name, brand, calories_per_100g, protein_per_100g, 
+		       carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams, is_edited
+		FROM foods 
+		WHERE name LIKE ? 
+		ORDER BY 
+			CASE WHEN name LIKE ? THEN 0 ELSE 1 END,
+			name
+		LIMIT 20
+	`, "%"+query+"%", query+"%")
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var f models.Food
+			err := rows.Scan(&f.ID, &f.FatSecretID, &f.Name, &f.Brand,
+				&f.CaloriesPer100g, &f.ProteinPer100g, &f.CarbsPer100g,
+				&f.FatPer100g, &f.FibrePer100g, &f.ServingName, &f.ServingGrams, &f.IsEdited)
+			if err == nil {
+				results = append(results, foodToResponse(&f))
+			}
+		}
 	}
-	results = append(results, localResults...)
 
-	// If we have fewer than 10 local results, search FatSecret
+	// If we have fewer than 10 local results and FatSecret is configured, search API
 	if len(results) < 10 && FatSecretClient != nil {
-		apiResults, err := searchFatSecret(query, 20-len(results))
+		apiResults, err := FatSecretClient.SearchFoods(query, 20)
 		if err != nil {
-			// Log error but don't fail - return local results
+			log.Printf("FatSecret search error: %v", err)
 		} else {
-			// Filter out duplicates (same fatsecret_id already in local)
-			for _, apiResult := range apiResults {
-				isDuplicate := false
-				for _, local := range localResults {
-					if local.FatSecretID == apiResult.FatSecretID {
-						isDuplicate = true
-						break
-					}
+			// Add API results, avoiding duplicates
+			localFSIDs := make(map[string]bool)
+			for _, r := range results {
+				if r.FatSecretID != "" {
+					localFSIDs[r.FatSecretID] = true
 				}
-				if !isDuplicate {
-					results = append(results, apiResult)
+			}
+
+			for _, apiFood := range apiResults {
+				if !localFSIDs[apiFood.FoodID] {
+					// Parse calories from description if available
+					cals := parseCaloriesFromDescription(apiFood.FoodDescription)
+					results = append(results, FoodResponse{
+						ID:              "fs_" + apiFood.FoodID,
+						FatSecretID:     apiFood.FoodID,
+						Name:            apiFood.FoodName,
+						Brand:           apiFood.BrandName,
+						CaloriesPer100g: cals,
+					})
 				}
 			}
 		}
@@ -73,282 +156,211 @@ func HandleSearchFoods(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
-func searchLocalFoods(query string) ([]FoodSearchResult, error) {
-	searchPattern := "%" + strings.ToLower(query) + "%"
-
-	rows, err := database.DB.Query(`
-		SELECT id, fatsecret_id, name, brand, calories_per_100g, serving_name, serving_grams, is_edited
-		FROM foods
-		WHERE LOWER(name) LIKE ? OR LOWER(brand) LIKE ?
-		ORDER BY 
-			CASE WHEN LOWER(name) LIKE ? THEN 0 ELSE 1 END,
-			name
-		LIMIT 20
-	`, searchPattern, searchPattern, strings.ToLower(query)+"%")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var results []FoodSearchResult
-	for rows.Next() {
-		var r FoodSearchResult
-		var fatSecretID, brand, servingName sql.NullString
-		var servingGrams sql.NullFloat64
-		err := rows.Scan(&r.ID, &fatSecretID, &r.Name, &brand, &r.CaloriesPer100g, &servingName, &servingGrams, &r.IsEdited)
-		if err != nil {
-			return nil, err
-		}
-		if fatSecretID.Valid {
-			r.FatSecretID = fatSecretID.String
-		}
-		if brand.Valid {
-			r.Brand = brand.String
-		}
-		if servingName.Valid {
-			r.ServingName = servingName.String
-		}
-		if servingGrams.Valid {
-			r.ServingGrams = servingGrams.Float64
-		}
-		r.IsLocal = true
-		results = append(results, r)
-	}
-
-	return results, nil
-}
-
-func searchFatSecret(query string, maxResults int) ([]FoodSearchResult, error) {
-	foods, err := FatSecretClient.SearchFoods(query, maxResults)
-	if err != nil {
-		return nil, err
-	}
-
-	var results []FoodSearchResult
-	for _, food := range foods {
-		calories := parseCaloriesFromDescription(food.FoodDescription)
-
-		results = append(results, FoodSearchResult{
-			FatSecretID:     food.FoodID,
-			Name:            food.FoodName,
-			Brand:           food.BrandName,
-			CaloriesPer100g: calories,
-			IsLocal:         false,
-			IsEdited:        false,
-		})
-	}
-
-	return results, nil
-}
-
+// parseCaloriesFromDescription extracts calories from FatSecret description
+// Format is typically "Per 100g - Calories: 265kcal | Fat: 3.2g | Carbs: 49g | Protein: 9g"
 func parseCaloriesFromDescription(desc string) float64 {
-	parts := strings.Split(desc, "|")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if strings.Contains(part, "Calories:") {
-			calPart := strings.TrimPrefix(part, "Calories:")
-			calPart = strings.TrimSpace(calPart)
-			calPart = strings.TrimSuffix(calPart, "kcal")
-			if cal, err := strconv.ParseFloat(calPart, 64); err == nil {
-				return cal
-			}
+	// Simple extraction - look for "Calories: XXXkcal"
+	if idx := strings.Index(desc, "Calories:"); idx >= 0 {
+		rest := desc[idx+9:]
+		parts := strings.Split(rest, "kcal")
+		if len(parts) > 0 {
+			return parseStringFloat(parts[0])
 		}
 	}
 	return 0
 }
 
-// HandleGetFood gets a food by ID, fetching from FatSecret if needed
+// HandleGetFood returns a single food by ID
 func HandleGetFood(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
-	
+
+	// Check if it's a FatSecret ID (prefixed with "fs_")
 	if strings.HasPrefix(idStr, "fs_") {
-		fatSecretID := strings.TrimPrefix(idStr, "fs_")
-		food, err := fetchAndCacheFatSecretFood(fatSecretID)
-		if err != nil {
-			http.Error(w, "Failed to fetch food: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(food)
+		fsID := strings.TrimPrefix(idStr, "fs_")
+		handleGetFatSecretFood(w, fsID)
 		return
 	}
 
+	// Local database food
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid food ID", http.StatusBadRequest)
 		return
 	}
 
-	food, err := getLocalFood(id)
+	var f models.Food
+	err = database.DB.QueryRow(`
+		SELECT id, fatsecret_id, name, brand, calories_per_100g, protein_per_100g,
+		       carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams, is_edited
+		FROM foods WHERE id = ?
+	`, id).Scan(&f.ID, &f.FatSecretID, &f.Name, &f.Brand,
+		&f.CaloriesPer100g, &f.ProteinPer100g, &f.CarbsPer100g,
+		&f.FatPer100g, &f.FibrePer100g, &f.ServingName, &f.ServingGrams, &f.IsEdited)
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "Food not found", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(food)
-}
-
-func getLocalFood(id int64) (*models.Food, error) {
-	var food models.Food
-	var fatSecretID, brand, servingName sql.NullString
-	var servingGrams sql.NullFloat64
-
-	err := database.DB.QueryRow(`
-		SELECT id, fatsecret_id, name, brand, calories_per_100g, protein_per_100g,
-		       carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams,
-		       is_edited, created_at, updated_at
-		FROM foods WHERE id = ?
-	`, id).Scan(
-		&food.ID, &fatSecretID, &food.Name, &brand,
-		&food.CaloriesPer100g, &food.ProteinPer100g, &food.CarbsPer100g,
-		&food.FatPer100g, &food.FibrePer100g, &servingName, &servingGrams,
-		&food.IsEdited, &food.CreatedAt, &food.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	food.FatSecretID = fatSecretID
-	food.Brand = brand
-	food.ServingName = servingName
-	food.ServingGrams = servingGrams
-
-	// Get servings from food_servings table (for FatSecret foods)
+	// Get servings
 	rows, err := database.DB.Query(`
-		SELECT id, food_id, fatsecret_serving_id, description, grams
-		FROM food_servings WHERE food_id = ?
+		SELECT id, description, grams FROM food_servings WHERE food_id = ?
 	`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var s models.FoodServing
-		var fsServingID sql.NullString
-		err := rows.Scan(&s.ID, &s.FoodID, &fsServingID, &s.Description, &s.Grams)
-		if err != nil {
-			return nil, err
-		}
-		s.FatSecretServingID = fsServingID
-		food.Servings = append(food.Servings, s)
-	}
-
-	return &food, nil
-}
-
-func fetchAndCacheFatSecretFood(fatSecretID string) (*models.Food, error) {
-	var existingID int64
-	err := database.DB.QueryRow(`SELECT id FROM foods WHERE fatsecret_id = ?`, fatSecretID).Scan(&existingID)
 	if err == nil {
-		return getLocalFood(existingID)
-	}
-
-	foodDetail, err := FatSecretClient.GetFood(fatSecretID)
-	if err != nil {
-		return nil, err
-	}
-
-	servingsData, err := FatSecretClient.ParseServings(foodDetail.Servings.Serving)
-	if err != nil {
-		return nil, err
-	}
-
-	var caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fibrePer100g float64
-	var servings []models.FoodServing
-
-	for _, s := range servingsData {
-		grams := parseFloat(s.MetricServingAmount)
-		calories := parseFloat(s.Calories)
-		protein := parseFloat(s.Protein)
-		carbs := parseFloat(s.Carbohydrate)
-		fat := parseFloat(s.Fat)
-		fibre := parseFloat(s.Fiber)
-
-		if grams == 100 {
-			caloriesPer100g = calories
-			proteinPer100g = protein
-			carbsPer100g = carbs
-			fatPer100g = fat
-			fibrePer100g = fibre
-		}
-
-		if grams > 0 {
-			servings = append(servings, models.FoodServing{
-				FatSecretServingID: sql.NullString{String: s.ServingID, Valid: true},
-				Description:        s.ServingDescription,
-				Grams:              grams,
-			})
-		}
-	}
-
-	if caloriesPer100g == 0 && len(servingsData) > 0 {
-		for _, s := range servingsData {
-			grams := parseFloat(s.MetricServingAmount)
-			if grams > 0 {
-				multiplier := 100 / grams
-				caloriesPer100g = parseFloat(s.Calories) * multiplier
-				proteinPer100g = parseFloat(s.Protein) * multiplier
-				carbsPer100g = parseFloat(s.Carbohydrate) * multiplier
-				fatPer100g = parseFloat(s.Fat) * multiplier
-				fibrePer100g = parseFloat(s.Fiber) * multiplier
-				break
+		defer rows.Close()
+		for rows.Next() {
+			var s models.FoodServing
+			if rows.Scan(&s.ID, &s.Description, &s.Grams) == nil {
+				f.Servings = append(f.Servings, s)
 			}
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(foodToResponse(&f))
+}
+
+func handleGetFatSecretFood(w http.ResponseWriter, fsID string) {
+	// First check if we have it cached locally
+	var f models.Food
+	err := database.DB.QueryRow(`
+		SELECT id, fatsecret_id, name, brand, calories_per_100g, protein_per_100g,
+		       carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams, is_edited
+		FROM foods WHERE fatsecret_id = ?
+	`, fsID).Scan(&f.ID, &f.FatSecretID, &f.Name, &f.Brand,
+		&f.CaloriesPer100g, &f.ProteinPer100g, &f.CarbsPer100g,
+		&f.FatPer100g, &f.FibrePer100g, &f.ServingName, &f.ServingGrams, &f.IsEdited)
+
+	if err == nil {
+		// Found in local cache, get servings
+		rows, err := database.DB.Query(`
+			SELECT id, description, grams FROM food_servings WHERE food_id = ?
+		`, f.ID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var s models.FoodServing
+				if rows.Scan(&s.ID, &s.Description, &s.Grams) == nil {
+					f.Servings = append(f.Servings, s)
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(foodToResponse(&f))
+		return
+	}
+
+	// Not cached, fetch from FatSecret API
+	if FatSecretClient == nil {
+		http.Error(w, "FatSecret not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	apiFood, err := FatSecretClient.GetFood(fsID)
+	if err != nil {
+		log.Printf("FatSecret GetFood error: %v", err)
+		http.Error(w, "Failed to fetch food", http.StatusBadGateway)
+		return
+	}
+
+	// Parse servings from raw JSON
+	servings, err := FatSecretClient.ParseServings(apiFood.Servings.Serving)
+	if err != nil {
+		log.Printf("Failed to parse servings: %v", err)
+		servings = []fatsecret.ServingDetail{}
+	}
+
+	// Calculate per-100g values from the first serving that has metric data
+	var cals100, protein100, carbs100, fat100, fibre100 float64
+	for _, s := range servings {
+		metricAmount := parseStringFloat(s.MetricServingAmount)
+		if metricAmount > 0 {
+			factor := 100.0 / metricAmount
+			cals100 = parseStringFloat(s.Calories) * factor
+			protein100 = parseStringFloat(s.Protein) * factor
+			carbs100 = parseStringFloat(s.Carbohydrate) * factor
+			fat100 = parseStringFloat(s.Fat) * factor
+			fibre100 = parseStringFloat(s.Fiber) * factor
+			break
+		}
+	}
+
+	// Cache in local database
 	result, err := database.DB.Exec(`
 		INSERT INTO foods (fatsecret_id, name, brand, calories_per_100g, protein_per_100g,
-		                   carbs_per_100g, fat_per_100g, fibre_per_100g, is_edited)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-	`, fatSecretID, foodDetail.FoodName, nullString(foodDetail.BrandName),
-		caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fibrePer100g)
+		                   carbs_per_100g, fat_per_100g, fibre_per_100g)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, apiFood.FoodID, apiFood.FoodName, apiFood.BrandName,
+		cals100, protein100, carbs100, fat100, fibre100)
+
 	if err != nil {
-		return nil, err
-	}
-
-	foodID, _ := result.LastInsertId()
-
-	for i := range servings {
-		servings[i].FoodID = foodID
-		result, err := database.DB.Exec(`
-			INSERT INTO food_servings (food_id, fatsecret_serving_id, description, grams)
-			VALUES (?, ?, ?, ?)
-		`, foodID, servings[i].FatSecretServingID, servings[i].Description, servings[i].Grams)
-		if err != nil {
-			continue
+		log.Printf("Failed to cache food: %v", err)
+		// Still return the food even if caching failed
+		resp := FoodResponse{
+			ID:              "fs_" + apiFood.FoodID,
+			FatSecretID:     apiFood.FoodID,
+			Name:            apiFood.FoodName,
+			Brand:           apiFood.BrandName,
+			CaloriesPer100g: cals100,
+			ProteinPer100g:  protein100,
+			CarbsPer100g:    carbs100,
+			FatPer100g:      fat100,
+			FibrePer100g:    fibre100,
 		}
-		servings[i].ID, _ = result.LastInsertId()
+		for _, s := range servings {
+			metricAmount := parseStringFloat(s.MetricServingAmount)
+			if metricAmount > 0 {
+				resp.Servings = append(resp.Servings, ServingResponse{
+					Description: s.ServingDescription,
+					Grams:       metricAmount,
+				})
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
 	}
 
-	return getLocalFood(foodID)
-}
+	localID, _ := result.LastInsertId()
 
-func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
+	// Cache servings
+	var respServings []ServingResponse
+	for _, s := range servings {
+		metricAmount := parseStringFloat(s.MetricServingAmount)
+		if metricAmount > 0 {
+			database.DB.Exec(`
+				INSERT INTO food_servings (food_id, fatsecret_serving_id, description, grams)
+				VALUES (?, ?, ?, ?)
+			`, localID, s.ServingID, s.ServingDescription, metricAmount)
 
-func nullString(s string) sql.NullString {
-	if s == "" {
-		return sql.NullString{}
+			respServings = append(respServings, ServingResponse{
+				Description: s.ServingDescription,
+				Grams:       metricAmount,
+			})
+		}
 	}
-	return sql.NullString{String: s, Valid: true}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(FoodResponse{
+		ID:              localID,
+		FatSecretID:     apiFood.FoodID,
+		Name:            apiFood.FoodName,
+		Brand:           apiFood.BrandName,
+		CaloriesPer100g: cals100,
+		ProteinPer100g:  protein100,
+		CarbsPer100g:    carbs100,
+		FatPer100g:      fat100,
+		FibrePer100g:    fibre100,
+		Servings:        respServings,
+	})
 }
 
-func nullFloat(f float64) sql.NullFloat64 {
-	if f == 0 {
-		return sql.NullFloat64{}
-	}
-	return sql.NullFloat64{Float64: f, Valid: true}
-}
-
-// HandleUpdateFood updates a food's nutritional values
+// HandleUpdateFood updates a food's nutritional info
 func HandleUpdateFood(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -357,94 +369,62 @@ func HandleUpdateFood(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updates struct {
-		Name            *string  `json:"name"`
-		Brand           *string  `json:"brand"`
-		CaloriesPer100g *float64 `json:"calories_per_100g"`
-		ProteinPer100g  *float64 `json:"protein_per_100g"`
-		CarbsPer100g    *float64 `json:"carbs_per_100g"`
-		FatPer100g      *float64 `json:"fat_per_100g"`
-		FibrePer100g    *float64 `json:"fibre_per_100g"`
-		ServingName     *string  `json:"serving_name"`
-		ServingGrams    *float64 `json:"serving_grams"`
+	var input struct {
+		Name            string  `json:"name"`
+		CaloriesPer100g float64 `json:"calories_per_100g"`
+		ProteinPer100g  float64 `json:"protein_per_100g"`
+		CarbsPer100g    float64 `json:"carbs_per_100g"`
+		FatPer100g      float64 `json:"fat_per_100g"`
+		FibrePer100g    float64 `json:"fibre_per_100g"`
+		ServingName     string  `json:"serving_name"`
+		ServingGrams    float64 `json:"serving_grams"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	query := "UPDATE foods SET is_edited = 1, updated_at = ?"
-	args := []interface{}{time.Now()}
+	_, err = database.DB.Exec(`
+		UPDATE foods SET 
+			name = ?, calories_per_100g = ?, protein_per_100g = ?, carbs_per_100g = ?,
+			fat_per_100g = ?, fibre_per_100g = ?, serving_name = ?, serving_grams = ?,
+			is_edited = 1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, input.Name, input.CaloriesPer100g, input.ProteinPer100g, input.CarbsPer100g,
+		input.FatPer100g, input.FibrePer100g, input.ServingName, input.ServingGrams, id)
 
-	if updates.Name != nil {
-		query += ", name = ?"
-		args = append(args, *updates.Name)
-	}
-	if updates.Brand != nil {
-		query += ", brand = ?"
-		args = append(args, *updates.Brand)
-	}
-	if updates.CaloriesPer100g != nil {
-		query += ", calories_per_100g = ?"
-		args = append(args, *updates.CaloriesPer100g)
-	}
-	if updates.ProteinPer100g != nil {
-		query += ", protein_per_100g = ?"
-		args = append(args, *updates.ProteinPer100g)
-	}
-	if updates.CarbsPer100g != nil {
-		query += ", carbs_per_100g = ?"
-		args = append(args, *updates.CarbsPer100g)
-	}
-	if updates.FatPer100g != nil {
-		query += ", fat_per_100g = ?"
-		args = append(args, *updates.FatPer100g)
-	}
-	if updates.FibrePer100g != nil {
-		query += ", fibre_per_100g = ?"
-		args = append(args, *updates.FibrePer100g)
-	}
-	if updates.ServingName != nil {
-		query += ", serving_name = ?"
-		args = append(args, *updates.ServingName)
-	}
-	if updates.ServingGrams != nil {
-		query += ", serving_grams = ?"
-		args = append(args, *updates.ServingGrams)
-	}
-
-	query += " WHERE id = ?"
-	args = append(args, id)
-
-	_, err = database.DB.Exec(query, args...)
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	food, err := getLocalFood(id)
-	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// Return updated food
+	var f models.Food
+	database.DB.QueryRow(`
+		SELECT id, fatsecret_id, name, brand, calories_per_100g, protein_per_100g,
+		       carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams, is_edited
+		FROM foods WHERE id = ?
+	`, id).Scan(&f.ID, &f.FatSecretID, &f.Name, &f.Brand,
+		&f.CaloriesPer100g, &f.ProteinPer100g, &f.CarbsPer100g,
+		&f.FatPer100g, &f.FibrePer100g, &f.ServingName, &f.ServingGrams, &f.IsEdited)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(food)
+	json.NewEncoder(w).Encode(foodToResponse(&f))
 }
 
-// HandleCreateFood creates a manual food entry
+// HandleCreateFood creates a new custom food
 func HandleCreateFood(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name            string   `json:"name"`
-		Brand           string   `json:"brand"`
-		CaloriesPer100g float64  `json:"calories_per_100g"`
-		ProteinPer100g  float64  `json:"protein_per_100g"`
-		CarbsPer100g    float64  `json:"carbs_per_100g"`
-		FatPer100g      float64  `json:"fat_per_100g"`
-		FibrePer100g    float64  `json:"fibre_per_100g"`
-		ServingName     string   `json:"serving_name"`
-		ServingGrams    float64  `json:"serving_grams"`
+		Name            string  `json:"name"`
+		Brand           string  `json:"brand"`
+		CaloriesPer100g float64 `json:"calories_per_100g"`
+		ProteinPer100g  float64 `json:"protein_per_100g"`
+		CarbsPer100g    float64 `json:"carbs_per_100g"`
+		FatPer100g      float64 `json:"fat_per_100g"`
+		FibrePer100g    float64 `json:"fibre_per_100g"`
+		ServingName     string  `json:"serving_name"`
+		ServingGrams    float64 `json:"serving_grams"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -458,22 +438,32 @@ func HandleCreateFood(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := database.DB.Exec(`
-		INSERT INTO foods (name, brand, calories_per_100g, protein_per_100g,
-		                   carbs_per_100g, fat_per_100g, fibre_per_100g,
-		                   serving_name, serving_grams, is_edited)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-	`, input.Name, nullString(input.Brand), input.CaloriesPer100g, input.ProteinPer100g,
+		INSERT INTO foods (name, brand, calories_per_100g, protein_per_100g, carbs_per_100g,
+		                   fat_per_100g, fibre_per_100g, serving_name, serving_grams)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, input.Name, input.Brand, input.CaloriesPer100g, input.ProteinPer100g,
 		input.CarbsPer100g, input.FatPer100g, input.FibrePer100g,
-		nullString(input.ServingName), nullFloat(input.ServingGrams))
+		input.ServingName, input.ServingGrams)
+
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	foodID, _ := result.LastInsertId()
-	food, _ := getLocalFood(foodID)
+	id, _ := result.LastInsertId()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(food)
+	json.NewEncoder(w).Encode(FoodResponse{
+		ID:              id,
+		Name:            input.Name,
+		Brand:           input.Brand,
+		CaloriesPer100g: input.CaloriesPer100g,
+		ProteinPer100g:  input.ProteinPer100g,
+		CarbsPer100g:    input.CarbsPer100g,
+		FatPer100g:      input.FatPer100g,
+		FibrePer100g:    input.FibrePer100g,
+		ServingName:     input.ServingName,
+		ServingGrams:    input.ServingGrams,
+	})
 }

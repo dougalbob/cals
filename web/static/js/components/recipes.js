@@ -8,6 +8,7 @@ const Recipes = {
     textIngredients: [],
     pendingImage: null,
     editorOpen: false,
+    targetMeal: null,
 
     async loadList() {
         try {
@@ -46,8 +47,9 @@ const Recipes = {
                 <div class="recipe-card-info">
                     <div class="recipe-card-name">${recipe.name}</div>
                     <div class="recipe-card-meta">
-                        ${Math.round(recipe.total_calories)} kcal
+                        ${Math.round(recipe.total_calories)} kcal total
                         ${recipe.serves > 1 ? `• Serves ${recipe.serves}` : ''}
+                        <br>${Math.round(recipe.calories_per_100g || 0)} kcal/100g
                     </div>
                 </div>
             </div>
@@ -57,6 +59,165 @@ const Recipes = {
             card.addEventListener('click', () => {
                 this.showRecipe(parseInt(card.dataset.recipeId));
             });
+        });
+    },
+
+    async showRecipePickerForMeal(meal) {
+        this.targetMeal = meal;
+        
+        try {
+            this.recipes = await API.listRecipes();
+        } catch (err) {
+            alert('Failed to load recipes: ' + err.message);
+            return;
+        }
+
+        if (this.recipes.length === 0) {
+            alert('No recipes yet. Create a recipe first in the Recipes tab.');
+            return;
+        }
+
+        const content = document.createElement('div');
+        content.className = 'recipe-picker';
+        content.innerHTML = `
+            <div class="recipe-picker-list">
+                ${this.recipes.map(recipe => `
+                    <div class="recipe-picker-item" data-recipe-id="${recipe.id}">
+                        <div class="recipe-picker-image">
+                            ${recipe.image_filename 
+                                ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb')}" alt="${recipe.name}">`
+                                : '<div class="recipe-card-placeholder">🍽️</div>'
+                            }
+                        </div>
+                        <div class="recipe-picker-info">
+                            <div class="recipe-picker-name">${recipe.name}</div>
+                            <div class="recipe-picker-meta">
+                                ${Math.round(recipe.calories_per_100g || 0)} kcal/100g | ${Math.round(recipe.total_weight_grams)}g total
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        const mealName = meal.charAt(0).toUpperCase() + meal.slice(1);
+        Modal.open(`Add Recipe to ${mealName}`, content);
+
+        content.querySelectorAll('.recipe-picker-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const recipeId = parseInt(item.dataset.recipeId);
+                try {
+                    const recipe = await API.getRecipe(recipeId);
+                    this.showQuantityForMeal(recipe, meal);
+                } catch (err) {
+                    alert('Failed to load recipe: ' + err.message);
+                }
+            });
+        });
+    },
+
+    showQuantityForMeal(recipe, meal) {
+        const servingWeight = recipe.serves > 0 ? recipe.total_weight_grams / recipe.serves : recipe.total_weight_grams;
+        const servingCalories = recipe.serves > 0 ? recipe.total_calories / recipe.serves : recipe.total_calories;
+
+        const content = document.createElement('div');
+        content.className = 'quantity-form';
+        content.innerHTML = `
+            <div class="quantity-food-name">${recipe.name}</div>
+            <div class="quantity-per100">
+                ${Math.round(recipe.calories_per_100g)} kcal per 100g (cooked)
+                <br>Total: ${Math.round(recipe.total_weight_grams)}g | ${Math.round(recipe.total_calories)} kcal
+                ${recipe.serves > 1 ? `<br>Per serving: ${Math.round(servingWeight)}g | ${Math.round(servingCalories)} kcal` : ''}
+            </div>
+
+            ${recipe.serves > 1 ? `
+                <div class="quantity-section">
+                    <div class="quantity-label">Servings:</div>
+                    <div class="quantity-presets serving-presets">
+                        <button class="quantity-preset" data-servings="0.5">½</button>
+                        <button class="quantity-preset" data-servings="1">1</button>
+                        <button class="quantity-preset" data-servings="1.5">1½</button>
+                        <button class="quantity-preset" data-servings="2">2</button>
+                    </div>
+                </div>
+                <div class="quantity-divider">or</div>
+            ` : ''}
+
+            <div class="quantity-section">
+                <div class="quantity-label">Weighed portion:</div>
+                <div class="quantity-input-row">
+                    <input type="number" id="recipe-grams" placeholder="Weight" min="1" step="1">
+                    <span>g</span>
+                </div>
+            </div>
+
+            <div class="quantity-calc">
+                <span id="calc-grams">0</span>g = <span id="calc-calories">0</span> kcal
+            </div>
+
+            <button class="btn-primary" id="confirm-add-recipe" disabled>Enter quantity</button>
+        `;
+
+        const mealName = meal.charAt(0).toUpperCase() + meal.slice(1);
+        Modal.open(`Add to ${mealName}`, content);
+
+        let currentGrams = 0;
+        const gramsInput = document.getElementById('recipe-grams');
+        const calcGrams = document.getElementById('calc-grams');
+        const calcCalories = document.getElementById('calc-calories');
+        const confirmBtn = document.getElementById('confirm-add-recipe');
+
+        const updateCalc = (grams) => {
+            currentGrams = grams;
+            const calories = recipe.calories_per_100g * grams / 100;
+            calcGrams.textContent = Math.round(grams);
+            calcCalories.textContent = Math.round(calories);
+            
+            if (currentGrams > 0) {
+                confirmBtn.textContent = `Add to ${mealName}`;
+                confirmBtn.disabled = false;
+            } else {
+                confirmBtn.textContent = 'Enter quantity';
+                confirmBtn.disabled = true;
+            }
+        };
+
+        content.querySelectorAll('.serving-presets .quantity-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const servings = parseFloat(btn.dataset.servings);
+                const grams = servings * servingWeight;
+                gramsInput.value = Math.round(grams);
+                updateCalc(grams);
+            });
+        });
+
+        gramsInput.addEventListener('input', () => {
+            updateCalc(parseFloat(gramsInput.value) || 0);
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            if (currentGrams <= 0) return;
+
+            const entry = {
+                date: App.currentDate,
+                meal: meal,
+                recipe_id: recipe.id,
+                quantity_grams: currentGrams,
+                calories: recipe.calories_per_100g * currentGrams / 100,
+                protein: recipe.protein_per_100g * currentGrams / 100,
+                carbs: recipe.carbs_per_100g * currentGrams / 100,
+                fat: recipe.fat_per_100g * currentGrams / 100,
+                fibre: recipe.fibre_per_100g * currentGrams / 100
+            };
+
+            try {
+                await API.createDiaryEntry(entry);
+                Modal.close();
+                this.targetMeal = null;
+                App.loadTodayView();
+            } catch (err) {
+                alert('Failed to add: ' + err.message);
+            }
         });
     },
 
@@ -74,6 +235,16 @@ const Recipes = {
         const servingWeight = recipe.serves > 0 ? recipe.total_weight_grams / recipe.serves : recipe.total_weight_grams;
         const servingCalories = recipe.serves > 0 ? recipe.total_calories / recipe.serves : recipe.total_calories;
 
+        let weightInfo = '';
+        if (recipe.weight_is_manual && recipe.calculated_weight_grams > 0 && 
+            recipe.calculated_weight_grams !== recipe.total_weight_grams) {
+            const reduction = Math.round((1 - recipe.total_weight_grams / recipe.calculated_weight_grams) * 100);
+            weightInfo = `<div class="recipe-weight-note">
+                Raw: ${Math.round(recipe.calculated_weight_grams)}g → Cooked: ${Math.round(recipe.total_weight_grams)}g 
+                (${reduction}% reduction)
+            </div>`;
+        }
+
         const content = document.createElement('div');
         content.className = 'recipe-view';
         content.innerHTML = `
@@ -82,10 +253,11 @@ const Recipes = {
                     <h2>${recipe.name}</h2>
                     ${recipe.description ? `<p class="recipe-description">${recipe.description}</p>` : ''}
                     <div class="recipe-stats">
-                        <span>${Math.round(recipe.total_calories)} kcal</span>
+                        <span>${Math.round(recipe.calories_per_100g)} kcal/100g</span>
                         <span>${Math.round(recipe.total_weight_grams)}g</span>
                         ${recipe.serves > 1 ? `<span>Serves ${recipe.serves}</span>` : ''}
                     </div>
+                    ${weightInfo}
                 </div>
                 ${recipe.image_filename 
                     ? `<div class="recipe-header-thumb">
@@ -157,8 +329,9 @@ const Recipes = {
         content.innerHTML = `
             <div class="quantity-food-name">${recipe.name}</div>
             <div class="quantity-per100">
-                Total: ${Math.round(recipe.total_calories)} kcal | ${Math.round(recipe.total_weight_grams)}g
-                ${recipe.serves > 1 ? `<br>Per serving: ${Math.round(servingCalories)} kcal | ${Math.round(servingWeight)}g` : ''}
+                ${Math.round(recipe.calories_per_100g)} kcal per 100g (cooked)
+                <br>Total: ${Math.round(recipe.total_weight_grams)}g | ${Math.round(recipe.total_calories)} kcal
+                ${recipe.serves > 1 ? `<br>Per serving: ${Math.round(servingWeight)}g | ${Math.round(servingCalories)} kcal` : ''}
             </div>
 
             ${recipe.serves > 1 ? `
@@ -210,8 +383,7 @@ const Recipes = {
 
         const updateCalc = (grams) => {
             currentGrams = grams;
-            const ratio = grams / recipe.total_weight_grams;
-            const calories = recipe.total_calories * ratio;
+            const calories = recipe.calories_per_100g * grams / 100;
             calcGrams.textContent = Math.round(grams);
             calcCalories.textContent = Math.round(calories);
             updateButton();
@@ -255,17 +427,16 @@ const Recipes = {
         confirmBtn.addEventListener('click', async () => {
             if (currentGrams <= 0 || !selectedMeal) return;
 
-            const ratio = currentGrams / recipe.total_weight_grams;
             const entry = {
                 date: App.currentDate,
                 meal: selectedMeal,
                 recipe_id: recipe.id,
                 quantity_grams: currentGrams,
-                calories: recipe.total_calories * ratio,
-                protein: recipe.total_protein * ratio,
-                carbs: recipe.total_carbs * ratio,
-                fat: recipe.total_fat * ratio,
-                fibre: recipe.total_fibre * ratio
+                calories: recipe.calories_per_100g * currentGrams / 100,
+                protein: recipe.protein_per_100g * currentGrams / 100,
+                carbs: recipe.carbs_per_100g * currentGrams / 100,
+                fat: recipe.fat_per_100g * currentGrams / 100,
+                fibre: recipe.fibre_per_100g * currentGrams / 100
             };
 
             try {
@@ -337,15 +508,16 @@ const Recipes = {
             </div>
 
             <div class="form-group">
-                <label>Final Weight (g)</label>
+                <label>Cooked Weight (g)</label>
                 <div class="weight-input-group">
-                    <input type="number" id="recipe-weight" value="${recipe?.total_weight_grams || ''}" placeholder="Calculated automatically">
+                    <input type="number" id="recipe-weight" value="${recipe?.total_weight_grams || ''}" placeholder="Weigh after cooking">
                     <label class="checkbox-label">
                         <input type="checkbox" id="weight-manual" ${recipe?.weight_is_manual ? 'checked' : ''}>
-                        Override calculated weight
+                        I've weighed the cooked result
                     </label>
                 </div>
-                <div class="calculated-weight" id="calculated-weight">Calculated: 0g</div>
+                <div class="calculated-weight" id="calculated-weight">Raw ingredients: 0g</div>
+                <small class="form-hint">If cooked weight differs from raw, calories will be concentrated accordingly</small>
             </div>
 
             <div class="form-group">
@@ -520,10 +692,10 @@ const Recipes = {
         const weightManualEl = document.getElementById('weight-manual');
 
         if (totalsEl) {
-            totalsEl.innerHTML = `<strong>Totals:</strong> ${Math.round(totalCals)} kcal | ${Math.round(totalWeight)}g`;
+            totalsEl.innerHTML = `<strong>Totals:</strong> ${Math.round(totalCals)} kcal | ${Math.round(totalWeight)}g raw`;
         }
         if (calcWeightEl) {
-            calcWeightEl.textContent = `Calculated: ${Math.round(totalWeight)}g`;
+            calcWeightEl.textContent = `Raw ingredients: ${Math.round(totalWeight)}g`;
         }
 
         if (weightEl && weightManualEl && !weightManualEl.checked) {
@@ -564,18 +736,9 @@ const Recipes = {
                         return;
                     }
                     results.innerHTML = foods.map(f => {
-                        // Store all data we need directly from search results
                         const cals = f.calories_per_100g || 0;
                         return `
-                            <div class="search-result" 
-                                 data-food-id="${f.id}" 
-                                 data-food-name="${this.escapeHtml(f.name)}"
-                                 data-food-cals="${cals}"
-                                 data-food-protein="${f.protein_per_100g || 0}"
-                                 data-food-carbs="${f.carbs_per_100g || 0}"
-                                 data-food-fat="${f.fat_per_100g || 0}"
-                                 data-food-fibre="${f.fibre_per_100g || 0}"
-                                 data-is-fatsecret="${String(f.id).startsWith('fs_')}">
+                            <div class="search-result" data-food-id="${f.id}">
                                 <div class="search-result-name">${f.name}</div>
                                 <div class="search-result-info">${Math.round(cals)} kcal/100g</div>
                             </div>
@@ -585,40 +748,16 @@ const Recipes = {
                     results.querySelectorAll('.search-result').forEach(el => {
                         el.addEventListener('click', async () => {
                             const foodId = el.dataset.foodId;
-                            const isFatSecret = el.dataset.isFatsecret === 'true';
+                            el.style.opacity = '0.5';
                             
-                            if (isFatSecret) {
-                                // For FatSecret foods, we need to fetch to cache them
-                                el.style.opacity = '0.5';
-                                el.innerHTML += '<div class="search-loading">Loading...</div>';
-                                
-                                try {
-                                    const food = await API.getFood(foodId);
-                                    this.showQuantityForIngredient(food);
-                                } catch (err) {
-                                    console.error('Failed to fetch food:', err);
-                                    // Fall back to using search data
-                                    this.showQuantityForIngredient({
-                                        id: foodId,
-                                        name: el.dataset.foodName,
-                                        calories_per_100g: parseFloat(el.dataset.foodCals) || 0,
-                                        protein_per_100g: parseFloat(el.dataset.foodProtein) || 0,
-                                        carbs_per_100g: parseFloat(el.dataset.foodCarbs) || 0,
-                                        fat_per_100g: parseFloat(el.dataset.foodFat) || 0,
-                                        fibre_per_100g: parseFloat(el.dataset.foodFibre) || 0
-                                    });
-                                }
-                            } else {
-                                // Local food - use data from search results directly
-                                this.showQuantityForIngredient({
-                                    id: parseInt(foodId),
-                                    name: el.dataset.foodName,
-                                    calories_per_100g: parseFloat(el.dataset.foodCals) || 0,
-                                    protein_per_100g: parseFloat(el.dataset.foodProtein) || 0,
-                                    carbs_per_100g: parseFloat(el.dataset.foodCarbs) || 0,
-                                    fat_per_100g: parseFloat(el.dataset.foodFat) || 0,
-                                    fibre_per_100g: parseFloat(el.dataset.foodFibre) || 0
-                                });
+                            try {
+                                // Always fetch full food data to get servings
+                                const food = await API.getFood(foodId);
+                                this.showQuantityForIngredient(food);
+                            } catch (err) {
+                                console.error('Failed to fetch food:', err);
+                                alert('Failed to load food details');
+                                el.style.opacity = '1';
                             }
                         });
                     });
@@ -638,54 +777,160 @@ const Recipes = {
     },
 
     showQuantityForIngredient(food) {
+        // Check for custom serving or API servings
+        const hasCustomServing = food.serving_name && food.serving_grams;
+        const hasApiServings = food.servings && food.servings.length > 0;
+        
+        let servingHtml = '';
+        
+        if (hasCustomServing) {
+            // Custom serving (e.g., "1 slice = 50g")
+            const servingGrams = food.serving_grams;
+            const servingCals = Math.round(food.calories_per_100g * servingGrams / 100);
+            servingHtml = `
+                <div class="quantity-section">
+                    <div class="quantity-label">${food.serving_name} (${Math.round(servingGrams)}g = ${servingCals} kcal):</div>
+                    <div class="quantity-presets serving-presets">
+                        <button class="quantity-preset" data-grams="${servingGrams * 0.5}">½</button>
+                        <button class="quantity-preset" data-grams="${servingGrams}">1</button>
+                        <button class="quantity-preset" data-grams="${servingGrams * 1.5}">1½</button>
+                        <button class="quantity-preset" data-grams="${servingGrams * 2}">2</button>
+                        <button class="quantity-preset" data-grams="${servingGrams * 3}">3</button>
+                    </div>
+                    <div class="quantity-input-row" style="margin-top: 0.5rem;">
+                        <input type="number" id="ing-servings" placeholder="Servings" min="0.25" step="0.25" style="width: 80px;">
+                        <span>${food.serving_name}</span>
+                    </div>
+                </div>
+                <div class="quantity-divider">or weigh it</div>
+            `;
+        } else if (hasApiServings) {
+            // FatSecret servings
+            servingHtml = `
+                <div class="quantity-section">
+                    <div class="quantity-label">Select serving:</div>
+                    <div class="serving-buttons">
+                        ${food.servings.map(s => `
+                            <button class="serving-btn" data-grams="${s.grams}">
+                                ${s.description}
+                                <span class="serving-detail">${Math.round(s.grams)}g</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="quantity-divider">or weigh it</div>
+            `;
+        }
+
         const content = document.createElement('div');
         content.className = 'quantity-form';
         content.innerHTML = `
             <div class="quantity-food-name">${food.name}</div>
             <div class="quantity-per100">${Math.round(food.calories_per_100g)} kcal per 100g</div>
             
-            <div class="quantity-input-row">
-                <input type="number" id="ing-grams" value="100" min="1" step="1">
-                <span>g</span>
-            </div>
+            ${servingHtml}
             
-            <div class="quantity-presets">
-                <button class="quantity-preset" data-grams="50">50g</button>
-                <button class="quantity-preset" data-grams="100">100g</button>
-                <button class="quantity-preset" data-grams="150">150g</button>
-                <button class="quantity-preset" data-grams="200">200g</button>
+            <div class="quantity-section">
+                <div class="quantity-label">Weight in grams:</div>
+                <div class="quantity-input-row">
+                    <input type="number" id="ing-grams" value="" placeholder="Enter grams" min="1" step="1">
+                    <span>g</span>
+                </div>
+                <div class="quantity-presets">
+                    <button class="quantity-preset" data-grams="25">25g</button>
+                    <button class="quantity-preset" data-grams="50">50g</button>
+                    <button class="quantity-preset" data-grams="100">100g</button>
+                    <button class="quantity-preset" data-grams="150">150g</button>
+                    <button class="quantity-preset" data-grams="200">200g</button>
+                </div>
             </div>
             
             <div class="quantity-calc">
-                = <span id="ing-calc-cals">${Math.round(food.calories_per_100g)}</span> kcal
+                <span id="ing-calc-grams">0</span>g = <span id="ing-calc-cals">0</span> kcal
             </div>
             
-            <button class="btn-primary" id="add-ing-confirm">Add Ingredient</button>
+            <button class="btn-primary" id="add-ing-confirm" disabled>Enter quantity</button>
         `;
 
         Modal.open('Quantity', content);
 
         const gramsInput = document.getElementById('ing-grams');
+        const servingsInput = document.getElementById('ing-servings');
+        const calcGrams = document.getElementById('ing-calc-grams');
         const calcCals = document.getElementById('ing-calc-cals');
+        const confirmBtn = document.getElementById('add-ing-confirm');
 
-        const updateCalc = () => {
-            const grams = parseFloat(gramsInput.value) || 0;
+        let currentGrams = 0;
+
+        const updateCalc = (grams) => {
+            currentGrams = grams;
             const cals = food.calories_per_100g * grams / 100;
+            calcGrams.textContent = Math.round(grams);
             calcCals.textContent = Math.round(cals);
+            
+            if (grams > 0) {
+                confirmBtn.textContent = 'Add Ingredient';
+                confirmBtn.disabled = false;
+            } else {
+                confirmBtn.textContent = 'Enter quantity';
+                confirmBtn.disabled = true;
+            }
         };
 
-        gramsInput.addEventListener('input', updateCalc);
+        // Grams input
+        gramsInput.addEventListener('input', () => {
+            const grams = parseFloat(gramsInput.value) || 0;
+            if (servingsInput) servingsInput.value = '';
+            updateCalc(grams);
+        });
 
-        content.querySelectorAll('.quantity-preset').forEach(btn => {
+        // Servings input (for custom servings)
+        if (servingsInput && hasCustomServing) {
+            servingsInput.addEventListener('input', () => {
+                const servings = parseFloat(servingsInput.value) || 0;
+                const grams = servings * food.serving_grams;
+                gramsInput.value = Math.round(grams);
+                updateCalc(grams);
+            });
+        }
+
+        // Gram preset buttons
+        content.querySelectorAll('.quantity-presets .quantity-preset').forEach(btn => {
             btn.addEventListener('click', () => {
-                gramsInput.value = btn.dataset.grams;
-                updateCalc();
+                const grams = parseFloat(btn.dataset.grams);
+                gramsInput.value = Math.round(grams);
+                if (servingsInput) servingsInput.value = '';
+                updateCalc(grams);
             });
         });
 
+        // Serving preset buttons (for custom servings - ½, 1, 1½, etc)
+        content.querySelectorAll('.serving-presets .quantity-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const grams = parseFloat(btn.dataset.grams);
+                gramsInput.value = Math.round(grams);
+                // Calculate servings for display
+                if (servingsInput && food.serving_grams) {
+                    servingsInput.value = (grams / food.serving_grams).toFixed(1).replace(/\.0$/, '');
+                }
+                updateCalc(grams);
+            });
+        });
+
+        // API serving buttons
+        content.querySelectorAll('.serving-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                content.querySelectorAll('.serving-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const grams = parseFloat(btn.dataset.grams);
+                gramsInput.value = Math.round(grams);
+                updateCalc(grams);
+            });
+        });
+
+        // Confirm button
         document.getElementById('add-ing-confirm').addEventListener('click', () => {
-            const grams = parseFloat(gramsInput.value) || 0;
-            if (grams <= 0) {
+            if (currentGrams <= 0) {
                 alert('Enter a valid quantity');
                 return;
             }
@@ -693,8 +938,8 @@ const Recipes = {
             this.ingredients.push({
                 food_id: food.id,
                 food_name: food.name,
-                quantity_grams: grams,
-                calories: food.calories_per_100g * grams / 100,
+                quantity_grams: currentGrams,
+                calories: food.calories_per_100g * currentGrams / 100,
                 sort_order: this.ingredients.length
             });
 

@@ -15,8 +15,8 @@ import (
 func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	rows, err := database.DB.Query(`
 		SELECT r.id, r.name, r.description, r.image_filename, r.serves,
-		       r.total_weight_grams, r.total_calories, r.created_by_user_id,
-		       COALESCE(u.name, u.email) as created_by_name
+		       r.calculated_weight_grams, r.total_weight_grams, r.total_calories, 
+		       r.created_by_user_id, COALESCE(u.name, u.email) as created_by_name
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		ORDER BY r.name
@@ -31,8 +31,9 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var r models.Recipe
 		var desc, img sql.NullString
+		var calcWeight sql.NullFloat64
 		err := rows.Scan(&r.ID, &r.Name, &desc, &img, &r.Serves,
-			&r.TotalWeightGrams, &r.TotalCalories, &r.CreatedByUserID, &r.CreatedByName)
+			&calcWeight, &r.TotalWeightGrams, &r.TotalCalories, &r.CreatedByUserID, &r.CreatedByName)
 		if err != nil {
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -43,6 +44,15 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		if img.Valid {
 			r.ImageFilename = img.String
 		}
+		if calcWeight.Valid {
+			r.CalculatedWeightGrams = calcWeight.Float64
+		}
+		
+		// Calculate per-100g based on final cooked weight
+		if r.TotalWeightGrams > 0 {
+			r.CaloriesPer100g = (r.TotalCalories / r.TotalWeightGrams) * 100
+		}
+		
 		recipes = append(recipes, r)
 	}
 
@@ -80,17 +90,18 @@ func HandleGetRecipe(w http.ResponseWriter, r *http.Request) {
 func getRecipeByID(id int64) (*models.Recipe, error) {
 	var r models.Recipe
 	var desc, instructions, img sql.NullString
+	var calcWeight sql.NullFloat64
 
 	err := database.DB.QueryRow(`
 		SELECT r.id, r.name, r.description, r.instructions, r.image_filename, r.serves,
-		       r.created_by_user_id, r.total_weight_grams, r.weight_is_manual,
+		       r.created_by_user_id, r.calculated_weight_grams, r.total_weight_grams, r.weight_is_manual,
 		       r.total_calories, r.total_protein, r.total_carbs, r.total_fat, r.total_fibre,
 		       r.created_at, r.updated_at, COALESCE(u.name, u.email) as created_by_name
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		WHERE r.id = ?
 	`, id).Scan(&r.ID, &r.Name, &desc, &instructions, &img, &r.Serves,
-		&r.CreatedByUserID, &r.TotalWeightGrams, &r.WeightIsManual,
+		&r.CreatedByUserID, &calcWeight, &r.TotalWeightGrams, &r.WeightIsManual,
 		&r.TotalCalories, &r.TotalProtein, &r.TotalCarbs, &r.TotalFat, &r.TotalFibre,
 		&r.CreatedAt, &r.UpdatedAt, &r.CreatedByName)
 	if err != nil {
@@ -105,6 +116,18 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 	}
 	if img.Valid {
 		r.ImageFilename = img.String
+	}
+	if calcWeight.Valid {
+		r.CalculatedWeightGrams = calcWeight.Float64
+	}
+
+	// Calculate per-100g values based on final cooked weight
+	if r.TotalWeightGrams > 0 {
+		r.CaloriesPer100g = (r.TotalCalories / r.TotalWeightGrams) * 100
+		r.ProteinPer100g = (r.TotalProtein / r.TotalWeightGrams) * 100
+		r.CarbsPer100g = (r.TotalCarbs / r.TotalWeightGrams) * 100
+		r.FatPer100g = (r.TotalFat / r.TotalWeightGrams) * 100
+		r.FibrePer100g = (r.TotalFibre / r.TotalWeightGrams) * 100
 	}
 
 	// Get food ingredients
@@ -197,7 +220,7 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate totals from ingredients
-	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, totalWeight float64
+	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, calculatedWeight float64
 	for _, ing := range input.Ingredients {
 		var cals, protein, carbs, fat, fibre float64
 		err := database.DB.QueryRow(`
@@ -213,11 +236,11 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		totalCarbs += carbs * multiplier
 		totalFat += fat * multiplier
 		totalFibre += fibre * multiplier
-		totalWeight += ing.QuantityGrams
+		calculatedWeight += ing.QuantityGrams
 	}
 
 	// Use manual weight if provided, otherwise calculated
-	finalWeight := totalWeight
+	finalWeight := calculatedWeight
 	if input.WeightIsManual && input.TotalWeightGrams > 0 {
 		finalWeight = input.TotalWeightGrams
 	}
@@ -225,11 +248,12 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	// Insert recipe
 	result, err := database.DB.Exec(`
 		INSERT INTO recipes (name, description, instructions, serves, created_by_user_id,
-		                     total_weight_grams, weight_is_manual, total_calories,
-		                     total_protein, total_carbs, total_fat, total_fibre)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                     calculated_weight_grams, total_weight_grams, weight_is_manual, 
+		                     total_calories, total_protein, total_carbs, total_fat, total_fibre)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID,
-		finalWeight, input.WeightIsManual, totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
+		calculatedWeight, finalWeight, input.WeightIsManual, 
+		totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -297,7 +321,7 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate totals from ingredients
-	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, totalWeight float64
+	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, calculatedWeight float64
 	for _, ing := range input.Ingredients {
 		var cals, protein, carbs, fat, fibre float64
 		err := database.DB.QueryRow(`
@@ -313,10 +337,10 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 		totalCarbs += carbs * multiplier
 		totalFat += fat * multiplier
 		totalFibre += fibre * multiplier
-		totalWeight += ing.QuantityGrams
+		calculatedWeight += ing.QuantityGrams
 	}
 
-	finalWeight := totalWeight
+	finalWeight := calculatedWeight
 	if input.WeightIsManual && input.TotalWeightGrams > 0 {
 		finalWeight = input.TotalWeightGrams
 	}
@@ -324,12 +348,13 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	// Update recipe
 	_, err = database.DB.Exec(`
 		UPDATE recipes SET name = ?, description = ?, instructions = ?, serves = ?,
-		       total_weight_grams = ?, weight_is_manual = ?, total_calories = ?,
-		       total_protein = ?, total_carbs = ?, total_fat = ?, total_fibre = ?,
+		       calculated_weight_grams = ?, total_weight_grams = ?, weight_is_manual = ?, 
+		       total_calories = ?, total_protein = ?, total_carbs = ?, total_fat = ?, total_fibre = ?,
 		       updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, input.Name, input.Description, input.Instructions, input.Serves,
-		finalWeight, input.WeightIsManual, totalCals, totalProtein, totalCarbs, totalFat, totalFibre, id)
+		calculatedWeight, finalWeight, input.WeightIsManual, 
+		totalCals, totalProtein, totalCarbs, totalFat, totalFibre, id)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
