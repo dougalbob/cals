@@ -1421,3 +1421,33 @@ textarea:focus {
     outline: none;
     border-color: var(--primary);
 }
+
+/* Recipe picker search */
+.recipe-picker-search {
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    padding: 0 0 0.75rem 0;
+    z-index: 10;
+}
+
+.recipe-picker-search input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.recipe-picker-search input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.recipe-picker-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}

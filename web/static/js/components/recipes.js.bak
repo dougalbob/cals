@@ -78,73 +78,42 @@ const Recipes = {
             return;
         }
 
-        const self = this;
-        
         const content = document.createElement('div');
         content.className = 'recipe-picker';
         content.innerHTML = `
-            <div class="recipe-picker-search">
-                <input type="text" id="recipe-picker-search" placeholder="Search recipes..." autocomplete="off">
+            <div class="recipe-picker-list">
+                ${this.recipes.map(recipe => `
+                    <div class="recipe-picker-item" data-recipe-id="${recipe.id}">
+                        <div class="recipe-picker-image">
+                            ${recipe.image_filename 
+                                ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${recipe.name}">`
+                                : '<div class="recipe-card-placeholder">🍽️</div>'
+                            }
+                        </div>
+                        <div class="recipe-picker-info">
+                            <div class="recipe-picker-name">${recipe.name}</div>
+                            <div class="recipe-picker-meta">
+                                ${Math.round(recipe.calories_per_100g || 0)} kcal/100g | ${Math.round(recipe.total_weight_grams)}g total
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
-            <div class="recipe-picker-list" id="recipe-picker-list"></div>
         `;
 
         const mealName = meal.charAt(0).toUpperCase() + meal.slice(1);
         Modal.open(`Add Recipe to ${mealName}`, content);
 
-        const searchInput = document.getElementById('recipe-picker-search');
-        const listContainer = document.getElementById('recipe-picker-list');
-
-        function renderItems(recipes) {
-            if (recipes.length === 0) {
-                listContainer.innerHTML = '<div class="recipe-picker-empty">No recipes match your search</div>';
-                return;
-            }
-            
-            listContainer.innerHTML = recipes.map(recipe => `
-                <div class="recipe-picker-item" data-recipe-id="${recipe.id}">
-                    <div class="recipe-picker-image">
-                        ${recipe.image_filename 
-                            ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${recipe.name}">`
-                            : '<div class="recipe-card-placeholder">🍽️</div>'
-                        }
-                    </div>
-                    <div class="recipe-picker-info">
-                        <div class="recipe-picker-name">${recipe.name}</div>
-                        <div class="recipe-picker-meta">
-                            ${Math.round(recipe.calories_per_100g || 0)} kcal/100g | ${Math.round(recipe.total_weight_grams)}g total
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            listContainer.querySelectorAll('.recipe-picker-item').forEach(item => {
-                item.addEventListener('click', async () => {
-                    const recipeId = parseInt(item.dataset.recipeId);
-                    try {
-                        const recipe = await API.getRecipe(recipeId);
-                        self.showQuantityForMeal(recipe, meal);
-                    } catch (err) {
-                        alert('Failed to load recipe: ' + err.message);
-                    }
-                });
+        content.querySelectorAll('.recipe-picker-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const recipeId = parseInt(item.dataset.recipeId);
+                try {
+                    const recipe = await API.getRecipe(recipeId);
+                    this.showQuantityForMeal(recipe, meal);
+                } catch (err) {
+                    alert('Failed to load recipe: ' + err.message);
+                }
             });
-        }
-
-        renderItems(this.recipes);
-        setTimeout(() => searchInput.focus(), 100);
-
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase().trim();
-            
-            if (!query) {
-                renderItems(self.recipes);
-            } else {
-                const filtered = self.recipes.filter(recipe => 
-                    recipe.name.toLowerCase().includes(query)
-                );
-                renderItems(filtered);
-            }
         });
     },
 

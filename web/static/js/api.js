@@ -124,7 +124,8 @@ const API = {
         return result;
     },
 
-    getRecipeImageUrl(recipeId, type = 'thumb') {
-        return `/api/images/recipes/${recipeId}/${type}`;
+    getRecipeImageUrl(recipeId, type = 'thumb', updatedAt = null) {
+        const cacheBuster = updatedAt ? new Date(updatedAt).getTime() : Date.now();
+        return `/api/images/recipes/${recipeId}/${type}?v=${cacheBuster}`;
     }
 };

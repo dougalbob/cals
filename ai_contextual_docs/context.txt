@@ -411,3 +411,29 @@ NOTES:
 - serving-buttons-work-same-as-diary-food-search
 - recipe-picker-skips-meal-selection-step
 - per-100g-values-used-for-all-diary-calculations
+
+---
+UPDATE:2025-02-15
+VERSION:1.5.2
+PHASE:5-recipes-enhanced
+
+CHANGES:
+~internal/handlers/images.go:cache-control-immutable-with-versioned-urls
+~web/static/js/api.js:getRecipeImageUrl-now-accepts-updatedAt-for-cache-busting
+~web/static/js/components/recipes.js:all-image-urls-include-cache-buster
++recipe-picker-search:filter-recipes-as-you-type
+~web/static/css/style.css:recipe-picker-search-styling
+
+BUGFIXES:
+~recipe-image-replacement:old-image-no-longer-cached-after-update
+~image-cache-strategy:versioned-urls-with-immutable-cache-header
+
+FEATURES_COMPLETE:
++recipe-image-cache-busting
++recipe-picker-search-filter
+
+NOTES:
+- image-urls-now-include-?v=timestamp-from-updated_at
+- cache-control-set-to-immutable-since-url-changes-on-update
+- recipe-picker-filters-client-side-as-user-types
+- search-input-auto-focused-when-picker-opens
