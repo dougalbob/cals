@@ -1,0 +1,245 @@
+/* Theme System - CSS Custom Properties */
+
+/* Default Theme (Light Blue) */
+:root {
+    /* Core colors */
+    --primary: #4a90d9;
+    --primary-dark: #3a7bc8;
+    --primary-light: #6ba3e0;
+    
+    /* Accent colors */
+    --accent: #ff6b6b;
+    --accent-secondary: #feca57;
+    --success: #26de81;
+    --warning: #fed330;
+    --danger: #fc5c65;
+    
+    /* Background colors */
+    --bg: #f5f7fa;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    
+    /* Text colors */
+    --text: #2d3436;
+    --text-light: #636e72;
+    --text-muted: #b2bec3;
+    
+    /* Border colors */
+    --border: #dfe6e9;
+    --border-light: #edf2f7;
+    
+    /* Shadows */
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+    
+    /* Meal colors */
+    --meal-breakfast: #ffeaa7;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #81ecec;
+    --meal-lunch-icon: #00cec9;
+    --meal-dinner: #fab1a0;
+    --meal-dinner-icon: #e17055;
+    --meal-snacks: #dfe6e9;
+    --meal-snacks-icon: #b2bec3;
+    
+    /* Ring colors */
+    --ring-bg: #e0e0e0;
+    --ring-progress: var(--primary);
+    --ring-over: var(--danger);
+    
+    /* Bank colors */
+    --bank-positive: #26de81;
+    --bank-negative: #fc5c65;
+}
+
+/* Ocean Theme */
+[data-theme="ocean"] {
+    --primary: #0984e3;
+    --primary-dark: #0770c2;
+    --primary-light: #74b9ff;
+    
+    --accent: #00cec9;
+    --accent-secondary: #81ecec;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #d63031;
+    
+    --bg: #dfe6e9;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    
+    --text: #2d3436;
+    --text-light: #636e72;
+    
+    --meal-breakfast: #ffeaa7;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #74b9ff;
+    --meal-lunch-icon: #0984e3;
+    --meal-dinner: #a29bfe;
+    --meal-dinner-icon: #6c5ce7;
+    --meal-snacks: #dfe6e9;
+    --meal-snacks-icon: #b2bec3;
+}
+
+/* Forest Theme */
+[data-theme="forest"] {
+    --primary: #00b894;
+    --primary-dark: #009975;
+    --primary-light: #55efc4;
+    
+    --accent: #fdcb6e;
+    --accent-secondary: #ffeaa7;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #e17055;
+    
+    --bg: #f0f5f0;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    
+    --text: #2d3436;
+    --text-light: #636e72;
+    
+    --meal-breakfast: #ffeaa7;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #55efc4;
+    --meal-lunch-icon: #00b894;
+    --meal-dinner: #fab1a0;
+    --meal-dinner-icon: #e17055;
+    --meal-snacks: #dfe6e9;
+    --meal-snacks-icon: #b2bec3;
+}
+
+/* Sunset Theme */
+[data-theme="sunset"] {
+    --primary: #e17055;
+    --primary-dark: #d35843;
+    --primary-light: #fab1a0;
+    
+    --accent: #fdcb6e;
+    --accent-secondary: #ffeaa7;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #d63031;
+    
+    --bg: #fef9f3;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    
+    --text: #2d3436;
+    --text-light: #636e72;
+    
+    --meal-breakfast: #ffeaa7;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #81ecec;
+    --meal-lunch-icon: #00cec9;
+    --meal-dinner: #fab1a0;
+    --meal-dinner-icon: #e17055;
+    --meal-snacks: #dfe6e9;
+    --meal-snacks-icon: #b2bec3;
+}
+
+/* Berry Theme */
+[data-theme="berry"] {
+    --primary: #a55eea;
+    --primary-dark: #8e44ad;
+    --primary-light: #d4a5ff;
+    
+    --accent: #fd79a8;
+    --accent-secondary: #fab1a0;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #d63031;
+    
+    --bg: #f8f5fa;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    
+    --text: #2d3436;
+    --text-light: #636e72;
+    
+    --meal-breakfast: #ffeaa7;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #a29bfe;
+    --meal-lunch-icon: #6c5ce7;
+    --meal-dinner: #fd79a8;
+    --meal-dinner-icon: #e84393;
+    --meal-snacks: #dfe6e9;
+    --meal-snacks-icon: #b2bec3;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+    --primary: #74b9ff;
+    --primary-dark: #5a9fd4;
+    --primary-light: #a4d4ff;
+    
+    --accent: #fd79a8;
+    --accent-secondary: #fab1a0;
+    --success: #55efc4;
+    --warning: #ffeaa7;
+    --danger: #ff7675;
+    
+    --bg: #1e272e;
+    --bg-card: #2d3436;
+    --bg-elevated: #353b48;
+    
+    --text: #f5f6fa;
+    --text-light: #b2bec3;
+    --text-muted: #636e72;
+    
+    --border: #4a5568;
+    --border-light: #3d4852;
+    
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+    
+    --meal-breakfast: #4a4031;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #2d4a4a;
+    --meal-lunch-icon: #00cec9;
+    --meal-dinner: #4a3535;
+    --meal-dinner-icon: #e17055;
+    --meal-snacks: #3d4852;
+    --meal-snacks-icon: #b2bec3;
+    
+    --ring-bg: #4a5568;
+}
+
+/* Midnight Theme */
+[data-theme="midnight"] {
+    --primary: #a29bfe;
+    --primary-dark: #8c7ae6;
+    --primary-light: #c8c4ff;
+    
+    --accent: #fd79a8;
+    --accent-secondary: #ffeaa7;
+    --success: #55efc4;
+    --warning: #ffeaa7;
+    --danger: #ff7675;
+    
+    --bg: #0c0c1e;
+    --bg-card: #1a1a2e;
+    --bg-elevated: #25254a;
+    
+    --text: #edf2f7;
+    --text-light: #a0aec0;
+    --text-muted: #718096;
+    
+    --border: #4a5568;
+    --border-light: #2d3748;
+    
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+    
+    --meal-breakfast: #2d2d1a;
+    --meal-breakfast-icon: #fdcb6e;
+    --meal-lunch: #1a2d2d;
+    --meal-lunch-icon: #00cec9;
+    --meal-dinner: #2d1a1a;
+    --meal-dinner-icon: #e17055;
+    --meal-snacks: #2d3748;
+    --meal-snacks-icon: #a0aec0;
+    
+    --ring-bg: #4a5568;
+}

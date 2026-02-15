@@ -7,6 +7,7 @@ const Recipes = {
     ingredients: [],
     textIngredients: [],
     pendingImage: null,
+    pendingImageFile: null,
     editorOpen: false,
     targetMeal: null,
 
@@ -454,25 +455,42 @@ const Recipes = {
         this.currentRecipe = recipe;
         this.editorOpen = true;
         
-        if (!this.editorOpen || recipe) {
-            this.ingredients = recipe?.ingredients?.map(ing => ({
+        // Only reset if opening fresh
+        if (recipe) {
+            this.ingredients = recipe.ingredients?.map(ing => ({
                 food_id: ing.food_id,
                 food_name: ing.food_name,
                 quantity_grams: ing.quantity_grams,
                 calories: ing.calories,
                 sort_order: ing.sort_order
             })) || [];
-            this.textIngredients = recipe?.text_ingredients?.map(ti => ({
+            this.textIngredients = recipe.text_ingredients?.map(ti => ({
                 description: ti.description,
                 sort_order: ti.sort_order
             })) || [];
             this.pendingImage = null;
+            this.pendingImageFile = null;
+        } else if (!this.ingredients.length && !this.pendingImage) {
+            this.ingredients = [];
+            this.textIngredients = [];
+            this.pendingImage = null;
+            this.pendingImageFile = null;
         }
 
         this.renderEditor(recipe);
     },
 
     renderEditor(recipe = null) {
+        // Determine what image to show
+        let imageHtml;
+        if (this.pendingImage) {
+            imageHtml = `<img src="${this.pendingImage}" alt="Preview">`;
+        } else if (recipe?.image_filename) {
+            imageHtml = `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb')}" alt="Recipe">`;
+        } else {
+            imageHtml = '<span>No image</span>';
+        }
+
         const content = document.createElement('div');
         content.className = 'recipe-editor';
         content.innerHTML = `
@@ -489,12 +507,7 @@ const Recipes = {
             <div class="form-group">
                 <label>Photo</label>
                 <div class="image-upload">
-                    <div class="image-preview" id="image-preview">
-                        ${recipe?.image_filename 
-                            ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb')}" alt="Recipe">`
-                            : (this.pendingImage ? `<img src="${this.pendingImage}" alt="Preview">` : '<span>No image</span>')
-                        }
-                    </div>
+                    <div class="image-preview" id="image-preview">${imageHtml}</div>
                     <input type="file" id="recipe-image" accept="image/*" capture="environment" style="display:none">
                     <button class="btn-secondary" id="take-photo-btn">📷 Take Photo</button>
                 </div>
@@ -545,21 +558,28 @@ const Recipes = {
         this.renderIngredientsList();
         this.updateTotals();
 
+        // Image handling
         const imageInput = document.getElementById('recipe-image');
+        const takePhotoBtn = document.getElementById('take-photo-btn');
         const imagePreview = document.getElementById('image-preview');
-        document.getElementById('take-photo-btn').addEventListener('click', () => {
+        const self = this;
+
+        takePhotoBtn.addEventListener('click', function() {
             imageInput.click();
         });
-        imageInput.addEventListener('change', (e) => {
+
+        imageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.pendingImage = e.target.result;
-                    imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-                };
-                reader.readAsDataURL(file);
+            if (!file) {
+                return;
             }
+
+            // Process image with ImageCrop
+            ImageCrop.show(file, function(croppedFile, previewDataUrl) {
+                self.pendingImageFile = croppedFile;
+                self.pendingImage = previewDataUrl;
+                imagePreview.innerHTML = '<img src="' + previewDataUrl + '" alt="Preview">';
+            });
         });
 
         document.getElementById('add-food-ingredient').addEventListener('click', () => {
@@ -591,6 +611,7 @@ const Recipes = {
             this.ingredients = [];
             this.textIngredients = [];
             this.pendingImage = null;
+            this.pendingImageFile = null;
             Modal.close();
             this.loadList();
         });
@@ -737,9 +758,11 @@ const Recipes = {
                     }
                     results.innerHTML = foods.map(f => {
                         const cals = f.calories_per_100g || 0;
+                        const brand = f.brand ? `<span class="search-result-brand">${f.brand}</span>` : '';
                         return `
                             <div class="search-result" data-food-id="${f.id}">
                                 <div class="search-result-name">${f.name}</div>
+                                ${brand}
                                 <div class="search-result-info">${Math.round(cals)} kcal/100g</div>
                             </div>
                         `;
@@ -751,11 +774,9 @@ const Recipes = {
                             el.style.opacity = '0.5';
                             
                             try {
-                                // Always fetch full food data to get servings
                                 const food = await API.getFood(foodId);
                                 this.showQuantityForIngredient(food);
                             } catch (err) {
-                                console.error('Failed to fetch food:', err);
                                 alert('Failed to load food details');
                                 el.style.opacity = '1';
                             }
@@ -770,21 +791,13 @@ const Recipes = {
         setTimeout(() => input.focus(), 100);
     },
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML.replace(/"/g, '&quot;');
-    },
-
     showQuantityForIngredient(food) {
-        // Check for custom serving or API servings
         const hasCustomServing = food.serving_name && food.serving_grams;
         const hasApiServings = food.servings && food.servings.length > 0;
         
         let servingHtml = '';
         
         if (hasCustomServing) {
-            // Custom serving (e.g., "1 slice = 50g")
             const servingGrams = food.serving_grams;
             const servingCals = Math.round(food.calories_per_100g * servingGrams / 100);
             servingHtml = `
@@ -805,7 +818,6 @@ const Recipes = {
                 <div class="quantity-divider">or weigh it</div>
             `;
         } else if (hasApiServings) {
-            // FatSecret servings
             servingHtml = `
                 <div class="quantity-section">
                     <div class="quantity-label">Select serving:</div>
@@ -822,10 +834,13 @@ const Recipes = {
             `;
         }
 
+        const brandDisplay = food.brand ? `<div class="quantity-food-brand">${food.brand}</div>` : '';
+
         const content = document.createElement('div');
         content.className = 'quantity-form';
         content.innerHTML = `
             <div class="quantity-food-name">${food.name}</div>
+            ${brandDisplay}
             <div class="quantity-per100">${Math.round(food.calories_per_100g)} kcal per 100g</div>
             
             ${servingHtml}
@@ -877,14 +892,12 @@ const Recipes = {
             }
         };
 
-        // Grams input
         gramsInput.addEventListener('input', () => {
             const grams = parseFloat(gramsInput.value) || 0;
             if (servingsInput) servingsInput.value = '';
             updateCalc(grams);
         });
 
-        // Servings input (for custom servings)
         if (servingsInput && hasCustomServing) {
             servingsInput.addEventListener('input', () => {
                 const servings = parseFloat(servingsInput.value) || 0;
@@ -894,7 +907,6 @@ const Recipes = {
             });
         }
 
-        // Gram preset buttons
         content.querySelectorAll('.quantity-presets .quantity-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 const grams = parseFloat(btn.dataset.grams);
@@ -904,12 +916,10 @@ const Recipes = {
             });
         });
 
-        // Serving preset buttons (for custom servings - ½, 1, 1½, etc)
         content.querySelectorAll('.serving-presets .quantity-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 const grams = parseFloat(btn.dataset.grams);
                 gramsInput.value = Math.round(grams);
-                // Calculate servings for display
                 if (servingsInput && food.serving_grams) {
                     servingsInput.value = (grams / food.serving_grams).toFixed(1).replace(/\.0$/, '');
                 }
@@ -917,7 +927,6 @@ const Recipes = {
             });
         });
 
-        // API serving buttons
         content.querySelectorAll('.serving-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 content.querySelectorAll('.serving-btn').forEach(b => b.classList.remove('active'));
@@ -928,7 +937,6 @@ const Recipes = {
             });
         });
 
-        // Confirm button
         document.getElementById('add-ing-confirm').addEventListener('click', () => {
             if (currentGrams <= 0) {
                 alert('Enter a valid quantity');
@@ -1017,15 +1025,20 @@ const Recipes = {
                 recipe = await API.createRecipe(data);
             }
 
-            const imageInput = document.getElementById('recipe-image');
-            if (imageInput && imageInput.files[0]) {
-                await API.uploadRecipeImage(recipe.id, imageInput.files[0]);
+            // Upload image if we have one pending
+            if (this.pendingImageFile) {
+                try {
+                    await API.uploadRecipeImage(recipe.id, this.pendingImageFile);
+                } catch (imgErr) {
+                    alert('Recipe saved but image upload failed');
+                }
             }
 
             this.editorOpen = false;
             this.ingredients = [];
             this.textIngredients = [];
             this.pendingImage = null;
+            this.pendingImageFile = null;
             this._formState = null;
 
             Modal.close();

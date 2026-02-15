@@ -346,3 +346,53 @@ const App = {
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
+
+// Theme management
+const Theme = {
+    current: 'default',
+    
+    init() {
+        // Load saved theme
+        const saved = localStorage.getItem('cals-theme');
+        if (saved) {
+            this.set(saved);
+        }
+        
+        // Setup theme selector
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', () => {
+                this.set(option.dataset.theme);
+            });
+        });
+        
+        this.updateSelector();
+    },
+    
+    set(theme) {
+        this.current = theme;
+        
+        if (theme === 'default') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        
+        localStorage.setItem('cals-theme', theme);
+        this.updateSelector();
+        
+        // Update theme-color meta tag for mobile browsers
+        const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', primary);
+    },
+    
+    updateSelector() {
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.classList.toggle('active', option.dataset.theme === this.current);
+        });
+    }
+};
+
+// Initialize theme on load
+document.addEventListener('DOMContentLoaded', () => {
+    Theme.init();
+});

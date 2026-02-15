@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Cals">
     <title>Cals</title>
+    <link rel="stylesheet" href="/static/css/themes.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="manifest" href="/public/manifest.json">
     <link rel="icon" href="/static/icons/favicon.ico">
@@ -62,7 +63,7 @@
 
             <div class="meals">
                 <section class="meal-section" data-meal="breakfast">
-                    <h2>Breakfast <span class="meal-total" id="breakfast-total"></span></h2>
+                    <h2><span class="meal-icon">🌅</span> Breakfast <span class="meal-total" id="breakfast-total"></span></h2>
                     <div class="meal-entries" id="breakfast-entries"></div>
                     <div class="meal-actions">
                         <button class="add-food-btn" data-meal="breakfast">+ Add Food</button>
@@ -70,7 +71,7 @@
                     </div>
                 </section>
                 <section class="meal-section" data-meal="lunch">
-                    <h2>Lunch <span class="meal-total" id="lunch-total"></span></h2>
+                    <h2><span class="meal-icon">☀️</span> Lunch <span class="meal-total" id="lunch-total"></span></h2>
                     <div class="meal-entries" id="lunch-entries"></div>
                     <div class="meal-actions">
                         <button class="add-food-btn" data-meal="lunch">+ Add Food</button>
@@ -78,7 +79,7 @@
                     </div>
                 </section>
                 <section class="meal-section" data-meal="dinner">
-                    <h2>Dinner <span class="meal-total" id="dinner-total"></span></h2>
+                    <h2><span class="meal-icon">🌙</span> Dinner <span class="meal-total" id="dinner-total"></span></h2>
                     <div class="meal-entries" id="dinner-entries"></div>
                     <div class="meal-actions">
                         <button class="add-food-btn" data-meal="dinner">+ Add Food</button>
@@ -86,7 +87,7 @@
                     </div>
                 </section>
                 <section class="meal-section" data-meal="snacks">
-                    <h2>Snacks <span class="meal-total" id="snacks-total"></span></h2>
+                    <h2><span class="meal-icon">🍿</span> Snacks <span class="meal-total" id="snacks-total"></span></h2>
                     <div class="meal-entries" id="snacks-entries"></div>
                     <div class="meal-actions">
                         <button class="add-food-btn" data-meal="snacks">+ Add Food</button>
@@ -96,7 +97,7 @@
             </div>
 
             <div class="day-note">
-                <button class="note-btn" id="note-btn">Add Note</button>
+                <button class="note-btn" id="note-btn">📝 Add Note</button>
             </div>
         </div>
 
@@ -145,6 +146,18 @@
                     <input type="date" id="setting-bank-start">
                     <small class="form-hint">Bank calculates savings/overspend from this date</small>
                 </div>
+                <div class="form-group">
+                    <label>Theme</label>
+                    <div class="theme-selector" id="theme-selector">
+                        <div class="theme-option active" data-theme="default" title="Default"></div>
+                        <div class="theme-option" data-theme="ocean" title="Ocean"></div>
+                        <div class="theme-option" data-theme="forest" title="Forest"></div>
+                        <div class="theme-option" data-theme="sunset" title="Sunset"></div>
+                        <div class="theme-option" data-theme="berry" title="Berry"></div>
+                        <div class="theme-option" data-theme="dark" title="Dark"></div>
+                        <div class="theme-option" data-theme="midnight" title="Midnight"></div>
+                    </div>
+                </div>
                 <button class="btn-primary" id="save-settings">Save Settings</button>
             </div>
             <div class="version-info" id="version-info">
@@ -169,6 +182,7 @@
     <script src="/static/js/api.js"></script>
     <script src="/static/js/components/modal.js"></script>
     <script src="/static/js/components/search.js"></script>
+    <script src="/static/js/components/imagecrop.js"></script>
     <script src="/static/js/components/recipes.js"></script>
     <script src="/static/js/app.js"></script>
     <script>

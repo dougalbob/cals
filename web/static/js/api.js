@@ -27,7 +27,6 @@ const API = {
         return response.json();
     },
 
-    // Users
     getCurrentUser() {
         return this.request('GET', '/api/users/me');
     },
@@ -40,7 +39,6 @@ const API = {
         return this.request('GET', '/api/users');
     },
 
-    // Foods
     searchFoods(query) {
         return this.request('GET', `/api/foods/search?q=${encodeURIComponent(query)}`);
     },
@@ -57,7 +55,6 @@ const API = {
         return this.request('POST', '/api/foods', data);
     },
 
-    // Diary
     getDiary(date) {
         const param = date ? `?date=${date}` : '';
         return this.request('GET', `/api/diary${param}`);
@@ -79,12 +76,10 @@ const API = {
         return this.request('DELETE', `/api/diary/${id}`);
     },
 
-    // Bank
     getBank(date) {
         return this.request('GET', `/api/bank?date=${date}`);
     },
 
-    // Recipes
     listRecipes() {
         return this.request('GET', '/api/recipes');
     },
@@ -106,19 +101,27 @@ const API = {
     },
 
     async uploadRecipeImage(recipeId, file) {
+        console.log('API.uploadRecipeImage:', { recipeId, fileName: file.name, fileSize: file.size, fileType: file.type });
+        
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', file, file.name);
 
         const response = await fetch(`/api/recipes/${recipeId}/image`, {
             method: 'POST',
             body: formData
         });
 
+        console.log('Upload response status:', response.status);
+
         if (!response.ok) {
-            throw new Error('Upload failed');
+            const errorText = await response.text();
+            console.error('Upload failed:', errorText);
+            throw new Error('Upload failed: ' + errorText);
         }
 
-        return response.json();
+        const result = await response.json();
+        console.log('Upload success:', result);
+        return result;
     },
 
     getRecipeImageUrl(recipeId, type = 'thumb') {
