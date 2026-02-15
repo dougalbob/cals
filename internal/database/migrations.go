@@ -173,6 +173,7 @@ func RunMigrations() error {
 
 		// Migrations for existing tables
 		`ALTER TABLE users ADD COLUMN bank_start_date DATE`,
+                `ALTER TABLE users ADD COLUMN target_weight_kg REAL`,
 		`ALTER TABLE foods ADD COLUMN serving_name TEXT`,
 		`ALTER TABLE foods ADD COLUMN serving_grams REAL`,
 		`ALTER TABLE recipes ADD COLUMN description TEXT`,

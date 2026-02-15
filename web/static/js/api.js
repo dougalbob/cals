@@ -127,5 +127,40 @@ const API = {
     getRecipeImageUrl(recipeId, type = 'thumb', updatedAt = null) {
         const cacheBuster = updatedAt ? new Date(updatedAt).getTime() : Date.now();
         return `/api/images/recipes/${recipeId}/${type}?v=${cacheBuster}`;
+    },
+
+    // Weight entries
+    getWeightEntries(days = 90) {
+        return this.request('GET', `/api/weight?days=${days}`);
+    },
+
+    createWeightEntry(data) {
+        return this.request('POST', '/api/weight', data);
+    },
+
+    deleteWeightEntry(id) {
+        return this.request('DELETE', `/api/weight/${id}`);
+    },
+
+    // Measurements
+    getMeasurements() {
+        return this.request('GET', '/api/measurements');
+    },
+
+    createMeasurement(data) {
+        return this.request('POST', '/api/measurements', data);
+    },
+
+    deleteMeasurement(id) {
+        return this.request('DELETE', `/api/measurements/${id}`);
+    },
+
+    // Stats
+    getCalorieStats(days = 14) {
+        return this.request('GET', `/api/stats/calories?days=${days}`);
+    },
+
+    getBankStats(days = 14) {
+        return this.request('GET', `/api/stats/bank?days=${days}`);
     }
 };

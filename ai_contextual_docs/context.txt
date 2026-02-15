@@ -437,3 +437,57 @@ NOTES:
 - cache-control-set-to-immutable-since-url-changes-on-update
 - recipe-picker-filters-client-side-as-user-types
 - search-input-auto-focused-when-picker-opens
+
+---
+UPDATE:2025-02-15
+VERSION:1.6.0
+PHASE:6-metrics
+
+CHANGES:
++internal/handlers/weight.go:weight-entry-crud
++internal/handlers/measurements.go:body-measurements-crud
++internal/handlers/stats.go:calorie-and-bank-stats-for-charts
++web/static/js/components/metrics.js:metrics-tab-component
+~web/templates/index.html:metrics-tab-replaces-history-and-progress
+~web/templates/index.html:added-chartjs-cdn
+~web/static/css/style.css:metrics-section-styling
+~web/static/js/api.js:weight-measurements-stats-methods
+~web/static/js/app.js:metrics-view-init
+~internal/database/migrations.go:target_weight_kg-column
+~internal/models/models.go:target_weight_kg-field
+
+API_ENDPOINTS_ACTIVE:
+GET /api/weight:weight-entries-with-days-param
+POST /api/weight:create-or-update-weight-entry
+DELETE /api/weight/{id}:remove-weight-entry
+GET /api/measurements:body-measurement-entries
+POST /api/measurements:create-measurement-entry
+DELETE /api/measurements/{id}:remove-measurement
+GET /api/stats/calories?days=:daily-calorie-totals
+GET /api/stats/bank?days=:daily-bank-balance
+
+DB_CHANGES:
+users.target_weight_kg:REAL:optional-target-weight
+
+FEATURES_COMPLETE:
++metrics-tab-consolidates-history-and-progress
++weight-entry-form
++weight-trend-chart-with-chartjs
++weight-projection-line
++target-weight-display
++period-selector-14-30-90-days
++body-measurements-accordion
++measurement-entry-form
++measurement-history-list
++measurement-reminder-warning
++daily-calories-bar-chart
++calorie-goal-line
++bank-balance-line-chart
++fill-missing-weight-days
+
+NOTES:
+- chartjs-loaded-via-cdn
+- weight-stored-in-kg-converted-for-display
+- missing-weight-days-carry-forward-last-value
+- projection-uses-linear-regression
+- measurements-accordion-collapsed-by-default

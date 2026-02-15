@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/static/css/themes.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="manifest" href="/public/manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link rel="icon" href="/static/icons/favicon.ico">
     <link rel="apple-touch-icon" href="/public/icons/icon-192.png">
 </head>
@@ -25,9 +26,8 @@
         </div>
         <nav class="main-nav">
             <button class="nav-btn active" data-view="today">Today</button>
-            <button class="nav-btn" data-view="history">History</button>
+            <button class="nav-btn" data-view="metrics">Metrics</button>
             <button class="nav-btn" data-view="recipes">Recipes</button>
-            <button class="nav-btn" data-view="progress">Progress</button>
             <button class="nav-btn" data-view="settings">Settings</button>
         </nav>
     </header>
@@ -101,10 +101,88 @@
             </div>
         </div>
 
-        <div id="view-history" class="view">
-            <h2>History</h2>
-            <p>Coming soon</p>
+                <div id="view-metrics" class="view">
+            <div class="metrics-section">
+                <h3>Today's Weigh-in</h3>
+                <div class="weight-entry-form">
+                    <div class="weight-input-group">
+                        <input type="number" id="weight-input" placeholder="Weight" step="0.1" min="0">
+                        <span id="weight-unit-label">kg</span>
+                        <button class="btn-primary" id="save-weight-btn">Save</button>
+                    </div>
+                    <div id="weight-target-info" class="weight-target-info"></div>
+                </div>
+            </div>
+
+            <div class="metrics-section">
+                <h3>Weight Trend</h3>
+                <div class="chart-period-selector">
+                    <button class="period-btn active" data-days="14">14d</button>
+                    <button class="period-btn" data-days="30">30d</button>
+                    <button class="period-btn" data-days="90">90d</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weight-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="metrics-section collapsible">
+                <div class="section-header" id="measurements-header">
+                    <h3>Body Measurements</h3>
+                    <span id="measurements-status" class="measurement-status"></span>
+                    <span class="collapse-icon">▶</span>
+                </div>
+                <div class="section-content" id="measurements-content" style="display: none;">
+                    <div class="measurements-form">
+                        <div class="measurement-row">
+                            <label>Bust</label>
+                            <input type="number" id="meas-bust" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Chest</label>
+                            <input type="number" id="meas-chest" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Waist</label>
+                            <input type="number" id="meas-waist" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Hips</label>
+                            <input type="number" id="meas-hips" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Upper Arm</label>
+                            <input type="number" id="meas-upper-arm" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Thigh</label>
+                            <input type="number" id="meas-thigh" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <div class="measurement-row">
+                            <label>Neck</label>
+                            <input type="number" id="meas-neck" step="0.1" min="0"><span>cm</span>
+                        </div>
+                        <button class="btn-primary" id="save-measurements-btn">Save Measurements</button>
+                    </div>
+                    <div id="measurements-history" class="measurements-history"></div>
+                </div>
+            </div>
+
+            <div class="metrics-section">
+                <h3>Daily Calories</h3>
+                <div class="chart-container">
+                    <canvas id="calories-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="metrics-section">
+                <h3>Calorie Bank</h3>
+                <div class="chart-container">
+                    <canvas id="bank-chart"></canvas>
+                </div>
+            </div>
         </div>
+
 
         <div id="view-recipes" class="view">
             <div class="view-header">
@@ -112,11 +190,6 @@
                 <button class="btn-primary" id="new-recipe-btn">+ New Recipe</button>
             </div>
             <div id="recipes-list" class="recipes-list"></div>
-        </div>
-
-        <div id="view-progress" class="view">
-            <h2>Progress</h2>
-            <p>Coming in Phase 7</p>
         </div>
 
         <div id="view-settings" class="view">
@@ -184,6 +257,7 @@
     <script src="/static/js/components/search.js"></script>
     <script src="/static/js/components/imagecrop.js"></script>
     <script src="/static/js/components/recipes.js"></script>
+    <script src="/static/js/components/metrics.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
         if (typeof APP_VERSION !== 'undefined') {

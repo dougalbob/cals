@@ -1451,3 +1451,223 @@ textarea:focus {
     padding: 2rem;
     color: var(--text-secondary);
 }
+
+/* ========================================
+   METRICS TAB
+   ======================================== */
+
+.metrics-section {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metrics-section h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+/* Weight Entry */
+.weight-entry-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.weight-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.weight-input-group input {
+    flex: 1;
+    max-width: 120px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1.25rem;
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+#weight-unit-label {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    min-width: 30px;
+}
+
+.weight-target-info {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.weight-target-info .to-go {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 200px;
+    width: 100%;
+}
+
+.chart-period-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.period-btn {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.period-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Collapsible sections */
+.metrics-section.collapsible .section-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.metrics-section.collapsible .section-header h3 {
+    flex: 1;
+    margin: 0;
+}
+
+.collapse-icon {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.metrics-section.collapsible.open .collapse-icon {
+    transform: rotate(90deg);
+}
+
+.measurement-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-right: 0.5rem;
+}
+
+.measurement-status.warning {
+    color: var(--warning-color, #f0ad4e);
+}
+
+/* Measurements form */
+.measurements-form {
+    padding-top: 1rem;
+}
+
+.measurement-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.measurement-row label {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.measurement-row input {
+    width: 80px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.measurement-row span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    width: 25px;
+}
+
+.measurements-form .btn-primary {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+/* Measurements history */
+.measurements-history {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.measurements-history h4 {
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.measurement-entry {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.measurement-entry-date {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+.measurement-entry-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.measurement-entry-values span {
+    background: var(--bg-secondary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Metrics button on diary */
+.metrics-quick-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 1rem;
+}
+
+.metrics-quick-btn:hover {
+    background: var(--bg-primary);
+}

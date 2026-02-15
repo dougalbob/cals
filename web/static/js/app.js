@@ -1,4 +1,4 @@
-const APP_VERSION = '1.5.2';
+const APP_VERSION = '1.6.0';
 
 // Main application
 const App = {
@@ -140,6 +140,9 @@ const App = {
         switch (viewName) {
             case 'today':
                 this.loadTodayView();
+                break;
+            case 'metrics':
+                Metrics.init();
                 break;
             case 'recipes':
                 Recipes.loadList();

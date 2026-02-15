@@ -14,6 +14,7 @@ type User struct {
 	DailyWaterGoalML int       `json:"daily_water_goal_ml"`
 	WeightUnit       string    `json:"weight_unit"`
 	BankStartDate    string    `json:"bank_start_date"`
+	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
