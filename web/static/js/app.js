@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 
 // Main application
 const App = {
@@ -60,8 +60,15 @@ const App = {
             this.changeDate(1);
         });
         document.getElementById('current-date')?.addEventListener('click', () => {
+
+        // Swipe gesture support for date navigation
+        this.initSwipeGestures();
             this.goToToday();
+
+        // Swipe gesture support for date navigation
         });
+
+        // Swipe gesture support for date navigation
 
         // New recipe button
         document.getElementById('new-recipe-btn')?.addEventListener('click', () => {
@@ -158,6 +165,45 @@ const App = {
         nameEl.textContent = this.user.name || this.user.email;
     },
 
+    initSwipeGestures() {
+        const viewToday = document.getElementById("view-today");
+        if (!viewToday) return;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        viewToday.addEventListener("touchstart", (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        viewToday.addEventListener("touchend", (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            this.handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+        }, { passive: true });
+    },
+
+    handleSwipe(startX, startY, endX, endY) {
+        const deltaX = endX - startX;
+        const deltaY = endY - startY;
+        const minSwipeDistance = 80;
+
+        // Only trigger if horizontal swipe is dominant
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+            if (deltaX > 0) {
+                // Swipe right - go to previous day
+                this.changeDate(-1);
+            } else {
+                // Swipe left - go to next day
+                this.changeDate(1);
+            }
+        }
+    },
+
+
     changeDate(days) {
         const current = new Date(this.currentDate);
         current.setDate(current.getDate() + days);
@@ -216,11 +262,21 @@ const App = {
                             </div>
                             <div class="meal-entry-cals">${Math.round(entry.calories)}</div>
                             <div class="meal-entry-actions">
-                                <button class="meal-entry-delete" data-entry-id="${entry.id}">&times;</button>
+                                <button class="meal-entry-edit" data-entry-id="${entry.id}"title="Edit">✏️</button>
+                                <button class="meal-entry-delete" data-entry-id="${entry.id}"title="Delete">🗑️</button>
                             </div>
                         </div>
                     `;
                 }).join('');
+
+                container.querySelectorAll('.meal-entry-edit').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const entryId = parseInt(btn.dataset.entryId);
+                        const entry = entries.find(en => en.id === entryId);
+                        if (entry) this.showEditEntryModal(entry);
+                    });
+                });
 
                 container.querySelectorAll('.meal-entry-delete').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
@@ -304,6 +360,75 @@ const App = {
             alert('Failed to save entry: ' + err.message);
         }
     },
+
+    showEditEntryModal(entry) {
+        const isRecipe = !!entry.recipe_id;
+        const name = entry.food_name || entry.recipe_name || "Unknown";
+        const currentGrams = entry.quantity_grams;
+        const caloriesPer100g = entry.calories / (currentGrams / 100);
+        
+        const content = document.createElement("div");
+        content.className = "quantity-form";
+        content.innerHTML = `
+            <div class="quantity-food-name">${name}</div>
+            <div class="quantity-per100">${Math.round(caloriesPer100g)} kcal per 100g</div>
+            
+            <div class="quantity-section">
+                <div class="quantity-label">Adjust weight:</div>
+                <div class="quantity-input-row">
+                    <input type="number" id="edit-grams" value="${Math.round(currentGrams)}" min="1" step="1">
+                    <span>g</span>
+                </div>
+            </div>
+            
+            <div class="quantity-calc">
+                <span id="edit-calc-grams">${Math.round(currentGrams)}</span>g = <span id="edit-calc-calories">${Math.round(entry.calories)}</span> kcal
+            </div>
+            
+            <button class="btn-primary" id="confirm-edit-entry">Update</button>
+        `;
+        
+        Modal.open("Edit Entry", content);
+        
+        const gramsInput = document.getElementById("edit-grams");
+        const calcGrams = document.getElementById("edit-calc-grams");
+        const calcCalories = document.getElementById("edit-calc-calories");
+        const confirmBtn = document.getElementById("confirm-edit-entry");
+        
+        gramsInput.addEventListener("input", () => {
+            const grams = parseFloat(gramsInput.value) || 0;
+            const calories = caloriesPer100g * grams / 100;
+            calcGrams.textContent = Math.round(grams);
+            calcCalories.textContent = Math.round(calories);
+        });
+        
+        confirmBtn.addEventListener("click", async () => {
+            const newGrams = parseFloat(gramsInput.value) || 0;
+            if (newGrams <= 0) {
+                alert("Enter a valid weight");
+                return;
+            }
+            
+            const ratio = newGrams / currentGrams;
+            const updatedEntry = {
+                quantity_grams: newGrams,
+                calories: entry.calories * ratio,
+                protein: (entry.protein || 0) * ratio,
+                carbs: (entry.carbs || 0) * ratio,
+                fat: (entry.fat || 0) * ratio,
+                fibre: (entry.fibre || 0) * ratio
+            };
+            
+            try {
+                await API.updateDiaryEntry(entry.id, updatedEntry);
+                Modal.close();
+                await this.loadTodayView();
+            } catch (err) {
+                alert("Failed to update: " + err.message);
+            }
+        });
+    },
+
 
     async deleteEntry(entryId) {
         if (!confirm('Delete this entry?')) return;

@@ -491,3 +491,36 @@ NOTES:
 - missing-weight-days-carry-forward-last-value
 - projection-uses-linear-regression
 - measurements-accordion-collapsed-by-default
+
+---
+UPDATE:2025-02-15
+VERSION:1.6.1
+PHASE:6-ui-refinements
+
+CHANGES:
+~web/templates/index.html:nav-moved-to-bottom,tab-renamed-diary
+~web/static/css/style.css:bottom-nav-bar,meal-slot-colors
+~web/static/js/app.js:edit-entry-modal,swipe-gestures
+~web/static/js/components/recipes.js:portion-buttons-quarter-half-three-quarter-all
+
+FEATURES_COMPLETE:
++bottom-navigation-bar-with-icons
++meal-slot-color-distinction
++edit-diary-entry-button
++swipe-left-right-date-navigation
++recipe-portion-buttons
++tab-renamed-today-to-diary
++weight-input-placeholder-improved
+
+UI_CHANGES:
+- nav-bar-fixed-to-bottom-with-emoji-icons
+- breakfast-orange,lunch-green,dinner-blue,snacks-purple
+- diary-entries-have-edit-pencil-and-trash-icons
+- swipe-gestures-on-diary-view-for-date-nav
+- recipe-picker-shows-portion-buttons(1/4,1/2,3/4,all)
+- recipe-picker-also-shows-serving-buttons-if-serves>1
+
+NOTES:
+- safe-area-inset-for-ios-devices
+- swipe-requires-80px-minimum-horizontal-movement
+- edit-modal-recalculates-macros-proportionally

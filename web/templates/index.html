@@ -24,19 +24,13 @@
                 <span id="user-name"></span>
             </div>
         </div>
-        <nav class="main-nav">
-            <button class="nav-btn active" data-view="today">Today</button>
-            <button class="nav-btn" data-view="metrics">Metrics</button>
-            <button class="nav-btn" data-view="recipes">Recipes</button>
-            <button class="nav-btn" data-view="settings">Settings</button>
-        </nav>
     </header>
 
     <main class="app-main">
         <div id="view-today" class="view active">
             <div class="date-nav">
                 <button class="date-nav-btn" id="prev-date">‹</button>
-                <span class="date-display" id="current-date">Today</span>
+                <span class="date-display" id="current-date">Diary</span>
                 <button class="date-nav-btn" id="next-date">›</button>
             </div>
 
@@ -106,7 +100,7 @@
                 <h3>Today's Weigh-in</h3>
                 <div class="weight-entry-form">
                     <div class="weight-input-group">
-                        <input type="number" id="weight-input" placeholder="Weight" step="0.1" min="0">
+                        <input type="number" id="weight-input" placeholder="Enter weight" step="0.1" min="0">
                         <span id="weight-unit-label">kg</span>
                         <button class="btn-primary" id="save-weight-btn">Save</button>
                     </div>
@@ -238,6 +232,13 @@
             </div>
         </div>
     </main>
+
+    <nav class="app-nav">
+        <button class="nav-btn active" data-view="today">Diary</button>
+        <button class="nav-btn" data-view="metrics">Metrics</button>
+        <button class="nav-btn" data-view="recipes">Recipes</button>
+        <button class="nav-btn" data-view="settings">Settings</button>
+    </nav>
 
     <!-- Modal container -->
     <div class="modal-overlay" id="modal-overlay">

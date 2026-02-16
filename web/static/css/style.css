@@ -1671,3 +1671,53 @@ textarea:focus {
 .metrics-quick-btn:hover {
     background: var(--bg-primary);
 }
+
+/* ========================================
+   BOTTOM NAVIGATION BAR
+   ======================================== */
+
+.app-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    padding: 0.5rem 0;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+.app-nav .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.app-nav .nav-btn::before {
+    font-size: 1.25rem;
+}
+
+.app-nav .nav-btn[data-view="today"]::before { content: "📓"; }
+.app-nav .nav-btn[data-view="metrics"]::before { content: "📊"; }
+.app-nav .nav-btn[data-view="recipes"]::before { content: "🍳"; }
+.app-nav .nav-btn[data-view="settings"]::before { content: "⚙️"; }
+
+.app-nav .nav-btn.active {
+    color: var(--accent-color);
+}
+
+.app-main {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}

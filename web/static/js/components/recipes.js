@@ -149,8 +149,10 @@ const Recipes = {
     },
 
     showQuantityForMeal(recipe, meal) {
-        const servingWeight = recipe.serves > 0 ? recipe.total_weight_grams / recipe.serves : recipe.total_weight_grams;
-        const servingCalories = recipe.serves > 0 ? recipe.total_calories / recipe.serves : recipe.total_calories;
+        const totalWeight = recipe.total_weight_grams;
+        const totalCalories = recipe.total_calories;
+        const servingWeight = recipe.serves > 1 ? totalWeight / recipe.serves : totalWeight;
+        const servingCalories = recipe.serves > 1 ? totalCalories / recipe.serves : totalCalories;
 
         const content = document.createElement('div');
         content.className = 'quantity-form';
@@ -158,13 +160,23 @@ const Recipes = {
             <div class="quantity-food-name">${recipe.name}</div>
             <div class="quantity-per100">
                 ${Math.round(recipe.calories_per_100g)} kcal per 100g (cooked)
-                <br>Total: ${Math.round(recipe.total_weight_grams)}g | ${Math.round(recipe.total_calories)} kcal
+                <br>Total: ${Math.round(totalWeight)}g | ${Math.round(totalCalories)} kcal
                 ${recipe.serves > 1 ? `<br>Per serving: ${Math.round(servingWeight)}g | ${Math.round(servingCalories)} kcal` : ''}
+            </div>
+
+            <div class="quantity-section">
+                <div class="quantity-label">Portion of recipe:</div>
+                <div class="quantity-presets portion-presets">
+                    <button class="quantity-preset" data-fraction="0.25">¼</button>
+                    <button class="quantity-preset" data-fraction="0.5">½</button>
+                    <button class="quantity-preset" data-fraction="0.75">¾</button>
+                    <button class="quantity-preset" data-fraction="1">All</button>
+                </div>
             </div>
 
             ${recipe.serves > 1 ? `
                 <div class="quantity-section">
-                    <div class="quantity-label">Servings:</div>
+                    <div class="quantity-label">Or by servings (${recipe.serves} in recipe):</div>
                     <div class="quantity-presets serving-presets">
                         <button class="quantity-preset" data-servings="0.5">½</button>
                         <button class="quantity-preset" data-servings="1">1</button>
@@ -172,13 +184,13 @@ const Recipes = {
                         <button class="quantity-preset" data-servings="2">2</button>
                     </div>
                 </div>
-                <div class="quantity-divider">or</div>
             ` : ''}
 
+            <div class="quantity-divider">or weigh it</div>
+
             <div class="quantity-section">
-                <div class="quantity-label">Weighed portion:</div>
                 <div class="quantity-input-row">
-                    <input type="number" id="recipe-grams" placeholder="Weight" min="1" step="1">
+                    <input type="number" id="recipe-grams" placeholder="Enter weight" min="1" step="1">
                     <span>g</span>
                 </div>
             </div>
@@ -214,6 +226,17 @@ const Recipes = {
             }
         };
 
+        // Portion presets (fraction of total recipe)
+        content.querySelectorAll('.portion-presets .quantity-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const fraction = parseFloat(btn.dataset.fraction);
+                const grams = fraction * totalWeight;
+                gramsInput.value = Math.round(grams);
+                updateCalc(grams);
+            });
+        });
+
+        // Serving presets
         content.querySelectorAll('.serving-presets .quantity-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 const servings = parseFloat(btn.dataset.servings);
@@ -253,107 +276,6 @@ const Recipes = {
         });
     },
 
-    async showRecipe(id) {
-        try {
-            this.currentRecipe = await API.getRecipe(id);
-            this.renderRecipeView();
-        } catch (err) {
-            alert('Failed to load recipe: ' + err.message);
-        }
-    },
-
-    renderRecipeView() {
-        const recipe = this.currentRecipe;
-        const servingWeight = recipe.serves > 0 ? recipe.total_weight_grams / recipe.serves : recipe.total_weight_grams;
-        const servingCalories = recipe.serves > 0 ? recipe.total_calories / recipe.serves : recipe.total_calories;
-
-        let weightInfo = '';
-        if (recipe.weight_is_manual && recipe.calculated_weight_grams > 0 && 
-            recipe.calculated_weight_grams !== recipe.total_weight_grams) {
-            const reduction = Math.round((1 - recipe.total_weight_grams / recipe.calculated_weight_grams) * 100);
-            weightInfo = `<div class="recipe-weight-note">
-                Raw: ${Math.round(recipe.calculated_weight_grams)}g → Cooked: ${Math.round(recipe.total_weight_grams)}g 
-                (${reduction}% reduction)
-            </div>`;
-        }
-
-        const content = document.createElement('div');
-        content.className = 'recipe-view';
-        content.innerHTML = `
-            <div class="recipe-header-with-image">
-                <div class="recipe-header-text">
-                    <h2>${recipe.name}</h2>
-                    ${recipe.description ? `<p class="recipe-description">${recipe.description}</p>` : ''}
-                    <div class="recipe-stats">
-                        <span>${Math.round(recipe.calories_per_100g)} kcal/100g</span>
-                        <span>${Math.round(recipe.total_weight_grams)}g</span>
-                        ${recipe.serves > 1 ? `<span>Serves ${recipe.serves}</span>` : ''}
-                    </div>
-                    ${weightInfo}
-                </div>
-                ${recipe.image_filename 
-                    ? `<div class="recipe-header-thumb">
-                           <img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${recipe.name}">
-                       </div>`
-                    : ''
-                }
-            </div>
-
-            <div class="recipe-section">
-                <h3>Ingredients</h3>
-                <ul class="recipe-ingredients">
-                    ${(recipe.ingredients || []).map(ing => `
-                        <li>
-                            <span class="ing-qty">${Math.round(ing.quantity_grams)}g</span>
-                            <span class="ing-name">${ing.food_name}</span>
-                            <span class="ing-cals">${Math.round(ing.calories)} kcal</span>
-                        </li>
-                    `).join('')}
-                    ${(recipe.text_ingredients || []).map(ti => `
-                        <li class="text-ingredient">
-                            <span class="ing-name">${ti.description}</span>
-                        </li>
-                    `).join('')}
-                </ul>
-            </div>
-
-            ${recipe.instructions ? `
-                <div class="recipe-section">
-                    <h3>Method</h3>
-                    <div class="recipe-instructions">${recipe.instructions.replace(/\n/g, '<br>')}</div>
-                </div>
-            ` : ''}
-
-            <div class="recipe-actions">
-                <button class="btn-primary" id="add-recipe-to-diary">Add to Diary</button>
-                <button class="btn-secondary" id="edit-recipe">Edit Recipe</button>
-                <button class="btn-danger" id="delete-recipe">Delete</button>
-            </div>
-        `;
-
-        Modal.open(recipe.name, content);
-
-        document.getElementById('add-recipe-to-diary').addEventListener('click', () => {
-            this.showAddToDiary(recipe, servingWeight, servingCalories);
-        });
-
-        document.getElementById('edit-recipe').addEventListener('click', () => {
-            Modal.close();
-            this.showEditor(recipe);
-        });
-
-        document.getElementById('delete-recipe').addEventListener('click', async () => {
-            if (confirm('Delete this recipe?')) {
-                try {
-                    await API.deleteRecipe(recipe.id);
-                    Modal.close();
-                    this.loadList();
-                } catch (err) {
-                    alert('Failed to delete: ' + err.message);
-                }
-            }
-        });
-    },
 
     showAddToDiary(recipe, servingWeight, servingCalories) {
         const content = document.createElement('div');
