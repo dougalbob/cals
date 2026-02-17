@@ -591,3 +591,37 @@ NOTES:
 - recipe-search-is-client-side-filter
 - custom-food-created-inline-then-added-as-ingredient
 - form-state-preserved-when-returning-to-recipe-editor
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.4
+PHASE:6-polish
+
+CHANGES:
+~web/static/js/components/modal.js:onClose-callback,closeWithoutCallback-method
+~web/static/js/components/recipes.js:sticky-footer-buttons,create-custom-food-inline,fixed-new-recipe-state
+~web/static/css/style.css:theme-aware-modal-styling,sticky-footers,button-sizes
+~web/templates/index.html:themed-modal-header
+
+FEATURES_COMPLETE:
++sticky-footer-buttons-in-modals
++create-custom-food-from-ingredient-search
++themed-modal-headers
++recipe-editor-footer-with-all-actions
+
+UI_CHANGES:
+- modal-headers-use-theme-primary-gradient
+- recipe-view-has-sticky-footer-buttons
+- recipe-editor-has-sticky-footer(+Food,+Text,Update,Cancel)
+- ingredient-search-has-sticky-create-custom-food-button
+- form-inputs-styled-with-theme-colors
+- quantity-calc-styled-with-success-color-accent
+
+BUGFIXES:
+~new-recipe-clears-previous-state-correctly
+~fixed-duplicate-event-listeners-in-recipe-editor
+
+NOTES:
+- wasEditorOpen-flag-prevents-clearing-state-when-returning-from-search
+- Modal.closeWithoutCallback-used-for-modal-to-modal-navigation
+- btn-sm-class-for-compact-footer-buttons

@@ -110,8 +110,9 @@ const Recipes = {
         }
 
         const content = document.createElement("div");
-        content.className = "recipe-view";
+        content.className = "recipe-view-wrapper";
         content.innerHTML = `
+            <div class="recipe-view-body">
             <div class="recipe-header-with-image">
                 <div class="recipe-header-text">
                     ${recipe.description ? `<p class="recipe-description">${recipe.description}</p>` : ""}
@@ -158,8 +159,8 @@ const Recipes = {
             <div class="recipe-note">
                 <small>Note: Editing this recipe will not affect previous diary entries.</small>
             </div>
-
-            <div class="recipe-actions">
+            </div>
+            <div class="recipe-view-footer">
                 <button class="btn-primary" id="add-recipe-to-diary">Add to Diary</button>
                 <button class="btn-secondary" id="edit-recipe">Edit</button>
                 <button class="btn-danger" id="delete-recipe">Delete</button>
@@ -534,10 +535,12 @@ const Recipes = {
     showEditor(recipe = null) {
         this.editMode = !!recipe;
         this.currentRecipe = recipe;
+        const wasEditorOpen = this.editorOpen;
         this.editorOpen = true;
         
-        // Only reset if opening fresh
+        // Reset state appropriately
         if (recipe) {
+            // Editing existing recipe - load its data
             this.ingredients = recipe.ingredients?.map(ing => ({
                 food_id: ing.food_id,
                 food_name: ing.food_name,
@@ -551,12 +554,15 @@ const Recipes = {
             })) || [];
             this.pendingImage = null;
             this.pendingImageFile = null;
-        } else if (!this.ingredients.length && !this.pendingImage) {
+        } else if (!wasEditorOpen) {
+            // Fresh new recipe - clear everything
             this.ingredients = [];
             this.textIngredients = [];
             this.pendingImage = null;
             this.pendingImageFile = null;
+            this._formState = null;
         }
+        // else: returning from ingredient search, keep current state
 
         this.renderEditor(recipe);
     },
@@ -573,8 +579,9 @@ const Recipes = {
         }
 
         const content = document.createElement('div');
-        content.className = 'recipe-editor';
+        content.className = 'recipe-editor-wrapper';
         content.innerHTML = `
+            <div class="recipe-editor-body">
             <div class="form-group">
                 <label>Recipe Name *</label>
                 <input type="text" id="recipe-name" value="${recipe?.name || ''}" placeholder="e.g., Beef Chilli">
@@ -596,9 +603,9 @@ const Recipes = {
 
             <div class="form-section-title">Ingredients</div>
             <div id="ingredients-list" class="ingredients-list"></div>
-            <div class="ingredient-actions">
-                <button class="btn-secondary" id="add-food-ingredient">+ Add Food</button>
-                <button class="btn-secondary" id="add-text-ingredient">+ Add Text</button>
+            <div class="ingredient-actions inline">
+                <button class="btn-secondary btn-sm" id="add-food-ingredient">+ Food</button>
+                <button class="btn-secondary btn-sm" id="add-text-ingredient">+ Text</button>
             </div>
 
             <div class="form-group">
@@ -628,9 +635,12 @@ const Recipes = {
                 <strong>Totals:</strong> 0 kcal | 0g
             </div>
 
-            <div class="form-actions">
-                <button class="btn-primary" id="save-recipe">${this.editMode ? 'Update Recipe' : 'Create Recipe'}</button>
-                <button class="btn-secondary" id="cancel-recipe">Cancel</button>
+            </div>
+            <div class="recipe-editor-footer">
+                <button class="btn-secondary btn-sm" id="add-food-ingredient-footer">+ Food</button>
+                <button class="btn-secondary btn-sm" id="add-text-ingredient-footer">+ Text</button>
+                <button class="btn-primary btn-sm" id="save-recipe">${this.editMode ? 'Update' : 'Create'}</button>
+                <button class="btn-secondary btn-sm" id="cancel-recipe">Cancel</button>
             </div>
         `;
 
@@ -669,6 +679,16 @@ const Recipes = {
         });
 
         document.getElementById('add-text-ingredient').addEventListener('click', () => {
+            this.saveFormState();
+            this.showTextIngredientInput();
+        });
+
+        document.getElementById('add-food-ingredient-footer').addEventListener('click', () => {
+            this.saveFormState();
+            this.showFoodSearch();
+        });
+
+        document.getElementById('add-text-ingredient-footer').addEventListener('click', () => {
             this.saveFormState();
             this.showTextIngredientInput();
         });
