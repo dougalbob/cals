@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 
 // Main application
 const App = {
@@ -448,7 +448,8 @@ const App = {
         document.getElementById('setting-calorie-goal').value = this.user.daily_calorie_goal;
         document.getElementById('setting-water-goal').value = this.user.daily_water_goal_ml;
         document.getElementById('setting-weight-unit').value = this.user.weight_unit;
-        document.getElementById('setting-bank-start').value = this.user.bank_start_date || '';
+        const bankDate = this.user.bank_start_date ? this.user.bank_start_date.split('T')[0] : '';
+        document.getElementById('setting-bank-start').value = bankDate;
     },
 
     async saveSettings() {

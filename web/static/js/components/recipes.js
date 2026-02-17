@@ -47,6 +47,7 @@ const Recipes = {
                 </div>
                 <div class="recipe-card-info">
                     <div class="recipe-card-name">${recipe.name}</div>
+                    ${recipe.description ? `<div class="recipe-card-desc">${recipe.description}</div>` : ""}
                     <div class="recipe-card-meta">
                         ${Math.round(recipe.total_calories)} kcal total
                         ${recipe.serves > 1 ? `• Serves ${recipe.serves}` : ''}
@@ -62,6 +63,112 @@ const Recipes = {
             });
         });
     },
+
+    async showRecipe(id) {
+        try {
+            this.currentRecipe = await API.getRecipe(id);
+            this.renderRecipeView();
+        } catch (err) {
+            alert("Failed to load recipe: " + err.message);
+        }
+    },
+
+    renderRecipeView() {
+        const recipe = this.currentRecipe;
+        const servingWeight = recipe.serves > 0 ? recipe.total_weight_grams / recipe.serves : recipe.total_weight_grams;
+        const servingCalories = recipe.serves > 0 ? recipe.total_calories / recipe.serves : recipe.total_calories;
+
+        let weightInfo = "";
+        if (recipe.weight_is_manual && recipe.calculated_weight_grams > 0 && 
+            recipe.calculated_weight_grams !== recipe.total_weight_grams) {
+            const reduction = Math.round((1 - recipe.total_weight_grams / recipe.calculated_weight_grams) * 100);
+            weightInfo = `<div class="recipe-weight-note">
+                Raw: ${Math.round(recipe.calculated_weight_grams)}g → Cooked: ${Math.round(recipe.total_weight_grams)}g 
+                (${reduction}% reduction)
+            </div>`;
+        }
+
+        const content = document.createElement("div");
+        content.className = "recipe-view";
+        content.innerHTML = `
+            <div class="recipe-header-with-image">
+                <div class="recipe-header-text">
+                    ${recipe.description ? `<p class="recipe-description">${recipe.description}</p>` : ""}
+                    <div class="recipe-stats">
+                        <span>${Math.round(recipe.calories_per_100g)} kcal/100g</span>
+                        <span>${Math.round(recipe.total_weight_grams)}g</span>
+                        ${recipe.serves > 1 ? `<span>Serves ${recipe.serves}</span>` : ""}
+                    </div>
+                    ${weightInfo}
+                </div>
+                ${recipe.image_filename 
+                    ? `<div class="recipe-header-thumb">
+                           <img src="${API.getRecipeImageUrl(recipe.image_filename, "thumb", recipe.updated_at)}" alt="${recipe.name}">
+                       </div>`
+                    : ""
+                }
+            </div>
+
+            <div class="recipe-section">
+                <h4>Ingredients</h4>
+                <ul class="recipe-ingredients">
+                    ${(recipe.ingredients || []).map(ing => `
+                        <li>
+                            <span class="ing-qty">${Math.round(ing.quantity_grams)}g</span>
+                            <span class="ing-name">${ing.food_name}</span>
+                            <span class="ing-cals">${Math.round(ing.calories)} kcal</span>
+                        </li>
+                    `).join("")}
+                    ${(recipe.text_ingredients || []).map(ti => `
+                        <li class="text-ingredient">
+                            <span class="ing-name">${ti.description}</span>
+                        </li>
+                    `).join("")}
+                </ul>
+            </div>
+
+            ${recipe.instructions ? `
+                <div class="recipe-section">
+                    <h4>Method</h4>
+                    <div class="recipe-instructions">${recipe.instructions.replace(/\n/g, "<br>")}</div>
+                </div>
+            ` : ""}
+
+            <div class="recipe-note">
+                <small>Note: Editing this recipe will not affect previous diary entries.</small>
+            </div>
+
+            <div class="recipe-actions">
+                <button class="btn-primary" id="add-recipe-to-diary">Add to Diary</button>
+                <button class="btn-secondary" id="edit-recipe">Edit</button>
+                <button class="btn-danger" id="delete-recipe">Delete</button>
+            </div>
+        `;
+
+        Modal.open(recipe.name, content);
+
+        document.getElementById("add-recipe-to-diary").addEventListener("click", () => {
+            this.showAddToDiary(recipe, servingWeight, servingCalories);
+        });
+
+        document.getElementById("edit-recipe").addEventListener("click", () => {
+            Modal.close();
+            this.showEditor(recipe);
+        });
+
+        document.getElementById("delete-recipe").addEventListener("click", async () => {
+            if (confirm("Delete this recipe?")) {
+                try {
+                    await API.deleteRecipe(recipe.id);
+                    Modal.close();
+                    this.loadList();
+                } catch (err) {
+                    alert("Failed to delete: " + err.message);
+                }
+            }
+        });
+    },
+
 
     async showRecipePickerForMeal(meal) {
         this.targetMeal = meal;

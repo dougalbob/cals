@@ -99,9 +99,11 @@
             <div class="metrics-section">
                 <h3>Today's Weigh-in</h3>
                 <div class="weight-entry-form">
+                    <div class="weight-entry-label">Enter Weight</div>
                     <div class="weight-input-group">
-                        <input type="number" id="weight-input" placeholder="Enter weight" step="0.1" min="0">
-                        <span id="weight-unit-label">kg</span>
+                        <input type="number" id="weight-stones" placeholder="st" min="0" max="50">
+                        <input type="number" id="weight-lbs" placeholder="lbs" min="0" max="13" step="0.5">
+                        <span class="weight-unit-label">stones/lbs</span>
                         <button class="btn-primary" id="save-weight-btn">Save</button>
                     </div>
                     <div id="weight-target-info" class="weight-target-info"></div>

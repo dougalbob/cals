@@ -71,11 +71,17 @@ const Metrics = {
             const today = new Date().toISOString().split('T')[0];
             const todayEntry = entries.find(e => e.date === today);
             
+            const stonesInput = document.getElementById('weight-stones');
+            const lbsInput = document.getElementById('weight-lbs');
+            
             if (todayEntry) {
-                const input = document.getElementById('weight-input');
-                if (input) {
-                    input.value = this.convertWeight(todayEntry.weight_kg, 'from_kg');
-                }
+                const { stones, lbs } = this.kgToStonesLbs(todayEntry.weight_kg);
+                if (stonesInput) stonesInput.value = stones;
+                if (lbsInput) lbsInput.value = lbs;
+            } else if (entries.length > 0) {
+                // Default stones to last known value
+                const { stones } = this.kgToStonesLbs(entries[0].weight_kg);
+                if (stonesInput) stonesInput.value = stones;
             }
 
             this.updateTargetInfo(entries);
@@ -83,6 +89,43 @@ const Metrics = {
             console.error('Failed to load weight:', err);
         }
     },
+
+    kgToStonesLbs(kg) {
+        const totalLbs = kg * 2.20462;
+        const stones = Math.floor(totalLbs / 14);
+        const lbs = Math.round((totalLbs % 14) * 2) / 2; // Round to nearest 0.5
+        return { stones, lbs };
+    },
+
+    stonesLbsToKg(stones, lbs) {
+        const totalLbs = (stones * 14) + lbs;
+        return totalLbs / 2.20462;
+    },
+
+    async saveWeight() {
+        const stonesInput = document.getElementById('weight-stones');
+        const lbsInput = document.getElementById('weight-lbs');
+        
+        const stones = parseFloat(stonesInput?.value) || 0;
+        const lbs = parseFloat(lbsInput?.value) || 0;
+        
+        if (stones <= 0 && lbs <= 0) {
+            alert('Please enter a valid weight');
+            return;
+        }
+
+        const weightKg = this.stonesLbsToKg(stones, lbs);
+        const today = new Date().toISOString().split('T')[0];
+
+        try {
+            await API.createWeightEntry({ date: today, weight_kg: weightKg });
+            this.loadWeightChart();
+            this.loadTodayWeight();
+        } catch (err) {
+            alert('Failed to save weight: ' + err.message);
+        }
+    },
+
 
     updateTargetInfo(entries) {
         const info = document.getElementById('weight-target-info');
@@ -95,9 +138,10 @@ const Metrics = {
                         this.user.weight_unit === 'lbs' ? 'lbs' : 'st';
             
             if (diff > 0) {
-                const toGo = this.convertWeight(diff, 'from_kg');
-                info.innerHTML = `Target: ${this.convertWeight(this.user.target_weight_kg, 'from_kg')}${unit} 
-                    (<span class="to-go">${toGo.toFixed(1)}${unit} to go</span>)`;
+                const { stones: toGoSt, lbs: toGoLbs } = this.kgToStonesLbs(diff);
+                const { stones: targetSt, lbs: targetLbs } = this.kgToStonesLbs(this.user.target_weight_kg);
+            info.innerHTML = `Target: ${targetSt}st ${targetLbs}lbs 
+                    (<span class="to-go">${toGoSt}st ${toGoLbs}lbs to go</span>)`;
             } else {
                 info.innerHTML = `🎉 Target reached!`;
             }
@@ -158,7 +202,7 @@ const Metrics = {
         const filledData = this.fillMissingDays(entries, this.currentPeriod);
 
         const labels = filledData.map(e => this.formatDateShort(e.date));
-        const weights = filledData.map(e => this.convertWeight(e.weight_kg, 'from_kg'));
+        const weights = filledData.map(e => e.weight_kg * 2.20462); // Convert to lbs for charting
 
         // Calculate projection line (simple linear regression)
         const projection = this.calculateProjection(filledData);
@@ -178,7 +222,7 @@ const Metrics = {
 
         // Add target line if set
         if (this.user?.target_weight_kg) {
-            const targetWeight = this.convertWeight(this.user.target_weight_kg, 'from_kg');
+            const targetWeight = this.user.target_weight_kg * 2.20462; // Convert to lbs
             datasets.push({
                 label: 'Target',
                 data: Array(labels.length).fill(targetWeight),
@@ -216,7 +260,16 @@ const Metrics = {
                 },
                 scales: {
                     y: {
-                        beginAtZero: false
+                        beginAtZero: false,
+                        min: Math.min(...weights.filter(w => w !== null)) - 14,
+                        max: Math.max(...weights.filter(w => w !== null)) + 14,
+                        ticks: {
+                            callback: function(value) {
+                                const stones = Math.floor(value / 14);
+                                const lbs = Math.round(value % 14);
+                                return stones + 'st ' + lbs + 'lb';
+                            }
+                        }
                     }
                 }
             }
@@ -256,7 +309,7 @@ const Metrics = {
         
         let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
         recent.forEach((d, i) => {
-            const y = this.convertWeight(d.weight_kg, 'from_kg');
+            const y = d.weight_kg * 2.20462; // Convert to lbs
             sumX += i;
             sumY += y;
             sumXY += i * y;

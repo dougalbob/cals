@@ -524,3 +524,37 @@ NOTES:
 - safe-area-inset-for-ios-devices
 - swipe-requires-80px-minimum-horizontal-movement
 - edit-modal-recalculates-macros-proportionally
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.2
+PHASE:6-polish
+
+CHANGES:
+~web/templates/index.html:weight-input-stones-lbs-layout
+~web/static/js/components/metrics.js:stones-lbs-conversion,dynamic-y-axis
+~web/static/js/components/recipes.js:restored-showRecipe-renderRecipeView-methods
+~web/static/js/app.js:bank-start-date-iso-format-fix
+~web/static/css/style.css:weight-input-styling,recipe-card-description
+
+BUGFIXES:
+~bank-start-date-display:fixed-iso-timestamp-to-yyyy-mm-dd-conversion
+~recipe-view-modal:restored-missing-showRecipe-and-renderRecipeView-methods
+
+FEATURES_COMPLETE:
++weight-input-stones-and-lbs-separate-fields
++weight-chart-dynamic-y-axis-plus-minus-14lbs
++weight-chart-y-axis-shows-stones-lbs-labels
++recipe-card-shows-description
++recipe-view-edit-delete-restored
+
+UI_CHANGES:
+- weight-entry-now-two-fields-stones-and-lbs
+- stones-field-defaults-to-last-known-value
+- weight-chart-y-axis-14lbs-above-below-current
+- recipe-cards-show-description-text-truncated-2-lines
+- recipe-edit-note-about-diary-entries-not-affected
+
+NOTES:
+- weight-stored-in-kg-converted-to-stones-lbs-for-display
+- bank_start_date-returned-as-iso-timestamp-now-parsed-correctly
