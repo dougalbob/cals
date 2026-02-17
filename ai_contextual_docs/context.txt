@@ -558,3 +558,36 @@ UI_CHANGES:
 NOTES:
 - weight-stored-in-kg-converted-to-stones-lbs-for-display
 - bank_start_date-returned-as-iso-timestamp-now-parsed-correctly
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.3
+PHASE:6-polish
+
+CHANGES:
+~web/templates/index.html:recipe-search-input-added,fixed-unclosed-div
+~web/static/js/components/recipes.js:recipe-list-search-filter,create-custom-food-from-recipe
+~web/static/js/components/modal.js:onClose-callback-support,closeWithoutCallback-method
+~web/static/css/style.css:recipe-search-styling,custom-food-form-styling
+
+FEATURES_COMPLETE:
++recipe-list-search-filter
++create-custom-food-during-recipe-creation
++modal-returns-to-recipe-editor-on-close
+
+UI_CHANGES:
+- recipe-tab-has-search-input-at-top
+- search-filters-by-name-and-description
+- add-ingredient-modal-has-create-custom-food-button
+- closing-ingredient-search-returns-to-recipe-editor
+- custom-food-form-with-all-nutritional-fields
+
+MODAL_CHANGES:
+- Modal.open-accepts-optional-onClose-callback
+- Modal.closeWithoutCallback-for-navigation-between-modals
+- ingredient-search-and-custom-food-modals-return-to-recipe-editor
+
+NOTES:
+- recipe-search-is-client-side-filter
+- custom-food-created-inline-then-added-as-ingredient
+- form-state-preserved-when-returning-to-recipe-editor

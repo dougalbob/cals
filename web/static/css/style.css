@@ -1799,3 +1799,72 @@ textarea:focus {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+/* Recipe list search */
+.recipe-search {
+    margin-bottom: 1rem;
+}
+
+.recipe-search input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.recipe-search input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.recipe-search input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Create custom food button in search */
+.search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.search-container .btn-small {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    align-self: flex-start;
+}
+
+/* Custom food form */
+.custom-food-form .form-group {
+    margin-bottom: 0.75rem;
+}
+
+.custom-food-form label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-secondary);
+}
+
+.custom-food-form input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.custom-food-form .form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.custom-food-form .form-actions button {
+    flex: 1;
+}

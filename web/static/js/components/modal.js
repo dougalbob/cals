@@ -5,6 +5,7 @@ const Modal = {
     modal: null,
     titleEl: null,
     contentEl: null,
+    onCloseCallback: null,
 
     init() {
         this.overlay = document.getElementById('modal-overlay');
@@ -32,8 +33,9 @@ const Modal = {
         });
     },
 
-    open(title, content) {
+    open(title, content, onClose = null) {
         this.titleEl.textContent = title;
+        this.onCloseCallback = onClose;
         
         if (typeof content === 'string') {
             this.contentEl.innerHTML = content;
@@ -46,6 +48,18 @@ const Modal = {
     },
 
     close() {
+        this.overlay.classList.remove('active');
+        if (this.onCloseCallback) {
+            const callback = this.onCloseCallback;
+            this.onCloseCallback = null;
+            // Small delay to let the modal close animation complete
+            setTimeout(() => callback(), 100);
+        }
+    },
+
+    // Close without triggering callback (for when we're navigating to another modal)
+    closeWithoutCallback() {
+        this.onCloseCallback = null;
         this.overlay.classList.remove('active');
     }
 };

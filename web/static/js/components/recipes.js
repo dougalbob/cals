@@ -15,16 +15,37 @@ const Recipes = {
         try {
             this.recipes = await API.listRecipes();
             this.renderList();
+            this.setupSearchHandler();
         } catch (err) {
             console.error('Failed to load recipes:', err);
         }
     },
 
-    renderList() {
+    setupSearchHandler() {
+        const searchInput = document.getElementById('recipe-list-search');
+        if (!searchInput || searchInput.dataset.listenerAdded) return;
+        
+        searchInput.dataset.listenerAdded = 'true';
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase().trim();
+            if (!query) {
+                this.renderList();
+            } else {
+                const filtered = this.recipes.filter(recipe => 
+                    recipe.name.toLowerCase().includes(query) ||
+                    (recipe.description && recipe.description.toLowerCase().includes(query))
+                );
+                this.renderList(filtered);
+            }
+        });
+    },
+
+    renderList(filteredRecipes = null) {
+        const recipesToShow = filteredRecipes || this.recipes;
         const container = document.getElementById('recipes-list');
         if (!container) return;
 
-        if (this.recipes.length === 0) {
+        if (recipesToShow.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p>No recipes yet</p>
@@ -37,7 +58,7 @@ const Recipes = {
             return;
         }
 
-        container.innerHTML = this.recipes.map(recipe => `
+        container.innerHTML = recipesToShow.map(recipe => `
             <div class="recipe-card" data-recipe-id="${recipe.id}">
                 <div class="recipe-card-image">
                     ${recipe.image_filename 
@@ -785,18 +806,30 @@ const Recipes = {
     },
 
     showFoodSearch() {
+        const self = this;
         const content = document.createElement('div');
         content.innerHTML = `
             <div class="search-container">
                 <input type="text" class="search-input" id="ing-search-input" 
                        placeholder="Search foods..." autocomplete="off" autofocus>
+                <button class="btn-secondary btn-small" id="create-custom-food-btn">+ Create Custom Food</button>
             </div>
             <div class="search-results" id="ing-search-results">
                 <div class="search-empty">Start typing to search</div>
             </div>
         `;
 
-        Modal.open('Add Ingredient', content);
+        Modal.open('Add Ingredient', content, () => {
+            // On close, return to recipe editor
+            self.renderEditor(self.currentRecipe);
+            self.restoreFormState();
+        });
+
+        // Create custom food button
+        document.getElementById('create-custom-food-btn').addEventListener('click', () => {
+            Modal.closeWithoutCallback();
+            this.showCreateCustomFood();
+        });
 
         const input = document.getElementById('ing-search-input');
         const results = document.getElementById('ing-search-results');
@@ -850,6 +883,99 @@ const Recipes = {
 
         setTimeout(() => input.focus(), 100);
     },
+
+    showCreateCustomFood() {
+        const self = this;
+        const content = document.createElement("div");
+        content.className = "custom-food-form";
+        content.innerHTML = `
+            <div class="form-group">
+                <label>Food Name *</label>
+                <input type="text" id="custom-food-name" placeholder="e.g., Homemade granola">
+            </div>
+            <div class="form-group">
+                <label>Brand (optional)</label>
+                <input type="text" id="custom-food-brand" placeholder="e.g., Own brand">
+            </div>
+            <div class="form-group">
+                <label>Calories per 100g *</label>
+                <input type="number" id="custom-food-calories" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Protein per 100g</label>
+                <input type="number" id="custom-food-protein" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Carbs per 100g</label>
+                <input type="number" id="custom-food-carbs" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Fat per 100g</label>
+                <input type="number" id="custom-food-fat" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Fibre per 100g</label>
+                <input type="number" id="custom-food-fibre" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Serving Name (optional)</label>
+                <input type="text" id="custom-food-serving-name" placeholder="e.g., 1 bowl">
+            </div>
+            <div class="form-group">
+                <label>Serving Size in grams (optional)</label>
+                <input type="number" id="custom-food-serving-grams" min="0" step="0.1">
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" id="save-custom-food">Save \& Add to Recipe</button>
+                <button class="btn-secondary" id="cancel-custom-food">Cancel</button>
+            </div>
+        `;
+
+        Modal.open("Create Custom Food", content, () => {
+            self.renderEditor(self.currentRecipe);
+            self.restoreFormState();
+        });
+
+        document.getElementById("cancel-custom-food").addEventListener("click", () => {
+            Modal.closeWithoutCallback();
+            this.showFoodSearch();
+        });
+
+        document.getElementById("save-custom-food").addEventListener("click", async () => {
+            const name = document.getElementById("custom-food-name").value.trim();
+            const calories = parseFloat(document.getElementById("custom-food-calories").value);
+
+            if (!name) {
+                alert("Please enter a food name");
+                return;
+            }
+            if (!calories || calories < 0) {
+                alert("Please enter valid calories per 100g");
+                return;
+            }
+
+            const foodData = {
+                name: name,
+                brand: document.getElementById("custom-food-brand").value.trim() || null,
+                calories_per_100g: calories,
+                protein_per_100g: parseFloat(document.getElementById("custom-food-protein").value) || 0,
+                carbs_per_100g: parseFloat(document.getElementById("custom-food-carbs").value) || 0,
+                fat_per_100g: parseFloat(document.getElementById("custom-food-fat").value) || 0,
+                fibre_per_100g: parseFloat(document.getElementById("custom-food-fibre").value) || 0,
+                serving_name: document.getElementById("custom-food-serving-name").value.trim() || null,
+                serving_grams: parseFloat(document.getElementById("custom-food-serving-grams").value) || null
+            };
+
+            try {
+                const food = await API.createFood(foodData);
+                Modal.closeWithoutCallback();
+                this.showQuantityForIngredient(food);
+            } catch (err) {
+                alert("Failed to create food: " + err.message);
+            }
+        });
+    },
+
 
     showQuantityForIngredient(food) {
         const hasCustomServing = food.serving_name && food.serving_grams;
