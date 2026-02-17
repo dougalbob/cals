@@ -608,17 +608,21 @@ const Recipes = {
                 <button class="btn-secondary btn-sm" id="add-text-ingredient">+ Text</button>
             </div>
 
-            <div class="form-group">
-                <label>Cooked Weight (g)</label>
-                <div class="weight-input-group">
-                    <input type="number" id="recipe-weight" value="${recipe?.total_weight_grams || ''}" placeholder="Weigh after cooking">
+            <div class="form-group cooked-weight-section">
+                <div class="cooked-weight-row">
+                    <label>Cooked Weight (g)</label>
+                    <input type="number" id="recipe-weight" value="${recipe?.total_weight_grams || ''}" placeholder="0">
+                </div>
+                <div class="cooked-weight-row">
                     <label class="checkbox-label">
                         <input type="checkbox" id="weight-manual" ${recipe?.weight_is_manual ? 'checked' : ''}>
                         I've weighed the cooked result
                     </label>
                 </div>
-                <div class="calculated-weight" id="calculated-weight">Raw ingredients: 0g</div>
-                <small class="form-hint">If cooked weight differs from raw, calories will be concentrated accordingly</small>
+                <div class="cooked-weight-info">
+                    <div class="calculated-weight" id="calculated-weight">Raw ingredients: 0g</div>
+                    <small class="form-hint">If cooked weight differs from raw, calories will be concentrated accordingly</small>
+                </div>
             </div>
 
             <div class="form-group">

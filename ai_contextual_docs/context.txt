@@ -625,3 +625,42 @@ NOTES:
 - wasEditorOpen-flag-prevents-clearing-state-when-returning-from-search
 - Modal.closeWithoutCallback-used-for-modal-to-modal-navigation
 - btn-sm-class-for-compact-footer-buttons
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.5
+PHASE:6-polish
+
+CHANGES:
++web/static/js/components/foods.js:custom-foods-management-component
++web/templates/index.html:foods-tab-view
+~web/static/js/api.js:rebuilt-with-getCustomFoods-deleteFood
+~web/static/js/app.js:foods-view-switch-case
+~web/static/css/style.css:foods-list-styling,cooked-weight-layout,weight-entry-compact
+~internal/handlers/foods.go:HandleGetCustomFoods,HandleDeleteFood
+~cmd/server/main.go:foods-custom-and-delete-routes
+
+API_ENDPOINTS_ACTIVE:
+GET /api/foods/custom:list-custom-foods-only
+DELETE /api/foods/{id}:delete-custom-food
+
+FEATURES_COMPLETE:
++foods-tab-with-custom-foods-list
++foods-search-filter
++create-custom-food-from-foods-tab
++edit-custom-food
++delete-custom-food
++cooked-weight-section-improved-layout
++weight-entry-compact-layout
+
+UI_CHANGES:
+- new-foods-tab-with-salad-emoji-icon
+- foods-list-shows-name-brand-calories-serving
+- sticky-create-custom-food-button
+- cooked-weight-section-cleaner-two-row-layout
+- weight-entry-single-row-with-full-width-save-button
+
+NOTES:
+- only-custom-foods-shown-not-fatsecret-cached
+- fatsecret-cached-foods-cannot-be-deleted
+- api.js-fully-rebuilt-to-fix-corruption

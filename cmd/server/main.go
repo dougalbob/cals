@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.6.4"
+const AppVersion = "1.6.5"
 
 func main() {
 	cfg, err := config.Load()
@@ -78,6 +78,8 @@ func main() {
 	mux.Handle("GET /api/foods/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetFood)))
 	mux.Handle("PUT /api/foods/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateFood)))
 	mux.Handle("POST /api/foods", cfAuth.Middleware(http.HandlerFunc(handlers.HandleCreateFood)))
+	mux.Handle("GET /api/foods/custom", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetCustomFoods)))
+	mux.Handle("DELETE /api/foods/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteFood)))
 
 	// Diary
 	mux.Handle("GET /api/diary", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDiary)))

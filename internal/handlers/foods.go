@@ -467,3 +467,89 @@ func HandleCreateFood(w http.ResponseWriter, r *http.Request) {
 		ServingGrams:    input.ServingGrams,
 	})
 }
+
+// HandleGetCustomFoods returns all custom (non-fatsecret) foods
+func HandleGetCustomFoods(w http.ResponseWriter, r *http.Request) {
+	rows, err := database.DB.Query(`
+		SELECT id, name, brand, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fibre_per_100g, serving_name, serving_grams
+		FROM foods 
+		WHERE fatsecret_id IS NULL
+		ORDER BY name ASC
+	`)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var foods []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var name string
+		var brand, servingName sql.NullString
+		var caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fibrePer100g float64
+		var servingGrams sql.NullFloat64
+
+		if err := rows.Scan(&id, &name, &brand, &caloriesPer100g, &proteinPer100g, &carbsPer100g, &fatPer100g, &fibrePer100g, &servingName, &servingGrams); err != nil {
+			continue
+		}
+
+		food := map[string]interface{}{
+			"id":               id,
+			"name":             name,
+			"calories_per_100g": caloriesPer100g,
+			"protein_per_100g": proteinPer100g,
+			"carbs_per_100g":   carbsPer100g,
+			"fat_per_100g":     fatPer100g,
+			"fibre_per_100g":   fibrePer100g,
+		}
+		if brand.Valid {
+			food["brand"] = brand.String
+		}
+		if servingName.Valid {
+			food["serving_name"] = servingName.String
+		}
+		if servingGrams.Valid {
+			food["serving_grams"] = servingGrams.Float64
+		}
+
+		foods = append(foods, food)
+	}
+
+	if foods == nil {
+		foods = []map[string]interface{}{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(foods)
+}
+
+// HandleDeleteFood deletes a custom food
+func HandleDeleteFood(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	// Only allow deleting custom foods (not fatsecret cached)
+	var fatsecretID sql.NullString
+	err = database.DB.QueryRow(`SELECT fatsecret_id FROM foods WHERE id = ?`, id).Scan(&fatsecretID)
+	if err != nil {
+		http.Error(w, "Food not found", http.StatusNotFound)
+		return
+	}
+	if fatsecretID.Valid {
+		http.Error(w, "Cannot delete cached FatSecret foods", http.StatusForbidden)
+		return
+	}
+
+	_, err = database.DB.Exec(`DELETE FROM foods WHERE id = ?`, id)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

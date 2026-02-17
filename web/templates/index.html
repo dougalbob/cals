@@ -98,14 +98,14 @@
                 <div id="view-metrics" class="view">
             <div class="metrics-section">
                 <h3>Today's Weigh-in</h3>
-                <div class="weight-entry-form">
-                    <div class="weight-entry-label">Enter Weight</div>
-                    <div class="weight-input-group">
+                <div class="weight-entry-compact">
+                    <div class="weight-entry-row">
+                        <span class="weight-entry-label">Enter Weight</span>
                         <input type="number" id="weight-stones" placeholder="st" min="0" max="50">
                         <input type="number" id="weight-lbs" placeholder="lbs" min="0" max="13" step="0.5">
                         <span class="weight-unit-label">stones/lbs</span>
-                        <button class="btn-primary" id="save-weight-btn">Save</button>
                     </div>
+                    <button class="btn-primary weight-save-btn" id="save-weight-btn">Save</button>
                     <div id="weight-target-info" class="weight-target-info"></div>
                 </div>
             </div>
@@ -180,6 +180,19 @@
         </div>
 
 
+        <div id="view-foods" class="view">
+            <div class="view-header">
+                <h2>My Foods</h2>
+            </div>
+            <div class="foods-search">
+                <input type="text" id="foods-list-search" placeholder="Search custom foods..." autocomplete="off">
+            </div>
+            <div id="foods-list" class="foods-list"></div>
+            <div class="foods-footer">
+                <button class="btn-primary" id="create-custom-food-main">+ Create Custom Food</button>
+            </div>
+        </div>
+
         <div id="view-recipes" class="view">
             <div class="view-header">
                 <h2>Recipes</h2>
@@ -241,7 +254,8 @@
     <nav class="app-nav">
         <button class="nav-btn active" data-view="today">Diary</button>
         <button class="nav-btn" data-view="metrics">Metrics</button>
-        <button class="nav-btn" data-view="recipes">Recipes</button>
+        <button class="nav-btn" data-view="foods">Foods</button>
+            <button class="nav-btn" data-view="recipes">Recipes</button>
         <button class="nav-btn" data-view="settings">Settings</button>
     </nav>
 
@@ -263,6 +277,7 @@
     <script src="/static/js/components/search.js"></script>
     <script src="/static/js/components/imagecrop.js"></script>
     <script src="/static/js/components/recipes.js"></script>
+    <script src="/static/js/components/foods.js"></script>
     <script src="/static/js/components/metrics.js"></script>
     <script src="/static/js/app.js"></script>
     <script>

@@ -101,8 +101,6 @@ const API = {
     },
 
     async uploadRecipeImage(recipeId, file) {
-        console.log('API.uploadRecipeImage:', { recipeId, fileName: file.name, fileSize: file.size, fileType: file.type });
-        
         const formData = new FormData();
         formData.append('image', file, file.name);
 
@@ -111,17 +109,12 @@ const API = {
             body: formData
         });
 
-        console.log('Upload response status:', response.status);
-
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Upload failed:', errorText);
             throw new Error('Upload failed: ' + errorText);
         }
 
-        const result = await response.json();
-        console.log('Upload success:', result);
-        return result;
+        return response.json();
     },
 
     getRecipeImageUrl(recipeId, type = 'thumb', updatedAt = null) {
@@ -162,5 +155,14 @@ const API = {
 
     getBankStats(days = 14) {
         return this.request('GET', `/api/stats/bank?days=${days}`);
+    },
+
+    // Custom foods
+    getCustomFoods() {
+        return this.request('GET', '/api/foods/custom');
+    },
+
+    deleteFood(id) {
+        return this.request('DELETE', `/api/foods/${id}`);
     }
 };

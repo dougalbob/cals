@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.4';
+const APP_VERSION = '1.6.5';
 
 // Main application
 const App = {
@@ -150,6 +150,9 @@ const App = {
                 break;
             case 'metrics':
                 Metrics.init();
+                break;
+            case 'foods':
+                Foods.loadList();
                 break;
             case 'recipes':
                 Recipes.loadList();
