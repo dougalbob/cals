@@ -1167,16 +1167,28 @@ const Recipes = {
     },
 
     showTextIngredientInput() {
+        const self = this;
         const content = document.createElement('div');
         content.innerHTML = `
             <div class="form-group">
                 <label>Ingredient description</label>
                 <input type="text" id="text-ing-desc" placeholder="e.g., Pinch of salt">
             </div>
-            <button class="btn-primary" id="add-text-ing-confirm">Add</button>
+            <div class="form-actions-sticky">
+                <button class="btn-primary" id="add-text-ing-confirm">Add</button>
+                <button class="btn-secondary" id="cancel-text-ing">Cancel</button>
+            </div>
         `;
 
-        Modal.open('Add Text Ingredient', content);
+        Modal.open('Add Text Ingredient', content, () => {
+            // On close, return to recipe editor
+            self.renderEditor(self.currentRecipe);
+            self.restoreFormState();
+        });
+
+        document.getElementById('cancel-text-ing').addEventListener('click', () => {
+            Modal.close();
+        });
 
         document.getElementById('add-text-ing-confirm').addEventListener('click', () => {
             const desc = document.getElementById('text-ing-desc').value.trim();
@@ -1190,6 +1202,7 @@ const Recipes = {
                 sort_order: this.textIngredients.length
             });
 
+            Modal.closeWithoutCallback();
             this.renderEditor(this.currentRecipe);
             this.restoreFormState();
         });

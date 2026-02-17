@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.6.5"
+const AppVersion = "1.6.6"
 
 func main() {
 	cfg, err := config.Load()

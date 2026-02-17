@@ -664,3 +664,18 @@ NOTES:
 - only-custom-foods-shown-not-fatsecret-cached
 - fatsecret-cached-foods-cannot-be-deleted
 - api.js-fully-rebuilt-to-fix-corruption
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.6
+PHASE:6-polish
+
+CHANGES:
+~web/static/js/components/recipes.js:showTextIngredientInput-returns-to-recipe-editor
+
+BUGFIXES:
+~text-ingredient-modal-now-returns-to-recipe-editor-on-close
+
+NOTES:
+- uses-Modal.closeWithoutCallback-when-adding-ingredient
+- uses-onClose-callback-when-cancelled-or-closed
