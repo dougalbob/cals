@@ -722,3 +722,37 @@ NOTES:
 - default-drinks-created-on-first-access(coffee,water,beer,milk)
 - drinks-popup-button-exists-but-popup-not-opening-needs-debug
 - weight-entries-backfilled-for-user-2
+
+---
+UPDATE:2025-02-18
+VERSION:1.6.8
+PHASE:6-drinks-complete
+
+CHANGES:
+~web/templates/index.html:added-drinks-section-after-snacks
+~web/static/js/app.js:fixed-corrupted-event-listeners,drinks-calories-in-total
+~web/static/js/app.js:drinks-popup-working,drinks-section-rendering
+
+FEATURES_COMPLETE:
++drinks-tracking-fully-functional
++drinks-popup-quick-add
++drinks-section-in-diary-with-icons-and-counts
++drink-calories-included-in-daily-total
++swipe-navigation-restored
+
+UI_CHANGES:
+- drinks-section-shows-after-snacks-in-diary
+- drink-icons-with-count-badges
+- drinks-popup-for-quick-adding
+- drink-calories-added-to-calorie-ring
+
+BUGFIXES:
+~fixed-corrupted-event-listeners-in-app.js
+~goToToday-click-handler-restored
+~swipe-gestures-restored
+
+NOTES:
+- drinks-default-to-coffee-water-beer-milk
+- drink-entries-tracked-per-day
+- popup-closes-after-adding-drink
+- total-calories-now-includes-food+drinks

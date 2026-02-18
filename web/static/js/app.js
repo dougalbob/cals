@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.7';
+const APP_VERSION = '1.6.8';
 
 // Main application
 const App = {
@@ -60,20 +60,17 @@ const App = {
             this.changeDate(1);
         });
         document.getElementById('current-date')?.addEventListener('click', () => {
+            this.goToToday();
+        });
 
         // Drinks button
         document.getElementById('drinks-btn')?.addEventListener('click', () => {
+            console.log('Drinks button clicked');
             this.showDrinksPopup();
         });
 
         // Swipe gesture support for date navigation
         this.initSwipeGestures();
-            this.goToToday();
-
-        // Swipe gesture support for date navigation
-        });
-
-        // Swipe gesture support for date navigation
 
         // New recipe button
         document.getElementById('new-recipe-btn')?.addEventListener('click', () => {
@@ -300,7 +297,9 @@ const App = {
             totalEl.textContent = mealCalories > 0 ? `${Math.round(mealCalories)} kcal` : '';
         });
 
-        const totalCalories = this.diaryData?.totals?.calories || 0;
+        const foodCalories = this.diaryData?.totals?.calories || 0;
+        const drinkCalories = (this.drinksData || []).reduce((sum, d) => sum + d.calories, 0);
+        const totalCalories = foodCalories + drinkCalories;
         this.updateCalorieRing(totalCalories);
     },
 
@@ -400,6 +399,7 @@ const App = {
     },
 
     async showDrinksPopup() {
+        console.log('showDrinksPopup called');
         // Load drinks if not already loaded
         if (!this.drinks || this.drinks.length === 0) {
             try {
