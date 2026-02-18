@@ -782,3 +782,33 @@ FEATURES:
 NOTES:
 - Requires GOOGLE_FIT_CLIENT_ID and GOOGLE_FIT_CLIENT_SECRET env vars
 - Redirect URI: https://cals.duncandoes.uk/api/fit/callback
+
+---
+UPDATE:2025-02-18
+VERSION:1.7.0
+PHASE:7-nutrition
+
+CHANGES:
++internal/handlers/nutrition.go:nutrition-analysis-api
++web/static/js/components/nutrition.js:nutrition-tab-component
+~internal/database/migrations.go:nutrition_settings-table
+~cmd/server/main.go:nutrition-routes
+~web/templates/index.html:nutrition-tab-view
+~web/static/css/style.css:nutrition-styles
+~web/static/js/api.js:nutrition-api-methods
+~web/static/js/app.js:nutrition-init
+
+FEATURES:
+- New Nutrition tab with 7-day rolling analysis
+- Macro distribution donut chart (protein/carbs/fat percentages)
+- Traffic light status indicators (green/amber/red)
+- Protein intake tracking with g/kg body weight calculation
+- Fibre intake tracking with trend chart
+- Daily breakdown table
+- User-configurable nutrition goals
+- Personalised targets based on body weight
+
+NOTES:
+- Protein: 4 cal/g, Carbs: 4 cal/g, Fat: 9 cal/g for percentage calculations
+- Default goals: 0.8g/kg protein, 30g fibre, <35% fat, 45-65% carbs
+- Uses existing weight_entries for body weight data

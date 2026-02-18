@@ -2531,6 +2531,7 @@ textarea:focus {
 
 /* Foods tab nav icon */
 .app-nav .nav-btn[data-view="foods"]::before { content: "🥗"; }
+.app-nav .nav-btn[data-view="nutrition"]::before { content: "🥦"; }
 
 /* Foods list styling */
 .foods-search {
@@ -2900,4 +2901,228 @@ textarea:focus {
 .steps-actions button {
     font-size: 0.75rem;
     padding: 0.4rem 0.75rem;
+}
+
+/* ========================================
+   NUTRITION ANALYSIS
+   ======================================== */
+
+.nutrition-summary {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.nutrition-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.nutrition-header h3 {
+    margin: 0;
+}
+
+.nutrition-status {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+}
+
+.status-card {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.status-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--text-light);
+}
+
+.status-card.status-green::before {
+    background: var(--success);
+}
+
+.status-card.status-amber::before {
+    background: #FFC107;
+}
+
+.status-card.status-red::before {
+    background: var(--danger);
+}
+
+.status-label {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-value {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+.nutrition-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.nutrition-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+}
+
+.macro-chart-container {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.macro-chart-container canvas {
+    max-width: 150px;
+    max-height: 150px;
+}
+
+.macro-legend {
+    flex: 1;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.legend-target {
+    color: var(--text-light);
+    font-size: 0.75rem;
+}
+
+.protein-summary,
+.fibre-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: 8px;
+}
+
+.protein-stat,
+.fibre-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.protein-value,
+.fibre-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.protein-unit,
+.fibre-unit {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.protein-goal,
+.fibre-goal {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.daily-table-container {
+    overflow-x: auto;
+}
+
+.nutrition-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.nutrition-table th,
+.nutrition-table td {
+    padding: 0.5rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.nutrition-table th {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.nutrition-table tr.no-data {
+    opacity: 0.5;
+}
+
+.nutrition-disclaimer {
+    padding: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    text-align: center;
+    font-style: italic;
+}
+
+.nutrition-settings-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.nutrition-settings-form .range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nutrition-settings-form .form-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .nutrition-status {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .macro-chart-container {
+        flex-direction: column;
+    }
+    
+    .macro-chart-container canvas {
+        max-width: 120px;
+        max-height: 120px;
+    }
 }

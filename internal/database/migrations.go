@@ -167,6 +167,19 @@ func RunMigrations() error {
 
                 `CREATE INDEX IF NOT EXISTS idx_step_entries_user_date ON step_entries(user_id, date)`,
 
+                `CREATE TABLE IF NOT EXISTS nutrition_settings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL UNIQUE,
+                        protein_goal_per_kg REAL NOT NULL DEFAULT 0.8,
+                        fibre_goal REAL NOT NULL DEFAULT 30,
+                        fat_max_percent REAL NOT NULL DEFAULT 35,
+                        carb_min_percent REAL NOT NULL DEFAULT 45,
+                        carb_max_percent REAL NOT NULL DEFAULT 65,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                )`,
+
 
 		`CREATE TABLE IF NOT EXISTS weight_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,

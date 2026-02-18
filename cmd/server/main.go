@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.6.9"
+const AppVersion = "1.7.0"
 
 func main() {
 	cfg, err := config.Load()
@@ -126,6 +126,12 @@ func main() {
 	mux.Handle("DELETE /api/fit/disconnect", cfAuth.Middleware(http.HandlerFunc(handlers.HandleFitDisconnect)))
 	mux.Handle("GET /api/steps", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetSteps)))
 	mux.Handle("POST /api/steps/sync", cfAuth.Middleware(http.HandlerFunc(handlers.HandleSyncSteps)))
+
+	// Nutrition analysis routes
+	mux.Handle("GET /api/nutrition/settings", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetNutritionSettings)))
+	mux.Handle("PUT /api/nutrition/settings", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateNutritionSettings)))
+	mux.Handle("GET /api/nutrition/daily", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDailyNutrition)))
+	mux.Handle("GET /api/nutrition/weekly", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetWeeklyAnalysis)))
 
 	// Bank
 	mux.Handle("GET /api/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBank)))

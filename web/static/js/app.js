@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.9';
+const APP_VERSION = '1.7.0';
 
 // Main application
 const App = {
@@ -158,6 +158,9 @@ const App = {
                 break;
             case 'recipes':
                 Recipes.loadList();
+                break;
+            case 'nutrition':
+                Nutrition.init();
                 break;
             case 'settings':
                 this.loadSettings();

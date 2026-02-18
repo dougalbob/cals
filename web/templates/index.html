@@ -284,6 +284,104 @@
                 Version: <span id="app-version">loading...</span>
             </div>
         </div>
+
+        <div id="view-nutrition" class="view">
+            <h2>Nutrition Analysis</h2>
+            
+            <div class="nutrition-summary">
+                <div class="nutrition-header">
+                    <h3>7-Day Overview</h3>
+                    <button class="btn-secondary btn-sm" id="nutrition-settings-btn">⚙ Goals</button>
+                </div>
+                
+                <div class="nutrition-status" id="nutrition-status">
+                    <div class="status-card" data-macro="protein">
+                        <div class="status-indicator"></div>
+                        <div class="status-label">Protein</div>
+                        <div class="status-value" id="status-protein">--</div>
+                    </div>
+                    <div class="status-card" data-macro="carbs">
+                        <div class="status-indicator"></div>
+                        <div class="status-label">Carbs</div>
+                        <div class="status-value" id="status-carbs">--</div>
+                    </div>
+                    <div class="status-card" data-macro="fat">
+                        <div class="status-indicator"></div>
+                        <div class="status-label">Fat</div>
+                        <div class="status-value" id="status-fat">--</div>
+                    </div>
+                    <div class="status-card" data-macro="fibre">
+                        <div class="status-indicator"></div>
+                        <div class="status-label">Fibre</div>
+                        <div class="status-value" id="status-fibre">--</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nutrition-section">
+                <h3>Macro Distribution</h3>
+                <div class="macro-chart-container">
+                    <canvas id="macro-donut-chart"></canvas>
+                    <div class="macro-legend" id="macro-legend"></div>
+                </div>
+            </div>
+            
+            <div class="nutrition-section">
+                <h3>Protein Intake</h3>
+                <div class="protein-summary" id="protein-summary">
+                    <div class="protein-stat">
+                        <span class="protein-value" id="protein-per-kg">--</span>
+                        <span class="protein-unit">g/kg body weight</span>
+                    </div>
+                    <div class="protein-goal">
+                        <span>Goal: <span id="protein-goal-display">0.8</span> g/kg</span>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 180px;">
+                    <canvas id="protein-trend-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="nutrition-section">
+                <h3>Fibre Intake</h3>
+                <div class="fibre-summary" id="fibre-summary">
+                    <div class="fibre-stat">
+                        <span class="fibre-value" id="fibre-avg">--</span>
+                        <span class="fibre-unit">g daily average</span>
+                    </div>
+                    <div class="fibre-goal">
+                        <span>Goal: <span id="fibre-goal-display">30</span>g</span>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 180px;">
+                    <canvas id="fibre-trend-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="nutrition-section">
+                <h3>Daily Breakdown</h3>
+                <div class="daily-table-container">
+                    <table class="nutrition-table" id="nutrition-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Cals</th>
+                                <th>P</th>
+                                <th>C</th>
+                                <th>F</th>
+                                <th>Fibre</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nutrition-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="nutrition-disclaimer">
+                <p>These insights are based on macronutrient data only and are intended for general guidance. They do not constitute medical or dietary advice.</p>
+            </div>
+        </div>
     </main>
 
     <nav class="app-nav">
@@ -291,6 +389,7 @@
         <button class="nav-btn" data-view="metrics">Metrics</button>
         <button class="nav-btn" data-view="foods">Foods</button>
             <button class="nav-btn" data-view="recipes">Recipes</button>
+        <button class="nav-btn" data-view="nutrition">Nutrition</button>
         <button class="nav-btn" data-view="settings">Settings</button>
     </nav>
 
@@ -314,6 +413,7 @@
     <script src="/static/js/components/recipes.js"></script>
     <script src="/static/js/components/foods.js"></script>
     <script src="/static/js/components/metrics.js"></script>
+    <script src="/static/js/components/nutrition.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
         if (typeof APP_VERSION !== 'undefined') {

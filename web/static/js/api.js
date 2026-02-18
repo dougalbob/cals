@@ -212,4 +212,23 @@ const API = {
     syncSteps() {
         return this.request('POST', '/api/steps/sync');
     }
+,
+
+    // Nutrition Analysis
+    getNutritionSettings() {
+        return this.request('GET', '/api/nutrition/settings');
+    },
+
+    updateNutritionSettings(settings) {
+        return this.request('PUT', '/api/nutrition/settings', settings);
+    },
+
+    getDailyNutrition(date = null) {
+        const params = date ? `?date=${date}` : '';
+        return this.request('GET', `/api/nutrition/daily${params}`);
+    },
+
+    getWeeklyAnalysis() {
+        return this.request('GET', '/api/nutrition/weekly');
+    }
 };
