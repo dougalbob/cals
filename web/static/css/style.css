@@ -2634,3 +2634,192 @@ textarea:focus {
 .form-actions-sticky button {
     flex: 1;
 }
+
+/* ========================================
+   DRINKS SECTION
+   ======================================== */
+
+.drinks-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.drinks-btn:hover {
+    transform: scale(1.1);
+}
+
+.drinks-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary);
+}
+
+.drinks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.drinks-title {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.drinks-total {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.drinks-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.drink-icon-btn {
+    position: relative;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.drink-icon-btn:hover {
+    border-color: var(--primary);
+    background: var(--bg-elevated);
+}
+
+.drink-icon-btn .drink-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+.drink-icon-btn .drink-count.empty {
+    display: none;
+}
+
+.drink-icon-btn .drink-name {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+/* Drinks popup */
+.drinks-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 1001;
+    min-width: 280px;
+}
+
+.drinks-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.drinks-popup-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: var(--text);
+}
+
+.drinks-popup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.drinks-popup-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 1rem;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drinks-popup-btn:hover {
+    border-color: var(--primary);
+    background: var(--bg-elevated);
+}
+
+.drinks-popup-btn .popup-icon {
+    font-size: 2rem;
+}
+
+.drinks-popup-btn .popup-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.drinks-popup-btn .popup-info {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.drinks-popup-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 0.25rem;
+}

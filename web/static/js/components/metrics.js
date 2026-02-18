@@ -161,26 +161,7 @@ const Metrics = {
         return value;
     },
 
-    async saveWeight() {
-        const input = document.getElementById('weight-input');
-        const value = parseFloat(input?.value);
-        
-        if (!value || value <= 0) {
-            alert('Please enter a valid weight');
-            return;
-        }
 
-        const weightKg = this.convertWeight(value, 'to_kg');
-        const today = new Date().toISOString().split('T')[0];
-
-        try {
-            await API.createWeightEntry({ date: today, weight_kg: weightKg });
-            this.loadWeightChart();
-            this.loadTodayWeight();
-        } catch (err) {
-            alert('Failed to save weight: ' + err.message);
-        }
-    },
 
     async loadWeightChart() {
         try {
@@ -192,6 +173,7 @@ const Metrics = {
     },
 
     renderWeightChart(entries) {
+        console.log("renderWeightChart called with", entries.length, "entries:", entries);
         const ctx = document.getElementById('weight-chart');
         if (!ctx) return;
 
@@ -200,6 +182,7 @@ const Metrics = {
 
         // Fill missing days by carrying forward
         const filledData = this.fillMissingDays(entries, this.currentPeriod);
+        console.log("filledData:", filledData.length, "entries, last:", filledData[filledData.length-1]);
 
         const labels = filledData.map(e => this.formatDateShort(e.date));
         const weights = filledData.map(e => e.weight_kg * 2.20462); // Convert to lbs for charting
@@ -281,11 +264,27 @@ const Metrics = {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days + 1);
+        const startDateStr = startDate.toISOString().split('T')[0];
 
         const entryMap = {};
-        entries.forEach(e => entryMap[e.date] = e.weight_kg);
+        entries.forEach(e => {
+            // Handle both ISO timestamps and plain dates
+            const dateKey = e.date.split('T')[0];
+            entryMap[dateKey] = e.weight_kg;
+        });
 
-        let lastWeight = entries.length > 0 ? entries[0].weight_kg : null;
+        // Find the most recent weight before or at start date
+        let lastWeight = null;
+        for (const entry of entries) {
+            const entryDate = entry.date.split('T')[0];
+            if (entryDate <= startDateStr) {
+                lastWeight = entry.weight_kg;
+            }
+        }
+        // If no entry before start, use the first available entry
+        if (lastWeight === null && entries.length > 0) {
+            lastWeight = entries[0].weight_kg;
+        }
 
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateStr = d.toISOString().split('T')[0];

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.6';
+const APP_VERSION = '1.6.7';
 
 // Main application
 const App = {
@@ -60,6 +60,11 @@ const App = {
             this.changeDate(1);
         });
         document.getElementById('current-date')?.addEventListener('click', () => {
+
+        // Drinks button
+        document.getElementById('drinks-btn')?.addEventListener('click', () => {
+            this.showDrinksPopup();
+        });
 
         // Swipe gesture support for date navigation
         this.initSwipeGestures();
@@ -233,8 +238,11 @@ const App = {
         
         try {
             this.diaryData = await API.getDiary(this.currentDate);
+            this.drinksData = await API.getDrinkEntries(this.currentDate);
+            this.drinks = await API.getDrinks();
             this.bankData = await API.getBank(this.currentDate);
             this.renderDiary();
+            this.renderDrinks();
             this.renderBank();
         } catch (err) {
             console.error('Failed to load diary:', err);
@@ -341,6 +349,112 @@ const App = {
 
         document.getElementById('today-consumed').textContent = Math.round(consumed);
     },
+
+    renderDrinks() {
+        const container = document.getElementById("drinks-icons");
+        const totalEl = document.getElementById("drinks-total");
+        if (!container) return;
+
+        // Group entries by drink
+        const drinkCounts = {};
+        let totalCals = 0;
+        let totalMl = 0;
+
+        (this.drinksData || []).forEach(entry => {
+            if (!drinkCounts[entry.drink_id]) {
+                drinkCounts[entry.drink_id] = { count: 0, ...entry };
+            }
+            drinkCounts[entry.drink_id].count++;
+            totalCals += entry.calories;
+            totalMl += entry.volume_ml;
+        });
+
+        // Render drink icons
+        container.innerHTML = (this.drinks || []).map(drink => {
+            const count = drinkCounts[drink.id]?.count || 0;
+            return `
+                <div class="drink-icon-btn" data-drink-id="${drink.id}" title="${drink.name}">
+                    <span class="drink-count ${count === 0 ? "empty" : ""}">${count}</span>
+                    ${drink.icon}
+                    <span class="drink-name">${drink.name}</span>
+                </div>
+            `;
+        }).join("");
+
+        // Click to add drink
+        container.querySelectorAll(".drink-icon-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const drinkId = parseInt(btn.dataset.drinkId);
+                try {
+                    await API.addDrinkEntry(drinkId, this.currentDate);
+                    this.loadTodayView();
+                } catch (err) {
+                    alert("Failed to add drink: " + err.message);
+                }
+            });
+        });
+
+        if (totalEl) {
+            totalEl.textContent = totalCals > 0 ? `${totalCals} kcal • ${totalMl}ml` : "";
+        }
+    },
+
+    async showDrinksPopup() {
+        // Load drinks if not already loaded
+        if (!this.drinks || this.drinks.length === 0) {
+            try {
+                this.drinks = await API.getDrinks();
+            } catch (err) {
+                alert("Failed to load drinks: " + err.message);
+                return;
+            }
+        }
+
+        // Create overlay
+        const overlay = document.createElement("div");
+        overlay.className = "drinks-popup-overlay";
+        overlay.addEventListener("click", () => this.closeDrinksPopup());
+        document.body.appendChild(overlay);
+
+        // Create popup
+        const popup = document.createElement("div");
+        popup.className = "drinks-popup";
+        popup.id = "drinks-popup";
+        popup.innerHTML = `
+            <button class="drinks-popup-close" onclick="App.closeDrinksPopup()">×</button>
+            <div class="drinks-popup-title">Quick Add Drink</div>
+            <div class="drinks-popup-grid">
+                ${(this.drinks || []).map(drink => `
+                    <button class="drinks-popup-btn" data-drink-id="${drink.id}">
+                        <span class="popup-icon">${drink.icon}</span>
+                        <span class="popup-name">${drink.name}</span>
+                        <span class="popup-info">${drink.volume_ml}ml • ${drink.calories}kcal</span>
+                    </button>
+                `).join("")}
+            </div>
+        `;
+        document.body.appendChild(popup);
+
+        // Add click handlers
+        popup.querySelectorAll(".drinks-popup-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const drinkId = parseInt(btn.dataset.drinkId);
+                try {
+                    await API.addDrinkEntry(drinkId, this.currentDate);
+                    this.closeDrinksPopup();
+                    this.loadTodayView();
+                } catch (err) {
+                    alert("Failed to add drink: " + err.message);
+                }
+            });
+        });
+    },
+
+    closeDrinksPopup() {
+        document.querySelector(".drinks-popup-overlay")?.remove();
+        document.getElementById("drinks-popup")?.remove();
+    },
+
 
     async addFoodEntry(food, grams, meal) {
         const entry = {

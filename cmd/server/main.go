@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.6.6"
+const AppVersion = "1.6.7"
 
 func main() {
 	cfg, err := config.Load()
@@ -101,6 +101,15 @@ func main() {
 	// Stats routes
 	mux.Handle("GET /api/stats/calories", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetCalorieStats)))
 	mux.Handle("GET /api/stats/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBankStats)))
+
+	// Drinks routes
+	mux.Handle("GET /api/drinks", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDrinks)))
+	mux.Handle("POST /api/drinks", cfAuth.Middleware(http.HandlerFunc(handlers.HandleCreateDrink)))
+	mux.Handle("PUT /api/drinks/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUpdateDrink)))
+	mux.Handle("DELETE /api/drinks/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteDrink)))
+	mux.Handle("GET /api/drinks/entries", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDrinkEntries)))
+	mux.Handle("POST /api/drinks/entries", cfAuth.Middleware(http.HandlerFunc(handlers.HandleAddDrinkEntry)))
+	mux.Handle("DELETE /api/drinks/entries/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteDrinkEntry)))
 
 	// Bank
 	mux.Handle("GET /api/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBank)))

@@ -164,5 +164,34 @@ const API = {
 
     deleteFood(id) {
         return this.request('DELETE', `/api/foods/${id}`);
+    },
+
+    // Drinks
+    getDrinks() {
+        return this.request('GET', '/api/drinks');
+    },
+
+    createDrink(data) {
+        return this.request('POST', '/api/drinks', data);
+    },
+
+    updateDrink(id, data) {
+        return this.request('PUT', `/api/drinks/${id}`, data);
+    },
+
+    deleteDrink(id) {
+        return this.request('DELETE', `/api/drinks/${id}`);
+    },
+
+    getDrinkEntries(date) {
+        return this.request('GET', `/api/drinks/entries?date=${date}`);
+    },
+
+    addDrinkEntry(drinkId, date) {
+        return this.request('POST', '/api/drinks/entries', { drink_id: drinkId, date: date });
+    },
+
+    deleteDrinkEntry(id) {
+        return this.request('DELETE', `/api/drinks/entries/${id}`);
     }
 };

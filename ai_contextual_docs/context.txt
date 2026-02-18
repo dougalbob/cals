@@ -679,3 +679,46 @@ BUGFIXES:
 NOTES:
 - uses-Modal.closeWithoutCallback-when-adding-ingredient
 - uses-onClose-callback-when-cancelled-or-closed
+
+---
+UPDATE:2025-02-18
+VERSION:1.6.7
+PHASE:6-polish
+
+CHANGES:
+~web/static/js/components/metrics.js:fixed-duplicate-saveWeight,fixed-date-format-in-weight-chart
+~web/static/js/components/recipes.js:fixed-text-ingredient-modal-navigation
++internal/handlers/drinks.go:drinks-crud-and-entries
++internal/database/migrations.go:drinks-and-drink_entries-tables
+~cmd/server/main.go:drinks-routes
+~web/static/js/api.js:drinks-api-methods
+~web/templates/index.html:drinks-section-and-button
+~web/static/css/style.css:drinks-styling
+~web/static/js/app.js:drinks-popup-and-rendering
+
+BUGFIXES:
+~weight-save-now-works-with-stones-lbs-inputs
+~weight-chart-now-handles-ISO-date-timestamps
+~removed-duplicate-saveWeight-method
+
+FEATURES_PARTIAL:
++drinks-tracking-backend-complete
++drinks-ui-partial(popup-not-opening)
+
+DB_TABLES_ADDED:
+drinks(id,user_id,name,icon,volume_ml,calories,created_at)
+drink_entries(id,user_id,drink_id,date,created_at)
+
+API_ENDPOINTS_ACTIVE:
+GET /api/drinks:list-user-drinks
+POST /api/drinks:create-drink
+PUT /api/drinks/{id}:update-drink
+DELETE /api/drinks/{id}:delete-drink
+GET /api/drinks/entries:get-entries-for-date
+POST /api/drinks/entries:add-drink-entry
+DELETE /api/drinks/entries/{id}:delete-drink-entry
+
+NOTES:
+- default-drinks-created-on-first-access(coffee,water,beer,milk)
+- drinks-popup-button-exists-but-popup-not-opening-needs-debug
+- weight-entries-backfilled-for-user-2

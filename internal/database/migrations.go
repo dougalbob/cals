@@ -121,6 +121,30 @@ func RunMigrations() error {
 
 		`CREATE INDEX IF NOT EXISTS idx_water_user_date ON water_entries(user_id, date)`,
 
+                `CREATE TABLE IF NOT EXISTS drinks (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        name TEXT NOT NULL,
+                        icon TEXT NOT NULL,
+                        volume_ml INTEGER NOT NULL,
+                        calories INTEGER NOT NULL DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                )`,
+
+                `CREATE TABLE IF NOT EXISTS drink_entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        drink_id INTEGER NOT NULL,
+                        date DATE NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (drink_id) REFERENCES drinks(id)
+                )`,
+
+                `CREATE INDEX IF NOT EXISTS idx_drink_entries_user_date ON drink_entries(user_id, date)`,
+
+
 		`CREATE TABLE IF NOT EXISTS weight_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,
