@@ -243,3 +243,46 @@
     
     --ring-bg: #4a5568;
 }
+
+/* Matrix Theme */
+[data-theme="matrix"] {
+    --primary: #008F11;
+    --primary-dark: #003B00;
+    --primary-light: #00FF41;
+    
+    --accent: #00FF41;
+    --accent-secondary: #008F11;
+    --success: #00FF41;
+    --warning: #BFFF00;
+    --danger: #FF3131;
+    
+    --bg: #0D0208;
+    --bg-card: #0F0F0F;
+    --bg-elevated: #1A1A1A;
+    
+    --text: #00FF41;
+    --text-light: #008F11;
+    --text-muted: #005F0B;
+    
+    --border: #003B00;
+    --border-light: #002200;
+    
+    --shadow: 0 2px 8px rgba(0, 255, 65, 0.15);
+    --shadow-lg: 0 4px 16px rgba(0, 255, 65, 0.2);
+    
+    --meal-breakfast: #0F1A0F;
+    --meal-breakfast-icon: #00FF41;
+    --meal-lunch: #0F1A0F;
+    --meal-lunch-icon: #008F11;
+    --meal-dinner: #0F1A0F;
+    --meal-dinner-icon: #00FF41;
+    --meal-snacks: #0F1A0F;
+    --meal-snacks-icon: #008F11;
+    
+    --ring-bg: #003B00;
+    --ring-progress: #00FF41;
+    --ring-over: #FF3131;
+    
+    --bank-positive: #00FF41;
+    --bank-negative: #FF3131;
+}

@@ -2823,3 +2823,81 @@ textarea:focus {
     color: var(--text-light);
     padding: 0.25rem;
 }
+
+/* Matrix theme option */
+.theme-option[data-theme="matrix"] {
+    background: linear-gradient(135deg, #0D0208 0%, #003B00 50%, #00FF41 100%);
+}
+
+/* ========================================
+   STEPS TRACKING
+   ======================================== */
+
+.steps-connect {
+    text-align: center;
+    padding: 1rem;
+}
+
+.steps-connect p {
+    color: var(--text-light);
+    margin-bottom: 1rem;
+}
+
+.steps-data {
+    padding: 0.5rem 0;
+}
+
+.steps-today {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.steps-count {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1;
+}
+
+.steps-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+.steps-goal {
+    margin-bottom: 1rem;
+}
+
+.steps-progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.steps-progress {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.steps-goal-text {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    text-align: center;
+}
+
+.steps-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.steps-actions button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+}

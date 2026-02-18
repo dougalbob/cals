@@ -11,6 +11,8 @@ const Metrics = {
         this.user = await API.getCurrentUser();
         this.setupEventListeners();
         this.loadAll();
+        this.loadSteps();
+        this.setupStepsListeners();
     },
 
     setupEventListeners() {
@@ -557,6 +559,143 @@ const Metrics = {
                         beginAtZero: false
                     }
                 }
+            }
+        });
+    },
+
+    // Steps tracking
+    async loadSteps() {
+        const connectDiv = document.getElementById('steps-connect');
+        const dataDiv = document.getElementById('steps-data');
+        
+        if (!connectDiv || !dataDiv) return;
+
+        try {
+            const status = await API.getFitStatus();
+            
+            if (status.connected) {
+                connectDiv.style.display = 'none';
+                dataDiv.style.display = 'block';
+                await this.loadStepsData();
+            } else {
+                connectDiv.style.display = 'block';
+                dataDiv.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('Failed to check fit status:', err);
+            connectDiv.style.display = 'block';
+            dataDiv.style.display = 'none';
+        }
+    },
+
+    async loadStepsData() {
+        try {
+            const steps = await API.getSteps(14);
+            this.renderSteps(steps);
+        } catch (err) {
+            console.error('Failed to load steps:', err);
+        }
+    },
+
+    renderSteps(steps) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayEntry = steps.find(s => s.date.split('T')[0] === today);
+        const todaySteps = todayEntry?.steps || 0;
+        const goal = 10000;
+
+        const countEl = document.getElementById('steps-today-count');
+        if (countEl) {
+            countEl.textContent = todaySteps.toLocaleString();
+        }
+
+        const progressEl = document.getElementById('steps-progress');
+        if (progressEl) {
+            const percent = Math.min((todaySteps / goal) * 100, 100);
+            progressEl.style.width = `${percent}%`;
+        }
+
+        const goalEl = document.getElementById('steps-goal-value');
+        if (goalEl) {
+            goalEl.textContent = goal.toLocaleString();
+        }
+
+        this.renderStepsChart(steps);
+    },
+
+    renderStepsChart(steps) {
+        const ctx = document.getElementById('steps-chart');
+        if (!ctx) return;
+
+        steps.sort((a, b) => a.date.localeCompare(b.date));
+
+        const labels = steps.map(s => {
+            const d = new Date(s.date);
+            return `${d.getDate()}/${d.getMonth() + 1}`;
+        });
+        const data = steps.map(s => s.steps);
+
+        if (this.stepsChart) {
+            this.stepsChart.destroy();
+        }
+
+        this.stepsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Steps',
+                    data,
+                    backgroundColor: 'rgba(76, 175, 80, 0.6)',
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value >= 1000 ? (value/1000) + 'k' : value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    setupStepsListeners() {
+        document.getElementById('sync-steps-btn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('sync-steps-btn');
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            
+            try {
+                await API.syncSteps();
+                await this.loadStepsData();
+            } catch (err) {
+                alert('Sync failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '↻ Sync';
+            }
+        });
+
+        document.getElementById('disconnect-fit-btn')?.addEventListener('click', async () => {
+            if (!confirm('Disconnect Google Fit? Your step history will be removed.')) return;
+            
+            try {
+                await API.disconnectFit();
+                this.loadSteps();
+            } catch (err) {
+                alert('Failed to disconnect: ' + err.message);
             }
         });
     }

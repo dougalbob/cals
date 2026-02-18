@@ -756,3 +756,29 @@ NOTES:
 - drink-entries-tracked-per-day
 - popup-closes-after-adding-drink
 - total-calories-now-includes-food+drinks
+
+---
+UPDATE:2025-02-17
+VERSION:1.6.9
+PHASE:6-polish
+
+CHANGES:
++internal/handlers/fitness.go:google-fit-oauth-and-steps-sync
+~internal/database/migrations.go:fit_tokens-and-step_entries-tables
+~cmd/server/main.go:fitness-routes-and-init
+~web/templates/index.html:steps-section-in-metrics
+~web/static/css/style.css:steps-tracking-styles
+~web/static/js/api.js:fitness-api-methods
+~web/static/js/components/metrics.js:steps-tracking-display-and-chart
+
+FEATURES:
+- Google Fit integration for step tracking
+- OAuth flow for connecting Google Fit account
+- Daily step count display with progress bar
+- 14-day step history bar chart
+- Manual sync and disconnect options
+- Auto-refresh of step data
+
+NOTES:
+- Requires GOOGLE_FIT_CLIENT_ID and GOOGLE_FIT_CLIENT_SECRET env vars
+- Redirect URI: https://cals.duncandoes.uk/api/fit/callback

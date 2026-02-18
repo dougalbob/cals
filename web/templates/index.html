@@ -116,6 +116,34 @@
                 </div>
             </div>
 
+            
+            <div class="metrics-section" id="steps-section">
+                <h3>Steps</h3>
+                <div id="steps-connect" class="steps-connect" style="display: none;">
+                    <p>Connect Google Fit to track your steps</p>
+                    <a href="/api/fit/auth" class="btn-primary">Connect Google Fit</a>
+                </div>
+                <div id="steps-data" class="steps-data" style="display: none;">
+                    <div class="steps-today">
+                        <div class="steps-count" id="steps-today-count">0</div>
+                        <div class="steps-label">steps today</div>
+                    </div>
+                    <div class="steps-goal">
+                        <div class="steps-progress-bar">
+                            <div class="steps-progress" id="steps-progress"></div>
+                        </div>
+                        <div class="steps-goal-text"><span id="steps-goal-value">10,000</span> goal</div>
+                    </div>
+                    <div class="chart-container" style="height: 150px;">
+                        <canvas id="steps-chart"></canvas>
+                    </div>
+                    <div class="steps-actions">
+                        <button class="btn-secondary btn-sm" id="sync-steps-btn">↻ Sync</button>
+                        <button class="btn-secondary btn-sm" id="disconnect-fit-btn">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="metrics-section">
                 <h3>Weight Trend</h3>
                 <div class="chart-period-selector">
@@ -247,6 +275,7 @@
                         <div class="theme-option" data-theme="berry" title="Berry"></div>
                         <div class="theme-option" data-theme="dark" title="Dark"></div>
                         <div class="theme-option" data-theme="midnight" title="Midnight"></div>
+                        <div class="theme-option" data-theme="matrix" title="Matrix"></div>
                     </div>
                 </div>
                 <button class="btn-primary" id="save-settings">Save Settings</button>

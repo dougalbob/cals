@@ -13,7 +13,7 @@ import (
 	"cals/internal/handlers"
 )
 
-const AppVersion = "1.6.8"
+const AppVersion = "1.6.9"
 
 func main() {
 	cfg, err := config.Load()
@@ -31,6 +31,14 @@ func main() {
 		log.Println("FatSecret client initialized")
 	} else {
 		log.Println("Warning: FatSecret credentials not configured")
+	}
+
+	// Initialize Google Fit
+	handlers.InitFitness()
+	if os.Getenv("GOOGLE_FIT_CLIENT_ID") != "" {
+		log.Println("Google Fit client initialized")
+	} else {
+		log.Println("Warning: Google Fit credentials not configured")
 	}
 
 	cfAuth := auth.NewCloudflareAuth(cfg.CFTeamDomain, cfg.CFPolicyAUD)
@@ -110,6 +118,14 @@ func main() {
 	mux.Handle("GET /api/drinks/entries", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetDrinkEntries)))
 	mux.Handle("POST /api/drinks/entries", cfAuth.Middleware(http.HandlerFunc(handlers.HandleAddDrinkEntry)))
 	mux.Handle("DELETE /api/drinks/entries/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleDeleteDrinkEntry)))
+
+	// Fitness routes
+	mux.Handle("GET /api/fit/auth", cfAuth.Middleware(http.HandlerFunc(handlers.HandleFitAuth)))
+	mux.Handle("GET /api/fit/callback", cfAuth.Middleware(http.HandlerFunc(handlers.HandleFitCallback)))
+	mux.Handle("GET /api/fit/status", cfAuth.Middleware(http.HandlerFunc(handlers.HandleFitStatus)))
+	mux.Handle("DELETE /api/fit/disconnect", cfAuth.Middleware(http.HandlerFunc(handlers.HandleFitDisconnect)))
+	mux.Handle("GET /api/steps", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetSteps)))
+	mux.Handle("POST /api/steps/sync", cfAuth.Middleware(http.HandlerFunc(handlers.HandleSyncSteps)))
 
 	// Bank
 	mux.Handle("GET /api/bank", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetBank)))

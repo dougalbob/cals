@@ -194,4 +194,22 @@ const API = {
     deleteDrinkEntry(id) {
         return this.request('DELETE', `/api/drinks/entries/${id}`);
     }
+,
+
+    // Google Fit / Steps
+    getFitStatus() {
+        return this.request('GET', '/api/fit/status');
+    },
+
+    disconnectFit() {
+        return this.request('DELETE', '/api/fit/disconnect');
+    },
+
+    getSteps(days = 14) {
+        return this.request('GET', `/api/steps?days=${days}`);
+    },
+
+    syncSteps() {
+        return this.request('POST', '/api/steps/sync');
+    }
 };
