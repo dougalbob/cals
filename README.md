@@ -1,0 +1,89 @@
+# cals
+
+A personal calorie and nutrition tracking application.
+
+## Configuration
+
+Copy `.env.example` (or create `/app/data/.env`) with your environment variables.
+
+### Required
+
+| Variable | Description |
+|---|---|
+| `CF_TEAM_DOMAIN` | Cloudflare Teams domain for authentication |
+| `CF_POLICY_AUD` | Cloudflare Access policy audience |
+
+### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `8150` | HTTP port to listen on |
+| `LOG_LEVEL` | `info` | Log level |
+| `DB_PATH` | `/app/data/cals.db` | SQLite database path |
+| `FATSECRET_CLIENT_ID` | *(disabled)* | FatSecret API client ID |
+| `FATSECRET_CLIENT_SECRET` | *(disabled)* | FatSecret API client secret |
+| `MEALIE_BASE_URL` | *(disabled)* | Base URL of your Mealie instance (e.g. `http://mealie:9000`) |
+| `MEALIE_API_KEY` | *(disabled)* | Mealie API key (****** |
+
+> **Note:** If `MEALIE_BASE_URL` or `MEALIE_API_KEY` are not set the application still starts normally; the Mealie endpoints return `503 Service Unavailable` until both variables are provided.
+
+---
+
+## Mealie Integration (v1)
+
+Allows searching recipes stored in a separately hosted [Mealie](https://mealie.io) container and importing them into cals.
+
+### Docker network setup
+
+Both `cals` and `mealie` must be on the same Docker network so that `cals` can reach `mealie` by container hostname:
+
+```yaml
+# docker-compose.yml excerpt
+services:
+  cals:
+    environment:
+      MEALIE_BASE_URL: http://mealie:9000
+      MEALIE_API_KEY: your-mealie-api-key
+  mealie:
+    ...
+networks:
+  default:
+    name: app_network
+```
+
+### Endpoints
+
+All endpoints are protected by Cloudflare Access middleware.
+
+#### Search Mealie recipes
+
+```
+GET /api/mealie/search?q=<query>
+```
+
+Returns a JSON array of matching recipes:
+
+```json
+[
+  { "id": "abc123", "name": "Pasta Carbonara", "slug": "pasta-carbonara" }
+]
+```
+
+#### Import a Mealie recipe
+
+```
+POST /api/mealie/import/{mealieRecipeId}
+```
+
+Fetches the full recipe from Mealie and creates it in cals. Returns `201 Created` with the new cals recipe JSON on success.
+
+**v1 note:** All ingredient lines are imported as **text ingredients only** (stored in `recipe_text_ingredients`). No food matching against the cals foods table is performed. Nutrition totals will be zero until you manually link ingredients.
+
+**Duplicate protection:** If a recipe with the same name (case-insensitive) already exists in cals the endpoint returns `409 Conflict`:
+
+```json
+{
+  "error": "A recipe with this name already exists",
+  "existing_id": 42
+}
+```

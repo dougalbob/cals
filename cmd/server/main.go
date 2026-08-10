@@ -11,6 +11,7 @@ import (
 	"cals/internal/database"
 	"cals/internal/fatsecret"
 	"cals/internal/handlers"
+	"cals/internal/mealie"
 )
 
 const AppVersion = "1.7.0"
@@ -31,6 +32,13 @@ func main() {
 		log.Println("FatSecret client initialized")
 	} else {
 		log.Println("Warning: FatSecret credentials not configured")
+	}
+
+	if cfg.MealieBaseURL != "" && cfg.MealieAPIKey != "" {
+		handlers.MealieClient = mealie.NewClient(cfg.MealieBaseURL, cfg.MealieAPIKey)
+		log.Println("Mealie client initialized")
+	} else {
+		log.Println("Warning: Mealie credentials not configured (MEALIE_BASE_URL and/or MEALIE_API_KEY missing)")
 	}
 
 	// Initialize Google Fit
@@ -146,6 +154,10 @@ func main() {
 	// Recipe images
 	mux.Handle("POST /api/recipes/{id}/image", cfAuth.Middleware(http.HandlerFunc(handlers.HandleUploadRecipeImage)))
 	mux.Handle("GET /api/images/recipes/{id}/{type}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleGetRecipeImage)))
+
+	// Mealie integration
+	mux.Handle("GET /api/mealie/search", cfAuth.Middleware(http.HandlerFunc(handlers.HandleMealieSearch)))
+	mux.Handle("POST /api/mealie/import/{id}", cfAuth.Middleware(http.HandlerFunc(handlers.HandleMealieImport)))
 
 	// Index page - catch all for SPA
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
