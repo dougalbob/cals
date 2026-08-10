@@ -16,8 +16,26 @@ const API = {
         const response = await fetch(endpoint, options);
         
         if (!response.ok) {
-            const error = await response.text();
-            throw new Error(error);
+            const contentType = response.headers.get('Content-Type') || '';
+            let errorData = null;
+            let errorMessage = `Request failed (${response.status})`;
+
+            if (contentType.includes('application/json')) {
+                errorData = await response.json().catch(() => null);
+                if (errorData && typeof errorData.error === 'string' && errorData.error.trim()) {
+                    errorMessage = errorData.error;
+                }
+            } else {
+                const errorText = await response.text();
+                if (errorText && errorText.trim()) {
+                    errorMessage = errorText;
+                }
+            }
+
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            error.responseData = errorData;
+            throw error;
         }
 
         if (response.status === 204) {
@@ -98,6 +116,14 @@ const API = {
 
     deleteRecipe(id) {
         return this.request('DELETE', `/api/recipes/${id}`);
+    },
+
+    searchMealieRecipes(query) {
+        return this.request('GET', `/api/mealie/search?q=${encodeURIComponent(query)}`);
+    },
+
+    importMealieRecipe(id) {
+        return this.request('POST', `/api/mealie/import/${encodeURIComponent(id)}`);
     },
 
     async uploadRecipeImage(recipeId, file) {

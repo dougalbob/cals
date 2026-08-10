@@ -2,6 +2,14 @@
 
 const Recipes = {
     recipes: [],
+    filteredRecipes: null,
+    searchQuery: '',
+    mealieResults: [],
+    mealieLoading: false,
+    mealieErrorMessage: '',
+    mealieSearchDebounceTimer: null,
+    mealieSearchRequestId: 0,
+    mealieImportingIds: new Set(),
     currentRecipe: null,
     editMode: false,
     ingredients: [],
@@ -14,8 +22,10 @@ const Recipes = {
     async loadList() {
         try {
             this.recipes = await API.listRecipes();
-            this.renderList();
             this.setupSearchHandler();
+            const searchInput = document.getElementById('recipe-list-search');
+            const currentQuery = searchInput ? searchInput.value : '';
+            this.applyRecipeSearch(currentQuery, false);
         } catch (err) {
             console.error('Failed to load recipes:', err);
         }
@@ -27,17 +37,118 @@ const Recipes = {
         
         searchInput.dataset.listenerAdded = 'true';
         searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase().trim();
-            if (!query) {
-                this.renderList();
-            } else {
-                const filtered = this.recipes.filter(recipe => 
-                    recipe.name.toLowerCase().includes(query) ||
-                    (recipe.description && recipe.description.toLowerCase().includes(query))
-                );
-                this.renderList(filtered);
-            }
+            this.applyRecipeSearch(searchInput.value);
         });
+    },
+
+    applyRecipeSearch(rawQuery, runRemoteSearch = true) {
+        const query = (rawQuery || '').trim();
+        const queryLower = query.toLowerCase();
+
+        this.searchQuery = query;
+        this.filteredRecipes = query
+            ? this.recipes.filter(recipe =>
+                recipe.name.toLowerCase().includes(queryLower) ||
+                (recipe.description && recipe.description.toLowerCase().includes(queryLower))
+            )
+            : null;
+
+        if (!query) {
+            if (this.mealieSearchDebounceTimer) {
+                clearTimeout(this.mealieSearchDebounceTimer);
+                this.mealieSearchDebounceTimer = null;
+            }
+            this.mealieLoading = false;
+            this.mealieErrorMessage = '';
+            this.mealieResults = [];
+            this.renderList(this.filteredRecipes);
+            return;
+        }
+
+        this.renderList(this.filteredRecipes);
+
+        if (!runRemoteSearch) {
+            return;
+        }
+
+        if (this.mealieSearchDebounceTimer) {
+            clearTimeout(this.mealieSearchDebounceTimer);
+        }
+
+        this.mealieLoading = true;
+        this.mealieErrorMessage = '';
+        this.renderList(this.filteredRecipes);
+
+        const requestId = ++this.mealieSearchRequestId;
+        this.mealieSearchDebounceTimer = setTimeout(() => {
+            this.searchMealieRecipes(query, requestId);
+        }, 400);
+    },
+
+    async searchMealieRecipes(query, requestId) {
+        try {
+            const results = await API.searchMealieRecipes(query);
+            if (requestId !== this.mealieSearchRequestId || query !== this.searchQuery) return;
+            this.mealieResults = Array.isArray(results) ? results : [];
+            this.mealieErrorMessage = '';
+        } catch (err) {
+            if (requestId !== this.mealieSearchRequestId || query !== this.searchQuery) return;
+            this.mealieResults = [];
+            this.mealieErrorMessage = this.getMealieSearchErrorMessage(err);
+        } finally {
+            if (requestId !== this.mealieSearchRequestId || query !== this.searchQuery) return;
+            this.mealieLoading = false;
+            this.renderList(this.filteredRecipes);
+        }
+    },
+
+    getMealieSearchErrorMessage(err) {
+        if (err.status === 503) {
+            return "Mealie isn't connected right now. You can still search your recipes in cals.";
+        }
+        return "Couldn't search Mealie right now. Please try again.";
+    },
+
+    getMealieImportErrorMessage(err) {
+        if (err.status === 503) {
+            return "Mealie isn't connected right now. Please check your Mealie settings and try again.";
+        }
+        if (err.status === 409) {
+            return "That recipe is already in your cals recipes list.";
+        }
+        return "Couldn't import this Mealie recipe right now. Please try again.";
+    },
+
+    escapeHtml(value) {
+        const text = value == null ? '' : String(value);
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    renderRecipeCards(recipes) {
+        return recipes.map(recipe => `
+            <div class="recipe-card" data-recipe-id="${recipe.id}">
+                <div class="recipe-card-image">
+                    ${recipe.image_filename
+                        ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${this.escapeHtml(recipe.name)}">`
+                        : '<div class="recipe-card-placeholder">🍽️</div>'
+                    }
+                </div>
+                <div class="recipe-card-info">
+                    <div class="recipe-card-name">${this.escapeHtml(recipe.name)}</div>
+                    ${recipe.description ? `<div class="recipe-card-desc">${this.escapeHtml(recipe.description)}</div>` : ""}
+                    <div class="recipe-card-meta">
+                        ${Math.round(recipe.total_calories)} kcal total
+                        ${recipe.serves > 1 ? `• Serves ${recipe.serves}` : ''}
+                        <br>${Math.round(recipe.calories_per_100g || 0)} kcal/100g
+                    </div>
+                </div>
+            </div>
+        `).join('');
     },
 
     renderList(filteredRecipes = null) {
@@ -45,7 +156,7 @@ const Recipes = {
         const container = document.getElementById('recipes-list');
         if (!container) return;
 
-        if (recipesToShow.length === 0) {
+        if (!this.searchQuery && recipesToShow.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p>No recipes yet</p>
@@ -58,31 +169,85 @@ const Recipes = {
             return;
         }
 
-        container.innerHTML = recipesToShow.map(recipe => `
-            <div class="recipe-card" data-recipe-id="${recipe.id}">
-                <div class="recipe-card-image">
-                    ${recipe.image_filename 
-                        ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${recipe.name}">`
-                        : '<div class="recipe-card-placeholder">🍽️</div>'
-                    }
+        if (this.searchQuery) {
+            const mealieResultsMarkup = this.mealieLoading
+                ? '<div class="recipe-search-state">Searching Mealie…</div>'
+                : this.mealieErrorMessage
+                    ? `<div class="recipe-search-state">${this.escapeHtml(this.mealieErrorMessage)}</div>`
+                    : this.mealieResults.length === 0
+                        ? `<div class="recipe-search-state">No Mealie recipes found for "${this.escapeHtml(this.searchQuery)}".</div>`
+                        : this.mealieResults.map(recipe => {
+                            const isImporting = this.mealieImportingIds.has(recipe.id);
+                            return `
+                                <div class="mealie-result-item">
+                                    <div class="mealie-result-info">
+                                        <div class="mealie-result-name">${this.escapeHtml(recipe.name)}</div>
+                                        ${recipe.slug ? `<div class="mealie-result-meta">${this.escapeHtml(recipe.slug)}</div>` : ''}
+                                    </div>
+                                    <button class="btn-secondary mealie-import-btn" data-mealie-id="${this.escapeHtml(recipe.id)}" ${isImporting ? 'disabled' : ''}>
+                                        ${isImporting ? 'Importing…' : 'Import'}
+                                    </button>
+                                </div>
+                            `;
+                        }).join('');
+
+            container.innerHTML = `
+                <div class="recipe-results-section">
+                    <div class="recipe-results-title">In cals</div>
+                    ${recipesToShow.length === 0
+                        ? `<div class="recipe-search-state">No local recipes found for "${this.escapeHtml(this.searchQuery)}".</div>`
+                        : this.renderRecipeCards(recipesToShow)}
                 </div>
-                <div class="recipe-card-info">
-                    <div class="recipe-card-name">${recipe.name}</div>
-                    ${recipe.description ? `<div class="recipe-card-desc">${recipe.description}</div>` : ""}
-                    <div class="recipe-card-meta">
-                        ${Math.round(recipe.total_calories)} kcal total
-                        ${recipe.serves > 1 ? `• Serves ${recipe.serves}` : ''}
-                        <br>${Math.round(recipe.calories_per_100g || 0)} kcal/100g
-                    </div>
+                <div class="recipe-results-section">
+                    <div class="recipe-results-title">From Mealie</div>
+                    ${mealieResultsMarkup}
                 </div>
-            </div>
-        `).join('');
+            `;
+        } else {
+            container.innerHTML = this.renderRecipeCards(recipesToShow);
+        }
 
         container.querySelectorAll('.recipe-card').forEach(card => {
             card.addEventListener('click', () => {
                 this.showRecipe(parseInt(card.dataset.recipeId));
             });
         });
+
+        container.querySelectorAll('.mealie-import-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.importMealieRecipe(button.dataset.mealieId);
+            });
+        });
+    },
+
+    async importMealieRecipe(mealieId) {
+        if (!mealieId || this.mealieImportingIds.has(mealieId)) return;
+
+        this.mealieImportingIds.add(mealieId);
+        this.renderList(this.filteredRecipes);
+
+        try {
+            const importedRecipe = await API.importMealieRecipe(mealieId);
+            alert(`Imported "${importedRecipe.name}" from Mealie.`);
+            await this.loadList();
+        } catch (err) {
+            if (err.status === 409) {
+                const existingID = err.responseData && parseInt(err.responseData.existing_id, 10);
+                if (existingID) {
+                    alert('That recipe is already in cals. Opening the existing recipe.');
+                    await this.showRecipe(existingID);
+                } else {
+                    alert(this.getMealieImportErrorMessage(err));
+                }
+            } else {
+                alert(this.getMealieImportErrorMessage(err));
+            }
+        } finally {
+            this.mealieImportingIds.delete(mealieId);
+            this.renderList(this.filteredRecipes);
+        }
     },
 
     async showRecipe(id) {
