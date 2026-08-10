@@ -13,6 +13,8 @@ type Config struct {
 	FatSecretClientSecret  string
 	CFTeamDomain           string
 	CFPolicyAUD            string
+	MealieBaseURL          string
+	MealieAPIKey           string
 }
 
 func Load() (*Config, error) {
@@ -27,6 +29,8 @@ func Load() (*Config, error) {
 		FatSecretClientSecret:  getEnv("FATSECRET_CLIENT_SECRET", ""),
 		CFTeamDomain:           getEnv("CF_TEAM_DOMAIN", ""),
 		CFPolicyAUD:            getEnv("CF_POLICY_AUD", ""),
+		MealieBaseURL:          getEnv("MEALIE_BASE_URL", ""),
+		MealieAPIKey:           getEnv("MEALIE_API_KEY", ""),
 	}, nil
 }
 
