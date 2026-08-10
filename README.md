@@ -55,6 +55,15 @@ networks:
 
 All endpoints are protected by Cloudflare Access middleware.
 
+### Recipes view behaviour
+
+In the **Recipes** tab, the `Search recipes...` box now searches both:
+
+- local cals recipes (shown under **In cals**)
+- Mealie recipes (shown under **From Mealie** when you type a query)
+
+Each Mealie result includes an **Import** button. Successful imports are added to cals immediately and shown in the local list without needing a page refresh.
+
 #### Search Mealie recipes
 
 ```
