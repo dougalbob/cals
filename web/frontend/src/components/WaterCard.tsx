@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Drink } from '../api/types'
 import { formatNumber } from '../lib/format'
+import { WaterGlass } from './WaterGlass'
 
 /**
  * Picks the drink used for the one-tap glass: the user's drink literally named
@@ -16,6 +17,9 @@ export function pickWaterDrink(drinks: Drink[]): Drink | null {
  * The water target: measured from water-counting drink entries (one source of
  * truth), never a separate water ledger. A standard glass is the user's own
  * water drink, so the volume is theirs, not a hard-coded 250 ml.
+ *
+ * The glass reads as a **countdown**: full at the start of the day, drained
+ * when the target is met. The logged total is still shown as consumed / target.
  */
 export function WaterCard({
   consumedMl,
@@ -44,8 +48,9 @@ export function WaterCard({
   }
 
   const glass = waterDrink?.volume_ml ?? 250
-  const pct = targetMl > 0 ? Math.min(100, Math.round((consumedMl / targetMl) * 100)) : 0
   const remaining = Math.max(0, targetMl - consumedMl)
+  const done = targetMl > 0 && consumedMl >= targetMl
+  const level = targetMl > 0 ? Math.max(0, Math.min(1, remaining / targetMl)) : 0
 
   return (
     <section className="rounded-2xl bg-card p-4 shadow-card" aria-label="Water">
@@ -57,52 +62,60 @@ export function WaterCard({
         </span>
       </div>
 
-      <div
-        className="mt-3 h-3 w-full rounded-full bg-line-light overflow-hidden"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={targetMl}
-        aria-valuenow={Math.min(consumedMl, targetMl)}
-        aria-label="Water towards target"
-      >
+      <div className="mt-3 flex items-center gap-4">
         <div
-          className="h-full rounded-full bg-water transition-[width] duration-300"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <p className="m-0 mt-2 text-xs text-ink-light">
-        {consumedMl >= targetMl && targetMl > 0
-          ? 'Target reached 🎉'
-          : `${formatNumber(remaining)} ml to go`}
-        {waterDrink ? ` · counted from your “${waterDrink.name}” drink` : ''}
-      </p>
-
-      {waterDrink ? (
-        <div className="mt-3 flex flex-wrap items-stretch gap-2">
-          <button
-            type="button"
-            onClick={() => onAdd()}
-            disabled={pending}
-            className="flex-1 min-w-[8rem] min-h-12 rounded-xl bg-primary-light/20 text-primary-dark font-medium border-0 cursor-pointer disabled:opacity-50"
-          >
-            {pending ? 'Adding…' : `+ ${formatNumber(glass)} ml`}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowOther((v) => !v)}
-            aria-expanded={showOther}
-            className="min-h-12 rounded-xl border border-line bg-surface px-4 cursor-pointer"
-          >
-            Other amount
-          </button>
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={targetMl}
+          aria-valuenow={Math.min(consumedMl, targetMl)}
+          aria-label="Water towards target"
+          className="shrink-0"
+        >
+          <WaterGlass level={level} label={`Water remaining: ${formatNumber(remaining)} ml of ${formatNumber(targetMl)} ml`} />
         </div>
-      ) : (
-        <p className="m-0 mt-3 text-sm text-ink-muted">
-          No drink is set to count towards water yet. Create a “Water” drink (or mark any drink as
-          water) and it will show up here — the target then measures exactly what you log.
-        </p>
-      )}
+
+        <div className="min-w-0 flex-1">
+          <p className="m-0 text-sm">
+            {done ? (
+              <span className="font-medium text-success">Target reached 🎉</span>
+            ) : (
+              <>
+                <span className="text-xl font-semibold tabular-nums">{formatNumber(remaining)}</span>{' '}
+                <span className="text-ink-light">ml to go</span>
+              </>
+            )}
+          </p>
+          <p className="m-0 mt-1 text-xs text-ink-light">
+            {waterDrink ? `counted from your “${waterDrink.name}” drink` : 'no water-counting drink yet'}
+          </p>
+
+          {waterDrink ? (
+            <div className="mt-3 flex flex-wrap items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => onAdd()}
+                disabled={pending}
+                className="flex-1 min-w-[8rem] min-h-12 rounded-xl bg-primary-light/20 text-primary-dark font-medium border-0 cursor-pointer disabled:opacity-50"
+              >
+                {pending ? 'Adding…' : `+ ${formatNumber(glass)} ml`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOther((v) => !v)}
+                aria-expanded={showOther}
+                className="min-h-12 rounded-xl border border-line bg-surface px-4 cursor-pointer"
+              >
+                Other amount
+              </button>
+            </div>
+          ) : (
+            <p className="m-0 mt-2 text-sm text-ink-muted">
+              Create a “Water” drink (or mark any drink as counting towards water) and the glass will
+              show it — the target then measures exactly what you log.
+            </p>
+          )}
+        </div>
+      </div>
 
       {waterDrink && showOther && (
         <form

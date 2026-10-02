@@ -170,3 +170,11 @@ highest-value open questions now are:
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
 3. **Logging friction** (section E, questions 6–8) — what actually takes the most taps for the primary user.
 4. **Quick-drink setup** — whether new users should get editable Tea/Coffee/Water starter templates, or create their own before those options appear in the selector.
+
+## Dashboard decisions — 2026-10-03
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 18 | 2026-10-03 | Prefer a Today summary landing page rather than immediately exposing itemised meals. Four meal tiles link to the corresponding Diary section; an inner ring counts down the daily allowance independently of the bank. Water glass starts full and drains. | Owner, preview reviewed |
+| 19 | 2026-10-03 | Merge water and quick drinks into one responsive card; remove duplicate standard-water add button, retain compact custom amount. Quick drink badges count daily entries; long press asks confirmation before removing the latest entry. | Owner |
+| 20 | 2026-10-03 | “Let's publish” authorizes the end-to-end GitHub delivery loop: PR/checks, merge to cals-dev, development tag, image publication and verification that Unraid can Force Update. Not promotion to main or changing live data. | Owner |

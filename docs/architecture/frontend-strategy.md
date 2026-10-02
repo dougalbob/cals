@@ -294,3 +294,17 @@ enough that a "no" decision costs a day, not a project.
 3. Is a Node toolchain acceptable on the dev box, or should everything build inside Docker?
 4. Do we keep Chart.js via `react-chartjs-2` (recommended, familiar) or move to Recharts? (The spike uses hand-rolled SVG purely to avoid a CDN dependency in the sandbox — not a recommendation.)
 5. ~~**Quick-drink provisioning:** should brand-new users receive editable Tea/Coffee/Water starter templates?~~ **Settled (2026-10-02, decision 16): no provisioning.** The quick selector shows the signed-in user's own drinks and points them at Settings when the list is empty.
+
+## Today dashboard checkpoint — 2026-10-03
+
+🟢 **Owner reviewed the Arena preview and authorized publication.** The new `/next/`
+landing page is Today (the legacy root UI remains unchanged). Four meal tiles show
+calories, icon, name and item count, linking to dated Diary meal anchors. The inner
+calorie ring counts down the plain daily allowance; the outer ring retains existing
+available/bank behaviour. Water uses a draining glass. Water and quick drinks share
+one responsive card, with a compact custom amount action instead of duplicate water
+quick-add. Each drink shows its daily entry count; long press opens confirmation
+before deleting the latest matching entry, restoring its recorded ml/calories.
+The Diary uses the same fluids card. Phone layouts stack water/drinks; wider layouts
+use a vertical divider. No backend or schema changes, no data copy, no root cutover.
+Unraid review against both real identities remains outstanding before Phase 13.
