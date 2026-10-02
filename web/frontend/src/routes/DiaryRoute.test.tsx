@@ -133,11 +133,9 @@ describe('DiaryRoute', () => {
     renderDiary('/diary')
 
     const expected = seed.waterFor(seed.TODAY)
-    const card = await screen.findByLabelText('Water')
+    const card = await screen.findByLabelText('Fluids and drinks')
     expect(within(card).getByText(formatNumber(expected.consumed_ml))).toBeTruthy()
     expect(within(card).getByText(`/ ${formatNumber(expected.target_ml)} ml`)).toBeTruthy()
-    // Water is derived from the flagged drink, so the card names it.
-    expect(within(card).getByText(/counted from your/)).toBeTruthy()
     expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
       String(expected.consumed_ml),
     )
@@ -147,13 +145,13 @@ describe('DiaryRoute', () => {
     renderDiary('/diary')
 
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
-    const waterCard = await screen.findByLabelText('Water')
+    const card = await screen.findByLabelText('Fluids and drinks')
 
     fireEvent.click(within(screen.getByLabelText('Quick drinks')).getByRole('button', { name: /^Add Water/ }))
 
     await waitFor(() =>
       expect(
-        within(waterCard).getByText(formatNumber(waterBefore + 250)),
+        within(card).getByText(formatNumber(waterBefore + 250)),
       ).toBeTruthy(),
     )
   })
@@ -162,15 +160,15 @@ describe('DiaryRoute', () => {
     renderDiary('/diary')
 
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
-    const waterCard = await screen.findByLabelText('Water')
+    const card = await screen.findByLabelText('Fluids and drinks')
 
-    fireEvent.click(within(waterCard).getByRole('button', { name: 'Other amount' }))
-    const amount = within(waterCard).getByLabelText('Amount (ml)') as HTMLInputElement
+    fireEvent.click(within(card).getByRole('button', { name: '+ other amount' }))
+    const amount = within(card).getByLabelText('Other water amount (ml)') as HTMLInputElement
     fireEvent.change(amount, { target: { value: '750' } })
-    fireEvent.click(within(waterCard).getByRole('button', { name: 'Add' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Add' }))
 
     await waitFor(() =>
-      expect(within(waterCard).getByText(formatNumber(waterBefore + 750))).toBeTruthy(),
+      expect(within(card).getByText(formatNumber(waterBefore + 750))).toBeTruthy(),
     )
   })
 

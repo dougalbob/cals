@@ -169,3 +169,12 @@ confirming with the owner before building the affected screen:
    or create those definitions before they appear in the selector?
 4. **Logging friction** — what takes the most taps for the primary user; would "same as yesterday"
    or favourites help?
+
+## Dashboard publication handoff — 2026-10-03
+
+Owner reviewed Today dashboard improvements in Arena and authorized the end-to-end
+GitHub publication loop. The checkpoint adds the Today landing screen, dual ring,
+four meal tiles and shared water/quick drinks with counters and confirmed long-press
+delete. Legacy root is still the default; open `/next/` on Unraid to see this work.
+No appdata copy or schema migration is required. Review both identities on the LAN
+dev container before moving on to Phase 13. See frontend-strategy.md for scope.

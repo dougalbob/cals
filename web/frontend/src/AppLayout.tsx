@@ -4,9 +4,10 @@ import { apiGet, queryKeys } from './api/client'
 import type { User, VersionResponse } from './api/types'
 
 const NAV = [
-  { to: '/diary', label: 'Diary', icon: '📔' },
-  { to: '/metrics', label: 'Metrics', icon: '📈' },
-  { to: '/foods', label: 'Foods', icon: '🥗' },
+  { to: '/', label: 'Today', icon: '🏠', end: true },
+  { to: '/diary', label: 'Diary', icon: '📔', end: false },
+  { to: '/metrics', label: 'Metrics', icon: '📈', end: false },
+  { to: '/foods', label: 'Foods', icon: '🥗', end: false },
 ]
 
 export function AppLayout() {
@@ -56,11 +57,12 @@ export function AppLayout() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-line safe-bottom">
-        <div className="mx-auto max-w-2xl grid grid-cols-3">
+        <div className="mx-auto max-w-2xl grid grid-cols-4">
           {NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.end}
               className={({ isActive }) =>
                 [
                   'flex flex-col items-center gap-0.5 py-2 min-h-11 text-xs font-medium no-underline',

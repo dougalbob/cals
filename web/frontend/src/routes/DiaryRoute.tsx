@@ -1,12 +1,11 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
 import { addDrinkEntry, createDiaryEntry, deleteDiaryEntry, deleteDrinkEntry } from '../api/diary'
 import { MEALS, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
-import { QuickDrinks } from '../components/QuickDrinks'
-import { WaterCard, pickWaterDrink } from '../components/WaterCard'
+import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
@@ -22,6 +21,7 @@ const MEAL_ACCENT: Record<Meal, string> = {
 export function DiaryRoute() {
   const { date: dateParam } = useParams()
   const navigate = useNavigate()
+  const { hash } = useLocation()
   const queryClient = useQueryClient()
 
   const today = todayIso()
@@ -29,12 +29,22 @@ export function DiaryRoute() {
 
   const [addingTo, setAddingTo] = useState<Meal | null>(null)
   const [pendingDrink, setPendingDrink] = useState<number | null>(null)
+  const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ entryId: number; drinkName: string } | null>(null)
 
   const diary = useDiary(date)
   const bank = useBank(date)
   const drinks = useDrinkEntries(date)
   const drinkDefinitions = useDrinkDefinitions()
   const water = useWater(date)
+
+  // Deep links from the Today screen (`/diary/2026-10-02#dinner`) land on the
+  // meal that was tapped rather than at the top of a long page.
+  useEffect(() => {
+    if (!hash || diary.isPending || bank.isPending) return
+    const target = document.getElementById(hash.slice(1))
+    if (target) target.scrollIntoView({ block: 'start' })
+  }, [hash, date, diary.isPending, bank.isPending])
 
   /** A logged drink changes the diary totals, the water total and the bank. */
   const refreshDrinkData = () => {
@@ -71,7 +81,12 @@ export function DiaryRoute() {
 
   const removeDrink = useMutation({
     mutationFn: deleteDrinkEntry,
-    onSuccess: refreshDrinkData,
+    onMutate: (id) => setDeletingEntryId(id),
+    onSettled: () => setDeletingEntryId(null),
+    onSuccess: () => {
+      setDeleteConfirm(null)
+      refreshDrinkData()
+    },
   })
 
   const entries = diary.data?.entries ?? []
@@ -171,24 +186,22 @@ export function DiaryRoute() {
         </div>
       </section>
 
-      {/* Quick drinks — the familiar one-tap selector -------------------- */}
-      <QuickDrinks
-        drinks={drinkDefinitions.data ?? []}
-        pendingDrinkId={pendingDrink}
-        error={addDrink.isError ? (addDrink.error as Error).message : null}
-        onAdd={(drink) => addDrink.mutate({ drink })}
-      />
-
-      {/* Water target — measured from the water-counting drinks above ----- */}
-      <WaterCard
+      {/* Merged Fluids Card: Water glass + Quick Drinks ------------------ */}
+      <FluidsCard
         consumedMl={water.data?.consumed_ml ?? 0}
         targetMl={water.data?.target_ml ?? 2000}
         waterDrink={waterDrink}
-        pending={addDrink.isPending}
-        error={water.isError ? (water.error as Error).message : null}
-        onAdd={(volumeMl) => {
-          if (waterDrink) addDrink.mutate({ drink: waterDrink, volumeMl })
-        }}
+        drinks={drinkDefinitions.data ?? []}
+        entries={drinks.data ?? []}
+        onAddDrink={(drink, volumeMl) => addDrink.mutate({ drink, volumeMl })}
+        onDeleteDrinkEntry={(entryId, drinkName) => setDeleteConfirm({ entryId, drinkName })}
+        pendingDrinkId={pendingDrink}
+        deletingEntryId={deletingEntryId}
+        error={
+          (addDrink.isError ? (addDrink.error as Error).message : null) ||
+          (removeDrink.isError ? (removeDrink.error as Error).message : null) ||
+          (water.isError ? (water.error as Error).message : null)
+        }
       />
 
       {/* Meals ---------------------------------------------------------- */}
@@ -196,7 +209,11 @@ export function DiaryRoute() {
         const mealEntries = entries.filter((entry) => entry.meal === meal.id)
         const mealCalories = mealEntries.reduce((acc, entry) => acc + entry.calories, 0)
         return (
-          <section key={meal.id} className={`rounded-2xl bg-card shadow-card border-l-4 ${MEAL_ACCENT[meal.id]}`}>
+          <section
+            key={meal.id}
+            id={meal.id}
+            className={`scroll-mt-4 rounded-2xl bg-card shadow-card border-l-4 ${MEAL_ACCENT[meal.id]}`}
+          >
             <header className="flex items-center justify-between px-4 pt-3">
               <h2 className="m-0 text-base font-semibold">
                 <span aria-hidden className="mr-1.5">
@@ -292,6 +309,38 @@ export function DiaryRoute() {
         saving={addEntry.isPending}
         error={addEntry.isError ? (addEntry.error as Error).message : null}
       />
+
+      {/* Deletion confirmation modal for long-press ----------------------- */}
+      <Modal
+        open={deleteConfirm !== null}
+        title="Delete drink entry?"
+        onClose={() => setDeleteConfirm(null)}
+      >
+        {deleteConfirm && (
+          <div className="flex flex-col gap-3">
+            <p className="m-0 text-sm text-ink">
+              Remove the latest logged <span className="font-semibold">{deleteConfirm.drinkName}</span> from {date === today ? 'today' : date}?
+            </p>
+            <div className="flex items-center justify-end gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                className="min-h-10 px-3.5 rounded-xl border border-line bg-surface text-ink text-sm cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={removeDrink.isPending}
+                onClick={() => removeDrink.mutate(deleteConfirm.entryId)}
+                className="min-h-10 px-4 rounded-xl bg-danger text-white text-sm font-medium border-0 cursor-pointer disabled:opacity-50"
+              >
+                {removeDrink.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
