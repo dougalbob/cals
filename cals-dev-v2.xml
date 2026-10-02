@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <!--
   Unraid template for the V2 development image (development channel).
-  It becomes installable after the GHCR publishing workflow has published
-  ghcr.io/dougalbob/cals-dev-v2:dev-latest and the package has been made public.
+
+  Status 2026-10-02: ghcr.io/dougalbob/cals-dev-v2 is published and
+  anonymously pullable (verifiable without credentials: the publish
+  workflow pulls dev-latest as a logged-out stranger on every release).
 
   This template is the only documented installation method. Docker Compose is
   retired as an install path; the checked-in docker-compose.yml is legacy V1
@@ -17,7 +19,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/dougalbob/cals/issues</Support>
   <Project>https://github.com/dougalbob/cals</Project>
-  <Overview>Cals V2 development build (development channel). Keep its appdata directory separate from V1. Create /mnt/user/appdata/cals-dev-v2/.env with the required production settings before starting. The React frontend is currently served under /next/ during the migration. This template requires the dev-latest GHCR image to be published first.</Overview>
+  <Overview>Cals V2 development build (development channel). Keep its appdata directory separate from V1. Create /mnt/user/appdata/cals-dev-v2/.env with the required production settings before starting. The React frontend is currently served under /next/ during the migration. The dev-latest image is published and anonymously pullable; no GitHub credentials are needed to install.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8151]/next/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/dougalbob/cals/cals-dev/cals-dev-v2.xml</TemplateURL>
