@@ -95,11 +95,12 @@ This is the documented installation. There is no Compose step and no source buil
    - Or skip both: create the container in the Unraid Docker UI from the values below (the file is the source of truth for those values).
 3. **Create the container from the template.** The template pre-fills everything: container name `cals-dev-v2`, image `ghcr.io/dougalbob/cals-dev-v2:dev-latest`, bridge networking, port `8151:8151/tcp`, volume `/mnt/user/appdata/cals-dev-v2` → `/app/data` (rw), variables `PORT=8151` and `TZ=Europe/London`. Start the container.
 4. **Verify**
-   - The WebUI link opens the React shell at `http://<unraid-host>:8151/next/`.
-   - `curl -s http://localhost:8151/health` (from an SSH session on Unraid) succeeds.
+   - `curl -s http://localhost:8151/health` (from an SSH session on Unraid) succeeds. This is the container-level check and needs nothing else.
+   - The WebUI link opens the React shell at `http://<unraid-host>:8151/next/`. **Expect an empty screen with "401" errors in the browser console when opening it over plain LAN HTTP**: `/next/` itself is public, but every `/api/*` route requires a Cloudflare Access JWT, and a LAN request has none. That is the design, not a broken container — data appears when the page is opened through Cloudflare (below), or in local development via `DEV_MODE`. Direct LAN access cannot substitute: `DEV_MODE` needs a loopback/private bind address, so it does not apply to the container.
+   - If V2 is reached through Cloudflare Tunnel, add/update the V2 origin/hostname to route to port `8151`; changing Docker's port mapping alone does not change the tunnel configuration. Then the full app works — the diary loads for the signed-in Cloudflare identity.
    - Data persists: restart the container and confirm the database in appdata survives.
    - V1 on `8150` is unaffected.
-   - If V2 is reached through Cloudflare Tunnel, add/update the V2 origin/hostname to route to port `8151`; changing Docker's port mapping alone does not change the tunnel configuration.
+   - New here? The app auto-creates the user matching the Cloudflare email on first request, so a fresh V2 appdata shows an empty diary — that is expected, not a data-loss bug. V1's database is untouched because V2 has its own appdata directory.
 
 **Reference values (for manual container creation)**
 
