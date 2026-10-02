@@ -11,7 +11,7 @@
 
 ## Current owner-directed handoff (2026-10-02)
 
-1. **This session:** finish the Phase 11 foundation PR #5 first. Keep it separate from the GHCR publishing workflow. The PR must pass the available frontend/Go checks, have its documentation and review gates clear, and have the Docker image build verified on a machine with Docker before merge to `cals-dev`. Do not merge to `main`.
+1. **This session:** finish the Phase 11 foundation PR #5 first. Keep it separate from the GHCR publishing workflow. The owner has explicitly authorized a one-time merge of PR #5 before `docker compose build` could be run in the sandbox; keep that build recorded as unverified. Part 2 must add a build-only CI check and pass it before publishing the first image. PR #5 merges only into `cals-dev`; do not merge to `main`.
 2. **Next session:** pick up **Part 2 — publish the first V2 image** from [`unraid-image-release.md`](./unraid-image-release.md). Start only after confirming PR #5 is merged into `cals-dev`; if it is still open because the Docker/review gate is incomplete, ask the owner rather than publishing an image from an unmerged session branch.
 3. Part 2 targets `ghcr.io/dougalbob/cals-v2`, publishes an exact `v2.0.0-dev-rc1`-style prerelease tag plus `dev-latest`, and smoke-tests the image on Unraid using [`../../cals-v2.xml`](../../cals-v2.xml). This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 

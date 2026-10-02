@@ -54,7 +54,7 @@ Before starting Part 2, confirm that Phase 11 PR #5 has been merged into `cals-d
 Part 2 checklist:
 
 1. Read this document and [`cals-v2.xml`](../../cals-v2.xml); confirm the source repository is public as the owner intended. Do not expose appdata, `.env` contents, or credentials.
-2. Add a GitHub Actions workflow that builds the Docker image from an approved version tag on `cals-dev`, using `GITHUB_TOKEN` with package-write permission. Check out and build the exact tagged commit; do not build `main` by accident.
+2. Add GitHub Actions validation and publishing: first provide a build-only pull-request check that builds the Dockerfile without pushing, then publish from an approved version tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission. The build-only check must pass before the first tag is published. Check out and build the exact tagged commit; do not build `main` by accident.
 3. Publish to **`ghcr.io/dougalbob/cals-v2`** with the immutable-by-convention candidate tag (initial example: `v2.0.0-dev-rc1`) and moving **`dev-latest`**. Do not assign plain `latest` to a development candidate; reserve it for a stable release after promotion to `main`.
 4. Create the corresponding GitHub prerelease for the Git tag. GitHub Release metadata and the GHCR image are separate artifacts; verify both exist.
 5. After the first push, explicitly set the GHCR package visibility to public if needed. A public source repository does not by itself guarantee a public container package.
