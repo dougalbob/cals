@@ -204,8 +204,10 @@ Findings that affect the plan:
 1. **Pre-existing bug surfaced: the bank ignores drinks.** `internal/handlers/bank.go` sums only `diary_entries`,
    while the diary ring in `app.js` adds drink calories. "Banked" therefore omits drinks that "today"
    includes. The spike reproduces real behaviour rather than hiding it. **Owner decision is now settled: drinks count.** Phase 12 must include `drink_entries` in consumption and add a regression test; the fix is not part of the Phase 11 foundation.
-2. **Version drift is real.** `main.go` and `app.js` say 1.7.0 while `sw.js` still says 1.4.0. The
-   spike reads the version from `GET /api/version`, removing the duplicated constant.
+2. **Version drift is real.** `main.go` and `app.js` said 1.7.0 while `sw.js` still said 1.4.0. The
+   spike reads the version from `GET /api/version`, removing the duplicated constant. **Resolved
+   2026-10-02:** all three files were bumped to 2.0.0 on `cals-dev` for the V2 development line
+   (see [`unraid-image-release.md`](./unraid-image-release.md)); `main` remains on 1.7.0.
 3. **Cloudflare Access needs explicit handling.** The session-expiry case (HTML login page instead of
    a JSON 401) is handled once, in `src/api/client.ts`, rather than per screen.
 4. **`.dockerignore` added.** Without it, a locally-present `web/frontend/node_modules` would bloat

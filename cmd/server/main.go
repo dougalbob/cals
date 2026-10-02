@@ -14,7 +14,7 @@ import (
 	"cals/internal/mealie"
 )
 
-const AppVersion = "1.7.0"
+const AppVersion = "2.0.0"
 
 func main() {
 	cfg, err := config.Load()
