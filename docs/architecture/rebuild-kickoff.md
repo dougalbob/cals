@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — PR #5 (Phase 11 foundation) and PR #6 (Compose retirement / `cals-dev-v2` naming) are merged into `cals-dev`; the focused task is Part 2: publish the first V2 GHCR image.** The Part 2 PR adds the build-check and publish workflows; after it is merged and green, an owner-approved tag publishes the image, and the owner installs V2 from the `cals-dev-v2.xml` Unraid template |
+| **Status** | 🟢 **ACTIVE HANDOFF — the first V2 images are published (`v2.0.0-dev-rc1`, `v2.0.0-dev-rc2`) and `dev-latest` is anonymously pullable, verified in CI.** Next: the owner installs `cals-dev-v2` on Unraid from the `cals-dev-v2.xml` template and runs the smoke test; Phase 12 (Diary) follows |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -15,9 +15,9 @@
 2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document reflects this — do not reintroduce Compose into installation instructions. PR #6 (merged as `8695c7e`) renamed the V2 development deployment to `cals-dev-v2` end to end and rewrote the install manual.
 3. **In progress — Part 2: publish the first V2 image** (see [`unraid-image-release.md`](./unraid-image-release.md)):
    - PR #7 adds two workflows: `.github/workflows/docker-validate.yml` (build-only pull-request check, never pushes) and `.github/workflows/publish-dev-image.yml` (builds and publishes to GHCR when a development tag matching `v*-dev*` is pushed, after checking the tagged commit is on `cals-dev`, and creates the GitHub prerelease). Its `Docker build (validation)` check is **green** (run 37037874364), so the container build no longer needs to be taken on trust.
-   - **Owner gate 1:** review and merge PR #7 into `cals-dev`; its `Docker build (validation)` check is already green on the PR.
-   - **Owner gate 2:** approve the first tag by pushing `v2.0.0-dev-rc1` at a commit on `cals-dev` (or ask the session to push it). The workflow then publishes `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` and moves `dev-latest`. Nothing is published without this human action, and no `latest` image is produced from a development tag.
-   - **Owner actions after publishing:** make the GHCR package public if it is not already; copy `cals-dev-v2.xml` into the Unraid Docker UI (DockerMan) and create the `cals-dev-v2` container from it; smoke-test health, `/next/`, restart/data persistence and V1 isolation on 8150; record the tag, commit and image digest in the release log.
+   - **Done (2026-10-02, this session):** PRs #7, #8 and #9 merged; app version bumped to 2.0.0; `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` published with GitHub prereleases and recorded digests. The publish workflow logs out and pulls `dev-latest` anonymously after every publish — **rc2 passed, so the image is pullable by Unraid with no credentials.**
+   - **The one remaining owner action:** copy [`cals-dev-v2.xml`](../../cals-dev-v2.xml) into the Unraid Docker UI (DockerMan), create the `cals-dev-v2` container from it, and smoke-test health, `/next/`, restart/data persistence and V1 isolation on 8150. Everything it needs is already published. Write the result into the release log in [`unraid-image-release.md`](./unraid-image-release.md).
+   - No `latest` image is produced from a development tag; stable publishing is still undesigned.
    The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename it later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ## 0. Before anything else: get the work

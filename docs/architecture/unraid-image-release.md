@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 Target deployment design agreed; publishing workflow added (Part 2 PR, 2026-10-02); first image publication and Unraid smoke test pending |
+| **Status** | 🟢 **Publishing is live on the development channel (2026-10-02): `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` are published, `dev-latest` is anonymously pullable (verified in CI).** The remaining step is the owner's Unraid install and smoke test |
 | **Updated** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md), [`local-development.md`](./local-development.md), [`../../cals-dev-v2.xml`](../../cals-dev-v2.xml) |
@@ -150,11 +150,11 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ⬜ pending the owner-approved tag push |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ⬜ pending (the publish workflow creates it) |
-| 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ automated check added; verified by `v2.0.0-dev-rc2` — packages published with `GITHUB_TOKEN` normally inherit the public repository's access, and the workflow now logs out and pulls like a stranger to prove it. If it ever fails, the owner flips visibility on the package settings page (link in the failure message) |
+| 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-02 — rc1 and then rc2 (which carries the anonymous-pull gate); `dev-latest` currently points at rc2. See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-02 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) and [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), each with source commit and image digest in its notes |
+| 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
 | 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
-| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ⬜ |
+| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 commits, tags, digests and build results recorded; the Unraid smoke-test result is the owner's to add after item 6 |
 
 The validation workflow must pass on the Part 2 PR before the first tag is published: that green run is the evidence that the image builds. It **passed on PR #7** ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), which closes the container build recorded as unverified in the Phase 11 handoff. Once PR #7 is merged, the remaining gates are the owner's: approve the tag, publish, make the package public, smoke-test on Unraid.
 
@@ -165,10 +165,10 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | Tag | Published | Source commit | Image digest | GitHub prerelease | Unraid smoke test |
 |---|---|---|---|---|---|
 | `v2.0.0-dev-rc1` | 2026-10-02, [run 37039604171](https://github.com/dougalbob/cals/actions/runs/37039604171) | `51c15b0` on `cals-dev` (PR #8 merge; app version 2.0.0) | `sha256:f4c6c61930b6a7e509ffd578c77815f9d778bc6f46794ff379e5b355cdca06a7` | [v2.0.0-dev-rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) (prerelease) | ⬜ owner |
-| `v2.0.0-dev-rc2` | *in progress* — first checkpoint published with the anonymous-pull check | — | — | — | — |
+| `v2.0.0-dev-rc2` | 2026-10-02, [run 37040148876](https://github.com/dougalbob/cals/actions/runs/37040148876) | `183059a` on `cals-dev` (PR #9 merge; adds the anonymous-pull gate) | `sha256:cab07b3427a41a3ea38adb987ec38e2184c4b00b8ca7393a29d269e96009e951` | [v2.0.0-dev-rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2) (prerelease) | ⬜ owner |
 
 ## Not implemented yet
 
-- The first end-to-end Unraid pull/run has not been verified. Docker cannot run in the Arena sandbox and `ghcr.io` is unreachable from it, so the publish workflow itself now performs the anonymous-pull check (see [GHCR visibility](#ghcr-visibility)) and the owner performs the container smoke test in Part 2 item 6.
+- The first end-to-end Unraid run has not been verified. The *pull* is verified (CI performs an anonymous pull on every publish, and rc2 passed), but no one has started the container yet: Docker cannot run in the Arena sandbox ('docker' is not installed) and `ghcr.io` is unreachable from it. The owner performs the container smoke test in Part 2 item 6.
 - Stable publishing is not implemented: there is no workflow for a `latest` image after promotion to `main`, and none for `cals-dev-v2.xml` updates.
 - The publish workflow cannot fix package visibility itself: GitHub does not expose package administration to `GITHUB_TOKEN`. If the anonymous-pull check fails, only the owner (who has admin on the package) can flip it, and the failure message says exactly where.
