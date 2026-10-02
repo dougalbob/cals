@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED — decision pending** (not yet approved, nothing built) |
+| **Status** | 🟡 **PROPOSED — decision pending.** A working **spike exists** at [`web/frontend/`](../../web/frontend/README.md) (Diary, Metrics, Foods + fixture API); it is not wired into the Go app |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go` |
@@ -156,6 +156,40 @@ A timeboxed **spike** precedes everything: build *only* the Diary screen against
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
 
+### 7.1 Spike results — 2026-10-02
+
+A working spike was built to de-risk the decision rather than argue it on paper:
+[`web/frontend/`](../../web/frontend/README.md) implements the **Diary**, **Metrics** and **Foods**
+screens on React 19.3 + TypeScript 5.9 + Vite 8.3 + Tailwind 4.3 + React Router 8.4 + TanStack
+Query 5.104, with a fixture API that mirrors the Go handlers' response shapes so the UI can also be
+pointed at the real server via `VITE_API_TARGET`.
+
+Measured, not estimated:
+
+| Question | Answer |
+|---|---|
+| Does the toolchain work in the Arena sandbox? | **Yes.** Node 22.22.3, npm 10.9.8, registry reachable, 63 packages installed in ~16 s, Vite dev server on `0.0.0.0:5173` with `allowedHosts: true` served the preview proxy cleanly |
+| Is the Go toolchain available in the sandbox? | **No** — `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are all unreachable. Only GitHub and npm are open. This is why the spike ships a fixture API; on a real dev machine (or Unraid) `VITE_API_TARGET` points at `go run ./cmd/server` and nothing changes |
+| What does it cost the client? | 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for three screens — one hashed, cacheable bundle versus ~4,500 lines of uncached vanilla JS today |
+| Does a test story appear on day one? | **Yes.** `npm test` runs in ~2 s: date maths (DST, leap days), stones/lbs conversion, and a jsdom render test that mounts the Diary screen against the fixture API |
+| Does it typecheck strictly and build? | **Yes.** `tsc --noEmit` clean under `strict`, `noUnusedLocals`, `verbatimModuleSyntax`; production build in 628 ms |
+
+Findings that affect the plan:
+
+1. **Pre-existing bug surfaced: the bank ignores drinks.** `bank.go` sums only `diary_entries`,
+   while the diary ring in `app.js` adds drink calories. "Banked" therefore omits drinks that "today"
+   includes. The spike reproduces real behaviour rather than hiding it. **Decide before phase 12**
+   whether the bank should include `drink_entries`, and add a regression test either way.
+2. **Version drift is real.** `main.go` and `app.js` say 1.7.0 while `sw.js` still says 1.4.0. The
+   spike reads the version from `GET /api/version`, removing the duplicated constant.
+3. **Cloudflare Access needs explicit handling.** The session-expiry case (HTML login page instead of
+   a JSON 401) is handled once, in `src/api/client.ts`, rather than per screen.
+4. **`.dockerignore` added.** Without it, a locally-present `web/frontend/node_modules` would bloat
+   every Docker build context. Worth keeping when the real frontend lands.
+
+With those measured, the estimates above are unchanged but better supported; the spike is small
+enough that a "no" decision costs a day, not a project.
+
 ---
 
 ## 8. Alternatives considered
@@ -188,11 +222,12 @@ Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-tim
 
 ## 10. Decision checklist — what "yes" commits us to
 
-- [ ] Node 22 LTS available on the dev machine (or accept Docker-only builds)
+- [x] ~~Node 22 LTS available on the dev machine~~ — confirmed available (incl. in the Arena sandbox); **note the sandbox has no Go toolchain**, so backend-touching work needs the local machine or Unraid, while pure UI work runs anywhere
 - [ ] Acceptance that `web/**` will be rewritten, and the legacy UI will be deleted at cutover
-- [ ] A timeboxed Diary spike agreed *before* Phase 11 starts
+- [x] ~~A timeboxed spike agreed before Phase 11~~ — done: see `web/frontend/` and §7.1
 - [ ] Agreement that `ai_contextual_docs/context.txt` stays the single source of domain truth and is updated each phase
 - [ ] Agreement that the Go API is **not** part of this change
+- [ ] Decision on the bank/drinks inconsistency found in §7.1
 
 **What would change the recommendation:** if no further feature work is planned, or if mobile UX complaints can be traced to a handful of specific screens, fix those in place instead. The stack choice is sound; the question is whether the migration is worth paying for.
 
@@ -203,5 +238,6 @@ Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-tim
 1. What specifically prompted the thought — mobile jank, bug frequency, or wanting to build more features?
 2. How much feature work is realistically planned over the next 6–12 months (recipes, nutrition, multi-user)?
 3. Is a Node toolchain acceptable on the dev box, or should everything build inside Docker?
-4. Do we keep Chart.js via `react-chartjs-2` (recommended, familiar) or move to Recharts?
-5. Timeline: should the Diary spike happen in the current Arena session, or once `cals-dev` exists and this proposal is accepted?
+4. Do we keep Chart.js via `react-chartjs-2` (recommended, familiar) or move to Recharts? (The spike uses hand-rolled SVG purely to avoid a CDN dependency in the sandbox — not a recommendation.)
+5. **Bank vs drinks:** should `bank.go` include `drink_entries` in consumption, so "banked" and "today's ring" agree? This is a live inconsistency today, independent of the migration.
+6. Timeline: the spike has been built — does Phase 11 start once this proposal is accepted, or after the next round of feature work?

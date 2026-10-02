@@ -46,6 +46,8 @@ web/templates/index.html  SPA shell
 web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
 web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
 web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
+web/frontend/             SPIKE: React 19 + TS + Vite + Tailwind rebuild (Diary/Metrics/Foods) with a
+                          fixture API. Not served by Go, not part of the build — see its README
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       agent context file
 ```

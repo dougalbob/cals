@@ -1,0 +1,17 @@
+# Keep the Docker build context small.
+#
+# The frontend spike (web/frontend) has its own node_modules; without this the
+# Docker build context balloons by hundreds of megabytes whenever it is present.
+# None of it is needed to build or run the Go binary.
+
+.git
+.gitignore
+**/node_modules
+web/frontend/node_modules
+web/frontend/dist
+**/*.log
+*.db
+*.db-shm
+*.db-wal
+tmp/
+temp/
