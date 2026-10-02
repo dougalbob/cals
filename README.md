@@ -30,8 +30,8 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 | Variable | Description |
 |---|---|
-| `CF_TEAM_DOMAIN` | Cloudflare Teams domain for authentication |
-| `CF_POLICY_AUD` | Cloudflare Access policy audience |
+| `CF_TEAM_DOMAIN` | Cloudflare Teams domain for production authentication (not used when `DEV_MODE=true`) |
+| `CF_POLICY_AUD` | Cloudflare Access policy audience (not used when `DEV_MODE=true`) |
 
 ### Optional
 
@@ -40,6 +40,9 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 | `PORT` | `8150` | HTTP port to listen on |
 | `LOG_LEVEL` | `info` | Log level |
 | `DB_PATH` | `/app/data/cals.db` | SQLite database path |
+| `DEV_MODE` | `false` | Local-only authentication bypass; see [Local Development](docs/architecture/local-development.md) |
+| `DEV_USER_EMAIL` | *(required with `DEV_MODE=true`)* | User identity to use in local development |
+| `BIND_ADDRESS` | *(all interfaces in production; `127.0.0.1` in dev mode)* | Listener IP; dev mode accepts only loopback/private IPs |
 | `FATSECRET_CLIENT_ID` | *(disabled)* | FatSecret API client ID |
 | `FATSECRET_CLIENT_SECRET` | *(disabled)* | FatSecret API client secret |
 | `MEALIE_BASE_URL` | *(disabled)* | Base URL of your Mealie instance (e.g. `http://mealie:9000`) |

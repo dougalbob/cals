@@ -24,12 +24,13 @@ Goals, in priority order:
 | Item | State |
 |---|---|
 | Default branch | `main` (production — treat as read-only) |
-| Remote branches | `main`, `copilot/main`, `copilot/add-mealie-integration` (both merged via PRs #1 and #2) |
+| Remote branches | `main`, `cals-dev`, `arena/01a0fc78-cals`, and the merged `copilot/*` branches |
 | `main` tip | `d65812c` — "Merge pull request #2 from dougalbob/copilot/main" |
+| `cals-dev` tip | `a9494cc` — "Merge pull request #3 from dougalbob/arena/01a0fc78-cals" |
 | Branch protection on `main` | **None.** The repo is private and on a plan where protection rules are not available (§4) |
-| Integration branch `cals-dev` | **Does not exist yet** — owner action required (§3) |
+| Integration branch `cals-dev` | **Created by the owner and present on GitHub** |
 | Repo visibility | Private (`dougalbob/cals`) |
-| Arena session branches | Auto-created as `arena/<session-id>`, branched from `main`, fixed for the lifetime of the session |
+| Arena session branches | Named `arena/<session-id>` and fixed for the lifetime of the session; the Arena branch selector determines their starting ref |
 
 ---
 
@@ -56,38 +57,16 @@ Rules:
 
 ---
 
-## 3. One-time setup: create `cals-dev`
+## 3. `cals-dev` setup (completed)
 
-> **Why this isn't done already:** the Arena session that wrote this document is pinned to its own branch (`arena/01a0fc78-cals`) and is not permitted to create or push any other branch — that's a hard session rule, not a preference. The branch has to be created by the owner. It is a one-liner.
+The owner created and pushed `cals-dev`; it is present on GitHub and currently points to `a9494cc` (the merge of PR #3). Do not create it again. Arena's branch selector can start a session from `cals-dev`, and each session branch remains fixed after it is created.
 
-**Option A — command line (recommended):**
-
-```bash
-cd /path/to/cals
-git fetch origin
-git branch cals-dev origin/main      # or: git branch cals-dev d65812c
-git push -u origin cals-dev
-```
-
-**Option B — GitHub UI:** repository → **Branches** → **New branch** → name `cals-dev`, source `main` → *Create new branch*.
-
-**Option C — with `gh`:**
+Some Arena clones restrict `remote.origin.fetch` to `main` and the current session branch. A plain `git fetch origin` may therefore leave `origin/cals-dev` unavailable locally even though it exists on GitHub. Use this explicit fetch before merging or creating a local topic branch:
 
 ```bash
-gh api -X POST repos/dougalbob/cals/git/refs \
-  -f ref=refs/heads/cals-dev -f sha=d65812c4873b12caaff00d54ff487cfd22fc944a
+git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev
+git merge origin/cals-dev
 ```
-
-Then:
-
-1. **Retarget the open Arena PR** (if one exists) from `main` to `cals-dev` — the PR page has an **Edit** button next to the title where the base branch can be changed.
-2. **In every future Arena session, say it up front:**
-
-   > *"Target the PR at `cals-dev`, not `main`. Run `git fetch origin && git merge origin/cals-dev` before you start, and treat `main` as production — never push to it."*
-
-   That single sentence, plus [`../../AGENTS.md`](../../AGENTS.md), is the "link" between this branch and subsequent sessions. Arena session branches are created from `main` and are fixed for the session (`arena/<session-id>`), so the `merge origin/cals-dev` step is what keeps new work building on top of the latest integration state instead of an older `main`.
-
-3. Delete the now-merged `copilot/*` branches if you want a tidy branch list (optional; the merges are already in `main`).
 
 ---
 
@@ -161,7 +140,7 @@ Four layers, none of which require a paid plan:
 ### Starting work
 
 ```bash
-git fetch origin
+git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev
 git switch -c feat/short-description origin/cals-dev
 # work, commit
 git push -u origin feat/short-description
@@ -172,10 +151,11 @@ gh pr create --base cals-dev --fill
 
 - The session branch is `arena/<session-id>` and cannot be changed or renamed; Arena tracks the session by that name.
 - Ask for the PR to target **`cals-dev`** and to sync with it first.
+- The Arena branch is the PR **head/source** and `cals-dev` is the **base/target**. Merging that PR sends the changes directly to `cals-dev`; there is no intermediate merge into the Arena branch.
 - **Bootstrap prompt to paste at the start of a session:**
 
   > Working on `dougalbob/cals` (Go + SQLite backend, web frontend).
-  > 1. `git fetch origin && git merge origin/cals-dev` before making changes.
+  > 1. `git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev` before making changes.
   > 2. Never push, merge, or force-push `main` — it is live production.
   > 3. Open the PR against `cals-dev`, never `main`.
   > 4. Read `AGENTS.md` and `docs/README.md` first; update the relevant document under `docs/` as part of the work. (`ai_contextual_docs/context.txt` is legacy — do not rely on it or append to it.)
@@ -198,7 +178,7 @@ gh pr create --base cals-dev --fill
 
 ## 6. Housekeeping checklist for the owner
 
-- [ ] Create `cals-dev` from `main` (§3) and push it
+- [x] Create and push `cals-dev` (completed; current tip `a9494cc`)
 - [ ] Point the Arena PR (and any future PRs) at `cals-dev`
 - [ ] Run `./scripts/setup-git-hooks.sh` in every clone you push from
 - [ ] Decide on GitHub Pro/Team — it is the only way to get *enforced* protection on a private repo (§4.1)

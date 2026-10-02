@@ -11,12 +11,13 @@
 
 ## 0. Before anything else: get the work
 
-**Anything merged to `cals-dev` is not on `main`.** A new Arena session's branch is created from
-`main`, which does **not** contain the spike, the docs, or the scripts. So the very first command of
-a migration session is:
+**Anything merged to `cals-dev` is not on `main`.** The Arena branch selector can seed a session
+from `cals-dev`, but do not assume the session branch or local remote-tracking refs are current. In
+this repository's Arena clone, a plain `git fetch origin` did not fetch `cals-dev` because its fetch
+refspec was restricted. Explicitly fetch and merge the integration branch before editing:
 
 ```bash
-git fetch origin && git merge origin/cals-dev
+git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev
 ```
 
 Then confirm you have it: `ls docs/architecture/` should show four documents, and
@@ -53,21 +54,22 @@ starts, migrations create all 17 tables, `/api/users/me` correctly returns `401`
 Cloudflare JWT. Nothing in `/tmp` persists between turns. **Docker cannot run in the sandbox** —
 image builds must be checked by the owner.
 
-## 3. The first PR: `DEV_MODE`
+## 3. First standalone change: `DEV_MODE` (implemented in this branch)
 
-Recommended as the first piece of work, because everything else depends on it and it is small
-(~40 lines plus config):
+The owner selected `DEV_MODE` as the first implementation slice. It enables testing against a copy
+of the data in `appdata/cals-dev` without changing production authentication or schema. The change
+adds:
 
-- Implement `DEV_MODE` exactly as specified in [`local-development.md`](./local-development.md),
-  including its safety design: refuse to start if `DEV_MODE=true` is combined with a public bind,
-  only honour the bypass for loopback/private requests, and log a loud startup banner.
-- It unblocks running the real backend locally against **a copy** of the data in
-  `appdata/cals-dev`, which is how the owner verifies each phase.
-- `DEV_USER_EMAIL` matters more than usual: identity comes from Cloudflare Access and there is **no
-  in-app login page**, so this is the only way to see a given person's screens locally.
+- Config validation for `DEV_MODE`, `DEV_USER_EMAIL`, and a safe `BIND_ADDRESS` (loopback by
+default; explicit binds must be loopback/private).
+- A development auth middleware that supplies the selected email only to loopback/private socket
+peers, never trusting proxy headers.
+- A prominent startup warning with the database path and listener address, plus tests for the
+safety boundary and identity behavior.
 
-If the owner prefers, this can be done as part of Phase 11 instead — but it should happen before any
-frontend screen is tested against real data.
+See [`local-development.md`](./local-development.md) for the runnable workflow, safety constraints,
+and verification results. This is still a backend-only local-development exception; the production
+Go API, database schema, and Cloudflare auth behavior are unchanged.
 
 ## 4. Then the phases
 

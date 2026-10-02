@@ -11,10 +11,11 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
 1. **NEVER push to `main`. Never force-push, never merge into it, never delete it.** Not even if a task seems simple or urgent.
 2. **Work on your own branch only.** Arena sessions are pinned to `arena/<session-id>`; other agents should use `feat/*` or `fix/*`.
 3. **Open pull requests against `cals-dev`, not `main`.** Only the repository owner promotes `cals-dev` to `main` in a deliberate release PR.
-4. **Before starting work, sync:** `git fetch origin && git merge origin/cals-dev`.
-   **This is not optional.** Session branches are created from `main`, which does *not* contain the
-   merged work (spike, docs, scripts) — without this merge you will be looking at an older tree and
-   will redo or contradict work. If `ls docs/architecture/` does not show `rebuild-kickoff.md`, you
+4. **Before starting work, sync:** `git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev`.
+   **This is not optional.** Some Arena clones restrict the remote fetch refspec, so a plain
+   `git fetch origin` may not create/update `origin/cals-dev`. Explicitly fetching the branch avoids
+   that trap. If the integration branch is genuinely absent on GitHub, stop and ask the owner rather
+   than creating another branch. If `ls docs/architecture/` does not show `rebuild-kickoff.md`, you
    have not synced.
 5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`). No credentials in code, docs, tests or commit messages.
 6. **Never delete the repository root or `.git`.** No history rewrites.
@@ -105,9 +106,10 @@ cannot run in the sandbox**, so image builds must be verified on your own machin
 
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
-- Env vars: `PORT`, `LOG_LEVEL`, `DB_PATH`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.
+- Env vars: `PORT`, `BIND_ADDRESS`, `LOG_LEVEL`, `DB_PATH`, `DEV_MODE`, `DEV_USER_EMAIL`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.
 - Version bumping: `./update-version.sh X.Y.Z` updates `cmd/server/main.go`, `web/static/js/app.js` and `web/public/sw.js`.
-- Unprotected routes: `/health`, `/public/*`, `/api/version`. Everything else requires a valid Cloudflare Access JWT.
+- Unprotected routes: `/health`, `/public/*`, `/api/version`. Everything else requires a valid Cloudflare Access JWT in production; guarded `DEV_MODE` is the local-development exception.
+- `DEV_MODE` is only for local development against a copy of the data in `appdata/cals-dev`; never use it against production data or behind a public proxy/tunnel. It requires `DEV_USER_EMAIL`, defaults to a loopback bind, and rejects public/wildcard binds. See [`docs/architecture/local-development.md`](docs/architecture/local-development.md).
 
 ## 4. Conventions
 
