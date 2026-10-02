@@ -1,0 +1,108 @@
+# AGENTS.md — working rules for this repository
+
+Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, etc.) and humans contributing to **cals**.
+
+## 0. Read this first
+
+**`main` is live production code and must be treated as read-only.** It runs a personal calorie/nutrition tracker in daily use on a private Unraid server. Breaking `main` breaks a real user's data workflow.
+
+### Hard rules
+
+1. **NEVER push to `main`. Never force-push, never merge into it, never delete it.** Not even if a task seems simple or urgent.
+2. **Work on your own branch only.** Arena sessions are pinned to `arena/<session-id>`; other agents should use `feat/*` or `fix/*`.
+3. **Open pull requests against `cals-dev`, not `main`.** Only the repository owner promotes `cals-dev` to `main` in a deliberate release PR.
+4. **Before starting work, sync:** `git fetch origin && git merge origin/cals-dev`.
+5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`). No credentials in code, docs, tests or commit messages.
+6. **Never delete the repository root or `.git`.** No history rewrites.
+
+The local `pre-push` hook (`.githooks/pre-push`, installed with `./scripts/setup-git-hooks.sh`) blocks pushes to `main` as a backstop. Do not circumvent it with `--no-verify` or `ALLOW_MAIN_PUSH=1`.
+
+## 1. What this project is
+
+A personal calorie and nutrition tracking PWA.
+
+| Layer | Tech |
+|---|---|
+| Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
+| Frontend | Vanilla JS + CSS + a single `web/templates/index.html` shell (no build step) — see `docs/architecture/frontend-strategy.md` for the proposed React/TypeScript migration |
+| Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
+| Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
+| Deploy | Single Docker image → Unraid, container `cals-counter`, port `8150`, data in `/app/data` |
+
+Compact domain/context file maintained in a custom format: **`ai_contextual_docs/context.txt`** — read it before making changes, and append an entry when you finish.
+
+## 2. Layout
+
+```
+cmd/server/main.go        entrypoint, routing table, version constant (AppVersion)
+internal/auth/            Cloudflare Access JWT validation
+internal/config/          env loading (defaults + /app/data/.env)
+internal/database/        SQLite connection + schema migrations
+internal/handlers/        HTTP handlers, one file per resource
+internal/models/          all structs (the API contract lives here)
+internal/fatsecret/       FatSecret OAuth2 client
+internal/mealie/          Mealie API client
+web/templates/index.html  SPA shell
+web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
+web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
+web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
+docs/                     documentation (see docs/README.md)
+ai_contextual_docs/       agent context file
+```
+
+## 3. Run and build
+
+```bash
+# Local run (needs CGO + gcc for SQLite; Go 1.22+)
+PORT=8150 DB_PATH=./cals.db CF_TEAM_DOMAIN=x CF_POLICY_AUD=y go run ./cmd/server
+
+# Container (this is how it actually deploys)
+docker compose build && docker compose up -d      # → http://localhost:8150
+
+# Health check
+curl -s localhost:8150/health
+```
+
+Notes:
+- There is no volume mount for code: **code changes require a rebuild**.
+- Env vars: `PORT`, `LOG_LEVEL`, `DB_PATH`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.
+- Version bumping: `./update-version.sh X.Y.Z` updates `cmd/server/main.go`, `web/static/js/app.js` and `web/public/sw.js`.
+- Unprotected routes: `/health`, `/public/*`, `/api/version`. Everything else requires a valid Cloudflare Access JWT.
+
+## 4. Conventions
+
+- **Go:** standard library first; handlers in `internal/handlers/<resource>.go`; keep route registration centralised in `cmd/server/main.go`; new tables go through `internal/database/migrations.go` (additive migrations only — never drop or rewrite user data).
+- **API:** JSON in/out; errors as `{"error": "..."}` with a correct status code; `404` for missing rows, `409` for conflicts (e.g. duplicate recipe name), `503` for unconfigured integrations.
+- **DB:** dates as `YYYY-MM-DD` strings; nutrition stored per 100 g; weights in kg; portions in grams. Round only at the presentation layer.
+- **Frontend (current):** the global objects (`App`, `API`, `Modal`, …) communicate through `web/static/js/api.js`; do not scatter raw `fetch` calls. Never cache JS or HTML in the service worker.
+- **Frontend (new, when it lands):** see §6 of `docs/architecture/frontend-strategy.md`.
+- **Domain maths is precious.** Bank/rolling balance, cooked-weight concentration, macro percentages, stones/lbs ↔ kg conversion and Google Fit step sync all have subtle, hard-won behaviour. Never change them incidentally; add tests if you touch them.
+
+## 5. Documentation duties
+
+- Update the relevant file in `docs/` for any architectural or workflow change.
+- Append a dated entry to `ai_contextual_docs/context.txt` at the end of every session, in the existing format:
+
+  ```
+  ---
+  UPDATE:YYYY-MM-DD
+  VERSION:x.y.z
+  PHASE:n-name
+
+  CHANGES:
+  +file:what-was-added
+  ~file:what-changed
+
+  NOTES:
+  -anything-the-next-agent-needs-to-know
+  ```
+
+- Keep the route table in `cmd/server/main.go` and the endpoint list in `context.txt` in sync.
+- Mark proposals clearly (`Status: PROPOSED`) and do not describe unbuilt work as if it exists.
+
+## 6. Definition of done
+
+- [ ] The change is committed on a topic/session branch — nothing pushed to `main`
+- [ ] Appropriate build/verification run (`go build ./...`, and `docker compose build` for anything user-visible)
+- [ ] `docs/` and `ai_contextual_docs/context.txt` updated
+- [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

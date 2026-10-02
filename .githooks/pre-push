@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# cals — pre-push guard rail.
+#
+# Blocks accidental direct pushes to the production branches (main/master).
+# `main` is live production code; changes must reach it through a release PR
+# from `cals-dev`. See docs/architecture/git-workflow.md.
+#
+# Install once per clone:  ./scripts/setup-git-hooks.sh
+# Deliberate override:     ALLOW_MAIN_PUSH=1 git push origin main
+#
+set -euo pipefail
+
+PROTECTED_BRANCHES="main master"
+ALLOW_OVERRIDE="${ALLOW_MAIN_PUSH:-0}"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    [ -z "${remote_ref:-}" ] && continue
+
+    for protected in $PROTECTED_BRANCHES; do
+        [ "$remote_ref" = "refs/heads/$protected" ] || continue
+
+        if [ "$ALLOW_OVERRIDE" = "1" ]; then
+            echo "WARNING: ALLOW_MAIN_PUSH=1 — allowing push to '$protected' by explicit override." >&2
+            continue
+        fi
+
+        cat >&2 <<EOF
+
+  Push to '$protected' blocked — that branch is cals production code.
+
+  All work goes through a pull request against 'cals-dev':
+
+      git push origin HEAD
+      gh pr create --base cals-dev --fill
+
+  Only a release PR (cals-dev -> main) may move '$protected', and only the
+  repository owner opens and merges it.
+
+  See docs/architecture/git-workflow.md.
+
+  Owner override (only if you truly mean it):
+      ALLOW_MAIN_PUSH=1 git push origin $protected
+
+EOF
+        exit 1
+    done
+done
+
+exit 0

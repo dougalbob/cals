@@ -812,3 +812,45 @@ NOTES:
 - Protein: 4 cal/g, Carbs: 4 cal/g, Fat: 9 cal/g for percentage calculations
 - Default goals: 0.8g/kg protein, 30g fibre, <35% fat, 45-65% carbs
 - Uses existing weight_entries for body weight data
+
+---
+UPDATE:2026-10-02
+DOCS_ONLY:no-application-code-changes
+PHASE:docs-and-workflow
+
+CHANGES:
++docs/README.md:documentation-index-and-conventions
++docs/architecture/frontend-strategy.md:proposed-react19-typescript-vite-tailwind4-migration(frontend-only,go-api-unchanged)
++docs/architecture/git-workflow.md:branch-topology-main<-cals-dev<-topic/session-branches,protection-plan,release+rollback
++AGENTS.md:working-rules-for-ai-agents-never-push-to-main
++.github/pull_request_template.md:base-branch-cals-dev-checklist
++.githooks/pre-push:blocks-direct-pushes-to-main/master
++scripts/setup-git-hooks.sh:installs-core.hooksPath=.githooks
+~README.md:added-documentation-and-branching-sections
+
+BRANCHING:
+-main:PRODUCTION-protected-by-convention-do-not-push
+-cals-dev:INTEGRATION-branch(PENDING-OWNER-CREATION:git branch cals-dev origin/main && git push -u origin cals-dev)
+-arena/*:arena-session-branches(pr-base-must-be-cals-dev)
+-copilot/*:merged-branches-can-be-deleted
+
+GITHUB_PLAN_LIMITATION:
+-private-repo+github-free=no-enforced-branch-protection-or-rulesets(requires-pro/team/enterprise)
+-do-not-make-repo-public(personal-health-data)
+-mitigations:AGENTS.md,pre-push-hook,PR-template,git-bundle-backups-of-main
+-when-upgraded:protect-main(require-PR,0-approvals-solo,dismiss-stale,no-force-push,no-delete,enforce-admins)
+
+FRONTEND_STACK:DECISION-PENDING
+-proposed:react19+typescript5+vite8+tailwind4+react-router7/8+tanstack-query5
+-additions-proposed:react-hook-form+zod,react-chartjs-2,vite-plugin-pwa,vitest+rtl+msw,playwright
+-rejected:nextjs,htmx+gotemplates,svelte,vue,redux,component-libraries
+-strategy:strangler-phased-frontend-only-migration,legacy-ui-frozen-except-critical-fixes
+-phases:11-foundation,12-diary,13-foods+recipes,14-metrics+nutrition,15-settings+pwa,16-cutover
+-prerequisite:timeboxed-diary-spike-go/no-go
+-serving:go-keeps-apis-serves-web/dist+hashed-assets+index.html-no-store
+-version-stamping:update-version.sh-to-stamp-package.json-not-app.js
+-cf-gotcha:expired-CF-Access-session-returns-HTML-redirect-must-detect-and-reload
+
+NOTES:
+-no-version-bump(docs/workflow-only)
+-next-agent:ask-owner-if-cals-dev-exists-before-opening-pr;if-not,pr-base=main-only-on-explicit-instruction
