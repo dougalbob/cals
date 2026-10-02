@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 (Diary) is implemented and awaits the owner's phone-size review; V2 is Cloudflare-routed on `8151` and the DEV identity switch is live for development.** Next: review the Diary on the LAN dev container as **both** users, then Phase 13 (Foods + Recipes) |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 (Diary) is implemented; V2 is Cloudflare-routed on `8151`, and dev identity checkpoint `v2.0.0-dev-rc4` is published to `dev-latest`.** Next: Force Update `cals-dev-identity` on `8152`, then review the Diary as **both** users; Phase 13 (Foods + Recipes) follows that review |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -13,12 +13,11 @@
 
 1. **Done:** Phase 11 foundation PR #5 is merged into `cals-dev` (merge commit `714780d`; came from the Arena session branch, nothing merged to `main`). The owner explicitly authorized merging it before the Docker build could be run in the sandbox, so that build is recorded as **unverified** — the `Docker build (validation)` workflow added in Part 2 is the gate that now proves the image builds on every pull request.
 2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document reflects this — do not reintroduce Compose into installation instructions. PR #6 (merged as `8695c7e`) renamed the V2 development deployment to `cals-dev-v2` end to end and rewrote the install manual.
-3. **In progress — Part 2: publish the first V2 image** (see [`unraid-image-release.md`](./unraid-image-release.md)):
-   - PR #7 adds two workflows: `.github/workflows/docker-validate.yml` (build-only pull-request check, never pushes) and `.github/workflows/publish-dev-image.yml` (builds and publishes to GHCR when a development tag matching `v*-dev*` is pushed, after checking the tagged commit is on `cals-dev`, and creates the GitHub prerelease). Its `Docker build (validation)` check is **green** (run 37037874364), so the container build no longer needs to be taken on trust.
-   - **Done (2026-10-02, this session):** PRs #7, #8 and #9 merged; app version bumped to 2.0.0; `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` published with GitHub prereleases and recorded digests. The publish workflow logs out and pulls `dev-latest` anonymously after every publish — **rc2 passed, so the image is pullable by Unraid with no credentials.**
-   - **The one remaining owner action:** copy [`cals-dev-v2.xml`](../../cals-dev-v2.xml) into the Unraid Docker UI (DockerMan), create the `cals-dev-v2` container from it, and smoke-test health, `/next/`, restart/data persistence and V1 isolation on 8150. Everything it needs is already published. Write the result into the release log in [`unraid-image-release.md`](./unraid-image-release.md).
-   - No `latest` image is produced from a development tag; stable publishing is still undesigned.
-   The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename it later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
+3. **Done — Part 2: publish the V2 development image** (see [`unraid-image-release.md`](./unraid-image-release.md)):
+   - PR #7 added `.github/workflows/docker-validate.yml` (build-only PR check, never pushes) and `.github/workflows/publish-dev-image.yml` (publishes approved `v*-dev*` tags to GHCR and creates prereleases). The publish workflow verifies anonymous pulls, as Unraid does.
+   - **Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc4` are published** with prereleases and recorded digests; `dev-latest` now points to rc4. The V2 `cals-dev-v2` container is installed and Cloudflare-routed on `8151`.
+   - PR #14 (Water one-tap selection) and PR #15 (DEV identity shortcut) are merged to `cals-dev`. No schema migration or data copy is needed for rc4.
+   - No `latest` image is produced from a development tag; stable publishing is still undesigned. The package name `cals-dev-v2` is deliberately provisional — see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ### 2026-10-02 (later): V2 live and the DEV identity switch
 
@@ -45,11 +44,7 @@
   LAN-only dev container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities, and
   confirm the improvement (see the before/after table in §7.2). Phase 13 does not start until
   that review happens.
-- **Checkpoint `v2.0.0-dev-rc3` is published** (2026-10-02, run 37047488711; digest
-  `sha256:eb8ee80b…`, anonymous pull verified). The `cals-dev-v2` container on Unraid can be
-  updated from `dev-latest` now; the LAN dev container (`cals-dev-identity`) tracks the same
-  tag, so pulling it there is what enables the Phase 12 review as both users. Recorded in the
-  [release log](./unraid-image-release.md#release-log).
+- **Checkpoint `v2.0.0-dev-rc4` is published** (2026-10-02, [run 37066221932](https://github.com/dougalbob/cals/actions/runs/37066221932); digest `sha256:ea5e97aad9551a3e86188bba6296bdbf0fe5b31d01b74fd323ab72fee3919d25`; anonymous pull verified). The LAN dev container (`cals-dev-identity`) tracks `dev-latest`; the owner can Force Update it on `8152` now without changing its template variables or appdata. The new app-header **Switch user** link is included; `/dev/identity` remains available directly. The Cloudflare-routed `cals-dev-v2` container is not automatically updated. Recorded in the [release log](./unraid-image-release.md#release-log).
 
 ## 0. Before anything else: get the work
 
