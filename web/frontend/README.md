@@ -150,9 +150,11 @@ headers. `go test ./...` and `go vet ./...` pass. **Docker is unavailable in thi
    three screens. The current vanilla app ships roughly 4,500 lines of JS unminified over many
    requests with no caching; the spike is one cached, hashed bundle.
 4. **A pre-existing inconsistency surfaced and the owner decision is now settled.** `internal/handlers/bank.go` sums only `diary_entries`, while the diary ring includes drink calories. The bank must include drinks; Phase 12 will implement that fix and add a regression test. The fixture currently reproduces the existing backend behaviour rather than hiding it.
-5. **Version drift is real.** `cmd/server/main.go` says 1.7.0, `web/static/js/app.js` says 1.7.0,
-   but `web/public/sw.js` still says 1.4.0. The spike reads the version from `GET /api/version`
-   instead of hard-coding it in two places, which removes this class of drift.
+5. **Version drift is real.** `cmd/server/main.go` said 1.7.0, `web/static/js/app.js` said 1.7.0,
+   but `web/public/sw.js` still said 1.4.0. The spike reads the version from `GET /api/version`
+   instead of hard-coding it in two places, which removes this class of drift. **Resolved
+   2026-10-02:** all three were bumped to 2.0.0 on `cals-dev` for the V2 development line; `main`
+   remains on 1.7.0.
 6. **URL-is-state removes a whole class of bugs.** `/diary/2026-09-30` survives refresh, back and
    deep links; the current SPA keeps the date in a global and resets on reload.
 7. **A testing story exists on day one.** `npm test` runs in ~2 s and already covers date maths

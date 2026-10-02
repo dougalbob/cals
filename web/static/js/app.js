@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '2.0.0';
 
 // Main application
 const App = {
