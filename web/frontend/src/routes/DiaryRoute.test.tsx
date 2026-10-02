@@ -11,13 +11,14 @@
  * test does not rot as the seeded data (which is relative to "today") moves on.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
 import { DiaryRoute } from './DiaryRoute'
 import { addDays, formatNumber, todayIso } from '../lib/format'
+import { orderQuickDrinks } from '../components/QuickDrinks'
 
 function renderDiary(path: string) {
   const queryClient = new QueryClient({
@@ -37,6 +38,9 @@ function renderDiary(path: string) {
 }
 
 beforeEach(() => {
+  // The quick-add tests log real entries into the fixture; start each test from
+  // the seeded state so assertions are deterministic.
+  seed.resetFixtures()
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     const method = init?.method ?? 'GET'
@@ -56,6 +60,26 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('orderQuickDrinks', () => {
+  it('keeps the everyday choices first using the user\'s own drink records', () => {
+    const drinks = [
+      { id: 1, user_id: 1, name: 'Lager', icon: '🍺', volume_ml: 568, calories: 239, counts_toward_water: false },
+      { id: 2, user_id: 1, name: 'Squash', icon: '🥤', volume_ml: 250, calories: 5, counts_toward_water: true },
+      { id: 3, user_id: 1, name: 'Coffee', icon: '☕', volume_ml: 250, calories: 2, counts_toward_water: true },
+      { id: 4, user_id: 1, name: 'Water', icon: '💧', volume_ml: 250, calories: 0, counts_toward_water: true },
+      { id: 5, user_id: 1, name: 'Tea', icon: '🫖', volume_ml: 250, calories: 14, counts_toward_water: true },
+    ]
+
+    expect(orderQuickDrinks(drinks).map((d) => d.name)).toEqual([
+      'Water',
+      'Tea',
+      'Coffee',
+      'Squash',
+      'Lager',
+    ])
+  })
+})
+
 describe('DiaryRoute', () => {
   it('renders the seeded diary for today', async () => {
     renderDiary('/diary')
@@ -69,12 +93,62 @@ describe('DiaryRoute', () => {
     // Seeded breakfast is visible
     expect(await screen.findByText('Porridge Oats')).toBeTruthy()
 
-    // Drink entries are grouped with a count
-    const coffees = seed.drinkEntriesFor(seed.TODAY).filter((entry) => entry.name === 'Black Coffee').length
-    expect(await screen.findByText(`Black Coffee × ${coffees}`)).toBeTruthy()
+    // The quick selector offers the user's own drinks, not a hard-coded list
+    const quick = screen.getByLabelText('Quick drinks')
+    for (const drink of seed.drinks) {
+      expect(within(quick).getByText(drink.name)).toBeTruthy()
+    }
+
+    // Drinks logged today are listed individually and are removable
+    expect(await screen.findByText('Drinks logged')).toBeTruthy()
 
     // Dinner is deliberately unlogged today (it is only ~mid-afternoon in the demo)
     expect(screen.getByText('Nothing logged yet')).toBeTruthy()
+  })
+
+  it('shows the water target from water-counting drink entries', async () => {
+    renderDiary('/diary')
+
+    const expected = seed.waterFor(seed.TODAY)
+    const card = await screen.findByLabelText('Water')
+    expect(within(card).getByText(formatNumber(expected.consumed_ml))).toBeTruthy()
+    expect(within(card).getByText(`/ ${formatNumber(expected.target_ml)} ml`)).toBeTruthy()
+    // Water is derived from the flagged drink, so the card names it.
+    expect(within(card).getByText(/counted from your/)).toBeTruthy()
+    expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
+      String(expected.consumed_ml),
+    )
+  })
+
+  it('logs a drink in one tap and updates water, drink totals and the bank', async () => {
+    renderDiary('/diary')
+
+    const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
+    const waterCard = await screen.findByLabelText('Water')
+
+    fireEvent.click(within(screen.getByLabelText('Quick drinks')).getByRole('button', { name: /^Add Water/ }))
+
+    await waitFor(() =>
+      expect(
+        within(waterCard).getByText(formatNumber(waterBefore + 250)),
+      ).toBeTruthy(),
+    )
+  })
+
+  it('logs an arbitrary amount from the water card', async () => {
+    renderDiary('/diary')
+
+    const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
+    const waterCard = await screen.findByLabelText('Water')
+
+    fireEvent.click(within(waterCard).getByRole('button', { name: 'Other amount' }))
+    const amount = within(waterCard).getByLabelText('Amount (ml)') as HTMLInputElement
+    fireEvent.change(amount, { target: { value: '750' } })
+    fireEvent.click(within(waterCard).getByRole('button', { name: 'Add' }))
+
+    await waitFor(() =>
+      expect(within(waterCard).getByText(formatNumber(waterBefore + 750))).toBeTruthy(),
+    )
   })
 
   it("shows the bank surplus and today's available allowance", async () => {
@@ -83,9 +157,12 @@ describe('DiaryRoute', () => {
     const bank = handle('GET', new URL(`http://localhost/api/bank?date=${seed.TODAY}`), null)
     const expected = (bank?.body as { bank_balance: number; today_available: number; daily_goal: number })
 
-    expect(await screen.findByText('Banked')).toBeTruthy()
+    // Bank maths includes drink calories, so the seeded household can be in
+    // surplus or deficit; the tile labels and signs it accordingly.
+    expect(await screen.findByText(expected.bank_balance >= 0 ? 'Banked' : 'Deficit')).toBeTruthy()
     expect(await screen.findByText(`of ${formatNumber(expected.today_available)} kcal`)).toBeTruthy()
-    expect(await screen.findByText(`+${formatNumber(expected.bank_balance)}`)).toBeTruthy()
+    const signed = `${expected.bank_balance >= 0 ? '+' : ''}${formatNumber(expected.bank_balance)}`
+    expect(await screen.findByText(signed)).toBeTruthy()
   })
 
   it('renders a past date from the route param, with every meal logged', async () => {

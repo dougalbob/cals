@@ -23,6 +23,7 @@ type Config struct {
 	MealieAPIKey          string
 	DevMode               bool
 	DevUserEmail          string
+	DevIdentitySwitch     bool
 	BindAddress           string
 }
 
@@ -38,6 +39,19 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("invalid DEV_MODE value %q: use true or false", devModeValue)
 		}
 		devMode = parsed
+	}
+
+	devIdentitySwitchValue := strings.TrimSpace(getEnv("DEV_IDENTITY_SWITCH", ""))
+	devIdentitySwitch := false
+	if devIdentitySwitchValue != "" {
+		parsed, err := strconv.ParseBool(devIdentitySwitchValue)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DEV_IDENTITY_SWITCH value %q: use true or false", devIdentitySwitchValue)
+		}
+		devIdentitySwitch = parsed
+	}
+	if devIdentitySwitch && !devMode {
+		return nil, fmt.Errorf("DEV_IDENTITY_SWITCH=true requires DEV_MODE=true: the identity switch is a development-only feature and must never be enabled on a Cloudflare-routed deployment")
 	}
 
 	devUserEmail := strings.ToLower(strings.TrimSpace(getEnv("DEV_USER_EMAIL", "")))
@@ -68,6 +82,7 @@ func Load() (*Config, error) {
 		MealieAPIKey:          getEnv("MEALIE_API_KEY", ""),
 		DevMode:               devMode,
 		DevUserEmail:          devUserEmail,
+		DevIdentitySwitch:     devIdentitySwitch,
 		BindAddress:           bindAddress,
 	}, nil
 }

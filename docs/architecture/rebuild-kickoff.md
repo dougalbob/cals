@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — the first V2 images are published (`v2.0.0-dev-rc1`, `v2.0.0-dev-rc2`) and `dev-latest` is anonymously pullable, verified in CI.** Next: the owner installs `cals-dev-v2` on Unraid from the `cals-dev-v2.xml` template and runs the smoke test; Phase 12 (Diary) follows |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 (Diary) is implemented and awaits the owner's phone-size review; V2 is Cloudflare-routed on `8151` and the DEV identity switch is live for development.** Next: review the Diary on the LAN dev container as **both** users, then Phase 13 (Foods + Recipes) |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -19,6 +19,31 @@
    - **The one remaining owner action:** copy [`cals-dev-v2.xml`](../../cals-dev-v2.xml) into the Unraid Docker UI (DockerMan), create the `cals-dev-v2` container from it, and smoke-test health, `/next/`, restart/data persistence and V1 isolation on 8150. Everything it needs is already published. Write the result into the release log in [`unraid-image-release.md`](./unraid-image-release.md).
    - No `latest` image is produced from a development tag; stable publishing is still undesigned.
    The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename it later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
+
+### 2026-10-02 (later): V2 live and the DEV identity switch
+
+- **V2 is installed and routed.** `cals-dev-v2` runs on Unraid and the Cloudflare route
+  points at `8151`, so V2 is now the app the household sees. It was started from a
+  database copy taken on the morning of 2026-10-02 — read
+  [`data-copy-warning.md`](./data-copy-warning.md) before touching appdata. V1 on `8150` is
+  stale and the two databases are diverging.
+- **The DEV identity switch is implemented** (`DEV_IDENTITY_SWITCH`, requires `DEV_MODE`):
+  pick any existing user at `/dev/identity` or with `?as=<email>`, remembered in a cookie;
+  loopback/private peers only; never enabled on the Cloudflare container. The LAN-only dev
+  container recipe and its ready-to-import template are in
+  [`dev-identity-switch.md`](./dev-identity-switch.md) and `cals-dev-identity.xml`.
+- **Phase 12 (Diary) is implemented** — drink calories in the bank (+ regression tests), one
+  source of truth for water (a `counts_toward_water` flag on drinks, the dead `water_entries`
+  table dropped when empty), the quick Tea/Coffee/Water selector from each user's own drinks,
+  and a water card with one-tap glass and other-amount entry. Design and decisions:
+  [`water-and-drinks.md`](./water-and-drinks.md) and
+  [`frontend-strategy.md`](./frontend-strategy.md) §7.2.
+- **The one remaining acceptance step for Phase 12:** open the new Diary at phone size on the
+  LAN-only dev container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities, and
+  confirm the improvement (see the before/after table in §7.2). Phase 13 does not start until
+  that review happens.
+- **Checkpoint `v2.0.0-dev-rc3`** carries the DEV identity switch and Phase 12; update the
+  `cals-dev-v2` container from Unraid after it is published.
 
 ## 0. Before anything else: get the work
 

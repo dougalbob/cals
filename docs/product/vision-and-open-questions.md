@@ -25,6 +25,7 @@ That is already how the backend behaves — `users` is keyed by email and an acc
 - Each person has their own diary, goals, water target and view. Per-user data is already supported server-side and must stay that way.
 - **Your wife is the primary user today.** Her daily flows — logging food and hitting her water target, on her phone — are therefore the flows that matter most. That should drive the priority order in Phases 12–13.
 - `DEV_MODE` must be able to **pretend to be either person**, or her screens can't be tested locally. See [`local-development.md`](../architecture/local-development.md).
+  **Done (2026-10-02):** the opt-in `DEV_IDENTITY_SWITCH` (requires `DEV_MODE`) lets either existing user be picked from `/dev/identity` or `?as=<email>` on the LAN-only dev container — see [`dev-identity-switch.md`](../architecture/dev-identity-switch.md).
 
 **Still open**
 
@@ -49,11 +50,12 @@ That is already how the backend behaves — `users` is keyed by email and an acc
 - The **water target is derived from drink entries** carrying that flag — one number, one place.
 - The unused `water_entries` table is then either dropped or repurposed as that same store. It must not become a second ledger.
 
+**Answered (2026-10-02):** water is shown and logged in **ml** with a **one-tap glass** plus an
+"other amount" entry; the glass size is the user's own water drink's volume. The **target stays
+2000 ml for both users**, is per-person in the schema and remains editable in Settings.
+
 **Still open**
 
-- **Units:** ml, glasses, or pints? What are her usual sizes (a 250 ml glass, a 500 ml bottle)?
-- **Logging:** one tap for a standard glass, or a small size chooser?
-- **Target:** per-person (already per-user in the schema) — does hers differ from the 2000 ml default?
 - **Reminders** if she is behind, or purely a visual target to fill?
 - Does water belong in the weekly/monthly stats, or is it a daily nudge only?
 
@@ -67,7 +69,7 @@ The Diary must retain a fast, familiar quick-add interaction like the current bu
 
 **Implications**
 
-- Do not auto-create generic drink defaults for new users. Preserve existing saved drinks; users can define drinks with a name, icon, typical volume and calories.
+- Do not auto-create generic drink defaults for new users. Preserve existing saved drinks; users can define drinks with a name, icon, typical volume and calories. **Settled (2026-10-02, decision 16): nothing is provisioned** — the quick selector lists the user's own drinks and points to Settings when there are none. Existing drinks (including a drink named "Water", which the migration flags as counting towards water) are untouched.
 - The quick selector is a required Diary feature, not a passive drinks summary. It must make Tea, Coffee and Water quick to add using user-specific drink definitions.
 - Drink calories count in the daily total **and** the cumulative calorie bank. The current `internal/handlers/bank.go` still sums only food diary entries; Phase 12 must correct this with a regression test before the new Diary is accepted.
 - Adding or configuring a drink must stay quick enough to do mid-evening.
@@ -82,7 +84,7 @@ The Diary must retain a fast, familiar quick-add interaction like the current bu
 
 The bank is the most distinctive feature of cals. It runs from a `bank_start_date` (configurable) and compounds: budget minus consumed, carried forward, with today's ring sized to goal + bank. **Drink calories are confirmed as consumption and must reduce the bank, just like food calories.** The current implementation does not yet do that; Phase 12 owns the fix and regression test.
 
-1. **Does it ever reset?** Right now it rolls on indefinitely, so the balance can grow unbounded. Would a monthly or quarterly reset make it more meaningful?
+1. ~~**Does it ever reset?**~~ **Answered (2026-10-02, decision 17): manual only.** No automatic reset; the existing `bank_start_date` setting in Settings is the "start fresh from today" control, and it resets the running balance without touching history.
 2. **Should exercise credit the bank?** Google Fit steps are already synced but have no effect on the maths. "Eat back your steps" is a real decision, and a common source of drift.
 3. **Should the bank be per-user, or shared as a household?**
 4. **What should a day with no logging at all count as** — zero consumed (bank inflates, as now), or "no data"?
@@ -148,6 +150,11 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 | 10 | 2026-10-02 | **UI/UX improvement is a headline product requirement.** A framework migration or functional parity alone is not success; the new screens must feel materially better for real daily use, especially on a phone | Owner |
 | 11 | 2026-10-02 | **Phase 11 is authorized.** Keep later phases and production cutover gated by phase-level review; no big-bang rewrite | Owner |
 | 12 | 2026-10-02 | **The V2 development line reports application version `2.0.0`** (bumped from `1.7.0` in `main.go`, `app.js` and `sw.js`), so the app itself shows that it is the version-2 code from `cals-dev`; `main` stays on `1.7.0` until promotion, and each development image is identified by its tag (`v2.0.0-dev-rcN`) | Owner (Arena session, PR #8) |
+| 13 | 2026-10-02 | **The DEV identity switch is adopted**: `DEV_IDENTITY_SWITCH=true` (requires `DEV_MODE=true`) lets a developer pick any **existing** user from `/dev/identity` or `?as=<email>`, remembered in a cookie, on loopback/private peers only. Never enabled on the Cloudflare-routed container; LAN-only dev container uses host networking, `BIND_ADDRESS` = Unraid LAN IP, `PORT=8152` and its own data copy | Owner (Arena session) |
+| 14 | 2026-10-02 | **Data copy warning recorded** ([`data-copy-warning.md`](../architecture/data-copy-warning.md)): V2 is installed and Cloudflare-routed on `8151`, running on a database copied the morning of 2026-10-02, so the household's new data now lands in `/mnt/user/appdata/cals-dev-v2` and diverges from V1. That appdata is **live data, not disposable**; only the `cals-dev-identity` dev copy may be broken | Owner (Arena session) |
+| 15 | 2026-10-02 | **Water is logged in ml with a one-tap glass** (size = the user's own water drink) plus an "other amount" entry; the target stays **2000 ml for both users** and remains per-user and editable | Owner |
+| 16 | 2026-10-02 | **No starter drinks are provisioned** for new or existing users. The quick Tea/Coffee/Water selector uses each user's own drink records and prompts them to create one when the list is empty; the migration marks existing drinks literally named "Water" as counting towards water | Owner |
+| 17 | 2026-10-02 | **The calorie bank has no automatic reset.** `bank_start_date` (already editable in Settings) is the manual "start fresh from today" control; history is never rewritten | Owner |
 
 Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is the user-facing success criterion; decision 11 authorizes the foundation phase, not an unreviewed production cutover.
 
@@ -155,7 +162,9 @@ Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is 
 
 ## Where to go next
 
-Core identity and the main direction for drinks are settled; water units/target details and a few drink-template choices remain open. The highest-value open questions now are:
+Core identity, water units/target and the drink-template choices are settled (decisions 15–17); the
+Diary rebuild (Phase 12) is implemented and awaiting the owner's phone-size review. The
+highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.

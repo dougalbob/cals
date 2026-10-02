@@ -241,9 +241,11 @@ const App = {
             this.drinksData = await API.getDrinkEntries(this.currentDate);
             this.drinks = await API.getDrinks();
             this.bankData = await API.getBank(this.currentDate);
+            this.waterData = await API.getWater(this.currentDate);
             this.renderDiary();
             this.renderDrinks();
             this.renderBank();
+            this.renderWater();
         } catch (err) {
             console.error('Failed to load diary:', err);
         }
@@ -306,12 +308,23 @@ const App = {
         this.updateCalorieRing(totalCalories);
     },
 
+    // Water is derived from the water-counting drink entries (one source of
+    // truth), so this display can no longer drift from what was logged.
+    renderWater() {
+        const consumedEl = document.getElementById('water-consumed');
+        const goalEl = document.getElementById('water-goal');
+        if (!consumedEl || !goalEl) return;
+
+        const consumed = this.waterData?.consumed_ml;
+        goalEl.textContent = this.waterData?.target_ml || this.user?.daily_water_goal_ml || 2000;
+        if (typeof consumed === 'number') {
+            consumedEl.textContent = consumed;
+        }
+    },
+
     renderBank() {
         const bankEl = document.getElementById('bank-balance');
         const goalEl = document.getElementById('today-goal');
-        const waterGoalEl = document.getElementById('water-goal');
-        
-        waterGoalEl.textContent = this.user?.daily_water_goal_ml || 2000;
         
         if (!this.bankData || !this.bankData.start_date) {
             goalEl.textContent = this.bankData?.daily_goal || this.user?.daily_calorie_goal || 2000;

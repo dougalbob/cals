@@ -18,6 +18,10 @@
 
   --color-bg: #f5f7fa;
   --color-card: #ffffff;
+  --color-surface: #fbfcfd;
+
+  /* Water: the target bar colour, distinct from the calorie ring's blue. */
+  --color-water: #38bdf8;
 
   --color-ink: #2d3436;
   --color-ink-light: #636e72;

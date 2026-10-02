@@ -110,17 +110,6 @@ func RunMigrations() error {
 
 		`CREATE INDEX IF NOT EXISTS idx_diary_user_date ON diary_entries(user_id, date)`,
 
-		`CREATE TABLE IF NOT EXISTS water_entries (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			user_id INTEGER NOT NULL,
-			date DATE NOT NULL,
-			amount_ml INTEGER NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id)
-		)`,
-
-		`CREATE INDEX IF NOT EXISTS idx_water_user_date ON water_entries(user_id, date)`,
-
                 `CREATE TABLE IF NOT EXISTS drinks (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
@@ -242,6 +231,13 @@ func RunMigrations() error {
 		`ALTER TABLE recipes ADD COLUMN serves INTEGER DEFAULT 1`,
 		`ALTER TABLE recipes ADD COLUMN calculated_weight_grams REAL DEFAULT 0`,
 		`ALTER TABLE recipe_ingredients ADD COLUMN sort_order INTEGER DEFAULT 0`,
+
+		// Phase 12 (water): one source of truth is drink_entries for drinks
+		// flagged as water. The dead water_entries table is removed further
+		// down (additively: only when it is empty).
+		`ALTER TABLE drinks ADD COLUMN counts_toward_water INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE drink_entries ADD COLUMN volume_ml INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE drink_entries ADD COLUMN calories INTEGER NOT NULL DEFAULT 0`,
 	}
 
 	for _, migration := range migrations {
@@ -251,6 +247,40 @@ func RunMigrations() error {
 			   !strings.Contains(err.Error(), "already exists") {
 				log.Printf("Migration note: %v", err)
 			}
+		}
+	}
+
+	// Phase 12 backfills, all idempotent and additive.
+
+	// Drinks historically named "Water" count towards the water target. Only a
+	// literal name match is used; anything else stays flagged off.
+	_, _ = DB.Exec(`
+		UPDATE drinks
+		SET counts_toward_water = 1
+		WHERE lower(trim(name)) = 'water' AND counts_toward_water = 0
+	`)
+
+	// Drink entries snapshot the volume and calories logged, like diary
+	// entries do. Existing rows (created before the columns existed) take the
+	// values from their drink definition.
+	_, _ = DB.Exec(`
+		UPDATE drink_entries
+		SET volume_ml = COALESCE((SELECT volume_ml FROM drinks WHERE drinks.id = drink_entries.drink_id), volume_ml),
+		    calories = COALESCE((SELECT calories FROM drinks WHERE drinks.id = drink_entries.drink_id), calories)
+		WHERE volume_ml = 0
+	`)
+
+	// Remove the dead water_entries table (schema-only, never had a handler or
+	// endpoint). Additive rule: only drop it when it holds no rows; otherwise
+	// keep it and say so, and let the owner decide.
+	var waterEntryCount int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM water_entries`).Scan(&waterEntryCount); err == nil {
+		if waterEntryCount == 0 {
+			if _, err := DB.Exec(`DROP TABLE IF EXISTS water_entries`); err != nil {
+				log.Printf("Migration note: could not drop the unused water_entries table: %v", err)
+			}
+		} else {
+			log.Printf("Migration note: water_entries still holds %d row(s); left in place and unused. Water lives in drink_entries for drinks with counts_toward_water=1", waterEntryCount)
 		}
 	}
 

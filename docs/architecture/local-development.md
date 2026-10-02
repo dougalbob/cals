@@ -59,7 +59,8 @@ go run ./cmd/server
 | Variable | Production default | Development use |
 |---|---|---|
 | `DEV_MODE` | unset / `false` | Set to `true` to use local development auth |
-| `DEV_USER_EMAIL` | unused | Required when `DEV_MODE=true`; the fixed local identity |
+| `DEV_USER_EMAIL` | unused | Required when `DEV_MODE=true`; the local identity, and the default when the identity switch is on |
+| `DEV_IDENTITY_SWITCH` | unset / `false` | Optional: allow picking any **existing** user from `/dev/identity` or `?as=<email>`. Requires `DEV_MODE=true`; see [`dev-identity-switch.md`](./dev-identity-switch.md) |
 | `PORT` | `8150` | Choose a free port if production is using the same host |
 
 | `BIND_ADDRESS` | empty (listen on all interfaces, as before) | Defaults to `127.0.0.1`; if set, must be a loopback or private IP |
@@ -103,6 +104,7 @@ If you chose a different local `PORT` (for example `8151`), use that port in `VI
    ```
 
 5. **Production default is unchanged.** An unset or false `DEV_MODE` uses Cloudflare JWT validation and the existing all-interface listener by default.
+6. **The identity switch is a second, independent opt-in.** `DEV_IDENTITY_SWITCH=true` is rejected unless `DEV_MODE=true`, reuses the same loopback/private peer guard (proxy headers are still ignored), and can only select users that already exist — it never creates one. A production or Cloudflare-routed deployment never sets either flag, so `/dev/identity` does not exist there.
 
 ## Verification
 
@@ -118,4 +120,18 @@ Verified in the Arena sandbox (the helper installs Go 1.27 in `/tmp`; Docker is 
 
 ## Remaining operational choice
 
-Use a **second Unraid template** for development so it is difficult to point the dev container at production appdata. Note the distinction: the `cals-dev-v2.xml` template in the repository is the V2 development *image* deployment (appdata `/mnt/user/appdata/cals-dev-v2`) — it is not a `DEV_MODE` development container. A `DEV_MODE` container still needs its own template configured with the bind and port mapping described above, mounting the `cals-dev` data copy, never `cals`.
+Use a **second Unraid template** for development so it is difficult to point the dev container at production appdata. Note the distinction: the `cals-dev-v2.xml` template in the repository is the V2 development *image* deployment (appdata `/mnt/user/appdata/cals-dev-v2`) — it is not a `DEV_MODE` development container. A `DEV_MODE` container still needs its own template configured with the bind and port mapping described above, mounting a `cals-dev` data copy, never `cals`.
+
+**Done (2026-10-02):** that second template now exists —
+[`cals-dev-identity.xml`](../../cals-dev-identity.xml) creates the LAN-only
+`cals-dev-identity` container (host networking, `BIND_ADDRESS` = the Unraid LAN IP,
+`PORT=8152`, its own `cals-dev-identity` appdata copy) and enables the
+**DEV identity switch**, so either user can be selected from a browser at
+`/dev/identity` without editing variables or restarting. See
+[`dev-identity-switch.md`](./dev-identity-switch.md).
+
+> ⚠️ **Before making a new data copy, read [`data-copy-warning.md`](./data-copy-warning.md).**
+> As of 2026-10-02 the Cloudflare-routed V2 container runs on a database copy taken that
+> morning, and the household's new entries are being written to
+> `/mnt/user/appdata/cals-dev-v2` — it is **live data**, not a scratch copy. Only the
+> `cals-dev-identity` directory is disposable.

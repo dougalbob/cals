@@ -129,6 +129,16 @@ export interface Drink {
   icon: string
   volume_ml: number
   calories: number
+  /** This drink contributes to the daily water target (one source of truth). */
+  counts_toward_water: boolean
+}
+
+/** Daily water summary — derived from water-counting drink entries. */
+export interface WaterResponse {
+  date: string
+  consumed_ml: number
+  target_ml: number
+  entries: DrinkEntry[]
 }
 
 export interface DrinkEntry {

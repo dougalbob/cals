@@ -23,11 +23,19 @@ func main() {
 	}
 
 	var withAuth func(http.Handler) http.Handler
+	devIdentitySwitch := false
 	if cfg.DevMode {
 		log.Println("⚠️  DEV_MODE ENABLED — Cloudflare Access is DISABLED for loopback/private requests")
 		log.Printf("⚠️  Database: %s", cfg.DBPath)
 		log.Printf("⚠️  Listen address: %s", cfg.ListenAddress())
-		withAuth = auth.DevModeMiddleware(cfg.DevUserEmail)
+		if cfg.DevIdentitySwitch {
+			devIdentitySwitch = true
+			withAuth = auth.DevIdentityMiddleware(cfg.DevUserEmail, handlers.UserExistsByEmail)
+			log.Println("⚠️  DEV_IDENTITY_SWITCH ENABLED — choose any existing user at /dev/identity (or append ?as=<email> to any URL)")
+			log.Printf("⚠️  Default identity: %s", cfg.DevUserEmail)
+		} else {
+			withAuth = auth.DevModeMiddleware(cfg.DevUserEmail)
+		}
 	} else {
 		cfAuth := auth.NewCloudflareAuth(cfg.CFTeamDomain, cfg.CFPolicyAUD)
 		withAuth = cfAuth.Middleware
@@ -61,6 +69,13 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+
+	if devIdentitySwitch {
+		// Minimal dev-only identity picker. Registered only when both DEV_MODE
+		// and DEV_IDENTITY_SWITCH are true; the middleware restricts it to
+		// loopback/private peers, exactly like every other dev-mode route.
+		mux.Handle("GET /dev/identity", withAuth(http.HandlerFunc(handlers.HandleDevIdentityPage)))
+	}
 
 	// Health check (unprotected)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +156,9 @@ func main() {
 	mux.Handle("GET /api/drinks/entries", withAuth(http.HandlerFunc(handlers.HandleGetDrinkEntries)))
 	mux.Handle("POST /api/drinks/entries", withAuth(http.HandlerFunc(handlers.HandleAddDrinkEntry)))
 	mux.Handle("DELETE /api/drinks/entries/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteDrinkEntry)))
+
+	// Water (one source of truth: drink entries for drinks flagged counts_toward_water)
+	mux.Handle("GET /api/water", withAuth(http.HandlerFunc(handlers.HandleGetWater)))
 
 	// Fitness routes
 	mux.Handle("GET /api/fit/auth", withAuth(http.HandlerFunc(handlers.HandleFitAuth)))

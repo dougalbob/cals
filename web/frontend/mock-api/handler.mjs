@@ -37,7 +37,8 @@ function bank(asOfDate) {
   const dayCount = seed.daysBetween(startDate, asOfDate)
   if (dayCount <= 0) return base
 
-  const consumed = seed.caloriesBetween(startDate, asOfDate)
+  // Drinks count towards the bank (mirrors internal/handlers/bank.go).
+  const consumed = seed.caloriesBetween(startDate, asOfDate) + seed.drinkCaloriesBetween(startDate, asOfDate)
   const bankBalance = dayCount * dailyGoal - Math.trunc(consumed)
   return { ...base, bank_balance: bankBalance, today_available: dailyGoal + bankBalance }
 }
@@ -183,6 +184,12 @@ export function handle(method, url, body) {
     return json(seed.drinkEntriesFor(date))
   }
 
+  // Water: one source of truth — drink entries for water-counting drinks.
+  if (pathname === '/api/water' && method === 'GET') {
+    const date = searchParams.get('date') ?? today
+    return json(seed.waterFor(date))
+  }
+
   if (pathname === '/api/weight' && method === 'GET') {
     const days = Number.parseInt(searchParams.get('days') ?? '90', 10) || 90
     const from = seed.dateOffset(days)
@@ -266,6 +273,36 @@ export function handle(method, url, body) {
     }
     seed.diaryEntries.push(entry)
     return json(entry, 201)
+  }
+
+  if (pathname === '/api/drinks/entries' && method === 'POST') {
+    const date = body?.date ?? today
+    const drink = seed.findDrink(body?.drink_id)
+    if (!drink) return err(404, 'Drink not found')
+    const volume = Number(body?.volume_ml) > 0 ? Number(body.volume_ml) : drink.volume_ml
+    const calories =
+      volume === drink.volume_ml
+        ? drink.calories
+        : Math.round((drink.calories * volume) / drink.volume_ml)
+    const entry = {
+      id: seed.nextDrinkEntryId(),
+      drink_id: drink.id,
+      date,
+      name: drink.name,
+      icon: drink.icon,
+      volume_ml: volume,
+      calories,
+    }
+    seed.drinkEntries.push({ ...entry, user_id: 1, created_at: new Date().toISOString() })
+    return json(entry, 201)
+  }
+
+  if (pathname.startsWith('/api/drinks/entries/') && method === 'DELETE') {
+    const id = Number.parseInt(pathname.split('/').pop(), 10)
+    const index = seed.drinkEntries.findIndex((e) => e.id === id)
+    if (index === -1) return err(404, 'not found')
+    seed.drinkEntries.splice(index, 1)
+    return json({ success: true })
   }
 
   if (pathname.startsWith('/api/diary/') && method === 'DELETE') {
