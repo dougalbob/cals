@@ -47,9 +47,13 @@ Vite proxies `/api` to Go, so this is a true frontend-only rebuild — no backen
 
 ```bash
 cd web/frontend
-npm install
+npm install                          # required first: node_modules is never snapshotted
 npm run dev                          # http://localhost:5173
 ```
+
+> **Note:** `node_modules/` is excluded from the Arena workspace snapshot, so a **new session must
+> run `npm install`** (about 4 s, 120 packages) before `npm run dev` — otherwise Vite fails with
+> `sh: 1: vite: not found`. Nothing else is needed: the fixture API has no external dependencies.
 
 With no `VITE_API_TARGET`, a Vite plugin mounts `mock-api/` as same-origin `/api/*` routes.
 Seeded data is generated relative to *today*, so the diary always looks live: 21 days of food
