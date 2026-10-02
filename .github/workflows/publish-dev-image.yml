@@ -118,6 +118,22 @@ jobs:
             --prerelease \
             --notes-file release-notes.md
 
+      # Unraid pulls with no credentials, so a package that is not publicly
+      # readable is a failed release even though the push succeeded. Packages
+      # published with GITHUB_TOKEN normally inherit the (public) repository's
+      # access, but that is exactly the assumption worth testing on every
+      # checkpoint: log out, drop the local copy, then pull like a stranger.
+      - name: Verify the image pulls anonymously (what Unraid does)
+        run: |
+          docker logout ghcr.io || true
+          docker rmi "$IMAGE:$GITHUB_REF_NAME" "$IMAGE:dev-latest" || true
+          if docker pull "$IMAGE:dev-latest"; then
+            echo "Anonymous pull OK - the GHCR package is public."
+          else
+            echo "::error::Anonymous pull failed, so Unraid will not be able to install this image. The GHCR package is probably private: open https://github.com/users/${{ github.repository_owner }}/packages/container/cals-dev-v2/settings and use Package settings -> Danger Zone -> Change visibility -> Public, then re-run this workflow (it will not need to rebuild). See docs/architecture/unraid-image-release.md."
+            exit 1
+          fi
+
       - name: Summarise
         env:
           DIGEST: ${{ steps.image.outputs.digest }}
