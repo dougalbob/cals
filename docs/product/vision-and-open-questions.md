@@ -59,15 +59,18 @@ That is already how the backend behaves — `users` is keyed by email and an acc
 
 ## C. Drinks and alcohol — ✅ answered
 
-**Answered (2026-10-02): you define your own drinks**, each with its own calorie figure. No opinionated presets, no ABV maths, no beverage database.
+**Answered (2026-10-02): drinks are user-defined**, with each drink's own calorie and typical-volume values. No ABV maths or beverage database. The owner has also confirmed that **drink calories count towards the calorie bank**; this is a settled product decision, although the current Go bank calculation still needs the Phase 12 code fix and regression test.
 
-That is a simplification rather than a new feature — drinks already work this way (`drinks` is a reusable template with name, icon, volume and calories; `drink_entries` is the daily log).
+### Headline Diary interaction: quick drinks
+
+The Diary must retain a fast, familiar quick-add interaction like the current build: a quick drink selector for **Tea, Coffee and Water**, with a direct add action. Those choices must use the signed-in user's drink definitions, including that user's volume and calorie values; do not hard-code nutrition values into the UI. The existing decision against invented default drinks remains in force. Whether Tea, Coffee and Water should be provisioned as editable starter templates for brand-new users, or shown after the user creates them, remains an implementation detail to settle before Phase 12.
 
 **Implications**
 
-- **Stop seeding opinionated defaults.** Every new user currently gets Coffee, Water, Beer and Milk created automatically. Keep whatever is already in your database, but the rebuild should not invent drinks on someone's behalf.
-- **Adding a drink must be first-class** — name, icon, typical volume, calories — and quick enough to do mid-evening.
-- **Drinks must count towards the calorie bank** (decision 1). Today `bank.go` sums only `diary_entries`, so drink calories are excluded from the bank while the diary ring includes them.
+- Do not auto-create generic drink defaults for new users. Preserve existing saved drinks; users can define drinks with a name, icon, typical volume and calories.
+- The quick selector is a required Diary feature, not a passive drinks summary. It must make Tea, Coffee and Water quick to add using user-specific drink definitions.
+- Drink calories count in the daily total **and** the cumulative calorie bank. The current `internal/handlers/bank.go` still sums only food diary entries; Phase 12 must correct this with a regression test before the new Diary is accepted.
+- Adding or configuring a drink must stay quick enough to do mid-evening.
 
 **Still open**
 
@@ -77,7 +80,7 @@ That is a simplification rather than a new feature — drinks already work this 
 
 ## D. The calorie bank
 
-The bank is the most distinctive feature of cals. It runs from a `bank_start_date` (configurable) and compounds: budget minus consumed, carried forward, with today's ring sized to goal + bank.
+The bank is the most distinctive feature of cals. It runs from a `bank_start_date` (configurable) and compounds: budget minus consumed, carried forward, with today's ring sized to goal + bank. **Drink calories are confirmed as consumption and must reduce the bank, just like food calories.** The current implementation does not yet do that; Phase 12 owns the fix and regression test.
 
 1. **Does it ever reset?** Right now it rolls on indefinitely, so the balance can grow unbounded. Would a monthly or quarterly reset make it more meaningful?
 2. **Should exercise credit the bank?** Google Fit steps are already synced but have no effect on the maths. "Eat back your steps" is a real decision, and a common source of drift.
@@ -123,7 +126,7 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 
 26. **What is the single most annoying thing about cals today?** If only that were fixed, would the rebuild still be worth it?
 27. **What must never change or be lost?** (My assumption: the bank, your history, the recipe maths. Tell me if that's wrong.)
-28. **Should it look the same, or is this a chance to redesign?** A visual redesign is a much bigger job than a technical rebuild and should be a separate decision.
+28. **Visual direction** — **settled in principle:** materially improve the UI and day-to-day experience; UI improvement is a headline requirement, not an optional benefit of changing frameworks. How much to preserve the existing visual language versus redesign remains open, and each screen should be judged in a real mobile preview before cutover.
 29. **Timescale** — "a few weeks of evenings", "a background project over months", or "when it's done"?
 30. **How involved do you want to be** in reviewing each phase, versus "show me when it looks finished"?
 
@@ -133,24 +136,27 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 
 | # | Date | Decision | Source |
 |---|---|---|---|
-| 1 | 2026-10-02 | Drink calories **count** towards the calorie bank (fixes the current food-only behaviour in `bank.go`) | Owner |
+| 1 | 2026-10-02 | Drink calories **count** towards the calorie bank (owner-confirmed; current food-only bank calculation is scheduled for correction with a Phase 12 regression test) | Owner |
 | 2 | 2026-10-02 | Alcohol calories use a **sensible median per drink type**, not a full ABV/beverage database | Owner |
 | 3 | 2026-10-02 | Water is a **special case with its own target**, not merely a drink | Owner |
 | 4 | 2026-10-02 | Local development uses a **`DEV_MODE` environment variable** plus a **copy of the data** in `appdata/cals-dev` | Owner |
 | 5 | 2026-10-02 | `ai_contextual_docs/context.txt` is **legacy**; `docs/` is the source of truth | Owner |
 | 6 | 2026-10-02 | Two users (wife + owner), identified by **Cloudflare Access email rule**; **no in-app login page** | Owner |
 | 7 | 2026-10-02 | Water is **both**: logged as a drink *and* shown as a dedicated daily target — with a single source of truth | Owner |
-| 8 | 2026-10-02 | Drinks are **user-defined with their own calorie figures**; no seeded presets, no ABV maths | Owner |
+| 8 | 2026-10-02 | Drinks are **user-defined with their own calorie figures**; no generic seeded presets or ABV maths. The Diary must provide a familiar quick selector for **Tea, Coffee and Water**, backed by the user's drink definitions; starter-template provisioning remains to be settled before Phase 12 | Owner |
 | 9 | 2026-10-02 | What impressed on the other Go rebuild was **the frontend and how it felt** — so the **Go backend does not need rewriting**; the frontend-only strategy stands | Owner |
+| 10 | 2026-10-02 | **UI/UX improvement is a headline product requirement.** A framework migration or functional parity alone is not success; the new screens must feel materially better for real daily use, especially on a phone | Owner |
+| 11 | 2026-10-02 | **Phase 11 is authorized.** Keep later phases and production cutover gated by phase-level review; no big-bang rewrite | Owner |
 
-Decisions 1–3 and 6–8 change how features are built; none of them commit you to a rebuild. Decision 9 confirms the plan's premise.
+Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is the user-facing success criterion; decision 11 authorizes the foundation phase, not an unreviewed production cutover.
 
 ---
 
 ## Where to go next
 
-Sections A–C are settled. The highest-value open questions now are:
+Core identity and the main direction for drinks are settled; water units/target details and a few drink-template choices remain open. The highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
-2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. These are small questions with large consequences for the maths.
+2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
 3. **Logging friction** (section E, questions 6–8) — what actually takes the most taps for the primary user.
+4. **Quick-drink setup** — whether new users should get editable Tea/Coffee/Water starter templates, or create their own before those options appear in the selector.

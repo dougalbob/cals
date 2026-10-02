@@ -29,10 +29,10 @@ A personal calorie and nutrition tracking PWA.
 | Layer | Tech |
 |---|---|
 | Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
-| Frontend | Vanilla JS + CSS + a single `web/templates/index.html` shell (no build step) — see `docs/architecture/frontend-strategy.md` for the proposed React/TypeScript migration |
+| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` is authorized for Phase 11 and served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
-| Deploy | Single Docker image → Unraid, container `cals-counter`, port `8150`, data in `/app/data` |
+| Deploy | V1 remains on Unraid at host/container port `8150`; V2 is planned as a GHCR image via `cals-v2.xml` at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md` |
 
 **Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
 
@@ -42,6 +42,7 @@ A personal calorie and nutrition tracking PWA.
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
+| [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | V2 GHCR prereleases, Unraid image pulls, `cals-v2.xml`, port and appdata isolation |
 | [`docs/architecture/rebuild-kickoff.md`](docs/architecture/rebuild-kickoff.md) | **Starting the rebuild — read this first** |
 
 ⚠️ **`ai_contextual_docs/context.txt` is LEGACY.** It predates these conventions, its contents have drifted from the code, and it is **not** a specification. Do not rely on it and **do not append to it** — it is retained only as a historical record. When it disagrees with the code, the code wins.
@@ -61,8 +62,8 @@ web/templates/index.html  SPA shell
 web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
 web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
 web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
-web/frontend/             SPIKE: React 19 + TS + Vite + Tailwind rebuild (Diary/Metrics/Foods) with a
-                          fixture API. Not served by Go, not part of the build — see its README
+web/frontend/             React 19 + TS + Vite + Tailwind rebuild (Phase 11 foundation + Diary/Metrics/Foods spike);
+                          production bundle served under temporary /next/ only — see its README
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth
  docs/                     canonical documentation: product/ and architecture/
@@ -117,7 +118,9 @@ Notes:
 - **API:** JSON in/out; errors as `{"error": "..."}` with a correct status code; `404` for missing rows, `409` for conflicts (e.g. duplicate recipe name), `503` for unconfigured integrations.
 - **DB:** dates as `YYYY-MM-DD` strings; nutrition stored per 100 g; weights in kg; portions in grams. Round only at the presentation layer.
 - **Frontend (current):** the global objects (`App`, `API`, `Modal`, …) communicate through `web/static/js/api.js`; do not scatter raw `fetch` calls. Never cache JS or HTML in the service worker.
-- **Frontend (new, when it lands):** see §6 of `docs/architecture/frontend-strategy.md`.
+- **Frontend (new):** see §6 of `docs/architecture/frontend-strategy.md`.
+- **UI improvement is a headline product requirement.** A new framework, a passing build, or functional parity alone is not success. User-facing phases must show a concrete improvement in the mobile-first daily experience and include a preview/screenshots for owner review before merge or cutover. Phase 11 may be foundation-only; it does not waive this later acceptance gate.
+- **Quick drinks:** the Diary must retain a familiar quick-add selector for Tea, Coffee and Water, using user-specific drink records rather than hard-coded nutrition values. Drink calories must count toward the bank; see the product decisions and Phase 12 plan.
 - **Domain maths is precious.** Bank/rolling balance, cooked-weight concentration, macro percentages, stones/lbs ↔ kg conversion and Google Fit step sync all have subtle, hard-won behaviour. Never change them incidentally; add tests if you touch them.
 
 ## 5. Documentation duties
@@ -131,6 +134,7 @@ Notes:
 ## 6. Definition of done
 
 - [ ] The change is committed on a topic/session branch — nothing pushed to `main`
-- [ ] Appropriate build/verification run (`go build ./...`, and `docker compose build` for anything user-visible)
+- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; `docker compose build` for user-visible deployment changes, noting sandbox Docker limitation)
 - [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
+- [ ] For UI work, PR describes the concrete user experience improvement and includes a preview/screenshots for owner review; do not cut over on parity alone
 - [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

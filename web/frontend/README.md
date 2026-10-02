@@ -1,9 +1,10 @@
-# cals frontend spike — React 19 + TypeScript + Vite + Tailwind CSS
+# cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 SPIKE / proof of concept.** This is *not* the production frontend. Nothing here is served
-by the Go application, nothing imports it, and `docker compose build` behaves exactly as before. It
-exists to answer one question: *does the proposed stack actually work for cals, in the Arena
-environment, with real data shapes?*
+**Status: 🟡 Phase 11 foundation in progress (owner-authorized 2026-10-02).** The Diary/Metrics/Foods
+screens began as a spike and remain a work-in-progress; the existing vanilla UI is still the default.
+The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this
+phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
+[`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 Background and the full proposal: [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
@@ -13,7 +14,7 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 
 | Screen | Route | Notes |
 |---|---|---|
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search. A familiar quick-add selector for Tea/Coffee/Water is required in Phase 12. |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`) |
 
@@ -52,7 +53,7 @@ ready in 121 ms
 ```
 
 Rebuild it only when the frontend source changes: `npm run build:preview` (needs Vite, i.e.
-`npm install`).
+`npm ci` if dependencies are missing).
 
 **Safety:** re-running the script is idempotent. If a healthy preview is already on the port it exits
 without doing anything; if the port is held by a stale preview it clears it and takes over; if an
@@ -73,22 +74,23 @@ go run ./cmd/server                 # cals on :8150
 
 # terminal 2
 cd web/frontend
-npm install
+npm ci
 VITE_API_TARGET=http://localhost:8150 npm run dev
 ```
 
-Vite proxies `/api` to Go, so this is a true frontend-only rebuild — no backend changes needed.
+Vite proxies `/api`, `/public` and `/health` to Go, so this is a true frontend-only rebuild — no
+API contract changes needed.
 
 ### Against the fixture API (on your own machine, or for UI work without a DB)
 
 ```bash
 cd web/frontend
-npm install                          # required first: node_modules is never snapshotted
+npm ci                              # required first: node_modules is never snapshotted
 npm run dev                          # http://localhost:5173
 ```
 
 > **Note:** `node_modules/` is excluded from the Arena workspace snapshot, so a **new session must
-> run `npm install`** (about 4 s, 120 packages) before `npm run dev` — otherwise Vite fails with
+> run `npm ci`** (244 packages; ~3 s in this sandbox) before `npm run dev` — otherwise Vite fails with
 > `sh: 1: vite: not found`. `./scripts/serve-frontend-preview.sh` does this for you. Nothing else is
 > needed: the fixture API has no external dependencies.
 
@@ -113,14 +115,27 @@ the demo should show the same numbers the Go server would produce, including its
 ## Checks
 
 ```bash
+npm run lint         # ESLint on the typed frontend
 npm run typecheck     # tsc --noEmit, strict
-npm test              # vitest: domain maths + a jsdom render test of the Diary screen
-npm run build         # tsc --noEmit && vite build → dist/
+npm test              # vitest: domain maths + screen render tests
+npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
+npm run build:go      # production shell for the Go /next/ route → web/dist/
 ```
 
-The render tests drive the components through the fixture API, so a screen that stops rendering
-fails the suite rather than only being noticed in the browser (14 tests across the domain maths and
-all three screens).
+The tests exercise typed API behavior, domain maths and render all three screens against the
+fixture API, so failures are caught rather than only noticed in the browser (20 tests total).
+
+## Phase 11 Go integration
+
+`npm run build:go` writes the production bundle to the git-ignored `web/dist/` with `/next/` as its
+asset and router base. The Go server serves that shell and client-side deep links at `/next/`, gives
+hashed assets immutable caching, and uses `no-store` for the shell; `/` continues to serve the legacy
+UI. Docker builds this bundle in a Node 22 stage and copies only the built files into the Go image.
+
+In the Arena sandbox, the Go server was built and run against a temporary database; `/next/`, a Diary
+deep link, the legacy root and a hashed asset all returned successfully with the expected cache
+headers. `go test ./...` and `go vet ./...` pass. **Docker is unavailable in this sandbox**, so run
+`docker compose build` on a machine with Docker before merging the Phase 11 PR.
 
 ## Findings from this spike
 
@@ -134,10 +149,7 @@ all three screens).
 3. **Bundle cost is acceptable and honest:** 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for
    three screens. The current vanilla app ships roughly 4,500 lines of JS unminified over many
    requests with no caching; the spike is one cached, hashed bundle.
-4. **A pre-existing inconsistency surfaced.** `bank.go` sums only `diary_entries`, while the diary
-   ring in `app.js` includes drink calories. So the "banked" figure silently ignores drinks while
-   today's ring does not. The fixture reproduces the real behaviour rather than hiding it — worth a
-   decision before the migration ports the bank code (see the strategy doc's phase 12).
+4. **A pre-existing inconsistency surfaced and the owner decision is now settled.** `internal/handlers/bank.go` sums only `diary_entries`, while the diary ring includes drink calories. The bank must include drinks; Phase 12 will implement that fix and add a regression test. The fixture currently reproduces the existing backend behaviour rather than hiding it.
 5. **Version drift is real.** `cmd/server/main.go` says 1.7.0, `web/static/js/app.js` says 1.7.0,
    but `web/public/sw.js` still says 1.4.0. The spike reads the version from `GET /api/version`
    instead of hard-coding it in two places, which removes this class of drift.
@@ -146,9 +158,14 @@ all three screens).
 7. **A testing story exists on day one.** `npm test` runs in ~2 s and already covers date maths
    (including DST and leap days), stones/lbs conversion, and the rendering of all three screens.
 
-## Next step
+## Phase 11 and what follows
 
-The proposed go/no-go is a timeboxed Diary spike judged by the owner — this is that artefact. If the
-answer is yes, Phase 11 of the strategy doc replaces the fixture API with the real
-`VITE_API_TARGET` loop, ports the remaining screens behind a temporary `/next` route, and the
-fixtures stay behind as test data.
+The owner has authorized Phase 11. It wires a typed API foundation and build into the Go app under
+`/next/`, while leaving the existing UI as the default. Fixtures remain available for the Arena
+preview and tests; `VITE_API_TARGET` provides the real-server loop. Phase 11 need not change the
+visible screens, but it must leave the project ready for user-facing phases.
+
+Phase 12 is the Diary: it must improve the primary user's phone-based workflow, preserve a quick
+selector for Tea/Coffee/Water using per-user drink values, and include drink calories in the bank.
+The latter two are requirements; whether starter drink records are auto-provisioned for new users
+remains open. No phase should cut over based only on framework adoption or functional parity.

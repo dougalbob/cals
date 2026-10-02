@@ -38,7 +38,7 @@ have_deps() { [ -x node_modules/.bin/vite ]; }
 
 install_deps() {
     echo "Installing frontend dependencies (node_modules is not snapshotted)…"
-    npm install --no-audit --no-fund
+    npm ci --no-audit --no-fund
 }
 
 # --- port hygiene -----------------------------------------------------------

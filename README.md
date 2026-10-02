@@ -7,10 +7,12 @@ A personal calorie and nutrition tracking application.
 | Document | What it covers |
 |---|---|
 | [`docs/`](docs/README.md) | Documentation index and conventions |
-| [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | 🟡 **Proposed:** rebuild the frontend with React 19 + TypeScript + Vite + Tailwind CSS (React Router, TanStack Query). Frontend only — the Go API, database, auth and deployment are unchanged |
+| [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | 🟡 Proposed overall; **Phase 11 authorized**. React 19 + TypeScript + Vite + Tailwind; UI/UX improvement is a headline requirement. Frontend only — Go API, database, auth and deployment stay unchanged |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branch strategy: `main` is production, `cals-dev` is integration, all work arrives via PR |
 | [`AGENTS.md`](AGENTS.md) | Working rules for AI agents and contributors — **never push to `main`** |
 | [`ai_contextual_docs/context.txt`](ai_contextual_docs/context.txt) | 🔴 **Legacy** historic build log — superseded by `docs/`, not maintained |
+
+> **Headline product requirement:** the frontend work must materially improve how cals looks and feels in everyday use—especially on a phone. A framework migration or functional parity alone is not success. See the UI acceptance gate in [`frontend-strategy.md`](docs/architecture/frontend-strategy.md).
 
 ## Branching (short version)
 
@@ -37,7 +39,7 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `8150` | HTTP port to listen on |
+| `PORT` | `8150` | HTTP listen port. The V2 Unraid template overrides this to `8151`; V1/local Compose remains on `8150`. |
 | `LOG_LEVEL` | `info` | Log level |
 | `DB_PATH` | `/app/data/cals.db` | SQLite database path |
 | `DEV_MODE` | `false` | Local-only authentication bypass; see [Local Development](docs/architecture/local-development.md) |

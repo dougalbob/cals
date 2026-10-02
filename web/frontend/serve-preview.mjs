@@ -4,7 +4,7 @@
  *
  * Why this exists: a Vite dev server needs `node_modules`, which is excluded
  * from Arena workspace snapshots, so every new session had to reinstall
- * dependencies (~4 s of `npm install`) before the preview could start — and any
+ * dependencies (~3 s of `npm ci` in the current sandbox) before the preview could start — and any
  * "Restart" of the preview from before that failed outright with
  * `sh: 1: vite: not found`.
  *

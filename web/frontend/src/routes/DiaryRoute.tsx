@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPost, queryKeys } from '../api/client'
-import { MEALS, type BankResponse, type DiaryResponse, type DrinkEntry, type Food, type Meal } from '../api/types'
+import { apiGet, queryKeys } from '../api/client'
+import { createDiaryEntry, deleteDiaryEntry } from '../api/diary'
+import { MEALS, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
+import { useBank, useDiary, useDrinkEntries } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
@@ -25,36 +27,25 @@ export function DiaryRoute() {
 
   const [addingTo, setAddingTo] = useState<Meal | null>(null)
 
-  const diary = useQuery<DiaryResponse>({
-    queryKey: queryKeys.diary(date),
-    queryFn: () => apiGet<DiaryResponse>(`/api/diary?date=${date}`),
-  })
-
-  const bank = useQuery<BankResponse>({
-    queryKey: queryKeys.bank(date),
-    queryFn: () => apiGet<BankResponse>(`/api/bank?date=${date}`),
-  })
-
-  const drinks = useQuery<DrinkEntry[]>({
-    queryKey: queryKeys.drinks(date),
-    queryFn: () => apiGet<DrinkEntry[]>(`/api/drinks/entries?date=${date}`),
-  })
+  const diary = useDiary(date)
+  const bank = useBank(date)
+  const drinks = useDrinkEntries(date)
 
   const deleteEntry = useMutation({
-    mutationFn: (id: number) => apiDelete<{ success: boolean }>(`/api/diary/${id}`),
+    mutationFn: deleteDiaryEntry,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['diary', date] })
-      void queryClient.invalidateQueries({ queryKey: ['bank', date] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
     },
   })
 
   const addEntry = useMutation({
     mutationFn: (payload: { meal: Meal; food_id: number; quantity_grams: number }) =>
-      apiPost('/api/diary', { ...payload, date }),
+      createDiaryEntry(date, payload),
     onSuccess: () => {
       setAddingTo(null)
-      void queryClient.invalidateQueries({ queryKey: ['diary', date] })
-      void queryClient.invalidateQueries({ queryKey: ['bank', date] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
     },
   })
 

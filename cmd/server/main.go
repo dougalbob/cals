@@ -92,6 +92,12 @@ func main() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))).ServeHTTP(w, r)
 	})
 
+	// Temporary React frontend entrypoint. The legacy app remains the default at /.
+	mux.HandleFunc("GET /next", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/next/", http.StatusPermanentRedirect)
+	})
+	mux.Handle("GET /next/", nextFrontendHandler("web/dist"))
+
 	// API routes (protected)
 	// Users
 	mux.Handle("GET /api/users/me", withAuth(http.HandlerFunc(handlers.HandleGetCurrentUser)))

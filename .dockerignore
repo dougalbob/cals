@@ -1,14 +1,20 @@
 # Keep the Docker build context small.
 #
-# The frontend spike (web/frontend) has its own node_modules; without this the
-# Docker build context balloons by hundreds of megabytes whenever it is present.
-# None of it is needed to build or run the Go binary.
+# The frontend source is built in its own Node stage; local dependencies and
+# generated bundles are not part of the Docker context. This avoids copying a
+# developer's node_modules or Arena preview into the Go image build.
 
 .git
 .gitignore
 **/node_modules
+.env
+*.env
+**/.env
+**/*.env
 web/frontend/node_modules
 web/frontend/dist
+web/frontend/preview
+web/dist
 **/*.log
 *.db
 *.db-shm
