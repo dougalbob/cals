@@ -40,7 +40,7 @@ jobs:
       packages: write # push the image to GHCR
     steps:
       - name: Check out the tagged commit (full history for the guard)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

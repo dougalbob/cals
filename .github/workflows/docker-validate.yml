@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the pull request merge commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The Dockerfile is the build contract: it runs the frontend lint, tests
       # and production build in the Node stage, then the CGO Go build.

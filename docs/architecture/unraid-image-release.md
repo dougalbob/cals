@@ -44,7 +44,7 @@ The development template tracks the moving `dev-latest` tag and pins the exact r
 
 ## Publishing workflow (added 2026-10-02, Part 2 PR)
 
-Two GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows) implement the publishing half of this document. Both build the checked-in `Dockerfile`, so the frontend lint/tests/production build and the CGO Go build run on every execution — a green run is the evidence that the image actually builds.
+Two GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows), added in PR #7, implement the publishing half of this document. Both build the checked-in `Dockerfile`, so the frontend lint/tests/production build and the CGO Go build run on every execution — a green run is the evidence that the image actually builds.
 
 | Workflow | File | Trigger | What it does | Token permissions |
 |---|---|---|---|---|
@@ -141,14 +141,14 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 | # | Item | State |
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
-| 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, Part 2 PR — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr) |
+| 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
 | 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ⬜ pending the owner-approved tag push |
 | 4 | Corresponding GitHub prerelease for the Git tag created and verified | ⬜ pending (the publish workflow creates it) |
 | 5 | GHCR package visibility set to public if needed | ⬜ owner action after the first push |
 | 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
 | 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ⬜ |
 
-The validation workflow must pass on the Part 2 PR before the first tag is published: that green run is the evidence that the image builds, and it stands in for the container build recorded as unverified in the Phase 11 handoff.
+The validation workflow must pass on the Part 2 PR before the first tag is published: that green run is the evidence that the image builds. It **passed on PR #7** ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), which closes the container build recorded as unverified in the Phase 11 handoff. Once PR #7 is merged, the remaining gates are the owner's: approve the tag, publish, make the package public, smoke-test on Unraid.
 
 This first image is a **development smoke-test image**, not a completed UI redesign or authorization to cut over V1. The `/next/` frontend is still a foundation; keep the UI improvement and owner-review gate for later user-facing phases.
 
