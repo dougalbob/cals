@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE** — the starting point for the migration. Expected to be retired once Phase 12 is under way |
+| **Status** | 🟢 **ACTIVE — Phase 11 authorized (2026-10-02).** The starting point for the migration; expected to be retired once Phase 12 is under way |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -37,7 +37,7 @@ worth doing first so the owner can watch progress:
 ```
 
 Rebuild the served bundle after changing frontend source: `npm run build:preview` (in
-`web/frontend/`; needs `npm install` first).
+`web/frontend/`; needs `npm ci` first if `node_modules/` is missing).
 
 ## 2. You can build and run the real Go server
 
@@ -73,17 +73,26 @@ Go API, database schema, and Cloudflare auth behavior are unchanged.
 
 ## 4. Then the phases
 
-Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7. Two adjustments from the
-vision answers (2026-10-02):
+Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7. Owner direction confirmed
+on 2026-10-02:
 
+- **Phase 11 is authorized.** Start with the foundation; keep the existing UI as the default and do
+  not treat this approval as approval for an unreviewed cutover.
+- **UI improvement is a headline requirement.** The rebuild is about how the app feels and works,
+  especially on a phone—not just replacing the frontend technology. Phase 11 may be plumbing-only;
+  every screen phase must show a concrete improvement in a real preview and get owner review before
+  merge/cutover.
 - **The owner's wife is the primary user today.** Daily food logging and the water target, on a
   phone, are the flows that matter most — prioritise accordingly (Phase 12 Diary first).
-- **Water is a new feature to build** (decision 7), not just a tweak: it appears as both a drink and
-  a dedicated daily target, with **one source of truth** — a flag on `drinks` marking which count
-  toward water, and a target derived from those. The unused `water_entries` table must be dropped or
-  repurposed, never left as a second ledger.
-- **The drinks/bank fix (decision 1) belongs in Phase 12**, not later: `bank.go` currently ignores
-  drink calories while the diary ring includes them. Add a regression test.
+- **Water is a feature to build** (decision 7): it appears as both a drink and a dedicated daily
+  target, with **one source of truth** — a flag on `drinks` marking which count toward water, and a
+  target derived from those. The unused `water_entries` table must be dropped or repurposed, never
+  left as a second ledger.
+- **Drink calories count towards the bank** (owner-confirmed). The current `bank.go` still ignores
+  drink calories; implement the fix with a regression test in Phase 12.
+- **Diary quick drinks:** preserve a fast, familiar quick-add selector for Tea, Coffee and Water,
+  backed by per-user drink definitions (not hard-coded calories). Whether new users receive editable
+  starter templates for these three remains to be confirmed before Phase 12; no generic defaults.
 
 ## 5. Guardrails
 
@@ -93,15 +102,17 @@ vision answers (2026-10-02):
 | PRs target `cals-dev`, never `main` | The owner promotes deliberately |
 | Never append to `ai_contextual_docs/context.txt` | It is legacy and frozen; `docs/` is the source of truth |
 | Do not add an in-app login page | Identity comes from Cloudflare Access by design |
-| Do not seed invented drinks/foods for new users | Decision 8 |
-| Run `npm run typecheck && npm test && npm run build` before any frontend PR | Cheap, deterministic, catches regressions |
+| Do not seed invented drinks/foods for new users; quick-drink templates must use per-user values | Decisions 8 and 11; starter-template provisioning remains open |
+| UI improvement is a headline requirement; preview user-facing work on mobile and state the concrete improvement in its PR | A framework migration/parity alone is not success |
+| Run `npm run lint && npm run typecheck && npm test && npm run build` before any frontend PR | Cheap, deterministic, catches regressions |
 | Never change the bank, recipe or unit-conversion maths without tests | Those numbers are trusted |
 
 ## 6. Definition of done for a phase
 
 - [ ] Committed on the session branch; nothing pushed to `main`
-- [ ] `npm run typecheck && npm test && npm run build` pass (frontend) / `go build ./...` (backend)
+- [ ] `npm run lint && npm run typecheck && npm test && npm run build && npm run build:go` pass (frontend) / `go build ./...` (backend)
 - [ ] Verified against the real server locally where possible (`VITE_API_TARGET=http://localhost:8150`)
+- [ ] For user-facing work: previewed at phone size, documented the concrete UX improvement, and obtained owner review before merge/cutover
 - [ ] `docs/` updated, and the vision document's decisions table amended if a question was answered
 - [ ] PR opened against **`cals-dev`** with a summary and deployment notes
 
@@ -112,7 +123,9 @@ confirming with the owner before building the affected screen:
 
 1. **Cross-viewing** — should either user be able to see the other's day? Decides whether a
    household view exists, and what to do with the unused `GET /api/users` endpoint.
-2. **Bank semantics** — does the bank ever reset, should steps credit it, what does an unlogged day
-   count as?
-3. **Logging friction** — what takes the most taps for the primary user; would "same as yesterday"
+2. **Bank semantics** — does the bank ever reset, should steps credit it, and what does an unlogged
+   day count as? Drink inclusion is settled: drinks count.
+3. **Quick-drink templates** — should new users receive editable Tea/Coffee/Water starter entries,
+   or create those definitions before they appear in the selector?
+4. **Logging friction** — what takes the most taps for the primary user; would "same as yesterday"
    or favourites help?

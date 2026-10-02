@@ -1,7 +1,7 @@
 /**
  * Thin typed fetch wrapper over the cals API.
  *
- * Deliberately small: every call goes through `apiGet`/`apiSend`, so the
+ * Deliberately small: every call goes through `apiGet`/`apiPost`/`apiPut`/`apiDelete`, so the
  * Cloudflare Access behaviour (and any future auth handling) lives in one place
  * rather than being re-implemented per screen.
  *
@@ -26,6 +26,14 @@ export class AuthExpiredError extends Error {
   }
 }
 
+let authReloadRequested = false
+
+function reloadForAuthentication() {
+  if (typeof window === 'undefined' || authReloadRequested) return
+  authReloadRequested = true
+  window.location.reload()
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
@@ -33,11 +41,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
+  if (response.status === 204) return undefined as T
+
   const contentType = response.headers.get('Content-Type') ?? ''
 
   // Cloudflare Access served us a login page instead of JSON.
   if (!contentType.includes('application/json') && response.ok) {
-    if (contentType.includes('text/html')) throw new AuthExpiredError()
+    if (contentType.includes('text/html')) {
+      // A Cloudflare Access redirect is an HTML login page, not an API response.
+      // Reload once through the browser's normal navigation so Access can sign in.
+      reloadForAuthentication()
+      throw new AuthExpiredError()
+    }
     throw new ApiError(`Unexpected response type: ${contentType || 'unknown'}`, response.status)
   }
 
@@ -53,7 +68,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(message, response.status)
   }
 
-  if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 

@@ -13,6 +13,7 @@ logs/
 
 # Build artifacts
 /cals
+/web/dist/
 *.exe
 
 # IDE

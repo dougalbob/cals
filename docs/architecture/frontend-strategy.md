@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED — decision pending.** A working **spike exists** at [`web/frontend/`](../../web/frontend/README.md) (Diary, Metrics, Foods + fixture API); it is not wired into the Go app |
+| **Status** | 🟡 **PROPOSED overall; Phase 11 authorized on 2026-10-02.** The React spike exists at [`web/frontend/`](../../web/frontend/README.md); Phase 11 is building the safe foundation, while later screen migrations and production cutover remain phase-gated |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go` |
@@ -18,6 +18,12 @@
 Adopt **React 19 + TypeScript + Vite (8) + Tailwind CSS (v4)**, with **React Router** for navigation and **TanStack Query v5** for server state. Keep the Go backend exactly as it is: the same handlers, the same SQLite database, the same `/api/*` endpoints, the same Cloudflare Access middleware, the same single-container Docker deployment. We only replace how the UI is rendered and built.
 
 This is a *frontend rebuild of a Go application*, not a rewrite of the Go application. The API contract is the seam that makes this safe: every screen can be migrated one at a time, and the old vanilla-JS UI can keep serving traffic until the new one has fully replaced it.
+
+### Headline product requirement: materially improve the UI and daily experience
+
+**UI/UX improvement is a headline requirement for cals and the central user-facing reason for this rebuild.** This is not successful merely because React, TypeScript, tests or a new bundle exist. Each migrated screen must make real daily use feel better—especially the primary user's phone-based food and drink logging—and must be reviewed in a working mobile-sized preview against the current app. Preserve familiar, useful patterns (including the quick drink selector) unless the replacement is demonstrably clearer or faster. Do not cut over on functional parity alone; a phase's PR should say what user experience improved and include a preview or screenshots for review.
+
+Phase 11 is intentionally foundational and may make no visible UI change. That is acceptable only because it enables the UI work; it does not waive the visible-improvement acceptance gate for Diary and later screen phases.
 
 ---
 
@@ -67,11 +73,13 @@ No Next.js, no SSR, no React Server Components, no Redux, no GraphQL, no compone
 
 ### 3.1 What must be preserved (added 2026-10-02)
 
-The rebuild is frontend-only, but three existing behaviours are load-bearing and must survive it:
+The rebuild is frontend-only, but these existing behaviours and explicit product requirements are load-bearing and must survive it:
 
 1. **Identity comes from outside the app.** Cloudflare Access (email rule) passes the email; the app auto-creates and shows that person's data. **There is no login page, and the rebuild must not add one.**
 2. **Two real users**, each with their own diary, goals and water target. Your wife is the primary user today, so her flows — daily food logging and the water target, on a phone — should lead the phase priorities.
-3. **No seeded opinions.** New users currently get Coffee/Water/Beer/Milk created automatically; per decision 8, the rebuild should not invent drinks (or anything else) on someone's behalf.
+3. **No generic seeded opinions.** New users currently get Coffee/Water/Beer/Milk created automatically; per decision 8, the rebuild should not invent arbitrary drinks (or anything else) on someone's behalf.
+4. **The Diary needs familiar quick drinks.** The quick-add selector must make **Tea, Coffee and Water** easy to add, using the signed-in user's drink records and their configured calories/volume—not hard-coded nutrition assumptions. Whether those three are provisioned as editable starter records for new users remains to be decided before Phase 12.
+5. **The UI itself must improve.** Every screen phase must demonstrate a user-visible improvement, with the primary user's mobile workflow leading review; technical parity alone does not pass.
 
 `DEV_MODE` ([`local-development.md`](./local-development.md)) exists so both users' screens can be developed locally against a copy of the data.
 
@@ -92,6 +100,8 @@ This is real work for a working app, and it introduces Node into the *build* too
 ---
 
 ## 5. Target architecture
+
+The diagram below is the **post-cutover target**. During Phase 11, the React bundle is served only under `/next/`; the existing vanilla app remains the default at `/` until a later, owner-reviewed cutover.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -116,7 +126,7 @@ Key implementation notes for the serving layer:
 
 - **Build output** → `web/dist/` (git-ignored). Dev proxy: `vite` on `:5173` proxies `/api`, `/public`, `/health` to the Go server on `:8150`. The Vite dev server must bind `0.0.0.0` and set `server.allowedHosts` when run behind a proxy/preview host.
 - **Caching becomes trivial.** Vite emits content-hashed asset filenames, so `/assets/*` can be served `Cache-Control: public, max-age=31536000, immutable` and `index.html` `no-store`. That replaces the current "never cache any `.js`" rule *and* the service-worker no-JS-cache workaround.
-- **SPA fallback already exists.** The `mux.HandleFunc("/", …)` catch-all in `cmd/server/main.go` already serves `index.html` for non-`/api/` paths — no routing changes needed server-side.
+- **Temporary Phase 11 route:** `cmd/server/main.go` serves the React build under `/next/` with a deep-link fallback, immutable caching for hashed assets, and `no-store` for the shell. The existing `/` catch-all continues serving the vanilla UI. After a separately approved cutover, the React shell can take over `/`.
 - **Version stamping.** `update-version.sh` currently edits `cmd/server/main.go`, `web/static/js/app.js` and `web/public/sw.js`. In the new world it should stamp `package.json` (and `vite.config.ts` via `define`) instead, and the front-end should read the version from `GET /api/version` rather than hard-coding it.
 - **Cloudflare Access gotcha to design for up front.** When the CF Access session expires mid-use, requests come back as an HTML redirect/login page rather than JSON. The fetch layer must detect "expected JSON, got HTML/redirect" and force a full-page reload to re-auth, instead of throwing a confusing parse error.
 
@@ -148,21 +158,22 @@ Hard rules:
 5. **No component library.** Tailwind + small local components; the current design language (CSS variables in `themes.css`, bottom nav, bottom-sheet modals, meal colours) is worth keeping.
 6. **Mobile-first and accessible:** 44 px touch targets, `env(safe-area-inset-*)`, visible focus states, labelled inputs.
 7. **Legacy UI freeze during migration.** `web/static/**` and `web/templates/index.html` receive critical bug fixes only, so the two UIs don't drift.
+8. **UI quality is an acceptance gate.** For every user-facing phase, compare the live preview with the current build on a phone-sized viewport, describe the concrete UX improvement in the PR, and obtain owner review before merging/cutting over. Phase 11 infrastructure may be UI-neutral; later screen phases may not.
 
 ---
 
 ## 7. Migration plan (phased, each phase independently shippable)
 
-A timeboxed **spike** precedes everything: build *only* the Diary screen against the real API in the new stack, roughly one focused day, and judge it honestly. If the spike is not clearly better than the vanilla version, stop and keep the current UI.
+The timeboxed spike is complete. The owner authorized **Phase 11 — Foundation** on 2026-10-02. The spike already demonstrates Diary, Metrics and Foods against fixtures; Phase 11 makes the foundation buildable and safely reachable without replacing the production UI. The go/no-go for each user-facing screen remains honest: if it is not clearly better than the current version, do not cut it over.
 
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
-| **11 — Foundation** | `web/frontend/` scaffold, Tailwind theme tokens ported, typed API client for 3 endpoints, dev proxy, Go serving `web/dist` behind a temporary switch (`?ui=next` or `/next/*`), hooks + lint + `tsc` wired | `npm run build && docker compose up` serves the new shell; old UI still reachable |
-| **12 — Diary** | Diary view at `/diary/:date` with meal sections, drinks, bank ring, date navigation, add/edit/delete food entries (optimistic) | Feature parity on the most-used screen; old diary view retired |
+| **11 — Foundation** | `web/frontend/` scaffold, Tailwind theme tokens, typed API client and query hooks for core endpoints, dev proxy, Go serving `web/dist` under a temporary `/next/` path, multi-stage Docker build, lint + typecheck + tests | New shell is reachable at `/next/` while the old UI remains the default; fixture and real-API dev loops work; typecheck, lint, tests and production build pass |
+| **12 — Diary** | Diary view at `/diary/:date` with meal sections, a familiar quick-add selector for Tea/Coffee/Water, drinks, bank ring, date navigation, add/edit/delete food entries (optimistic) | The primary phone-based logging flow is demonstrably easier than the current build; owner reviews the mobile preview; drink calories are included in the bank with a regression test; old diary stays reachable until approval |
 | **13 — Foods + Recipes** | Custom foods list/create/edit/delete, recipe list/create/edit, ingredient search, image upload with crop, recipe→diary flow | Recipe builder parity, including cooked-weight concentration maths with unit tests |
 | **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect | Charts render identically; projections reproduce current numbers |
 | **15 — Settings + PWA** | Settings, calorie/water targets, themes, `vite-plugin-pwa`, PWA install/offline behaviour, remove legacy no-cache hacks | Lighthouse PWA pass on mobile; SW installs cleanly |
-| **16 — Cutover** | Delete `web/static/**`, `web/templates/index.html`, old SW cache rules; single SPA; docs + `context.txt` updated | Total front-end LOC and file count drop sharply; no dead code left |
+| **16 — Cutover** | Delete `web/static/**`, `web/templates/index.html`, and old SW cache rules; make React the single SPA; update `docs/` (keep legacy `ai_contextual_docs/context.txt` frozen) | Total front-end LOC and file count drop sharply; no dead code left; owner approves the demonstrated UI improvement |
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
 
@@ -185,15 +196,14 @@ Measured, not estimated:
 | Does the toolchain work in the Arena sandbox? | **Yes.** Node 22.22.3, npm 10.9.8, registry reachable, 63 packages installed in ~16 s, Vite dev server on `0.0.0.0:5173` with `allowedHosts: true` served the preview proxy cleanly |
 | Is the Go toolchain available in the sandbox? | **It can be, for verification.** By default there is no Go, and `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are unreachable — which is why the spike ships a fixture API. **However**, a real toolchain can be obtained from the PyPI wheel `go-bin` (PyPI *is* reachable) and modules can be fetched from GitHub. `scripts/verify-go-in-sandbox.sh` does this in `/tmp` without touching the working tree; it builds `./cmd/server` with CGO, and the real server has been run in-sandbox — creating all 17 tables via migrations and returning `401` on protected routes (Cloudflare middleware working). Limits: the toolchain is Go 1.27 while the Dockerfile pins 1.22, nothing in `/tmp` persists between turns, and **Docker cannot run in the sandbox**, so `docker compose build` must still be verified on your own machine |
 | What does it cost the client? | 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for three screens — one hashed, cacheable bundle versus ~4,500 lines of uncached vanilla JS today |
-| Does a test story appear on day one? | **Yes.** `npm test` runs in ~2 s: date maths (DST, leap days), stones/lbs conversion, and jsdom render tests mounting all three screens against the fixture API |
+| Does a test story appear on day one? | **Yes.** The original spike had 14 tests; Phase 11 adds typed-API/client coverage, bringing the current suite to 20 tests across date maths (DST, leap days), stones/lbs conversion, API handling and all three screens |
 | Does it typecheck strictly and build? | **Yes.** `tsc --noEmit` clean under `strict`, `noUnusedLocals`, `verbatimModuleSyntax`; production build in 628 ms |
 
 Findings that affect the plan:
 
-1. **Pre-existing bug surfaced: the bank ignores drinks.** `bank.go` sums only `diary_entries`,
+1. **Pre-existing bug surfaced: the bank ignores drinks.** `internal/handlers/bank.go` sums only `diary_entries`,
    while the diary ring in `app.js` adds drink calories. "Banked" therefore omits drinks that "today"
-   includes. The spike reproduces real behaviour rather than hiding it. **Decide before phase 12**
-   whether the bank should include `drink_entries`, and add a regression test either way.
+   includes. The spike reproduces real behaviour rather than hiding it. **Owner decision is now settled: drinks count.** Phase 12 must include `drink_entries` in consumption and add a regression test; the fix is not part of the Phase 11 foundation.
 2. **Version drift is real.** `main.go` and `app.js` say 1.7.0 while `sw.js` still says 1.4.0. The
    spike reads the version from `GET /api/version`, removing the duplicated constant.
 3. **Cloudflare Access needs explicit handling.** The session-expiry case (HTML login page instead of
@@ -237,21 +247,21 @@ enough that a "no" decision costs a day, not a project.
 ## 10. Decision checklist — what "yes" commits us to
 
 - [x] ~~Node 22 LTS available on the dev machine~~ — confirmed available (incl. in the Arena sandbox). Go and Docker are not installed in the sandbox by default, **but a Go toolchain can be obtained there** (see §7.1) for compiling and running the real server. Docker must still be verified locally, and real data requires your Cloudflare session
-- [ ] Acceptance that `web/**` will be rewritten, and the legacy UI will be deleted at cutover
+- [ ] Full cutover commitment: `web/**` will be rewritten and the legacy UI deleted. **Phase 11 approval does not pre-approve deleting the current UI**; cutover stays gated by owner review of the new experience.
 - [x] ~~A timeboxed spike agreed before Phase 11~~ — done: see `web/frontend/` and §7.1
-- [ ] Agreement that `docs/` stays the single source of documentation truth and is updated each phase (the legacy `ai_contextual_docs/context.txt` is frozen)
-- [ ] Agreement that the Go API is **not** part of this change
-- [ ] Decision on the bank/drinks inconsistency found in §7.1
+- [x] `docs/` is the single source of documentation truth; keep it current each phase (`ai_contextual_docs/context.txt` remains frozen)
+- [x] The Go API, database schema, auth and deployment topology are **not** part of the frontend migration
+- [x] Drink calories count toward the bank; Phase 12 will implement and test the agreed behavior
+- [x] **Phase 11 is authorized.** The user-facing UI improvement requirement remains a gate for later screen PRs and cutover.
 
-**What would change the recommendation:** if no further feature work is planned, or if mobile UX complaints can be traced to a handful of specific screens, fix those in place instead. The stack choice is sound; the question is whether the migration is worth paying for.
+**What would change the recommendation:** if no further feature work is planned, or if mobile UX complaints can be traced to a handful of specific screens, targeted fixes remain a fallback. The stack choice is sound; the user-facing result—not the framework—is what must justify the work.
 
 ---
 
 ## 11. Open questions for the owner
 
-1. What specifically prompted the thought — mobile jank, bug frequency, or wanting to build more features?
+1. The motivation is settled: the owner values how the other rebuild's frontend feels, and UI/UX improvement is a headline requirement for cals.
 2. How much feature work is realistically planned over the next 6–12 months (recipes, nutrition, multi-user)?
 3. Is a Node toolchain acceptable on the dev box, or should everything build inside Docker?
 4. Do we keep Chart.js via `react-chartjs-2` (recommended, familiar) or move to Recharts? (The spike uses hand-rolled SVG purely to avoid a CDN dependency in the sandbox — not a recommendation.)
-5. **Bank vs drinks:** should `bank.go` include `drink_entries` in consumption, so "banked" and "today's ring" agree? This is a live inconsistency today, independent of the migration.
-6. Timeline: the spike has been built — does Phase 11 start once this proposal is accepted, or after the next round of feature work?
+5. **Quick-drink provisioning:** should brand-new users receive editable Tea/Coffee/Water starter templates, or create those drink definitions themselves before they appear in the quick selector? The selector itself is required; this detail must be settled before Phase 12.
