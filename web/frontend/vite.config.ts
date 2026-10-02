@@ -33,6 +33,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    // The preview bundle (npm run build:preview) is served from disk by
+    // serve-preview.mjs, so its sourcemap would only add ~1.8 MB to the
+    // snapshot for nothing.
+    sourcemap: process.env.VITE_PREVIEW !== '1',
   },
 })

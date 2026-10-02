@@ -32,21 +32,38 @@ every mutation except add/delete diary entry. The production migration phases co
 ### In an Arena session — one command, run it first
 
 ```bash
-./scripts/serve-frontend-preview.sh     # installs deps if needed, then serves on 0.0.0.0:5173
+./scripts/serve-frontend-preview.sh          # fast path: pre-built bundle + fixtures
+./scripts/serve-frontend-preview.sh --dev    # Vite dev server, with HMR
 ```
 
-**Run this as the first action of a session.** Arena recycles the sandbox between turns: the
-`node_modules` directory is not snapshotted and the running process does not survive, so the
-`dist/` and dependency state have to be recreated each turn. The script handles both and pins the
-port so the preview URL stays stable.
+**Run this as the first action of a session.** Arena recycles the sandbox between turns: the running
+process does not survive and `node_modules/` is not snapshotted.
 
-> **Preview showing "Expired"?** That is a sandbox-lifetime issue, not an application error.
-> Preview URLs are bound to the sandbox instance (`https://<port>-<sandbox-id>.e2b.app`), and a new
-> sandbox means a new URL — so a tab or bookmark from an earlier turn will always report *Expired*
-> no matter how healthy the server is. Fix: open the preview from the Arena process panel during an
-> active turn (don't refresh the old tab), and if it has already gone stale, ask for the preview to
-> be restarted at the start of the next turn. Starting the server early in the session, as above, is
-> what keeps it available for the whole turn.
+The default path is deliberately **dependency-free**. The app is served from the pre-built
+`preview/` directory by [`serve-preview.mjs`](serve-preview.mjs), a plain Node HTTP server (no npm
+packages) that also mounts the fixture API on the same origin. That directory is **not** in the
+sandbox's snapshot-exclusion list, so it survives between turns — so restarting the preview takes
+about **120 ms** and works even with `node_modules` deleted:
+
+```
+$ rm -rf node_modules && ./scripts/serve-frontend-preview.sh
+Serving the pre-built preview on 0.0.0.0:5173 (no dependencies required)…
+ready in 121 ms
+```
+
+Rebuild it only when the frontend source changes: `npm run build:preview` (needs Vite, i.e.
+`npm install`).
+
+**Safety:** re-running the script is idempotent. If a healthy preview is already on the port it exits
+without doing anything; if the port is held by a stale preview it clears it and takes over; if an
+unknown process holds the port it reports the PID and exits rather than killing it.
+
+> **Preview showing "This preview has expired"?** This is a sandbox-lifetime issue, not an
+> application error. Preview URLs are bound to the sandbox instance
+> (`https://<port>-<sandbox-id>.e2b.app`), and a new sandbox means a new URL — so a tab or bookmark
+> from an earlier turn reports *Expired* however healthy the server is. Use the **Restart** button
+> (it now works, because restarting needs no dependencies), or ask for the preview at the start of a
+> turn and open it from the Arena process panel rather than refreshing an old tab.
 
 ### Against the real Go server (the normal dev loop on your own machine)
 

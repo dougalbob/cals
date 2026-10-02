@@ -911,3 +911,34 @@ PREVIEW_EXPIRED_ROOT_CAUSE:
 NOTES:
 -no-version-bump(docs+scripting-only)
 -still-open-for-owner:go/no-go-on-migration,whether-bank-includes-drinks
+
+---
+UPDATE:2026-10-02
+PREVIEW_RELIABILITY:no-changes-to-go-app-or-production-frontend
+PHASE:frontend-spike
+
+CHANGES:
++web/frontend/serve-preview.mjs:dependency-free-node-server(serves-prebuilt-preview/+fixture-api-in-process+SPA-fallback+hashed-asset-caching)
++scripts/serve-frontend-preview.sh:layered-startup(fast-static-path,--dev-for-vite,idempotent,port-hygiene)
+~web/frontend/package.json:added-build:preview-and-serve:preview-scripts
+~web/frontend/vite.config.ts:sourcemap-off-for-preview-build(VITE_PREVIEW=1)
+~web/frontend/.gitignore:preview/ignored(but-snapshotted)
+~web/frontend/README.md,AGENTS.md:preview-startup-and-expired-explanation
+
+WHY:
+-vite-dev-server-needs-node_modules,which-is-NOT-snapshotted=>every-new-session-required-npm-install,
+ and-a-platform-Restart-of-the-preview-failed-with-"sh:1:vite:not-found"
+-dist/-is-in-the-snapshot-exclusion-list-but-preview/-is-not,so-the-built-bundle-persists
+
+RESULT:
+-restart-is-~120ms-with-node_modules-DELETED(measured),so-the-preview-Restart-button-now-works
+-startup-script-is-idempotent:healthy-preview=>exit-0;stale-preview-on-port=>take-over;
+ unknown-process-on-port=>report-PID-and-exit-1(never-clobber)
+-verified:all-routes-200(incl-deep-links-and-unknown-client-routes),assets-immutable-cached,
+ index.html-no-store,fixture-API+mutations-working
+-still-true:preview-URLs-are-per-sandbox,so-a-tab-from-an-earlier-turn-always-shows-Expired
+
+NOTES:
+-no-version-bump
+-rebuild-after-frontend-source-changes:npm-run-build:preview(needs-npm-install)
+-still-open-for-owner:go/no-go-on-migration,whether-bank-includes-drinks

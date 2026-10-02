@@ -65,16 +65,23 @@ docker compose build && docker compose up -d      # → http://localhost:8150
 curl -s localhost:8150/health
 ```
 
-**Arena sessions — start the preview first.** The sandbox is recycled between turns (no
-`node_modules`, no surviving processes) and preview URLs are bound to the sandbox instance, so a
-previously open preview tab will report *Expired*. As the **first action of a session**, run:
+**Arena sessions — start the preview first.** The sandbox is recycled between turns (no surviving
+processes; `node_modules/` is not snapshotted) and preview URLs are bound to the sandbox instance,
+so a previously opened preview tab reports *Expired*. As the **first action of a session**, run:
 
 ```bash
-./scripts/serve-frontend-preview.sh    # frontend spike: deps + Vite on 0.0.0.0:5173
+./scripts/serve-frontend-preview.sh    # frontend spike on 0.0.0.0:5173 — no npm install needed
+./scripts/serve-frontend-preview.sh --dev   # same, but with the Vite dev server and HMR
 ```
 
-Then open the preview from the process panel (not from an old tab). This sandbox has Node but **no
-Go toolchain**, so the Go server itself can only be run on your own machine or Unraid.
+The default path serves the pre-built `web/frontend/preview/` bundle through
+`web/frontend/serve-preview.mjs`, a dependency-free Node server with the fixture API in-process, so
+it comes up in ~120 ms whatever state the sandbox is in and the preview's **Restart** button works.
+Rebuild the bundle with `npm run build:preview` after changing frontend source (that step needs
+Vite).
+
+This sandbox has Node but **no Go toolchain**, so the Go server itself can only be run on your own
+machine or Unraid.
 
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
