@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` are published and `dev-latest` is anonymously pullable (verified in CI) |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc4` are published; `dev-latest` points to rc4 and is anonymously pullable (verified in CI) |
 | **Updated** | 2026-10-02 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -164,8 +164,8 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-02 — rc1 and then rc2 (which carries the anonymous-pull gate); `dev-latest` currently points at rc2. See the [release log](#release-log) |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-02 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) and [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), each with source commit and image digest in its notes |
+| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-02 — rc1 through rc4 published; `dev-latest` currently points at rc4. See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-02 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1), [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), [rc3](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc3) and [rc4](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc4), each with source commit and image digest in its notes |
 | 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
 | 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
 | 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 commits, tags, digests and build results recorded; the Unraid smoke-test result is the owner's to add after item 6 |
@@ -181,6 +181,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc1` | 2026-10-02, [run 37039604171](https://github.com/dougalbob/cals/actions/runs/37039604171) | `51c15b0` on `cals-dev` (PR #8 merge; app version 2.0.0) | `sha256:f4c6c61930b6a7e509ffd578c77815f9d778bc6f46794ff379e5b355cdca06a7` | [v2.0.0-dev-rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) (prerelease) | ⬜ owner |
 | `v2.0.0-dev-rc2` | 2026-10-02, [run 37040148876](https://github.com/dougalbob/cals/actions/runs/37040148876) | `183059a` on `cals-dev` (PR #9 merge; adds the anonymous-pull gate) | `sha256:cab07b3427a41a3ea38adb987ec38e2184c4b00b8ca7393a29d269e96009e951` | [v2.0.0-dev-rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2) (prerelease) | ✅ V2 installed and Cloudflare-routed on `8151` on 2026-10-02 (on a database copied that morning — see [`data-copy-warning.md`](./data-copy-warning.md)) |
 | `v2.0.0-dev-rc3` | 2026-10-02, [run 37047488711](https://github.com/dougalbob/cals/actions/runs/37047488711) | `2f6193a` on `cals-dev` (PR #12 merge; DEV identity switch + Phase 12 Diary) | `sha256:eb8ee80bb1faf3995db10d215bf6a1898d9d8db932b0a7b4e37121a268721692` | [v2.0.0-dev-rc3](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc3) (prerelease) | ⬜ owner — update `cals-dev-v2` and **review the Diary at phone size as both identities** |
+| `v2.0.0-dev-rc4` | 2026-10-02, [run 37066221932](https://github.com/dougalbob/cals/actions/runs/37066221932) | `0716d67` on `cals-dev` (PR #14 Water glass selection + PR #15 DEV identity shortcut) | `sha256:ea5e97aad9551a3e86188bba6296bdbf0fe5b31d01b74fd323ab72fee3919d25` | [v2.0.0-dev-rc4](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc4) (prerelease) | ⬜ owner — Force Update `cals-dev-identity` on `8152`, then verify the app-header **Switch user** link and `/dev/identity` |
 
 ## Not implemented yet
 
