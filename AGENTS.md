@@ -80,8 +80,13 @@ it comes up in ~120 ms whatever state the sandbox is in and the preview's **Rest
 Rebuild the bundle with `npm run build:preview` after changing frontend source (that step needs
 Vite).
 
-This sandbox has Node but **no Go toolchain**, so the Go server itself can only be run on your own
-machine or Unraid.
+This sandbox has Node but **no Go toolchain installed**, so the Go server cannot be run here out
+of the box. It *can* be obtained for verification purposes — `scripts/verify-go-in-sandbox.sh`
+installs a Go toolchain from the PyPI wheel `go-bin` into `/tmp`, copies the repo to `/tmp/calstest`,
+and builds `./cmd/server` with CGO (verified: the real server starts, creates all 17 tables, and
+returns `401` on protected routes without a Cloudflare JWT). Caveats: nothing in `/tmp` persists
+between turns, the toolchain is Go 1.27 rather than the Dockerfile's 1.22, and **Docker itself
+cannot run in the sandbox**, so image builds must be verified on your own machine.
 
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
