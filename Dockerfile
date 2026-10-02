@@ -45,8 +45,9 @@ COPY --from=builder /build/web ./web
 # Create data directory
 RUN mkdir -p /app/data
 
-# The app's listen port is controlled by PORT. Legacy Compose uses 8150;
-# the V2 Unraid template sets PORT=8151 for side-by-side testing.
+# The app's listen port is controlled by PORT. V1 (legacy Compose deployment)
+# runs on 8150; the cals-dev-v2 Unraid template sets PORT=8151 so both can run
+# side by side. EXPOSE is image metadata only.
 EXPOSE 8150 8151
 
 CMD ["./cals"]

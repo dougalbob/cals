@@ -32,7 +32,7 @@ A personal calorie and nutrition tracking PWA.
 | Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` is authorized for Phase 11 and served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
-| Deploy | V1 remains on Unraid at host/container port `8150`; V2 is planned as a GHCR image via `cals-v2.xml` at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md` |
+| Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md` |
 
 **Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
 
@@ -42,7 +42,7 @@ A personal calorie and nutrition tracking PWA.
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
-| [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | V2 GHCR prereleases, Unraid image pulls, `cals-v2.xml`, port and appdata isolation |
+| [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | **The only documented install method** (Unraid template), V2 GHCR prereleases, image publishing, port and appdata isolation |
 | [`docs/architecture/rebuild-kickoff.md`](docs/architecture/rebuild-kickoff.md) | **Starting the rebuild — read this first** |
 
 ⚠️ **`ai_contextual_docs/context.txt` is LEGACY.** It predates these conventions, its contents have drifted from the code, and it is **not** a specification. Do not rely on it and **do not append to it** — it is retained only as a historical record. When it disagrees with the code, the code wins.
@@ -75,11 +75,14 @@ ai_contextual_docs/       LEGACY historic build log — read-only, not a source 
 # Local run (needs CGO + gcc for SQLite; Go 1.22+)
 PORT=8150 DB_PATH=./cals.db CF_TEAM_DOMAIN=x CF_POLICY_AUD=y go run ./cmd/server
 
-# Container (this is how it actually deploys)
-docker compose build && docker compose up -d      # → http://localhost:8150
+# Container image (local verification only — Compose is retired as an install method)
+docker build -t cals-dev-v2:local .
+docker run --rm -p 8150:8150 \
+  -e CF_TEAM_DOMAIN=x -e CF_POLICY_AUD=y \
+  -v $PWD/appdata:/app/data cals-dev-v2:local       # → http://localhost:8150
 
-# Health check
-curl -s localhost:8150/health
+# Production deployment: Unraid pulls the prebuilt GHCR image via the
+# cals-dev-v2.xml template — see docs/architecture/unraid-image-release.md
 ```
 
 **Arena sessions — start the preview first.** The sandbox is recycled between turns (no surviving
@@ -134,7 +137,7 @@ Notes:
 ## 6. Definition of done
 
 - [ ] The change is committed on a topic/session branch — nothing pushed to `main`
-- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; `docker compose build` for user-visible deployment changes, noting sandbox Docker limitation)
+- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; `docker build` for user-visible deployment changes, noting sandbox Docker limitation)
 - [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
 - [ ] For UI work, PR describes the concrete user experience improvement and includes a preview/screenshots for owner review; do not cut over on parity alone
 - [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

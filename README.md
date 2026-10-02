@@ -9,6 +9,7 @@ A personal calorie and nutrition tracking application.
 | [`docs/`](docs/README.md) | Documentation index and conventions |
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | 🟡 Proposed overall; **Phase 11 authorized**. React 19 + TypeScript + Vite + Tailwind; UI/UX improvement is a headline requirement. Frontend only — Go API, database, auth and deployment stay unchanged |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branch strategy: `main` is production, `cals-dev` is integration, all work arrives via PR |
+| [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | **How cals is installed and updated**: the `cals-dev-v2.xml` Unraid template + prebuilt GHCR image (Compose is retired as an install method) |
 | [`AGENTS.md`](AGENTS.md) | Working rules for AI agents and contributors — **never push to `main`** |
 | [`ai_contextual_docs/context.txt`](ai_contextual_docs/context.txt) | 🔴 **Legacy** historic build log — superseded by `docs/`, not maintained |
 
@@ -39,7 +40,7 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `8150` | HTTP listen port. The V2 Unraid template overrides this to `8151`; V1/local Compose remains on `8150`. |
+| `PORT` | `8150` | HTTP listen port. The `cals-dev-v2` Unraid template sets this to `8151`; V1 remains on `8150`. |
 | `LOG_LEVEL` | `info` | Log level |
 | `DB_PATH` | `/app/data/cals.db` | SQLite database path |
 | `DEV_MODE` | `false` | Local-only authentication bypass; see [Local Development](docs/architecture/local-development.md) |
@@ -58,23 +59,14 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 Allows searching recipes stored in a separately hosted [Mealie](https://mealie.io) container and importing them into cals.
 
-### Docker network setup
+### Reaching Mealie from cals
 
-Both `cals` and `mealie` must be on the same Docker network so that `cals` can reach `mealie` by container hostname:
+`cals` must be able to reach Mealie over the network. Set `MEALIE_BASE_URL` to an address the cals container can resolve and route to:
 
-```yaml
-# docker-compose.yml excerpt
-services:
-  cals:
-    environment:
-      MEALIE_BASE_URL: http://mealie:9000
-      MEALIE_API_KEY: your-mealie-api-key
-  mealie:
-    ...
-networks:
-  default:
-    name: app_network
-```
+- **V2 Unraid template container** (`cals-dev-v2`, bridge network): use a routable address, typically the Unraid host IP — `MEALIE_BASE_URL=http://<unraid-host-ip>:9000`. Container-hostname resolution (`http://mealie:9000`) only works when both containers share a user-defined Docker network; if you want that, add `--network <name>` to `ExtraParams` on both containers.
+- **Legacy V1 deployment** (the existing Compose setup, kept only for the current V1 server): both services sit on the same Compose network, so `MEALIE_BASE_URL=http://mealie:9000` works there as before.
+
+In both cases `MEALIE_API_KEY` is the Mealie API key.
 
 ### Endpoints
 

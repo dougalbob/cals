@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — finish Phase 11 PR #5 in this session; Part 2 (first V2 GHCR image) is the next session's task |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 11 PR #5 is merged into `cals-dev` (merge `714780d`); the focused task is now Part 2: publish the first V2 GHCR image, after which the owner installs V2 from the `cals-dev-v2.xml` Unraid template |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (next session's Part 2), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -11,9 +11,9 @@
 
 ## Current owner-directed handoff (2026-10-02)
 
-1. **This session:** finish the Phase 11 foundation PR #5 first. Keep it separate from the GHCR publishing workflow. The owner has explicitly authorized a one-time merge of PR #5 before `docker compose build` could be run in the sandbox; keep that build recorded as unverified. Part 2 must add a build-only CI check and pass it before publishing the first image. PR #5 merges only into `cals-dev`; do not merge to `main`.
-2. **Next session:** pick up **Part 2 — publish the first V2 image** from [`unraid-image-release.md`](./unraid-image-release.md). Start only after confirming PR #5 is merged into `cals-dev`; if it is still open because the Docker/review gate is incomplete, ask the owner rather than publishing an image from an unmerged session branch.
-3. Part 2 targets `ghcr.io/dougalbob/cals-v2`, publishes an exact `v2.0.0-dev-rc1`-style prerelease tag plus `dev-latest`, and smoke-tests the image on Unraid using [`../../cals-v2.xml`](../../cals-v2.xml). This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
+1. **Done:** Phase 11 foundation PR #5 is merged into `cals-dev` (merge commit `714780d`; came from the Arena session branch, nothing merged to `main`). The owner explicitly authorized merging it before the Docker build could be run in the sandbox, so that build is recorded as **unverified** — Part 2's build-only CI check is the gate that must pass before the first image is published.
+2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document now reflects this — do not reintroduce Compose into installation instructions.
+3. **Next session:** pick up **Part 2 — publish the first V2 image** from [`unraid-image-release.md`](./unraid-image-release.md). Part 2 targets `ghcr.io/dougalbob/cals-dev-v2`, publishes an exact `v2.0.0-dev-rc1`-style prerelease tag plus `dev-latest`, and smoke-tests the image on Unraid using [`../../cals-dev-v2.xml`](../../cals-dev-v2.xml). After the first successful publication, the owner copies `cals-dev-v2.xml` into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it as the source template. The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename the package later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ## 0. Before anything else: get the work
 
@@ -26,7 +26,7 @@ refspec was restricted. Explicitly fetch and merge the integration branch before
 git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev
 ```
 
-Then confirm you have it: `ls docs/architecture/` should show four documents, and
+Then confirm you have it: `ls docs/architecture/` should show five documents, and
 `ls web/frontend/` should show the React spike.
 
 **Never push to `main`.** All work goes to the session branch and PRs target **`cals-dev`**. See

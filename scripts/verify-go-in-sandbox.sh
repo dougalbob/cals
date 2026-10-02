@@ -17,8 +17,8 @@
 #
 # WHAT IT DOES NOT DO
 #   * It never modifies the working tree — all of the above happens in /tmp.
-#   * It cannot replace Docker: `docker compose build` must still be verified on
-#     your own machine.
+#   * It cannot replace Docker: `docker build` must still be verified on
+#     your own machine (or by the build-only CI check).
 #   * The toolchain lives in /tmp, which is not snapshotted, so this must be
 #     re-run in each new session (~1 min, less once caches warm).
 #
