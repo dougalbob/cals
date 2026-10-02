@@ -51,7 +51,7 @@ Two GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows),
 | Workflow | File | Trigger | What it does | Token permissions |
 |---|---|---|---|---|
 | **Docker build (validation)** | `docker-validate.yml` | every pull request targeting `cals-dev` or `main` (plus manual dispatch) | `docker build` with no registry login, no push; writes the image id/size to the run summary | `contents: read` |
-| **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, then creates the GitHub prerelease with the image digest in its notes | `contents: write`, `packages: write` |
+| **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, creates the GitHub prerelease with the image digest in its notes, then logs out and verifies the image pulls **anonymously** (the test Unraid depends on) | `contents: write`, `packages: write` |
 
 Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.
 
@@ -120,7 +120,13 @@ This is the documented installation. There is no Compose step and no source buil
 
 ## GHCR visibility
 
-Making the Git repository public does **not** guarantee that a GHCR container package is public. Container Registry package visibility is configured separately, and a newly published package can default to private. The image includes `org.opencontainers.image.source` so GitHub can associate it with this repository, but after the first push check the package settings and explicitly make the package public. Public GHCR container images can be pulled anonymously. See [GitHub's package visibility and permissions documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility) and [Container Registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+Container Registry package visibility is configured separately from the repository, and a package published outside a workflow (CLI, personal access token) starts private. **A package that a workflow publishes with `GITHUB_TOKEN`, linked to its repository, inherits that repository's access permissions — and this repository is public** (see [About permissions for GitHub Packages](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages): "If you publish a package that is linked to a repository, the package inherits its permissions from the linked repository by default"; "in the Container registry, public packages allow anonymous access"). The Dockerfile's `org.opencontainers.image.source` label is what links the package to this repository.
+
+Because that inheritance is an assumption the Unraid install depends on, **every publish now ends by verifying an anonymous pull** — the workflow logs out of GHCR, deletes the local copy and pulls `dev-latest` the way a fresh Unraid container would. A failure fails the run with the exact page to fix:
+
+<https://github.com/users/dougalbob/packages/container/cals-dev-v2/settings> → **Package settings → Danger Zone → Change visibility → Public**.
+
+Only the owner can do that: GitHub does not grant `GITHUB_TOKEN` package administration, so the workflow can detect a private package but not repair one. Public GHCR images can be pulled with no authentication at all, which is what makes the template install work on a server that has no GitHub credentials. See [GitHub's package visibility documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility) and [Container Registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
 The source repository was made public on 2026-10-02 as a prerequisite of this publishing path (Part 2, item 1), so that audit is a continuing obligation: the tree **and Git history** must stay free of appdata, `.env` contents, credentials or other private data. The runtime `.env` belongs in Unraid appdata and must never be committed or included in a Docker build context; `.gitignore` and `.dockerignore` exclude `.env` files. Note that the application source is public but user data never is — data lives only in the Unraid appdata directory.
 
@@ -146,7 +152,7 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
 | 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ⬜ pending the owner-approved tag push |
 | 4 | Corresponding GitHub prerelease for the Git tag created and verified | ⬜ pending (the publish workflow creates it) |
-| 5 | GHCR package visibility set to public if needed | ⬜ owner action after the first push |
+| 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ automated check added; verified by `v2.0.0-dev-rc2` — packages published with `GITHUB_TOKEN` normally inherit the public repository's access, and the workflow now logs out and pulls like a stranger to prove it. If it ever fails, the owner flips visibility on the package settings page (link in the failure message) |
 | 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
 | 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ⬜ |
 
@@ -158,11 +164,11 @@ This first image is a **development smoke-test image**, not a completed UI redes
 
 | Tag | Published | Source commit | Image digest | GitHub prerelease | Unraid smoke test |
 |---|---|---|---|---|---|
-| `v2.0.0-dev-rc1` | *not published yet* | — | — | — | — |
+| `v2.0.0-dev-rc1` | 2026-10-02, [run 37039604171](https://github.com/dougalbob/cals/actions/runs/37039604171) | `51c15b0` on `cals-dev` (PR #8 merge; app version 2.0.0) | `sha256:f4c6c61930b6a7e509ffd578c77815f9d778bc6f46794ff379e5b355cdca06a7` | [v2.0.0-dev-rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) (prerelease) | ⬜ owner |
+| `v2.0.0-dev-rc2` | *in progress* — first checkpoint published with the anonymous-pull check | — | — | — | — |
 
 ## Not implemented yet
 
-- No V2 image has been pushed to GHCR yet; `ghcr.io/dougalbob/cals-dev-v2:dev-latest` is a planned tag, not a currently pullable image.
-- The GHCR package has not been created or made public yet — that happens on the first publish.
-- The first end-to-end Unraid pull/run has not been verified. Docker cannot run in the Arena sandbox, so the first real proof is the owner's smoke test in item 6; the `Docker build (validation)` workflow verifies the image builds on every pull request from now on.
+- The first end-to-end Unraid pull/run has not been verified. Docker cannot run in the Arena sandbox and `ghcr.io` is unreachable from it, so the publish workflow itself now performs the anonymous-pull check (see [GHCR visibility](#ghcr-visibility)) and the owner performs the container smoke test in Part 2 item 6.
 - Stable publishing is not implemented: there is no workflow for a `latest` image after promotion to `main`, and none for `cals-dev-v2.xml` updates.
+- The publish workflow cannot fix package visibility itself: GitHub does not expose package administration to `GITHUB_TOKEN`. If the anonymous-pull check fails, only the owner (who has admin on the package) can flip it, and the failure message says exactly where.
