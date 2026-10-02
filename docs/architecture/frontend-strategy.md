@@ -166,6 +166,10 @@ A timeboxed **spike** precedes everything: build *only* the Diary screen against
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
 
+> **Ready to start?** Follow [`rebuild-kickoff.md`](./rebuild-kickoff.md) — it has the first
+> commands, the `DEV_MODE` first PR, and the guardrails. The phases below are the plan; the kickoff
+> doc is the starting point.
+
 ### 7.1 Spike results — 2026-10-02
 
 A working spike was built to de-risk the decision rather than argue it on paper:

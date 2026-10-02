@@ -12,6 +12,10 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
 2. **Work on your own branch only.** Arena sessions are pinned to `arena/<session-id>`; other agents should use `feat/*` or `fix/*`.
 3. **Open pull requests against `cals-dev`, not `main`.** Only the repository owner promotes `cals-dev` to `main` in a deliberate release PR.
 4. **Before starting work, sync:** `git fetch origin && git merge origin/cals-dev`.
+   **This is not optional.** Session branches are created from `main`, which does *not* contain the
+   merged work (spike, docs, scripts) — without this merge you will be looking at an older tree and
+   will redo or contradict work. If `ls docs/architecture/` does not show `rebuild-kickoff.md`, you
+   have not synced.
 5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`). No credentials in code, docs, tests or commit messages.
 6. **Never delete the repository root or `.git`.** No history rewrites.
 
@@ -37,6 +41,7 @@ A personal calorie and nutrition tracking PWA.
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
+| [`docs/architecture/rebuild-kickoff.md`](docs/architecture/rebuild-kickoff.md) | **Starting the rebuild — read this first** |
 
 ⚠️ **`ai_contextual_docs/context.txt` is LEGACY.** It predates these conventions, its contents have drifted from the code, and it is **not** a specification. Do not rely on it and **do not append to it** — it is retained only as a historical record. When it disagrees with the code, the code wins.
 

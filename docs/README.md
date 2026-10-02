@@ -1,5 +1,11 @@
 # cals documentation
 
+> ## 🚀 Starting the rebuild?
+> Read **[architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md)** first. It has the exact
+> first commands (including `git merge origin/cals-dev` — a new session branch is created from
+> `main`, which does *not* yet contain this work), how to start the preview, and what to build first.
+
+
 Project documentation for **cals**, a personal calorie and nutrition tracking application (Go + SQLite backend, PWA frontend, Cloudflare Zero Trust auth, Docker/Unraid deployment).
 
 ## Contents
@@ -10,6 +16,7 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 | [product/vision-and-open-questions.md](product/vision-and-open-questions.md) | 🟡 Live discovery | The "grill me" document: what cals should become, and every question still open. **Start here.** |
 | [architecture/frontend-strategy.md](architecture/frontend-strategy.md) | 🟡 Proposed | Proposal to rebuild the frontend as React 19 + TypeScript + Vite + Tailwind CSS, with React Router and TanStack Query — phased, frontend-only, Go API untouched. Includes spike results |
 | [architecture/git-workflow.md](architecture/git-workflow.md) | 🟢 Adopted | Branch topology (`main` → `cals-dev` → topic/session branches), protecting production, Arena session linkage, release and rollback |
+| [architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md) | 🟢 Active | **Start here for the rebuild** — first commands, first PR, guardrails, phase notes |
 | [architecture/local-development.md](architecture/local-development.md) | 🟡 Proposed | `DEV_MODE` for local work without Cloudflare Access, plus the `appdata/cals-dev` data-copy workflow |
 | [../AGENTS.md](../AGENTS.md) | 🟢 Adopted | Working rules for AI agents and contributors — **read this before touching the repo** |
 | [../web/frontend/README.md](../web/frontend/README.md) | 🟡 Spike | Working React spike (Diary, Metrics, Foods) with a fixture API. Not wired into the app |
