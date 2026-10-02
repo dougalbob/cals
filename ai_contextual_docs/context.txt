@@ -1,3 +1,37 @@
+################################################################################
+# LEGACY FILE - DO NOT RELY ON THIS - DO NOT APPEND TO IT
+################################################################################
+#
+# STATUS:   Deprecated as of 2026-10-02. Kept only as a historical record.
+# WHY:      Written before this project adopted normal documentation
+#           conventions. It is a flat, hand-rolled log whose contents have
+#           drifted from reality (see "KNOWN STALE" below). It is not a
+#           specification and must not be treated as one.
+#
+# INSTEAD USE:
+#   docs/README.md                                  index of all documentation
+#   docs/product/vision-and-open-questions.md       what cals should become
+#   docs/architecture/frontend-strategy.md          the rebuild plan
+#   docs/architecture/git-workflow.md               branches, releases, safety
+#   docs/architecture/local-development.md          DEV_MODE + safe data copy
+#   AGENTS.md                                       rules for AI agents
+#   The code itself: internal/models/models.go, internal/database/migrations.go,
+#   and the route table in cmd/server/main.go are the real sources of truth.
+#
+# KNOWN STALE (do not trust these lines):
+#   - "STACK:" claims vanillajs only; a React/TypeScript spike now exists
+#     in web/frontend/ and a migration is proposed.
+#   - FEATURES_PENDING / API_ENDPOINTS_PENDING list items long since built
+#     (diary, weight, measurements, drinks, recipes, nutrition, fitness).
+#   - No mention of the Mealie integration, Google Fit, or the drinks feature.
+#   - Water appears as "pending"; in reality it is half-built: a water_entries
+#     table with no handlers, and a Diary display hard-coded to 0.
+#   - Version and date stamps stop mid-2025 and do not reflect the code.
+#
+# The value that remains: a rough chronological narrative of how the app was
+# built, which is occasionally useful context. Nothing more.
+################################################################################
+
 PROJECT:cals
 DOMAIN:cals.duncandoes.uk
 PORT:8150
@@ -812,3 +846,168 @@ NOTES:
 - Protein: 4 cal/g, Carbs: 4 cal/g, Fat: 9 cal/g for percentage calculations
 - Default goals: 0.8g/kg protein, 30g fibre, <35% fat, 45-65% carbs
 - Uses existing weight_entries for body weight data
+
+---
+UPDATE:2026-10-02
+DOCS_ONLY:no-application-code-changes
+PHASE:docs-and-workflow
+
+CHANGES:
++docs/README.md:documentation-index-and-conventions
++docs/architecture/frontend-strategy.md:proposed-react19-typescript-vite-tailwind4-migration(frontend-only,go-api-unchanged)
++docs/architecture/git-workflow.md:branch-topology-main<-cals-dev<-topic/session-branches,protection-plan,release+rollback
++AGENTS.md:working-rules-for-ai-agents-never-push-to-main
++.github/pull_request_template.md:base-branch-cals-dev-checklist
++.githooks/pre-push:blocks-direct-pushes-to-main/master
++scripts/setup-git-hooks.sh:installs-core.hooksPath=.githooks
+~README.md:added-documentation-and-branching-sections
+
+BRANCHING:
+-main:PRODUCTION-protected-by-convention-do-not-push
+-cals-dev:INTEGRATION-branch(PENDING-OWNER-CREATION:git branch cals-dev origin/main && git push -u origin cals-dev)
+-arena/*:arena-session-branches(pr-base-must-be-cals-dev)
+-copilot/*:merged-branches-can-be-deleted
+
+GITHUB_PLAN_LIMITATION:
+-private-repo+github-free=no-enforced-branch-protection-or-rulesets(requires-pro/team/enterprise)
+-do-not-make-repo-public(personal-health-data)
+-mitigations:AGENTS.md,pre-push-hook,PR-template,git-bundle-backups-of-main
+-when-upgraded:protect-main(require-PR,0-approvals-solo,dismiss-stale,no-force-push,no-delete,enforce-admins)
+
+FRONTEND_STACK:DECISION-PENDING
+-proposed:react19+typescript5+vite8+tailwind4+react-router7/8+tanstack-query5
+-additions-proposed:react-hook-form+zod,react-chartjs-2,vite-plugin-pwa,vitest+rtl+msw,playwright
+-rejected:nextjs,htmx+gotemplates,svelte,vue,redux,component-libraries
+-strategy:strangler-phased-frontend-only-migration,legacy-ui-frozen-except-critical-fixes
+-phases:11-foundation,12-diary,13-foods+recipes,14-metrics+nutrition,15-settings+pwa,16-cutover
+-prerequisite:timeboxed-diary-spike-go/no-go
+-serving:go-keeps-apis-serves-web/dist+hashed-assets+index.html-no-store
+-version-stamping:update-version.sh-to-stamp-package.json-not-app.js
+-cf-gotcha:expired-CF-Access-session-returns-HTML-redirect-must-detect-and-reload
+
+NOTES:
+-no-version-bump(docs/workflow-only)
+-next-agent:ask-owner-if-cals-dev-exists-before-opening-pr;if-not,pr-base=main-only-on-explicit-instruction
+
+---
+UPDATE:2026-10-02
+DOCS_AND_SPIKE:no-changes-to-go-app-or-production-frontend
+PHASE:frontend-spike
+
+CHANGES:
++web/frontend/:react19+typescript5.9+vite8.3+tailwind4.3+react-router8.4+tanstack-query5.104-spike(diary,metrics,foods)
++web/frontend/mock-api/:fixture-api-mirroring-go-handler-response-shapes+seeded-data
++web/frontend/src/lib/format.ts+format.test.ts:date-and-stones-lbs-domain-maths-with-unit-tests
++web/frontend/src/routes/DiaryRoute.test.tsx,screens.test.tsx:jsdom-render-tests-against-fixture-api
++.dockerignore:keeps-node_modules-out-of-docker-build-context
+~docs/architecture/frontend-strategy.md:added-7.1-spike-results
+~docs/README.md,AGENTS.md:spike-location-documented
+
+TOOLING_IN_ARENA_SANDBOX:
+-available:node22.22.3,npm10.9.8,npm-registry(63-pkgs-in~16s),vite-dev-server-binds-0.0.0.0:5173,preview-proxy-ok
+-NOT-available:go-toolchain,go.dev,dl.google.com,proxy.golang.org,apt,docker(only-github+registry.npmjs.org-reachable)
+=>ui-only-work-runs-in-sandbox;backend-work-needs-local-machine-or-unraid
+-run-against-real-api:VITE_API_TARGET=http://localhost:8150 npm run dev
+
+SPIKE_METRICS:
+-bundle:374kB-js(116kB-gzip)+16kB-css(4.2kB-gzip)-for-3-screens
+-tsc-strict:clean|tests:14-passing(~2s,all-3-screens)|vite-build:~600ms
+
+FINDINGS_FOR_NEXT_AGENT:
+1-bank.go-sums-diary_entries-only,app.js-ring-includes-drink-calories:inconsistency-needs-owner-decision+regression-test
+2-version-drift:web/public/sw.js-says-1.4.0-while-main.go-and-app.js-say-1.7.0
+3-CF-Access-session-expiry-returns-HTML-not-JSON401:handled-once-in-web/frontend/src/api/client.ts
+4-fixture-api-returns-501-with-explicit-message-for-unimplemented-mutations
+5-spike-is-not-served-by-go-and-not-copied-into-the-docker-image
+
+NOTES:
+-no-version-bump(spike-and-docs-only)
+-no-changes-to-internal/**-or-web/static/**-or-cmd/**
+
+---
+UPDATE:2026-10-02
+DOCS_ONLY:preview-startup-guidance
+PHASE:frontend-spike
+
+CHANGES:
++scripts/serve-frontend-preview.sh:one-command-preview-startup(installs-deps-if-missing,then-vite-on-0.0.0.0:5173)
+~web/frontend/README.md:preview-in-arena-section+expired-preview-explanation
+~AGENTS.md:arena-sessions-start-the-preview-first+no-go-toolchain-note
+
+PREVIEW_EXPIRED_ROOT_CAUSE:
+-arena-recycles-the-sandbox-between-turns:node_modules-and-running-processes-do-not-survive
+-preview-urls-are-per-sandbox:https://<port>-<sandbox-id>.e2b.app-so-a-new-sandbox-means-a-new-url
+=>old-preview-tabs-always-show-Expired-regardless-of-server-health
+-fix:start-preview-as-FIRST-action-of-the-session(scripts/serve-frontend-preview.sh),open-from-the-process-panel
+-not-an-application-bug:not-related-to-vite-config,go-integration-or-build-output
+-verified:port-5173-registered-in-the-startup-window,all-routes-200-including-deep-links
+
+NOTES:
+-no-version-bump(docs+scripting-only)
+-still-open-for-owner:go/no-go-on-migration,whether-bank-includes-drinks
+
+---
+UPDATE:2026-10-02
+PREVIEW_RELIABILITY:no-changes-to-go-app-or-production-frontend
+PHASE:frontend-spike
+
+CHANGES:
++web/frontend/serve-preview.mjs:dependency-free-node-server(serves-prebuilt-preview/+fixture-api-in-process+SPA-fallback+hashed-asset-caching)
++scripts/serve-frontend-preview.sh:layered-startup(fast-static-path,--dev-for-vite,idempotent,port-hygiene)
+~web/frontend/package.json:added-build:preview-and-serve:preview-scripts
+~web/frontend/vite.config.ts:sourcemap-off-for-preview-build(VITE_PREVIEW=1)
+~web/frontend/.gitignore:preview/ignored(but-snapshotted)
+~web/frontend/README.md,AGENTS.md:preview-startup-and-expired-explanation
+
+WHY:
+-vite-dev-server-needs-node_modules,which-is-NOT-snapshotted=>every-new-session-required-npm-install,
+ and-a-platform-Restart-of-the-preview-failed-with-"sh:1:vite:not-found"
+-dist/-is-in-the-snapshot-exclusion-list-but-preview/-is-not,so-the-built-bundle-persists
+
+RESULT:
+-restart-is-~120ms-with-node_modules-DELETED(measured),so-the-preview-Restart-button-now-works
+-startup-script-is-idempotent:healthy-preview=>exit-0;stale-preview-on-port=>take-over;
+ unknown-process-on-port=>report-PID-and-exit-1(never-clobber)
+-verified:all-routes-200(incl-deep-links-and-unknown-client-routes),assets-immutable-cached,
+ index.html-no-store,fixture-API+mutations-working
+-still-true:preview-URLs-are-per-sandbox,so-a-tab-from-an-earlier-turn-always-shows-Expired
+
+NOTES:
+-no-version-bump
+-rebuild-after-frontend-source-changes:npm-run-build:preview(needs-npm-install)
+-still-open-for-owner:go/no-go-on-migration,whether-bank-includes-drinks
+
+---
+UPDATE:2026-10-02
+SANDBOX_CAPABILITY:go-can-be-built-and-run-despite-no-toolchain-image
+PHASE:frontend-spike
+
+CHANGES:
++scripts/verify-go-in-sandbox.sh:obtains-go-via-pypi-go-bin-wheel+github-module-fetch,builds-cmd/server-in-/tmp(never-touches-working-tree)
+~AGENTS.md,docs/architecture/frontend-strategy.md(7.1+checklist):corrected-previous-claim-that-go-was-unavailable
+
+HOW:
+-pypi.org-IS-reachable(unlike-go.dev/dl.google.com/proxy.golang.org/apt/docker)
+-pypi-package-go-bin-ships-a-real-toolchain(go1.27.1-linux-amd64,~71MB-wheel)->venv-at-/tmp/govenv
+-github-IS-reachable=>GOPROXY=direct-fetches-github.com-deps
+-golang.org/x/image-is-a-vanity-import(go.googlesource.com-blocked)->scratch-copy-adds
+ replace-golang.org/x/image=>github.com/golang/image-v0.15.0(NOT-in-the-real-go.mod)
+-gcc-12.2-present=>CGO_ENABLED=1-works-for-go-sqlite3
+
+VERIFIED_END_TO_END:
+-go-build-./cmd/server->15MB-binary
+-server-started:"Database connected","migrations completed","Starting Cals v1.7.0 on port 8150"
+-/health=OK,/api/version={"version":"1.7.0"},/=200(SPA-shell),/api/users/me=401(CF-middleware-active)
+-17-tables-created-by-migrations,journal_mode=wal
+-cold-build-~60s,warm-~1.2s
+
+STILL_NOT_POSSIBLE_IN_SANDBOX:
+-docker(no-daemon)=>docker-compose-build-must-be-verified-locally
+-real-user-data(needs-a-valid-CF-Access-JWT;401-is-correct-behaviour)
+-playwright-browser-downloads(cdn.playwright.dev-blocked)
+-toolchain-does-not-persist(/tmp-not-snapshotted)
+-go1.27-here-vs-1.22-pinned-in-Dockerfile
+
+NOTES:
+-future-sessions:run-scripts/verify-go-in-sandbox.sh-to-compile-or-run-the-real-backend
+-still-open-for-owner:go/no-go-on-migration,whether-bank-includes-drinks
