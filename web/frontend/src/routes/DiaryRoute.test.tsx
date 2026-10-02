@@ -19,6 +19,8 @@ import * as seed from '../../mock-api/seed.mjs'
 import { DiaryRoute } from './DiaryRoute'
 import { addDays, formatNumber, todayIso } from '../lib/format'
 import { orderQuickDrinks } from '../components/QuickDrinks'
+import { pickWaterDrink } from '../components/WaterCard'
+import type { Drink } from '../api/types'
 
 function renderDiary(path: string) {
   const queryClient = new QueryClient({
@@ -77,6 +79,27 @@ describe('orderQuickDrinks', () => {
       'Squash',
       'Lager',
     ])
+  })
+})
+
+describe('pickWaterDrink', () => {
+  const drink = (id: number, name: string): Drink => ({
+    id,
+    user_id: 1,
+    name,
+    icon: '💧',
+    volume_ml: 250,
+    calories: 0,
+    counts_toward_water: true,
+  })
+
+  it('prefers the drink named Water even when several count towards water', () => {
+    expect(pickWaterDrink([drink(1, 'Black Coffee'), drink(2, 'Tea'), drink(3, 'Water')])?.name).toBe('Water')
+  })
+
+  it('falls back to the first water-counting drink, and to null when there is none', () => {
+    expect(pickWaterDrink([drink(1, 'Squash')])?.name).toBe('Squash')
+    expect(pickWaterDrink([])).toBeNull()
   })
 })
 
