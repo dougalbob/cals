@@ -3,6 +3,16 @@ import type { Drink } from '../api/types'
 import { formatNumber } from '../lib/format'
 
 /**
+ * Picks the drink used for the one-tap glass: the user's drink literally named
+ * "Water" if they have one, otherwise the first water-counting drink. Users may
+ * flag several drinks (tea, squash, coffee) — the glass should still be water.
+ */
+export function pickWaterDrink(drinks: Drink[]): Drink | null {
+  const named = drinks.find((drink) => drink.name.trim().toLowerCase() === 'water')
+  return named ?? drinks[0] ?? null
+}
+
+/**
  * The water target: measured from water-counting drink entries (one source of
  * truth), never a separate water ledger. A standard glass is the user's own
  * water drink, so the volume is theirs, not a hard-coded 250 ml.

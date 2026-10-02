@@ -6,7 +6,7 @@ import { addDrinkEntry, createDiaryEntry, deleteDiaryEntry, deleteDrinkEntry } f
 import { MEALS, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { QuickDrinks } from '../components/QuickDrinks'
-import { WaterCard } from '../components/WaterCard'
+import { WaterCard, pickWaterDrink } from '../components/WaterCard'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
@@ -88,7 +88,7 @@ export function DiaryRoute() {
     () => (drinkDefinitions.data ?? []).filter((drink) => drink.counts_toward_water),
     [drinkDefinitions.data],
   )
-  const waterDrink = waterDrinks[0] ?? null
+  const waterDrink = pickWaterDrink(waterDrinks)
 
   const drinkSummary = useMemo(() => {
     const grouped = new Map<string, { name: string; icon: string; count: number; calories: number; ml: number }>()
