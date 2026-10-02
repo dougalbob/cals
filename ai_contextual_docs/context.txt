@@ -1,3 +1,37 @@
+################################################################################
+# LEGACY FILE - DO NOT RELY ON THIS - DO NOT APPEND TO IT
+################################################################################
+#
+# STATUS:   Deprecated as of 2026-10-02. Kept only as a historical record.
+# WHY:      Written before this project adopted normal documentation
+#           conventions. It is a flat, hand-rolled log whose contents have
+#           drifted from reality (see "KNOWN STALE" below). It is not a
+#           specification and must not be treated as one.
+#
+# INSTEAD USE:
+#   docs/README.md                                  index of all documentation
+#   docs/product/vision-and-open-questions.md       what cals should become
+#   docs/architecture/frontend-strategy.md          the rebuild plan
+#   docs/architecture/git-workflow.md               branches, releases, safety
+#   docs/architecture/local-development.md          DEV_MODE + safe data copy
+#   AGENTS.md                                       rules for AI agents
+#   The code itself: internal/models/models.go, internal/database/migrations.go,
+#   and the route table in cmd/server/main.go are the real sources of truth.
+#
+# KNOWN STALE (do not trust these lines):
+#   - "STACK:" claims vanillajs only; a React/TypeScript spike now exists
+#     in web/frontend/ and a migration is proposed.
+#   - FEATURES_PENDING / API_ENDPOINTS_PENDING list items long since built
+#     (diary, weight, measurements, drinks, recipes, nutrition, fitness).
+#   - No mention of the Mealie integration, Google Fit, or the drinks feature.
+#   - Water appears as "pending"; in reality it is half-built: a water_entries
+#     table with no handlers, and a Diary display hard-coded to 0.
+#   - Version and date stamps stop mid-2025 and do not reflect the code.
+#
+# The value that remains: a rough chronological narrative of how the app was
+# built, which is occasionally useful context. Nothing more.
+################################################################################
+
 PROJECT:cals
 DOMAIN:cals.duncandoes.uk
 PORT:8150

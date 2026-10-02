@@ -29,7 +29,16 @@ A personal calorie and nutrition tracking PWA.
 | Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
 | Deploy | Single Docker image → Unraid, container `cals-counter`, port `8150`, data in `/app/data` |
 
-Compact domain/context file maintained in a custom format: **`ai_contextual_docs/context.txt`** — read it before making changes, and append an entry when you finish.
+**Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
+
+| Read this | For |
+|---|---|
+| [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) | What cals should become; every open question |
+| [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
+| [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
+| [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
+
+⚠️ **`ai_contextual_docs/context.txt` is LEGACY.** It predates these conventions, its contents have drifted from the code, and it is **not** a specification. Do not rely on it and **do not append to it** — it is retained only as a historical record. When it disagrees with the code, the code wins.
 
 ## 2. Layout
 
@@ -49,7 +58,8 @@ web/public/               PWA assets: manifest.json, sw.js, icons (unprotected p
 web/frontend/             SPIKE: React 19 + TS + Vite + Tailwind rebuild (Diary/Metrics/Foods) with a
                           fixture API. Not served by Go, not part of the build — see its README
 docs/                     documentation (see docs/README.md)
-ai_contextual_docs/       agent context file
+ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth
+ docs/                     canonical documentation: product/ and architecture/
 ```
 
 ## 3. Run and build
@@ -105,29 +115,15 @@ Notes:
 
 ## 5. Documentation duties
 
-- Update the relevant file in `docs/` for any architectural or workflow change.
-- Append a dated entry to `ai_contextual_docs/context.txt` at the end of every session, in the existing format:
-
-  ```
-  ---
-  UPDATE:YYYY-MM-DD
-  VERSION:x.y.z
-  PHASE:n-name
-
-  CHANGES:
-  +file:what-was-added
-  ~file:what-changed
-
-  NOTES:
-  -anything-the-next-agent-needs-to-know
-  ```
-
-- Keep the route table in `cmd/server/main.go` and the endpoint list in `context.txt` in sync.
-- Mark proposals clearly (`Status: PROPOSED`) and do not describe unbuilt work as if it exists.
+- **`docs/` is the source of truth for documentation** (see [`docs/README.md`](docs/README.md)). Update the relevant document — or add one, following the folder conventions — for any architectural, product or workflow change.
+- **Do not append to `ai_contextual_docs/context.txt`.** It is legacy and frozen; see the section above.
+- Update [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) when a question is answered or a new one appears — record the answer in its *Decisions so far* table with a date.
+- Mark documents with a status header: 🟡 Proposed / Live discovery, 🟢 Adopted, 🔴 Legacy. Never describe unbuilt work as if it exists.
+- Where documentation and code disagree, the code wins and the documentation is the bug — fix it in the same PR.
 
 ## 6. Definition of done
 
 - [ ] The change is committed on a topic/session branch — nothing pushed to `main`
 - [ ] Appropriate build/verification run (`go build ./...`, and `docker compose build` for anything user-visible)
-- [ ] `docs/` and `ai_contextual_docs/context.txt` updated
+- [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
 - [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

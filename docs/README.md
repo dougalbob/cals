@@ -4,19 +4,22 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 
 ## Contents
 
-| Document | Status | What it covers |
+| File | Status | What it is |
 |---|---|---|
-| [architecture/frontend-strategy.md](architecture/frontend-strategy.md) | 🟡 Proposed | Proposal to rebuild the frontend as React 19 + TypeScript + Vite + Tailwind CSS v4, with React Router and TanStack Query — phased, frontend-only, Go API untouched |
-| [architecture/git-workflow.md](architecture/git-workflow.md) | 🟢 Adopted | Branch topology (`main` → `cals-dev` → topic/session branches), protecting production, Arena session linkage, release and rollback procedure |
-| [../web/frontend/README.md](../web/frontend/README.md) | 🟡 Spike | Working React 19 + TS + Vite + Tailwind spike (Diary, Metrics, Foods) with a fixture API that mirrors the Go handlers. Not wired into the app |
+| [README.md](README.md) | — | This index, and the conventions below |
+| [product/vision-and-open-questions.md](product/vision-and-open-questions.md) | 🟡 Live discovery | The "grill me" document: what cals should become, and every question still open. **Start here.** |
+| [architecture/frontend-strategy.md](architecture/frontend-strategy.md) | 🟡 Proposed | Proposal to rebuild the frontend as React 19 + TypeScript + Vite + Tailwind CSS, with React Router and TanStack Query — phased, frontend-only, Go API untouched. Includes spike results |
+| [architecture/git-workflow.md](architecture/git-workflow.md) | 🟢 Adopted | Branch topology (`main` → `cals-dev` → topic/session branches), protecting production, Arena session linkage, release and rollback |
+| [architecture/local-development.md](architecture/local-development.md) | 🟡 Proposed | `DEV_MODE` for local work without Cloudflare Access, plus the `appdata/cals-dev` data-copy workflow |
 | [../AGENTS.md](../AGENTS.md) | 🟢 Adopted | Working rules for AI agents and contributors — **read this before touching the repo** |
-| [../ai_contextual_docs/context.txt](../ai_contextual_docs/context.txt) | — | Living domain/context log: schema, endpoints, features, phase history, notes. The single source of truth for what cals *is* |
+| [../web/frontend/README.md](../web/frontend/README.md) | 🟡 Spike | Working React spike (Diary, Metrics, Foods) with a fixture API. Not wired into the app |
 | [../README.md](../README.md) | — | Configuration, environment variables, Mealie integration |
+| [../ai_contextual_docs/context.txt](../ai_contextual_docs/context.txt) | 🔴 **Legacy** | Historic build log from before this convention existed. Superseded by the documents above; **do not append to it or rely on it** — it is known to have drifted from the code |
 
 ## Conventions
 
-- One topic per document under `docs/architecture/`, named with kebab-case.
-- Every document starts with a status header: **🟡 Proposed** (nothing built, decision pending), **🟢 Adopted** (current practice), or **🔴 Superseded** (with a link to the replacement).
+- One topic per document, grouped by folder: `product/` for *what and why*, `architecture/` for *how*.
+- Every document starts with a status header: **🟡 Proposed / Live discovery** (nothing built, decision pending), **🟢 Adopted** (current practice), **🔴 Legacy/Deprecated** (superseded, kept for history).
 - Proposals state the alternative options and why they were rejected, so future maintainers (and agents) do not relitigate them blindly.
-- Behaviour, workflow or architecture changes must be reflected here **and** appended to `ai_contextual_docs/context.txt` in the same PR.
-- Keep facts verifiable: exact file paths, exact commands, versions with dates.
+- Decisions get a date and an owner. Open questions are listed explicitly rather than left implied.
+- **The code is the final source of truth**: `internal/models/models.go` for the API contract, `internal/database/migrations.go` for the schema, and the route table in `cmd/server/main.go` for endpoints. Documentation that disagrees with the code is a bug in the documentation — fix it in the same PR.

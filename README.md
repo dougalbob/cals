@@ -10,7 +10,7 @@ A personal calorie and nutrition tracking application.
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | 🟡 **Proposed:** rebuild the frontend with React 19 + TypeScript + Vite + Tailwind CSS (React Router, TanStack Query). Frontend only — the Go API, database, auth and deployment are unchanged |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branch strategy: `main` is production, `cals-dev` is integration, all work arrives via PR |
 | [`AGENTS.md`](AGENTS.md) | Working rules for AI agents and contributors — **never push to `main`** |
-| [`ai_contextual_docs/context.txt`](ai_contextual_docs/context.txt) | Living log of schema, endpoints, features and phase history |
+| [`ai_contextual_docs/context.txt`](ai_contextual_docs/context.txt) | 🔴 **Legacy** historic build log — superseded by `docs/`, not maintained |
 
 ## Branching (short version)
 

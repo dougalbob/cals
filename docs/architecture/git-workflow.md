@@ -178,7 +178,7 @@ gh pr create --base cals-dev --fill
   > 1. `git fetch origin && git merge origin/cals-dev` before making changes.
   > 2. Never push, merge, or force-push `main` — it is live production.
   > 3. Open the PR against `cals-dev`, never `main`.
-  > 4. Read `AGENTS.md` and `ai_contextual_docs/context.txt` first; update `context.txt` at the end of the session.
+  > 4. Read `AGENTS.md` and `docs/README.md` first; update the relevant document under `docs/` as part of the work. (`ai_contextual_docs/context.txt` is legacy — do not rely on it or append to it.)
 
 ### Releases (`cals-dev` → `main`)
 

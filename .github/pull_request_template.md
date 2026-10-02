@@ -26,7 +26,7 @@ via a release PR promoted by the owner. See docs/architecture/git-workflow.md.
 ## Documentation
 
 - [ ] `docs/` updated where behaviour, architecture or workflow changed
-- [ ] `ai_contextual_docs/context.txt` appended with a dated entry
+- [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
 
 ## Risk / deployment notes
 

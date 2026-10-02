@@ -7,7 +7,7 @@
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go` |
 | **Explicitly out of scope** | `internal/**`, the SQLite schema, all `/api/*` request/response contracts, Cloudflare Zero Trust auth, Docker/Unraid deployment topology |
-| **Related** | [`git-workflow.md`](./git-workflow.md), [`../README.md`](../README.md), `/ai_contextual_docs/context.txt` |
+| **Related** | [`git-workflow.md`](./git-workflow.md), [`local-development.md`](./local-development.md), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) |
 
 ---
 
@@ -32,7 +32,7 @@ This is a *frontend rebuild of a Go application*, not a rewrite of the Go applic
 | Auth | Cloudflare Zero Trust JWT (`CF_TEAM_DOMAIN`, `CF_POLICY_AUD`) on every protected route |
 | Deploy | Single Docker image, Unraid, `cals-counter` container, version stamped in 3 files by `update-version.sh` |
 | Product surface | 6 views: Diary, Metrics, Foods, Recipes, Nutrition, Settings |
-| Maintenance | AI-assisted (GitHub Copilot branches, Arena sessions) with a compact context file at `ai_contextual_docs/context.txt` |
+| Maintenance | AI-assisted (GitHub Copilot branches, Arena sessions); documentation now lives in `docs/` (the old `ai_contextual_docs/context.txt` is legacy and unmaintained) |
 
 The project is genuinely working and in daily use. Any proposal that puts it at risk needs a strong justification, so the justification below is deliberately conservative.
 
@@ -68,7 +68,7 @@ No Next.js, no SSR, no React Server Components, no Redux, no GraphQL, no compone
 ## 4. Why this stack (the honest case)
 
 1. **The rebuild risk is confined to one layer.** The Go API, database, auth and deploy stay untouched. If the migration stalls halfway, the app still works — the old UI is still there.
-2. **Typed contracts kill a whole bug class.** The version history in `ai_contextual_docs/context.txt` shows repeated fixes for null/`NullFloat64` handling, state desync in the recipe editor, duplicate event handlers and date-format drift. TypeScript + a single source of truth for state removes most of that category rather than patching instances of it.
+2. **Typed contracts kill a whole bug class.** The version history in the (now legacy) `ai_contextual_docs/context.txt` shows repeated fixes for null/`NullFloat64` handling, state desync in the recipe editor, duplicate event handlers and date-format drift. TypeScript + a single source of truth for state removes most of that category rather than patching instances of it.
 3. **Declarative state fixes the mobile UX complaints that keep coming back.** Diary refresh, bank recalculation, recipe picker, drinks popup — these are all "the DOM and the data got out of sync" problems. React's model makes that class of bug structurally hard.
 4. **Ecosystem + AI-assistance coverage.** React + TypeScript has more training data, more Stack Overflow answers, more agent tooling and more Copilot/Arena competence than any other frontend stack. For a project maintained largely by AI agents in short sessions, that matters more than raw bundle size.
 5. **A build step buys real leverage.** `tsc --noEmit`, `eslint`, `vitest`, `vite build` are deterministic checks an agent (or CI) can run and *fail on*, instead of eyeballing 647 lines of `app.js`.
@@ -225,7 +225,7 @@ enough that a "no" decision costs a day, not a project.
 - [x] ~~Node 22 LTS available on the dev machine~~ — confirmed available (incl. in the Arena sandbox). Go and Docker are not installed in the sandbox by default, **but a Go toolchain can be obtained there** (see §7.1) for compiling and running the real server. Docker must still be verified locally, and real data requires your Cloudflare session
 - [ ] Acceptance that `web/**` will be rewritten, and the legacy UI will be deleted at cutover
 - [x] ~~A timeboxed spike agreed before Phase 11~~ — done: see `web/frontend/` and §7.1
-- [ ] Agreement that `ai_contextual_docs/context.txt` stays the single source of domain truth and is updated each phase
+- [ ] Agreement that `docs/` stays the single source of documentation truth and is updated each phase (the legacy `ai_contextual_docs/context.txt` is frozen)
 - [ ] Agreement that the Go API is **not** part of this change
 - [ ] Decision on the bank/drinks inconsistency found in §7.1
 
