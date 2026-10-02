@@ -59,6 +59,31 @@ func TestUserExistsByEmailOnlyMatchesExistingUsers(t *testing.T) {
 	}
 }
 
+func TestHandleDevIdentityPageExplainsWhenDatabaseHasNoUsers(t *testing.T) {
+	setupDevIdentityDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/dev/identity", nil)
+	req = req.WithContext(context.WithValue(req.Context(), auth.UserEmailKey, "default@example.com"))
+	recorder := httptest.NewRecorder()
+
+	HandleDevIdentityPage(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := recorder.Body.String()
+	for _, want := range []string{
+		"No users found in this database.",
+		"never creates them",
+		"disposable copy",
+		"href=\"/\">Open cals</a>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("empty-state page does not contain %q", want)
+		}
+	}
+}
+
 func TestHandleDevIdentityPageListsUsersAndMarksCurrent(t *testing.T) {
 	setupDevIdentityDB(t)
 

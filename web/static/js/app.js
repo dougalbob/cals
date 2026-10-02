@@ -88,8 +88,11 @@ const App = {
 
     async checkForUpdates() {
         try {
-            const response = await fetch('/api/version');
-            const data = await response.json();
+            const data = await API.getVersion();
+            const identityLink = document.getElementById('dev-identity-link');
+            if (identityLink) {
+                identityLink.hidden = data.dev_identity_switch !== true;
+            }
             
             if (data.version !== APP_VERSION) {
                 console.log(`Update available: ${APP_VERSION} -> ${data.version}`);
