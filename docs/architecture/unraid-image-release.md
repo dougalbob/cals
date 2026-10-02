@@ -188,3 +188,16 @@ This first image is a **development smoke-test image**, not a completed UI redes
 - ~~The first end-to-end Unraid run has not been verified.~~ **Verified (owner, 2026-10-02): V2 was installed from `cals-dev-v2.xml` and the Cloudflare route was moved to `8151`.** The anonymous-pull gate has passed on every publish since rc2; Docker still cannot run in the Arena sandbox, so the *image build* is verified by CI and the *container run* by the owner.
 - Stable publishing is not implemented: there is no workflow for a `latest` image after promotion to `main`, and none for `cals-dev-v2.xml` updates.
 - The publish workflow cannot fix package visibility itself: GitHub does not expose package administration to `GITHUB_TOKEN`. If the anonymous-pull check fails, only the owner (who has admin on the package) can flip it, and the failure message says exactly where.
+
+### 2026-10-03 — rc5 dashboard checkpoint
+
+Published **`v2.0.0-dev-rc5`**, source `30c2f327a5c60152cd1530992d2db381a58efa86`
+(PR #17 merge on `cals-dev`). [Publish run 37076288897](https://github.com/dougalbob/cals/actions/runs/37076288897)
+passed, including anonymous pull of `dev-latest`. Digest:
+`sha256:661ca057c2ab3d3b3c79028a89cd54bb9fbeb4e9364a280ce0fecff9ce0058d7`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc5).
+Owner reviewed the Arena dashboard and authorized the full publication loop.
+Force Update `cals-dev-identity` (8152), then open `/next/` to see Today, meal tiles,
+dual ring and shared fluids card with daily counts/confirmed long-press deletion.
+No data copy, template change or schema migration is needed. The legacy root UI
+remains unchanged. Real-data Unraid smoke test is still the owner's to perform.
