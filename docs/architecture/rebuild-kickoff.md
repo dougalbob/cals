@@ -42,8 +42,11 @@
   LAN-only dev container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities, and
   confirm the improvement (see the before/after table in §7.2). Phase 13 does not start until
   that review happens.
-- **Checkpoint `v2.0.0-dev-rc3`** carries the DEV identity switch and Phase 12; update the
-  `cals-dev-v2` container from Unraid after it is published.
+- **Checkpoint `v2.0.0-dev-rc3` is published** (2026-10-02, run 37047488711; digest
+  `sha256:eb8ee80b…`, anonymous pull verified). The `cals-dev-v2` container on Unraid can be
+  updated from `dev-latest` now; the LAN dev container (`cals-dev-identity`) tracks the same
+  tag, so pulling it there is what enables the Phase 12 review as both users. Recorded in the
+  [release log](./unraid-image-release.md#release-log).
 
 ## 0. Before anything else: get the work
 
