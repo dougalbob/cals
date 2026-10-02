@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — V2 is installed and Cloudflare-routed on `8151` (the household's app), running on a 2026-10-02 database copy; the DEV identity switch is implemented and documented.** Next: Phase 12 (Diary) — bank/water/drinks work plus the mobile UI review on the LAN-only dev container |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 (Diary) is implemented and awaits the owner's phone-size review; V2 is Cloudflare-routed on `8151` and the DEV identity switch is live for development.** Next: review the Diary on the LAN dev container as **both** users, then Phase 13 (Foods + Recipes) |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -32,10 +32,18 @@
   loopback/private peers only; never enabled on the Cloudflare container. The LAN-only dev
   container recipe and its ready-to-import template are in
   [`dev-identity-switch.md`](./dev-identity-switch.md) and `cals-dev-identity.xml`.
-- **Next: Phase 12 (Diary)** — drink calories in the bank (+ regression test), one source of
-  truth for water, the quick Tea/Coffee/Water selector from per-user drinks, and the
-  phone-size UI review with both identities on the dev container. Publish the checkpoint as
-  `v2.0.0-dev-rc3`.
+- **Phase 12 (Diary) is implemented** — drink calories in the bank (+ regression tests), one
+  source of truth for water (a `counts_toward_water` flag on drinks, the dead `water_entries`
+  table dropped when empty), the quick Tea/Coffee/Water selector from each user's own drinks,
+  and a water card with one-tap glass and other-amount entry. Design and decisions:
+  [`water-and-drinks.md`](./water-and-drinks.md) and
+  [`frontend-strategy.md`](./frontend-strategy.md) §7.2.
+- **The one remaining acceptance step for Phase 12:** open the new Diary at phone size on the
+  LAN-only dev container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities, and
+  confirm the improvement (see the before/after table in §7.2). Phase 13 does not start until
+  that review happens.
+- **Checkpoint `v2.0.0-dev-rc3`** carries the DEV identity switch and Phase 12; update the
+  `cals-dev-v2` container from Unraid after it is published.
 
 ## 0. Before anything else: get the work
 

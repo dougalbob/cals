@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './client'
-import type { BankResponse, DiaryEntry, DiaryResponse, DrinkEntry, Meal } from './types'
+import type { BankResponse, DiaryEntry, DiaryResponse, Drink, DrinkEntry, Meal, WaterResponse } from './types'
 
 export interface CreateDiaryEntryInput {
   meal: Meal
@@ -24,6 +24,27 @@ export function getBank(date: string): Promise<BankResponse> {
 
 export function getDrinkEntries(date: string): Promise<DrinkEntry[]> {
   return apiGet<DrinkEntry[]>(`/api/drinks/entries?date=${encodeURIComponent(date)}`)
+}
+
+export function getDrinks(): Promise<Drink[]> {
+  return apiGet<Drink[]>('/api/drinks')
+}
+
+export function getWater(date: string): Promise<WaterResponse> {
+  return apiGet<WaterResponse>(`/api/water?date=${encodeURIComponent(date)}`)
+}
+
+/** Add a drink entry. `volumeMl` overrides the drink's typical volume. */
+export function addDrinkEntry(drinkId: number, date: string, volumeMl?: number): Promise<DrinkEntry> {
+  return apiPost<DrinkEntry>('/api/drinks/entries', {
+    drink_id: drinkId,
+    date,
+    ...(volumeMl && volumeMl > 0 ? { volume_ml: volumeMl } : {}),
+  })
+}
+
+export function deleteDrinkEntry(id: number): Promise<void> {
+  return apiDelete<void>(`/api/drinks/entries/${id}`)
 }
 
 export function createDiaryEntry(date: string, input: CreateDiaryEntryInput): Promise<DiaryEntry> {

@@ -83,6 +83,8 @@ export const queryKeys = {
   diary: (date: string) => ['diary', date] as const,
   bank: (date: string) => ['bank', date] as const,
   drinks: (date: string) => ['drinks', date] as const,
+  drinkDefinitions: ['drink-definitions'] as const,
+  water: (date: string) => ['water', date] as const,
   customFoods: ['foods', 'custom'] as const,
   foodSearch: (q: string) => ['foods', 'search', q] as const,
   weight: (days: number) => ['weight', days] as const,

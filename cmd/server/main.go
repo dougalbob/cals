@@ -157,6 +157,9 @@ func main() {
 	mux.Handle("POST /api/drinks/entries", withAuth(http.HandlerFunc(handlers.HandleAddDrinkEntry)))
 	mux.Handle("DELETE /api/drinks/entries/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteDrinkEntry)))
 
+	// Water (one source of truth: drink entries for drinks flagged counts_toward_water)
+	mux.Handle("GET /api/water", withAuth(http.HandlerFunc(handlers.HandleGetWater)))
+
 	// Fitness routes
 	mux.Handle("GET /api/fit/auth", withAuth(http.HandlerFunc(handlers.HandleFitAuth)))
 	mux.Handle("GET /api/fit/callback", withAuth(http.HandlerFunc(handlers.HandleFitCallback)))

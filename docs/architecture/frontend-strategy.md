@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phase 11 authorized on 2026-10-02.** The React spike exists at [`web/frontend/`](../../web/frontend/README.md); Phase 11 is building the safe foundation, while later screen migrations and production cutover remain phase-gated |
+| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented on `cals-dev` (2026-10-02).** Phase 12 (Diary: bank fix, water, quick drinks) is awaiting owner review at phone size on the LAN dev container; later screens and production cutover remain phase-gated |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go` |
@@ -78,7 +78,7 @@ The rebuild is frontend-only, but these existing behaviours and explicit product
 1. **Identity comes from outside the app.** Cloudflare Access (email rule) passes the email; the app auto-creates and shows that person's data. **There is no login page, and the rebuild must not add one.**
 2. **Two real users**, each with their own diary, goals and water target. Your wife is the primary user today, so her flows — daily food logging and the water target, on a phone — should lead the phase priorities.
 3. **No generic seeded opinions.** New users currently get Coffee/Water/Beer/Milk created automatically; per decision 8, the rebuild should not invent arbitrary drinks (or anything else) on someone's behalf.
-4. **The Diary needs familiar quick drinks.** The quick-add selector must make **Tea, Coffee and Water** easy to add, using the signed-in user's drink records and their configured calories/volume—not hard-coded nutrition assumptions. Whether those three are provisioned as editable starter records for new users remains to be decided before Phase 12.
+4. **The Diary needs familiar quick drinks.** The quick-add selector must make **Tea, Coffee and Water** easy to add, using the signed-in user's drink records and their configured calories/volume—not hard-coded nutrition assumptions. **Settled (decision 16): nothing is provisioned**; the selector lists the user's own drinks and prompts them to add one when they have none.
 5. **The UI itself must improve.** Every screen phase must demonstrate a user-visible improvement, with the primary user's mobile workflow leading review; technical parity alone does not pass.
 
 `DEV_MODE` ([`local-development.md`](./local-development.md)) exists so both users' screens can be developed locally against a copy of the data.
@@ -181,6 +181,35 @@ Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-tim
 > commands, the `DEV_MODE` first PR, and the guardrails. The phases below are the plan; the kickoff
 > doc is the starting point.
 
+### 7.2 Phase 12 — Diary (implemented 2026-10-02)
+
+Shipped on `cals-dev` (awaiting the owner's phone-size review before it is treated as accepted):
+
+**One source of truth for water.** `drinks.counts_toward_water` marks which drinks count;
+`GET /api/water?date=` derives `consumed_ml` from those drink entries and returns the user's own
+`daily_water_goal_ml`. The dead `water_entries` table is dropped when empty (kept, unused, if it
+ever held rows). Drink entries snapshot their volume and calories, and `POST /api/drinks/entries`
+accepts an optional `volume_ml` so "a 500 ml bottle rather than the usual glass" is still one
+action. Details: [`water-and-drinks.md`](./water-and-drinks.md).
+
+**Drink calories count towards the bank.** `internal/handlers/bank.go` now includes
+`drink_entries`, with a regression test that would have failed before the change.
+
+**The Diary's user-visible improvements** (the acceptance gate for this phase):
+
+| Before | Now |
+|---|---|
+| Water showed a hard-coded `0 / 2000 ml` and never moved — the same dead value in both UIs | A water card shows real intake against the user's target, with a progress bar, one-tap glass (their own glass size) and an "other amount" entry |
+| Drinks were logged from a popup list that included invented defaults (Beer/Milk) and could not be corrected | A quick-drinks row lists the user's own drinks, keeps Tea/Coffee/Water first when they exist, logs in one tap, and every logged drink is listed with its own delete button |
+| "Banked" and the day's ring disagreed whenever a drink was logged | Both now use the same numbers, so the ring, the bank tile and the drink total agree |
+| A drink's calories were re-read live, so editing a definition rewrote past days | Entries keep the values they were logged with; corrections apply from then on |
+| Drinks were fetched ad hoc per screen | Typed API client + TanStack Query keys; logging a drink refreshes diary, water, bank and the drink list together |
+
+**Decisions settled here** (recorded in the vision document): water is logged in ml with a
+one-tap glass (decision 15), the target stays 2000 ml per user and is editable (decision 15),
+nothing is provisioned for new users (decision 16), and the bank has no automatic reset — the
+existing `bank_start_date` setting is the manual "start fresh today" control (decision 17).
+
 ### 7.1 Spike results — 2026-10-02
 
 A working spike was built to de-risk the decision rather than argue it on paper:
@@ -201,9 +230,7 @@ Measured, not estimated:
 
 Findings that affect the plan:
 
-1. **Pre-existing bug surfaced: the bank ignores drinks.** `internal/handlers/bank.go` sums only `diary_entries`,
-   while the diary ring in `app.js` adds drink calories. "Banked" therefore omits drinks that "today"
-   includes. The spike reproduces real behaviour rather than hiding it. **Owner decision is now settled: drinks count.** Phase 12 must include `drink_entries` in consumption and add a regression test; the fix is not part of the Phase 11 foundation.
+1. ~~**Pre-existing bug surfaced: the bank ignores drinks.**~~ **Fixed in Phase 12 (2026-10-02):** `internal/handlers/bank.go` now adds `drink_entries.calories` to the consumption window, with regression tests in `internal/handlers/bank_test.go`. See [`water-and-drinks.md`](./water-and-drinks.md).
 2. **Version drift is real.** `main.go` and `app.js` said 1.7.0 while `sw.js` still said 1.4.0. The
    spike reads the version from `GET /api/version`, removing the duplicated constant. **Resolved
    2026-10-02:** all three files were bumped to 2.0.0 on `cals-dev` for the V2 development line
@@ -266,4 +293,4 @@ enough that a "no" decision costs a day, not a project.
 2. How much feature work is realistically planned over the next 6–12 months (recipes, nutrition, multi-user)?
 3. Is a Node toolchain acceptable on the dev box, or should everything build inside Docker?
 4. Do we keep Chart.js via `react-chartjs-2` (recommended, familiar) or move to Recharts? (The spike uses hand-rolled SVG purely to avoid a CDN dependency in the sandbox — not a recommendation.)
-5. **Quick-drink provisioning:** should brand-new users receive editable Tea/Coffee/Water starter templates, or create those drink definitions themselves before they appear in the quick selector? The selector itself is required; this detail must be settled before Phase 12.
+5. ~~**Quick-drink provisioning:** should brand-new users receive editable Tea/Coffee/Water starter templates?~~ **Settled (2026-10-02, decision 16): no provisioning.** The quick selector shows the signed-in user's own drinks and points them at Settings when the list is empty.

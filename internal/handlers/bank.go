@@ -85,19 +85,36 @@ func HandleGetBank(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get total calories consumed from startDate up to (but not including) asOfDate
-	var totalConsumed float64
+	// Total calories consumed across food (diary) and drinks, from startDate up
+	// to (but not including) asOfDate. Drink calories count towards the bank —
+	// product decision 1, implemented here with a regression test in
+	// internal/handlers/bank_test.go.
+	var totalFoodConsumed, totalDrinkConsumed float64
 	err = database.DB.QueryRow(`
 		SELECT COALESCE(SUM(calories), 0)
 		FROM diary_entries
 		WHERE user_id = ? 
 		AND date(date) >= date(?) 
 		AND date(date) < date(?)
-	`, user.ID, startDate, asOfDate).Scan(&totalConsumed)
+	`, user.ID, startDate, asOfDate).Scan(&totalFoodConsumed)
 	if err != nil {
 		http.Error(w, "Database error calculating calories: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	err = database.DB.QueryRow(`
+		SELECT COALESCE(SUM(calories), 0)
+		FROM drink_entries
+		WHERE user_id = ?
+		AND date(date) >= date(?)
+		AND date(date) < date(?)
+	`, user.ID, startDate, asOfDate).Scan(&totalDrinkConsumed)
+	if err != nil {
+		http.Error(w, "Database error calculating drink calories: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	totalConsumed := totalFoodConsumed + totalDrinkConsumed
 
 	// Bank = total budget for completed days - consumed
 	// e.g., 2 days × 1500 = 3000 budget, consumed 2557, bank = 443

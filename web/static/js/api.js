@@ -219,6 +219,10 @@ const API = {
 
     deleteDrinkEntry(id) {
         return this.request('DELETE', `/api/drinks/entries/${id}`);
+    },
+
+    getWater(date) {
+        return this.request('GET', `/api/water?date=${date}`);
     }
 ,
 

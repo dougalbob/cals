@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
-import { createDiaryEntry, deleteDiaryEntry } from '../api/diary'
-import { MEALS, type Food, type Meal } from '../api/types'
+import { addDrinkEntry, createDiaryEntry, deleteDiaryEntry, deleteDrinkEntry } from '../api/diary'
+import { MEALS, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
-import { useBank, useDiary, useDrinkEntries } from '../hooks/useDiaryData'
+import { QuickDrinks } from '../components/QuickDrinks'
+import { WaterCard } from '../components/WaterCard'
+import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
@@ -26,10 +28,20 @@ export function DiaryRoute() {
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today
 
   const [addingTo, setAddingTo] = useState<Meal | null>(null)
+  const [pendingDrink, setPendingDrink] = useState<number | null>(null)
 
   const diary = useDiary(date)
   const bank = useBank(date)
   const drinks = useDrinkEntries(date)
+  const drinkDefinitions = useDrinkDefinitions()
+  const water = useWater(date)
+
+  /** A logged drink changes the diary totals, the water total and the bank. */
+  const refreshDrinkData = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.drinks(date) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.water(date) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
+  }
 
   const deleteEntry = useMutation({
     mutationFn: deleteDiaryEntry,
@@ -49,6 +61,19 @@ export function DiaryRoute() {
     },
   })
 
+  const addDrink = useMutation({
+    mutationFn: ({ drink, volumeMl }: { drink: Drink; volumeMl?: number }) =>
+      addDrinkEntry(drink.id, date, volumeMl),
+    onMutate: ({ drink }) => setPendingDrink(drink.id),
+    onSettled: () => setPendingDrink(null),
+    onSuccess: refreshDrinkData,
+  })
+
+  const removeDrink = useMutation({
+    mutationFn: deleteDrinkEntry,
+    onSuccess: refreshDrinkData,
+  })
+
   const entries = diary.data?.entries ?? []
   const foodCalories = diary.data?.totals.calories ?? 0
   const drinkCalories = useMemo(
@@ -59,13 +84,21 @@ export function DiaryRoute() {
   const available = bank.data?.today_available ?? 2000
   const bankBalance = bank.data?.bank_balance ?? 0
 
+  const waterDrinks = useMemo(
+    () => (drinkDefinitions.data ?? []).filter((drink) => drink.counts_toward_water),
+    [drinkDefinitions.data],
+  )
+  const waterDrink = waterDrinks[0] ?? null
+
   const drinkSummary = useMemo(() => {
-    const grouped = new Map<string, { name: string; icon: string; count: number; calories: number }>()
+    const grouped = new Map<string, { name: string; icon: string; count: number; calories: number; ml: number }>()
     for (const entry of drinks.data ?? []) {
       const key = entry.name
-      const current = grouped.get(key) ?? { name: entry.name, icon: entry.icon, count: 0, calories: 0 }
+      const current =
+        grouped.get(key) ?? { name: entry.name, icon: entry.icon, count: 0, calories: 0, ml: 0 }
       current.count += 1
       current.calories += entry.calories
+      current.ml += entry.volume_ml
       grouped.set(key, current)
     }
     return [...grouped.values()]
@@ -129,9 +162,34 @@ export function DiaryRoute() {
             tone={bankBalance >= 0 ? 'success' : 'danger'}
           />
           <Tile label="Food" value={formatNumber(foodCalories)} unit="kcal" />
-          <Tile label="Drinks" value={formatNumber(drinkCalories)} unit="kcal" />
+          <Tile
+            label="Drinks"
+            value={formatNumber(drinkCalories)}
+            unit="kcal"
+            hint="counts towards the bank"
+          />
         </div>
       </section>
+
+      {/* Quick drinks — the familiar one-tap selector -------------------- */}
+      <QuickDrinks
+        drinks={drinkDefinitions.data ?? []}
+        pendingDrinkId={pendingDrink}
+        error={addDrink.isError ? (addDrink.error as Error).message : null}
+        onAdd={(drink) => addDrink.mutate({ drink })}
+      />
+
+      {/* Water target — measured from the water-counting drinks above ----- */}
+      <WaterCard
+        consumedMl={water.data?.consumed_ml ?? 0}
+        targetMl={water.data?.target_ml ?? 2000}
+        waterDrink={waterDrink}
+        pending={addDrink.isPending}
+        error={water.isError ? (water.error as Error).message : null}
+        onAdd={(volumeMl) => {
+          if (waterDrink) addDrink.mutate({ drink: waterDrink, volumeMl })
+        }}
+      />
 
       {/* Meals ---------------------------------------------------------- */}
       {MEALS.map((meal) => {
@@ -186,23 +244,44 @@ export function DiaryRoute() {
         )
       })}
 
-      {/* Drinks --------------------------------------------------------- */}
+      {/* Drinks log (removable, so a mistap is easy to fix) --------------- */}
       <section className="rounded-2xl bg-card p-4 shadow-card">
-        <h2 className="m-0 mb-2 text-base font-semibold">🥤 Drinks</h2>
+        <h2 className="m-0 mb-2 text-base font-semibold">Drinks logged</h2>
         {drinkSummary.length === 0 ? (
           <p className="m-0 text-sm text-ink-muted">Nothing logged yet</p>
         ) : (
-          <ul className="list-none m-0 p-0 flex flex-wrap gap-2">
-            {drinkSummary.map((drink) => (
-              <li key={drink.name} className="rounded-xl border border-line px-3 py-1.5 text-sm">
-                <span aria-hidden className="mr-1">
-                  {drink.icon}
+          <ul className="list-none m-0 p-0">
+            {(drinks.data ?? []).map((entry) => (
+              <li
+                key={entry.id}
+                className="flex items-center gap-3 py-2 border-b border-line-light last:border-0"
+              >
+                <span aria-hidden className="text-lg">
+                  {entry.icon || '🥤'}
                 </span>
-                {drink.name} × {drink.count}
-                <span className="ml-2 text-xs text-ink-light">{formatNumber(drink.calories)} kcal</span>
+                <div className="flex-1 min-w-0">
+                  <p className="m-0 truncate text-sm font-medium">{entry.name}</p>
+                  <p className="m-0 text-xs text-ink-light tabular-nums">
+                    {entry.volume_ml} ml · {formatNumber(entry.calories)} kcal
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeDrink.mutate(entry.id)}
+                  disabled={removeDrink.isPending}
+                  className="min-h-9 min-w-9 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
+                  aria-label={`Delete ${entry.name}`}
+                >
+                  🗑
+                </button>
               </li>
             ))}
           </ul>
+        )}
+        {removeDrink.isError && (
+          <p role="alert" className="m-0 mt-2 text-sm text-danger">
+            {(removeDrink.error as Error).message}
+          </p>
         )}
       </section>
 
@@ -222,11 +301,13 @@ function Tile({
   value,
   unit,
   tone,
+  hint,
 }: {
   label: string
   value: string
   unit: string
   tone?: 'success' | 'danger'
+  hint?: string
 }) {
   const toneClass = tone === 'success' ? 'text-success' : tone === 'danger' ? 'text-danger' : 'text-ink'
   return (
@@ -235,6 +316,7 @@ function Tile({
       <p className={`m-0 font-semibold tabular-nums ${toneClass}`}>
         {value} <span className="text-xs font-normal text-ink-light">{unit}</span>
       </p>
+      {hint && <p className="m-0 text-[0.65rem] text-ink-muted">{hint}</p>}
     </div>
   )
 }

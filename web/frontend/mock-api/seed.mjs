@@ -314,18 +314,33 @@ for (let back = 21; back >= 0; back--) {
 // ---------------------------------------------------------------------------
 
 export const drinks = [
-  { id: 1, user_id: 1, name: 'Black Coffee', icon: '☕', volume_ml: 250, calories: 2 },
-  { id: 2, user_id: 1, name: 'Water', icon: '💧', volume_ml: 250, calories: 0 },
-  { id: 3, user_id: 1, name: 'Lager', icon: '🍺', volume_ml: 568, calories: 239 },
-  { id: 4, user_id: 1, name: 'Milk', icon: '🥛', volume_ml: 200, calories: 94 },
+  { id: 1, user_id: 1, name: 'Tea', icon: '🫖', volume_ml: 250, calories: 14, counts_toward_water: true },
+  { id: 2, user_id: 1, name: 'Black Coffee', icon: '☕', volume_ml: 250, calories: 2, counts_toward_water: true },
+  { id: 3, user_id: 1, name: 'Water', icon: '💧', volume_ml: 250, calories: 0, counts_toward_water: true },
+  { id: 4, user_id: 1, name: 'Lager', icon: '🍺', volume_ml: 568, calories: 239, counts_toward_water: false },
+  { id: 5, user_id: 1, name: 'Milk', icon: '🥛', volume_ml: 200, calories: 94, counts_toward_water: false },
 ]
 
 export const drinkEntries = []
 let drinkEntryId = 1
 
-function addDrink(date, drinkId, count, at = '08:00') {
+/** Used by the fixture API's write endpoints. */
+export function nextDrinkEntryId() {
+  return ++drinkEntryId
+}
+
+export function findDrink(id) {
+  return drinks.find((d) => String(d.id) === String(id))
+}
+
+function addDrink(date, drinkId, count, at = '08:00', volumeOverride) {
   const drink = drinks.find((d) => d.id === drinkId)
   for (let i = 0; i < count; i++) {
+    const volume = volumeOverride ?? drink.volume_ml
+    const calories =
+      volume === drink.volume_ml
+        ? drink.calories
+        : Math.round((drink.calories * volume) / drink.volume_ml)
     drinkEntries.push({
       id: drinkEntryId++,
       user_id: 1,
@@ -334,8 +349,8 @@ function addDrink(date, drinkId, count, at = '08:00') {
       created_at: `${date}T${at}:00Z`,
       name: drink.name,
       icon: drink.icon,
-      volume_ml: drink.volume_ml,
-      calories: drink.calories,
+      volume_ml: volume,
+      calories,
     })
   }
 }
@@ -343,10 +358,13 @@ function addDrink(date, drinkId, count, at = '08:00') {
 for (let back = 21; back >= 0; back--) {
   const date = iso(localNoon(back))
   const weekday = localNoon(back).getDay()
-  addDrink(date, 1, 2, '07:30') // two coffees
-  addDrink(date, 2, 4, '10:00') // four waters
-  if (weekday === 5 || weekday === 6) addDrink(date, 3, 2, '19:30') // weekend pints
-  if (back === 0) addDrink(date, 1, 1, '13:10')
+  addDrink(date, 1, 1, '07:20') // morning tea
+  addDrink(date, 2, 2, '07:30') // two coffees
+  addDrink(date, 3, 2, '10:00') // two glasses of water
+  addDrink(date, 1, 1, '15:00') // afternoon tea
+  addDrink(date, 3, 1, '16:30') // another water
+  if (weekday === 5 || weekday === 6) addDrink(date, 4, 2, '19:30') // weekend pints
+  if (back === 0) addDrink(date, 2, 1, '13:10')
 }
 
 // ---------------------------------------------------------------------------
@@ -444,6 +462,25 @@ export function caloriesBetween(startDate, endDateExclusive) {
   )
 }
 
+export function drinkCaloriesBetween(startDate, endDateExclusive) {
+  return round1(
+    drinkEntries
+      .filter((e) => e.date >= startDate && e.date < endDateExclusive)
+      .reduce((acc, e) => acc + e.calories, 0),
+  )
+}
+
+export function waterFor(date) {
+  const waterDrinkIds = new Set(drinks.filter((d) => d.counts_toward_water).map((d) => d.id))
+  const entries = drinkEntries.filter((e) => e.date === date && waterDrinkIds.has(e.drink_id))
+  return {
+    date,
+    consumed_ml: entries.reduce((acc, e) => acc + e.volume_ml, 0),
+    target_ml: user.daily_water_goal_ml,
+    entries,
+  }
+}
+
 export function daysBetween(startDate, endDate) {
   const a = Date.parse(`${startDate}T00:00:00Z`)
   const b = Date.parse(`${endDate}T00:00:00Z`)
@@ -452,4 +489,18 @@ export function daysBetween(startDate, endDate) {
 
 export function dateOffset(daysAgo) {
   return iso(localNoon(daysAgo))
+}
+
+// ---------------------------------------------------------------------------
+// Test/dev helper: restore the seeded diary and drinks after mutations, so
+// tests are deterministic and the preview can be reset without a restart.
+// ---------------------------------------------------------------------------
+const initialDiaryEntries = diaryEntries.slice()
+const initialDrinkEntries = drinkEntries.map((e) => ({ ...e }))
+
+export function resetFixtures() {
+  diaryEntries.length = 0
+  diaryEntries.push(...initialDiaryEntries)
+  drinkEntries.length = 0
+  drinkEntries.push(...initialDrinkEntries.map((e) => ({ ...e })))
 }

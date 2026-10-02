@@ -44,7 +44,8 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 | `LOG_LEVEL` | `info` | Log level |
 | `DB_PATH` | `/app/data/cals.db` | SQLite database path |
 | `DEV_MODE` | `false` | Local-only authentication bypass; see [Local Development](docs/architecture/local-development.md) |
-| `DEV_USER_EMAIL` | *(required with `DEV_MODE=true`)* | User identity to use in local development |
+| `DEV_USER_EMAIL` | *(required with `DEV_MODE=true`)* | User identity to use in local development; the default when the identity switch is on |
+| `DEV_IDENTITY_SWITCH` | `false` | Development only, requires `DEV_MODE=true`: pick any **existing** user from `/dev/identity` or `?as=<email>`. See [DEV Identity Switch](docs/architecture/dev-identity-switch.md) |
 | `BIND_ADDRESS` | *(all interfaces in production; `127.0.0.1` in dev mode)* | Listener IP; dev mode accepts only loopback/private IPs |
 | `FATSECRET_CLIENT_ID` | *(disabled)* | FatSecret API client ID |
 | `FATSECRET_CLIENT_SECRET` | *(disabled)* | FatSecret API client secret |
