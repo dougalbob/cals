@@ -32,7 +32,7 @@ A personal calorie and nutrition tracking PWA.
 | Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` is authorized for Phase 11 and served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
-| Deploy | Single Docker image → Unraid, container `cals-counter`, port `8150`, data in `/app/data` |
+| Deploy | V1 remains on Unraid at host/container port `8150`; V2 is planned as a GHCR image via `cals-v2.xml` at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md` |
 
 **Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
 
@@ -42,6 +42,7 @@ A personal calorie and nutrition tracking PWA.
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
+| [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | V2 GHCR prereleases, Unraid image pulls, `cals-v2.xml`, port and appdata isolation |
 | [`docs/architecture/rebuild-kickoff.md`](docs/architecture/rebuild-kickoff.md) | **Starting the rebuild — read this first** |
 
 ⚠️ **`ai_contextual_docs/context.txt` is LEGACY.** It predates these conventions, its contents have drifted from the code, and it is **not** a specification. Do not rely on it and **do not append to it** — it is retained only as a historical record. When it disagrees with the code, the code wins.

@@ -2,12 +2,18 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE — Phase 11 authorized (2026-10-02).** The starting point for the migration; expected to be retired once Phase 12 is under way |
+| **Status** | 🟢 **ACTIVE HANDOFF — finish Phase 11 PR #5 in this session; Part 2 (first V2 GHCR image) is the next session's task |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
-| **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
+| **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (next session's Part 2), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
 
 ---
+
+## Current owner-directed handoff (2026-10-02)
+
+1. **This session:** finish the Phase 11 foundation PR #5 first. Keep it separate from the GHCR publishing workflow. The PR must pass the available frontend/Go checks, have its documentation and review gates clear, and have the Docker image build verified on a machine with Docker before merge to `cals-dev`. Do not merge to `main`.
+2. **Next session:** pick up **Part 2 — publish the first V2 image** from [`unraid-image-release.md`](./unraid-image-release.md). Start only after confirming PR #5 is merged into `cals-dev`; if it is still open because the Docker/review gate is incomplete, ask the owner rather than publishing an image from an unmerged session branch.
+3. Part 2 targets `ghcr.io/dougalbob/cals-v2`, publishes an exact `v2.0.0-dev-rc1`-style prerelease tag plus `dev-latest`, and smoke-tests the image on Unraid using [`../../cals-v2.xml`](../../cals-v2.xml). This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ## 0. Before anything else: get the work
 

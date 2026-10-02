@@ -39,7 +39,7 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `8150` | HTTP port to listen on |
+| `PORT` | `8150` | HTTP listen port. The V2 Unraid template overrides this to `8151`; V1/local Compose remains on `8150`. |
 | `LOG_LEVEL` | `info` | Log level |
 | `DB_PATH` | `/app/data/cals.db` | SQLite database path |
 | `DEV_MODE` | `false` | Local-only authentication bypass; see [Local Development](docs/architecture/local-development.md) |

@@ -7,6 +7,10 @@
 .git
 .gitignore
 **/node_modules
+.env
+*.env
+**/.env
+**/*.env
 web/frontend/node_modules
 web/frontend/dist
 web/frontend/preview

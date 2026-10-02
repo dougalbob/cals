@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!--
+  Draft Unraid template for the V2 development image.
+  It becomes installable after the GHCR publishing workflow has published
+  ghcr.io/dougalbob/cals-v2:dev-latest and the package has been made public.
+-->
+<Container version="2">
+  <Name>cals-v2</Name>
+  <Repository>ghcr.io/dougalbob/cals-v2:dev-latest</Repository>
+  <Registry>https://github.com/dougalbob/cals/pkgs/container/cals-v2</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/dougalbob/cals/issues</Support>
+  <Project>https://github.com/dougalbob/cals</Project>
+  <Overview>Cals V2 development build. Keep its appdata directory separate from V1. Create /mnt/user/appdata/cals-v2/.env with the required production settings before starting. The React frontend is currently served under /next/ during the migration. This template requires the dev-latest GHCR image to be published first.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8151]/next/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/dougalbob/cals/cals-dev/cals-v2.xml</TemplateURL>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <DateInstalled>0</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <DonateImg/>
+  <MinVer/>
+  <Description>Cals V2 development build using a prebuilt GHCR image.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8151</HostPort>
+        <ContainerPort>8151</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/cals-v2</HostDir>
+      <ContainerDir>/app/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment/>
+  <Labels/>
+  <Config Name="Host Port" Target="8151" Default="8151" Mode="tcp" Description="Host port mapped to the V2 container port 8151" Type="Port" Display="always" Required="true" Mask="false">8151</Config>
+  <Config Name="V2 appdata folder" Target="/app/data" Default="/mnt/user/appdata/cals-v2" Mode="rw" Description="Persistent SQLite database and /app/data/.env. Keep this separate from V1 while both versions are installed." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/cals-v2</Config>
+  <Config Name="Listen port" Target="PORT" Default="8151" Description="Port the app listens on inside the container" Type="Variable" Display="always" Required="true" Mask="false">8151</Config>
+  <Config Name="Time zone" Target="TZ" Default="Europe/London" Description="Container time zone" Type="Variable" Display="always" Required="false" Mask="false">Europe/London</Config>
+</Container>

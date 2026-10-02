@@ -27,6 +27,10 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o cals ./cmd/server
 # Runtime image
 FROM alpine:latest
 
+# Link GHCR's package page back to the source repository when the image is first published.
+# This enables repository/package linking, but package visibility is still configured separately.
+LABEL org.opencontainers.image.source="https://github.com/dougalbob/cals"
+
 WORKDIR /app
 
 # Install SQLite and CA certificates
@@ -41,6 +45,8 @@ COPY --from=builder /build/web ./web
 # Create data directory
 RUN mkdir -p /app/data
 
-EXPOSE 8150
+# The app's listen port is controlled by PORT. Legacy Compose uses 8150;
+# the V2 Unraid template sets PORT=8151 for side-by-side testing.
+EXPOSE 8150 8151
 
 CMD ["./cals"]
