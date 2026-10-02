@@ -81,6 +81,7 @@ export interface SeedDrink {
   icon: string
   volume_ml: number
   calories: number
+  counts_toward_water: boolean
 }
 
 export interface SeedDrinkEntry {
@@ -164,3 +165,15 @@ export function drinkEntriesFor(date: string): SeedDrinkEntry[]
 export function caloriesBetween(startDate: string, endDateExclusive: string): number
 export function daysBetween(startDate: string, endDate: string): number
 export function dateOffset(daysAgo: number): string
+export function drinkCaloriesBetween(startDate: string, endDateExclusive: string): number
+export interface SeedWaterSummary {
+  date: string
+  consumed_ml: number
+  target_ml: number
+  entries: SeedDrinkEntry[]
+}
+export function waterFor(date: string): SeedWaterSummary
+export function nextDrinkEntryId(): number
+export function findDrink(id: number | string): SeedDrink | undefined
+/** Restores the seeded diary/drinks after a test has mutated them. */
+export function resetFixtures(): void
