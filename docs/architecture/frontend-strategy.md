@@ -65,6 +65,16 @@ No Next.js, no SSR, no React Server Components, no Redux, no GraphQL, no compone
 
 ---
 
+### 3.1 What must be preserved (added 2026-10-02)
+
+The rebuild is frontend-only, but three existing behaviours are load-bearing and must survive it:
+
+1. **Identity comes from outside the app.** Cloudflare Access (email rule) passes the email; the app auto-creates and shows that person's data. **There is no login page, and the rebuild must not add one.**
+2. **Two real users**, each with their own diary, goals and water target. Your wife is the primary user today, so her flows — daily food logging and the water target, on a phone — should lead the phase priorities.
+3. **No seeded opinions.** New users currently get Coffee/Water/Beer/Milk created automatically; per decision 8, the rebuild should not invent drinks (or anything else) on someone's behalf.
+
+`DEV_MODE` ([`local-development.md`](./local-development.md)) exists so both users' screens can be developed locally against a copy of the data.
+
 ## 4. Why this stack (the honest case)
 
 1. **The rebuild risk is confined to one layer.** The Go API, database, auth and deploy stay untouched. If the migration stalls halfway, the app still works — the old UI is still there.

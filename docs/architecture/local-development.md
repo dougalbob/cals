@@ -78,7 +78,7 @@ Proposed behaviour, deliberately conservative:
 | It **does** | It **does not** |
 |---|---|
 | Skip Cloudflare JWT validation and act as a fixed local user | Change anything about production behaviour when unset |
-| Work out "who am I" from a `DEV_USER_EMAIL` env var (default `dev@localhost`) so multi-user testing is possible | Bypass anything on a publicly reachable bind address (see safety below) |
+| Work out "who am I" from a `DEV_USER_EMAIL` env var, so you can develop as **either of the two real users** (there is no in-app login page — identity always comes from outside) | Bypass anything on a publicly reachable bind address (see safety below) |
 | Log a loud, unmissable warning at startup (`⚠️ DEV_MODE — Cloudflare Access is DISABLED`) | Touch the database schema differently, or move any data automatically |
 | Make the local user auto-created on first request, exactly as production does | Reach out to Cloudflare, FatSecret, Mealie or Google Fit any differently |
 
@@ -110,7 +110,7 @@ The alternative — a separate "dev" deployment with its own Access policy and h
 
 ## Open questions
 
-1. **`DEV_USER_EMAIL`** — should dev mode be a single fixed user (`dev@localhost`) or should it let you *choose* a user (query param or env) so you can test your wife's view of the app?
+1. **`DEV_USER_EMAIL` — now the most important part of dev mode.** There are two real users (you and your wife) and identity comes from Cloudflare Access with no in-app login, so dev mode is the *only* way to see a given person's screens locally. It should let you switch between them easily (an env var you restart with, or a dev-only switcher in the UI). Note this means "pretending to be your wife" locally — which is exactly why dev mode must never be reachable off the machine (see the safety design above).
 2. **Should `DEV_MODE` also skip the FatSecret/Mealie/Google Fit integrations** when credentials are missing, or leave them returning `503` as now? (Current behaviour is already graceful, so probably leave it.)
 3. **Where should this live in the plan** — a standalone PR now, or Phase 11 with the frontend foundation?
 4. **Second Unraid template, or the same template with a variable changed by hand?** (The second template is safer: it makes it very hard to point dev work at the production appdata path by mistake.)
