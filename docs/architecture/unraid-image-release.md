@@ -2,8 +2,14 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **Publishing is live on the development channel (2026-10-02): `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` are published, `dev-latest` is anonymously pullable (verified in CI).** The remaining step is the owner's Unraid install and smoke test |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** `v2.0.0-dev-rc1` and `v2.0.0-dev-rc2` are published and `dev-latest` is anonymously pullable (verified in CI) |
 | **Updated** | 2026-10-02 |
+
+> ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
+> touching appdata.** V2 was started from a copy of the database taken on the morning of
+> 2026-10-02, and it has been the household's live app since the Cloudflare route moved to
+> `8151`. Data entered now goes to `/mnt/user/appdata/cals-dev-v2`, V1's database is
+> diverging, and neither is a backup of the other. The database is **not** disposable.
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md), [`local-development.md`](./local-development.md), [`../../cals-dev-v2.xml`](../../cals-dev-v2.xml) |
 
@@ -24,6 +30,13 @@ To avoid human confusion with the older version of the application (V1: containe
 | Appdata (host) | `/mnt/user/appdata/cals-dev-v2`, mounted at `/app/data` |
 | GHCR image (development channel) | `ghcr.io/dougalbob/cals-dev-v2:dev-latest` |
 | Port | host `8151` → container `8151` (template sets `PORT=8151`) |
+
+A second, **LAN-only** template runs the same image for development:
+[`cals-dev-identity.xml`](../../cals-dev-identity.xml) creates `cals-dev-identity` with **host
+networking**, `BIND_ADDRESS` = the Unraid LAN IP, `PORT=8152`, its own disposable
+`/mnt/user/appdata/cals-dev-identity` data copy, and `DEV_MODE=true` +
+`DEV_IDENTITY_SWITCH=true`. It is never routed through Cloudflare. See
+[`dev-identity-switch.md`](./dev-identity-switch.md).
 
 The development template tracks the moving `dev-latest` tag and pins the exact release candidate separately, for example `v2.0.0-dev-rc1`. The plain `latest` tag is reserved for a stable release after promotion to `main`. This keeps the template fixed while new development candidates are published, without making the word `latest` mean both development and stable.
 

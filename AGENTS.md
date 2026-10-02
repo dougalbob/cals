@@ -19,6 +19,7 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
    have not synced.
 5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`). No credentials in code, docs, tests or commit messages.
 6. **Never delete the repository root or `.git`.** No history rewrites.
+7. **Never touch live appdata.** V2 (`/mnt/user/appdata/cals-dev-v2`) is the household's live data since 2026-10-02 even though it began as a copy; the V1 directory (`/mnt/user/appdata/cals`) is stale, and neither may be used as a development data directory. The only disposable data is the `cals-dev-identity` copy. See `docs/architecture/data-copy-warning.md`.
 
 The local `pre-push` hook (`.githooks/pre-push`, installed with `./scripts/setup-git-hooks.sh`) blocks pushes to `main` as a backstop. Do not circumvent it with `--no-verify` or `ALLOW_MAIN_PUSH=1`.
 
@@ -32,7 +33,7 @@ A personal calorie and nutrition tracking PWA.
 | Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` is authorized for Phase 11 and served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (recipe import), Google Fit (steps) |
-| Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md` |
+| Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
 
 **Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
 

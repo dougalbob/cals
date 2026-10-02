@@ -25,6 +25,7 @@ That is already how the backend behaves — `users` is keyed by email and an acc
 - Each person has their own diary, goals, water target and view. Per-user data is already supported server-side and must stay that way.
 - **Your wife is the primary user today.** Her daily flows — logging food and hitting her water target, on her phone — are therefore the flows that matter most. That should drive the priority order in Phases 12–13.
 - `DEV_MODE` must be able to **pretend to be either person**, or her screens can't be tested locally. See [`local-development.md`](../architecture/local-development.md).
+  **Done (2026-10-02):** the opt-in `DEV_IDENTITY_SWITCH` (requires `DEV_MODE`) lets either existing user be picked from `/dev/identity` or `?as=<email>` on the LAN-only dev container — see [`dev-identity-switch.md`](../architecture/dev-identity-switch.md).
 
 **Still open**
 
@@ -148,6 +149,8 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 | 10 | 2026-10-02 | **UI/UX improvement is a headline product requirement.** A framework migration or functional parity alone is not success; the new screens must feel materially better for real daily use, especially on a phone | Owner |
 | 11 | 2026-10-02 | **Phase 11 is authorized.** Keep later phases and production cutover gated by phase-level review; no big-bang rewrite | Owner |
 | 12 | 2026-10-02 | **The V2 development line reports application version `2.0.0`** (bumped from `1.7.0` in `main.go`, `app.js` and `sw.js`), so the app itself shows that it is the version-2 code from `cals-dev`; `main` stays on `1.7.0` until promotion, and each development image is identified by its tag (`v2.0.0-dev-rcN`) | Owner (Arena session, PR #8) |
+| 13 | 2026-10-02 | **The DEV identity switch is adopted**: `DEV_IDENTITY_SWITCH=true` (requires `DEV_MODE=true`) lets a developer pick any **existing** user from `/dev/identity` or `?as=<email>`, remembered in a cookie, on loopback/private peers only. Never enabled on the Cloudflare-routed container; LAN-only dev container uses host networking, `BIND_ADDRESS` = Unraid LAN IP, `PORT=8152` and its own data copy | Owner (Arena session) |
+| 14 | 2026-10-02 | **Data copy warning recorded** ([`data-copy-warning.md`](../architecture/data-copy-warning.md)): V2 is installed and Cloudflare-routed on `8151`, running on a database copied the morning of 2026-10-02, so the household's new data now lands in `/mnt/user/appdata/cals-dev-v2` and diverges from V1. That appdata is **live data, not disposable**; only the `cals-dev-identity` dev copy may be broken | Owner (Arena session) |
 
 Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is the user-facing success criterion; decision 11 authorizes the foundation phase, not an unreviewed production cutover.
 

@@ -95,3 +95,50 @@ func TestLoadRejectsInvalidDevModeValue(t *testing.T) {
 		t.Fatalf("Load() error = %v, want DEV_MODE validation error", err)
 	}
 }
+
+func TestLoadIdentitySwitchDefaultsOffInDevMode(t *testing.T) {
+	setDevConfigEnv(t, "true", "user@example.com", "192.168.1.2")
+	t.Setenv("DEV_IDENTITY_SWITCH", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.DevIdentitySwitch {
+		t.Error("DevIdentitySwitch = true, want false by default")
+	}
+}
+
+func TestLoadAllowsIdentitySwitchOnlyWithDevMode(t *testing.T) {
+	setDevConfigEnv(t, "true", "user@example.com", "192.168.1.2")
+	t.Setenv("DEV_IDENTITY_SWITCH", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.DevIdentitySwitch {
+		t.Error("DevIdentitySwitch = false, want true")
+	}
+}
+
+func TestLoadRejectsIdentitySwitchWithoutDevMode(t *testing.T) {
+	// This is the guard that keeps the switch away from a Cloudflare-routed
+	// deployment: DEV_MODE must be on first, and DEV_MODE itself requires a
+	// loopback/private bind.
+	setDevConfigEnv(t, "", "", "")
+	t.Setenv("DEV_IDENTITY_SWITCH", "true")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DEV_IDENTITY_SWITCH") {
+		t.Fatalf("Load() error = %v, want DEV_IDENTITY_SWITCH validation error", err)
+	}
+}
+
+func TestLoadRejectsInvalidIdentitySwitchValue(t *testing.T) {
+	setDevConfigEnv(t, "true", "user@example.com", "")
+	t.Setenv("DEV_IDENTITY_SWITCH", "sometimes")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DEV_IDENTITY_SWITCH") {
+		t.Fatalf("Load() error = %v, want DEV_IDENTITY_SWITCH validation error", err)
+	}
+}
