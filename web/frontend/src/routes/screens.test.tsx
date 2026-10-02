@@ -1,0 +1,86 @@
+// @vitest-environment jsdom
+/**
+ * Smoke tests for the Metrics and Foods screens.
+ *
+ * The Diary screen has its own behavioural test; these exist so that a broken
+ * screen fails CI rather than only being noticed in the browser. They drive the
+ * fixture API, so chart maths, date formatting and null handling are exercised
+ * with the same data the preview shows.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { handle } from '../../mock-api/handler.mjs'
+import * as seed from '../../mock-api/seed.mjs'
+import { MetricsRoute } from './MetricsRoute'
+import { FoodsRoute } from './FoodsRoute'
+import { formatStonesPounds } from '../lib/format'
+
+function renderRoute(element: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={element} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input), 'http://localhost')
+    const result = handle(init?.method ?? 'GET', url, init?.body ? JSON.parse(String(init.body)) : null)
+    if (!result) return new Response('not found', { status: 404 })
+    return new Response(typeof result.body === 'string' ? result.body : JSON.stringify(result.body), {
+      status: result.status,
+      headers: { 'Content-Type': result.contentType ?? 'application/json' },
+    })
+  })
+})
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+describe('MetricsRoute', () => {
+  it('renders weight, calorie, bank, nutrition and measurement sections', async () => {
+    renderRoute(<MetricsRoute />)
+
+    expect(await screen.findByText('⚖️ Weight')).toBeTruthy()
+    expect(screen.getByText('🔥 Daily calories (14 days)')).toBeTruthy()
+    expect(screen.getByText('🏦 Calorie bank (30 days)')).toBeTruthy()
+    expect(screen.getByText('🥗 Nutrition — 7 day rolling')).toBeTruthy()
+    expect(screen.getByText('📏 Measurements')).toBeTruthy()
+
+    // Current weight is rendered in stones and pounds, from the latest seeded
+    // entry (it appears twice: the "Current" tile and the chart's last-point label).
+    const latest = [...seed.weightEntries].sort((a, b) => b.date.localeCompare(a.date))[0]
+    expect((await screen.findAllByText(formatStonesPounds(latest.weight_kg))).length).toBeGreaterThan(0)
+
+    // The protein traffic light renders its value and per-kg target
+    const protein = screen.getByText('Protein').closest('div') as HTMLElement
+    expect(within(protein).getByText(/g\/kg \(goal /)).toBeTruthy()
+  })
+})
+
+describe('FoodsRoute', () => {
+  it('lists custom foods and hides search results until a query is typed', async () => {
+    renderRoute(<FoodsRoute />)
+
+    expect(await screen.findByText('🥗 My foods')).toBeTruthy()
+
+    // Custom foods (is_edited = true) are counted and listed
+    const custom = seed.foods.filter((food) => food.is_edited)
+    expect(custom.length).toBeGreaterThan(0)
+    expect(await screen.findByText(new RegExp(`^${custom.length} custom foods`))).toBeTruthy()
+    expect(await screen.findByText(custom[0].name)).toBeTruthy()
+
+    // No search results before a query is entered
+    expect(screen.queryByText('Searching…')).toBeNull()
+  })
+})

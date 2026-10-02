@@ -171,7 +171,7 @@ Measured, not estimated:
 | Does the toolchain work in the Arena sandbox? | **Yes.** Node 22.22.3, npm 10.9.8, registry reachable, 63 packages installed in ~16 s, Vite dev server on `0.0.0.0:5173` with `allowedHosts: true` served the preview proxy cleanly |
 | Is the Go toolchain available in the sandbox? | **No** — `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are all unreachable. Only GitHub and npm are open. This is why the spike ships a fixture API; on a real dev machine (or Unraid) `VITE_API_TARGET` points at `go run ./cmd/server` and nothing changes |
 | What does it cost the client? | 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for three screens — one hashed, cacheable bundle versus ~4,500 lines of uncached vanilla JS today |
-| Does a test story appear on day one? | **Yes.** `npm test` runs in ~2 s: date maths (DST, leap days), stones/lbs conversion, and a jsdom render test that mounts the Diary screen against the fixture API |
+| Does a test story appear on day one? | **Yes.** `npm test` runs in ~2 s: date maths (DST, leap days), stones/lbs conversion, and jsdom render tests mounting all three screens against the fixture API |
 | Does it typecheck strictly and build? | **Yes.** `tsc --noEmit` clean under `strict`, `noUnusedLocals`, `verbatimModuleSyntax`; production build in 628 ms |
 
 Findings that affect the plan:

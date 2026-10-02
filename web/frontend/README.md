@@ -77,8 +77,9 @@ npm test              # vitest: domain maths + a jsdom render test of the Diary 
 npm run build         # tsc --noEmit && vite build → dist/
 ```
 
-The render test drives the components through the fixture API, so it fails if a screen stops
-rendering — not just if it stops compiling.
+The render tests drive the components through the fixture API, so a screen that stops rendering
+fails the suite rather than only being noticed in the browser (14 tests across the domain maths and
+all three screens).
 
 ## Findings from this spike
 
@@ -102,7 +103,7 @@ rendering — not just if it stops compiling.
 6. **URL-is-state removes a whole class of bugs.** `/diary/2026-09-30` survives refresh, back and
    deep links; the current SPA keeps the date in a global and resets on reload.
 7. **A testing story exists on day one.** `npm test` runs in ~2 s and already covers date maths
-   (including DST and leap days), stones/lbs conversion, and the Diary screen rendering.
+   (including DST and leap days), stones/lbs conversion, and the rendering of all three screens.
 
 ## Next step
 
