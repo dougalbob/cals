@@ -65,6 +65,17 @@ docker compose build && docker compose up -d      # → http://localhost:8150
 curl -s localhost:8150/health
 ```
 
+**Arena sessions — start the preview first.** The sandbox is recycled between turns (no
+`node_modules`, no surviving processes) and preview URLs are bound to the sandbox instance, so a
+previously open preview tab will report *Expired*. As the **first action of a session**, run:
+
+```bash
+./scripts/serve-frontend-preview.sh    # frontend spike: deps + Vite on 0.0.0.0:5173
+```
+
+Then open the preview from the process panel (not from an old tab). This sandbox has Node but **no
+Go toolchain**, so the Go server itself can only be run on your own machine or Unraid.
+
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
 - Env vars: `PORT`, `LOG_LEVEL`, `DB_PATH`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.

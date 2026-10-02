@@ -29,7 +29,26 @@ every mutation except add/delete diary entry. The production migration phases co
 
 ## Running it
 
-### Against the real Go server (the normal dev loop)
+### In an Arena session — one command, run it first
+
+```bash
+./scripts/serve-frontend-preview.sh     # installs deps if needed, then serves on 0.0.0.0:5173
+```
+
+**Run this as the first action of a session.** Arena recycles the sandbox between turns: the
+`node_modules` directory is not snapshotted and the running process does not survive, so the
+`dist/` and dependency state have to be recreated each turn. The script handles both and pins the
+port so the preview URL stays stable.
+
+> **Preview showing "Expired"?** That is a sandbox-lifetime issue, not an application error.
+> Preview URLs are bound to the sandbox instance (`https://<port>-<sandbox-id>.e2b.app`), and a new
+> sandbox means a new URL — so a tab or bookmark from an earlier turn will always report *Expired*
+> no matter how healthy the server is. Fix: open the preview from the Arena process panel during an
+> active turn (don't refresh the old tab), and if it has already gone stale, ask for the preview to
+> be restarted at the start of the next turn. Starting the server early in the session, as above, is
+> what keeps it available for the whole turn.
+
+### Against the real Go server (the normal dev loop on your own machine)
 
 ```bash
 # terminal 1
@@ -43,7 +62,7 @@ VITE_API_TARGET=http://localhost:8150 npm run dev
 
 Vite proxies `/api` to Go, so this is a true frontend-only rebuild — no backend changes needed.
 
-### Against the fixture API (this sandbox, and for UI work without a DB)
+### Against the fixture API (on your own machine, or for UI work without a DB)
 
 ```bash
 cd web/frontend
@@ -53,7 +72,8 @@ npm run dev                          # http://localhost:5173
 
 > **Note:** `node_modules/` is excluded from the Arena workspace snapshot, so a **new session must
 > run `npm install`** (about 4 s, 120 packages) before `npm run dev` — otherwise Vite fails with
-> `sh: 1: vite: not found`. Nothing else is needed: the fixture API has no external dependencies.
+> `sh: 1: vite: not found`. `./scripts/serve-frontend-preview.sh` does this for you. Nothing else is
+> needed: the fixture API has no external dependencies.
 
 With no `VITE_API_TARGET`, a Vite plugin mounts `mock-api/` as same-origin `/api/*` routes.
 Seeded data is generated relative to *today*, so the diary always looks live: 21 days of food
