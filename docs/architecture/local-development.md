@@ -5,7 +5,7 @@
 | **Status** | 🟢 **ADOPTED — implemented** |
 | **Updated** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
-| **Scope** | `cmd/server/main.go`, `internal/config/`, `internal/auth/`, tests and documentation. The Docker image and production compose defaults are unchanged. |
+| **Scope** | `cmd/server/main.go`, `internal/config/`, `internal/auth/`, tests and documentation. The Docker image and production deployment defaults are unchanged. |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) |
 
 ## The problem this solves
@@ -114,8 +114,8 @@ Verified in the Arena sandbox (the helper installs Go 1.27 in `/tmp`; Docker is 
 - With `DEV_MODE=false`, `/api/users/me` and `/api/debug/fatsecret` return `401` without a Cloudflare token; `/health` remains public.
 - Unit tests cover public-peer denial (including a spoofed `X-Forwarded-For`), private/loopback acceptance, per-user identity, configuration validation, and the production listener default.
 
-`docker compose build` still needs to be checked on a machine with Docker. This is the first standalone backend change in the frontend rebuild plan; it does not change the database schema or production authentication behavior for existing routes.
+`docker build` still needs to be checked on a machine with Docker. This is the first standalone backend change in the frontend rebuild plan; it does not change the database schema or production authentication behavior for existing routes.
 
 ## Remaining operational choice
 
-Use a **second Unraid template** for development so it is difficult to point the dev container at production appdata. The repository does not contain the Unraid template itself; configure its bind and port mapping as described above.
+Use a **second Unraid template** for development so it is difficult to point the dev container at production appdata. Note the distinction: the `cals-dev-v2.xml` template in the repository is the V2 development *image* deployment (appdata `/mnt/user/appdata/cals-dev-v2`) — it is not a `DEV_MODE` development container. A `DEV_MODE` container still needs its own template configured with the bind and port mapping described above, mounting the `cals-dev` data copy, never `cals`.

@@ -18,7 +18,7 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 | [architecture/git-workflow.md](architecture/git-workflow.md) | 🟢 Adopted | Branch topology (`main` → `cals-dev` → topic/session branches), protecting production, Arena session linkage, release and rollback |
 | [architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md) | 🟢 Active | **Start here for the rebuild** — first commands, first PR, guardrails, phase notes |
 | [architecture/local-development.md](architecture/local-development.md) | 🟢 Adopted | `DEV_MODE` for local work without Cloudflare Access, guarded by safe bind/request checks and the `appdata/cals-dev` data-copy workflow |
-| [architecture/unraid-image-release.md](architecture/unraid-image-release.md) | 🟡 Target design agreed; workflow pending | V2 prerelease tags, GHCR image publishing, Unraid XML pull, V2 port and appdata isolation |
+| [architecture/unraid-image-release.md](architecture/unraid-image-release.md) | 🟡 Target design agreed; workflow pending | **The only documented install method**: `cals-dev-v2.xml` Unraid template + prebuilt GHCR image (Compose retired as an install path), image publishing, port and appdata isolation |
 | [../AGENTS.md](../AGENTS.md) | 🟢 Adopted | Working rules for AI agents and contributors — **read this before touching the repo** |
 | [../web/frontend/README.md](../web/frontend/README.md) | 🟡 Phase 11 in progress | React Diary/Metrics/Foods foundation with fixtures; served under temporary `/next/`, while the legacy UI remains the default. UI/UX improvement is a headline gate for later screens |
 | [../README.md](../README.md) | — | Configuration, environment variables, Mealie integration |

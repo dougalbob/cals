@@ -20,7 +20,7 @@ via a release PR promoted by the owner. See docs/architecture/git-workflow.md.
 
 - [ ] `go build ./...` passes (backend changes)
 - [ ] `npm run lint && npm run typecheck && npm test && npm run build:go` passes (React frontend changes)
-- [ ] `docker compose build` succeeds (for user-visible changes)
+- [ ] `docker build` succeeds (for user-visible changes; Docker cannot run in the Arena sandbox, so this is verified on a machine with Docker or by the build-only CI check)
 - [ ] Manually exercised the affected screen/endpoint
 - [ ] For user-facing UI changes: describe the concrete UI/UX improvement and include a phone-sized preview or screenshots for owner review; if this is foundation-only Phase 11 work, say so and keep cutover gated
 - [ ] Existing behaviour, data and migrations are unaffected

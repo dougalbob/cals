@@ -135,7 +135,7 @@ UI. Docker builds this bundle in a Node 22 stage and copies only the built files
 In the Arena sandbox, the Go server was built and run against a temporary database; `/next/`, a Diary
 deep link, the legacy root and a hashed asset all returned successfully with the expected cache
 headers. `go test ./...` and `go vet ./...` pass. **Docker is unavailable in this sandbox**, so run
-`docker compose build` on a machine with Docker before merging the Phase 11 PR.
+`docker build` on a machine with Docker before merging the Phase 11 PR.
 
 ## Findings from this spike
 

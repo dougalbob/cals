@@ -167,11 +167,13 @@ gh pr create --base cals-dev --fill
 3. Review the *whole* diff (`gh pr diff`) — this is the last gate before production.
 4. Merge (squash or merge commit, whichever you prefer — keep it consistent).
 5. Tag it: `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`.
-6. Rebuild/redeploy from `main` (`update-version.sh` then `docker compose build && docker compose up -d`).
+6. Deploy it. Compose is retired as an installation method, so:
+   - **V2 line (going forward):** publish the image per [`unraid-image-release.md`](./unraid-image-release.md) and apply the update to the `cals-dev-v2` Unraid container — no server-side build.
+   - **Legacy V1 server (only if it is still in use):** it predates the template method and is rebuilt manually on the Unraid box from its existing checkout (`docker compose build && docker compose up -d` there, using the kept-for-legacy `docker-compose.yml`). New installs never use Compose.
 
 ### Rollback
 
-- Fastest: redeploy the previous tag/commit (`git checkout vX.Y.Z` → rebuild), or `git revert -m 1 <merge-sha>` on `main` via a PR.
+- Fastest: redeploy the previous tag/commit (`git checkout vX.Y.Z` → rebuild the image, or for V2 roll the GHCR tag back and re-apply the Unraid container update), or `git revert -m 1 <merge-sha>` on `main` via a PR.
 - Because `main` is protected only by convention right now, always know the last-good tag before merging a release.
 
 ---
