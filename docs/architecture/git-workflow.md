@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 Adopted (branch topology) / 🟡 pending owner action (protection settings) |
+| **Status** | 🟢 Adopted (branch topology) / 🟡 protection rules now *available* (repository is public) but not yet applied |
 | **Date** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md), [`../../AGENTS.md`](../../AGENTS.md) |
@@ -24,12 +24,12 @@ Goals, in priority order:
 | Item | State |
 |---|---|
 | Default branch | `main` (production — treat as read-only) |
-| Remote branches | `main`, `cals-dev`, `arena/01a0fc78-cals`, and the merged `copilot/*` branches |
+| Remote branches | `main`, `cals-dev`, `arena/01a0fc78-cals`, `arena/01a0fd8b-cals`, and the merged `copilot/*` branches |
 | `main` tip | `d65812c` — "Merge pull request #2 from dougalbob/copilot/main" |
-| `cals-dev` tip | `a9494cc` — "Merge pull request #3 from dougalbob/arena/01a0fc78-cals" |
-| Branch protection on `main` | **None.** The repo is private and on a plan where protection rules are not available (§4) |
-| Integration branch `cals-dev` | **Created by the owner and present on GitHub** |
-| Repo visibility | Private (`dougalbob/cals`) |
+| `cals-dev` tip | `8695c7e` — "Merge pull request #6 from dougalbob/arena/01a0fd7b-cals" |
+| Branch protection on `main` | **Still none applied**, but it is now *available*: the repository is public, so GitHub Free supports branch protection and rulesets (§4.1) |
+| Integration branch `cals-dev` | Present on GitHub; every change reaches it through a PR |
+| Repo visibility | **Public** (`dougalbob/cals`) — made public by the owner on 2026-10-02 as a prerequisite of the V2 image publication path (see [`unraid-image-release.md`](./unraid-image-release.md), Part 2 item 1). The repository holds the application source only; the database, appdata and `.env` never live in Git |
 | Arena session branches | Named `arena/<session-id>` and fixed for the lifetime of the session; the Arena branch selector determines their starting ref |
 
 ---
@@ -72,17 +72,19 @@ git merge origin/cals-dev
 
 ## 4. Protecting `main` on GitHub
 
-### 4.1 The plan limitation (important)
+### 4.1 The plan limitation (historical — it no longer applies)
 
-GitHub only offers protected branches and rulesets on **private** repositories for **GitHub Pro / Team / Enterprise Cloud / Enterprise Server**. On GitHub Free, protection works on public repositories only. This repository is private, so:
+GitHub only offers protected branches and rulesets on **private** repositories for **GitHub Pro / Team / Enterprise Cloud / Enterprise Server**. On GitHub Free, protection works on public repositories only.
 
-- The **Settings → Branches** / **Settings → Rules → Rulesets** pages will not enforce anything today.
-- Any API call to set protection returns `403: Upgrade to GitHub Pro or make this repository public to enable this feature.`
-- Do **not** make this repository public to work around it — it is personal health data.
+Until 2026-10-02 this repository was **private**, so protection could not be enforced at all and the convention-based layer in §4.3 was the only defence. **The owner made the repository public on 2026-10-02** as a prerequisite of the first V2 image publication ([`unraid-image-release.md`](./unraid-image-release.md), Part 2 item 1), which means:
+
+- **Settings → Branches / Rules → Rulesets** now work on the current plan, and setting them is a **recommended owner action** (§4.2) — they are not applied yet.
+- The source repository is public, so the audit obligation in [`unraid-image-release.md`](./unraid-image-release.md#ghcr-visibility) is continuous: no appdata, `.env` contents or credentials in the tree **or the history**. The application source is public; user data is not in Git at all.
+- The pre-2026-10-02 guidance ("do not make the repository public just to get protection") is kept here only as history. It applied while protection was the only reason to go public; publication is now a deliberate prerequisite of the image release path, and the protection rules come with it.
 
 Reference: [About protected branches — GitHub Docs](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) ("Protected branches are available in public repositories with GitHub Free … also … in public and private repositories with GitHub Pro, GitHub Team, GitHub Enterprise Cloud, and GitHub Enterprise Server.")
 
-### 4.2 If you upgrade to GitHub Pro (or Team) — the recommended rule for `main`
+### 4.2 Recommended rule for `main` (available now)
 
 **Settings → Branches → Add branch protection rule** (or **Settings → Rules → New ruleset**):
 
@@ -92,7 +94,7 @@ Reference: [About protected branches — GitHub Docs](https://docs.github.com/en
 | Require a pull request before merging | ✅ | No direct pushes, ever |
 | Required approvals | `0` (solo repo — you cannot approve your own PR) | The *PR* is the gate, not the review |
 | Dismiss stale approvals | ✅ | — |
-| Require status checks to pass | ✅ (*once checks exist*) | Front-end phases add `tsc`, lint, tests |
+| Require status checks to pass | ✅ | `Docker build (validation)` runs on every PR now; front-end phases add `tsc`, lint, tests |
 | Require conversation resolution | ✅ | — |
 | Require linear history | ✅ (optional) | Keeps `main` history readable |
 | Allow force pushes | ❌ | Non-negotiable |
@@ -101,7 +103,7 @@ Reference: [About protected branches — GitHub Docs](https://docs.github.com/en
 
 Optionally add a **second, lighter** rule for `cals-dev` (require a PR, block force pushes) so the integration branch is protected but never blocked by approvals.
 
-The same settings can be applied from the command line once the plan allows it:
+The same settings can be applied from the command line (now permitted on the public repository):
 
 ```bash
 gh api -X PUT repos/dougalbob/cals/branches/main/protection \
@@ -112,9 +114,9 @@ gh api -X PUT repos/dougalbob/cals/branches/main/protection \
   -F 'allow_force_pushes=false' -F 'allow_deletions=false'
 ```
 
-### 4.3 Until then — the free-plan mitigation stack
+### 4.3 The convention-based layer (keep it even after protection is applied)
 
-Four layers, none of which require a paid plan:
+Four layers, none of which require a paid plan. They are still useful: protection rules do not cover every clone, and the hooks/agents layer works offline.
 
 1. **`AGENTS.md` at the repository root** (added) — every AI agent that reads the repo is told, in the repo itself, that `main` is production, that work goes to `cals-dev` via PR, and that direct pushes to `main` are forbidden. This is the "link to subsequent Arena sessions" you asked about.
 2. **A local `pre-push` hook** (added, at `.githooks/pre-push`) — actually blocks `git push origin main` from any clone where it has been installed, unless `ALLOW_MAIN_PUSH=1` is set deliberately. Install it per clone:
@@ -168,23 +170,23 @@ gh pr create --base cals-dev --fill
 4. Merge (squash or merge commit, whichever you prefer — keep it consistent).
 5. Tag it: `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`.
 6. Deploy it. Compose is retired as an installation method, so:
-   - **V2 line (going forward):** publish the image per [`unraid-image-release.md`](./unraid-image-release.md) and apply the update to the `cals-dev-v2` Unraid container — no server-side build.
+   - **V2 line (going forward):** publish the image per [`unraid-image-release.md`](./unraid-image-release.md) and apply the update to the `cals-dev-v2` Unraid container — no server-side build. Development checkpoints are tagged `vX.Y.Z-dev-rcN` on `cals-dev` and publish to `dev-latest`; a stable `vX.Y.Z` tag does **not** publish from that workflow, so stable publishing is still the owner's manual step/procedure until a stable workflow exists.
    - **Legacy V1 server (only if it is still in use):** it predates the template method and is rebuilt manually on the Unraid box from its existing checkout (`docker compose build && docker compose up -d` there, using the kept-for-legacy `docker-compose.yml`). New installs never use Compose.
 
 ### Rollback
 
 - Fastest: redeploy the previous tag/commit (`git checkout vX.Y.Z` → rebuild the image, or for V2 roll the GHCR tag back and re-apply the Unraid container update), or `git revert -m 1 <merge-sha>` on `main` via a PR.
-- Because `main` is protected only by convention right now, always know the last-good tag before merging a release.
+- `main` has no protection rules applied yet (they are available — §4.2), so it is still protected only by convention. Always know the last-good tag before merging a release.
 
 ---
 
 ## 6. Housekeeping checklist for the owner
 
-- [x] Create and push `cals-dev` (completed; current tip `a9494cc`)
+- [x] Create and push `cals-dev` (completed; current tip `8695c7e`)
 - [ ] Point the Arena PR (and any future PRs) at `cals-dev`
 - [ ] Run `./scripts/setup-git-hooks.sh` in every clone you push from
-- [ ] Decide on GitHub Pro/Team — it is the only way to get *enforced* protection on a private repo (§4.1)
-- [ ] If upgrading: apply the `main` rule in §4.2, plus a lighter `cals-dev` rule
+- [ ] **Apply the `main` protection rule in §4.2** — the repository is public, so protection now works on the current plan; add the lighter `cals-dev` rule too
+- [ ] Note that going public (2026-10-02) also means the source is world-readable: keep credentials, appdata and `.env` out of the tree and history
 - [ ] Set up the `git bundle` backup for `main` and tag the current release (`v1.7.0`)
 - [ ] Optional: delete the merged `copilot/*` branches
 - [ ] Keep `main` as the default branch; revisit only if you deliberately want new clones to land on `cals-dev`

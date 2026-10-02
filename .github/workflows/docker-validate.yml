@@ -1,0 +1,54 @@
+# Build-only validation of the Docker image.
+#
+# Runs on every pull request so that a Dockerfile/source change is proven to
+# build before it reaches `cals-dev` (or `main`). It builds the same image the
+# publish workflow builds, but never logs in to a registry, never pushes, and
+# needs no credentials.
+#
+# Why this exists: the Phase 11 foundation PR was merged with the container
+# build recorded as unverified (Docker cannot run in the Arena sandbox), so this
+# check is the gate that must pass before the first V2 image is published.
+# See docs/architecture/unraid-image-release.md and
+# docs/architecture/rebuild-kickoff.md.
+
+name: Docker build (validation)
+
+on:
+  pull_request:
+    branches:
+      - cals-dev
+      - main
+  workflow_dispatch:
+
+# Read-only: no registry credentials, no package writes.
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: docker build (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pull request merge commit
+        uses: actions/checkout@v4
+
+      # The Dockerfile is the build contract: it runs the frontend lint, tests
+      # and production build in the Node stage, then the CGO Go build.
+      - name: Build the image without pushing
+        run: docker build --tag cals-dev-v2:validation .
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Docker build succeeded (no push)"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Image id | $(docker image inspect cals-dev-v2:validation --format '{{.Id}}') |"
+            echo "| Size (bytes) | $(docker image inspect cals-dev-v2:validation --format '{{.Size}}') |"
+            echo "| Commit | $GITHUB_SHA |"
+          } >> "$GITHUB_STEP_SUMMARY"

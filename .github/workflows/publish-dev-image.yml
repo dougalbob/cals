@@ -1,0 +1,139 @@
+# Publish the V2 development image to GHCR and open its GitHub prerelease.
+#
+# The approval step is the Git tag: pushing a tag that matches `v*-dev*`
+# (the first is v2.0.0-dev-rc1) publishes
+#
+#   ghcr.io/<owner>/cals-dev-v2:<tag>         exact candidate tag (immutable by convention)
+#   ghcr.io/<owner>/cals-dev-v2:dev-latest    moving tag; what cals-dev-v2.xml pulls
+#
+# Plain `latest` is deliberately never published here: it is reserved for a
+# stable release promoted from `cals-dev` to `main`.
+#
+# Procedure, tag rules and the Unraid smoke test:
+# docs/architecture/unraid-image-release.md.
+
+name: Publish V2 image (development)
+
+on:
+  push:
+    tags:
+      - 'v*-dev*'
+
+# Least privilege at the workflow level; the job below opts in to the writes it
+# needs (packages for GHCR, contents for the GitHub prerelease).
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-dev-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/cals-dev-v2
+
+jobs:
+  publish:
+    name: Publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub prerelease
+      packages: write # push the image to GHCR
+    steps:
+      - name: Check out the tagged commit (full history for the guard)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The checked-out commit, not $GITHUB_SHA: annotated tags make the latter
+      # ambiguous, and the image labels/notes should name the exact commit built.
+      - name: Resolve the tagged commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # "Publish from cals-dev; do not build main by accident."
+      - name: Guard - the tagged commit must be on cals-dev
+        run: |
+          git fetch --no-tags origin +refs/heads/cals-dev:refs/remotes/origin/cals-dev
+          if git merge-base --is-ancestor "${{ steps.source.outputs.commit }}" origin/cals-dev; then
+            echo "OK: $GITHUB_REF_NAME (${{ steps.source.outputs.commit }}) is on cals-dev."
+          else
+            echo "::error::Refusing to publish: $GITHUB_REF_NAME (${{ steps.source.outputs.commit }}) is not on origin/cals-dev."
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build the image
+        run: |
+          docker build \
+            --label "org.opencontainers.image.version=$GITHUB_REF_NAME" \
+            --label "org.opencontainers.image.revision=${{ steps.source.outputs.commit }}" \
+            --tag "$IMAGE:$GITHUB_REF_NAME" \
+            --tag "$IMAGE:dev-latest" \
+            .
+
+      - name: Push the exact tag and move dev-latest
+        run: |
+          docker push "$IMAGE:$GITHUB_REF_NAME"
+          docker push "$IMAGE:dev-latest"
+
+      - name: Record the image digest
+        id: image
+        run: |
+          DIGEST="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$GITHUB_REF_NAME")"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Pushed $DIGEST"
+
+      - name: Write the release notes
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          cat > release-notes.md <<NOTES
+          Development checkpoint image for the cals-dev-v2 V2 development channel.
+
+          | Field | Value |
+          |---|---|
+          | Exact image tag | $IMAGE:$GITHUB_REF_NAME |
+          | Moving tag | $IMAGE:dev-latest |
+          | Digest | $DIGEST |
+          | Source commit | $COMMIT on cals-dev |
+          | Workflow run | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID |
+
+          This is a development smoke-test candidate for installing and verifying V2 on Unraid.
+          It is not a finished UI redesign and does not authorize a V1 cutover. The plain latest
+          tag is reserved for a stable release promoted to main.
+          NOTES
+          sed -i 's/^ *//' release-notes.md
+          cat release-notes.md
+
+      - name: Create the GitHub prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "cals-dev-v2 $GITHUB_REF_NAME (development checkpoint)" \
+            --prerelease \
+            --notes-file release-notes.md
+
+      - name: Summarise
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          {
+            echo "### Published $GITHUB_REF_NAME"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Exact tag | $IMAGE:$GITHUB_REF_NAME |"
+            echo "| Moving tag | $IMAGE:dev-latest |"
+            echo "| Digest | $DIGEST |"
+            echo "| Commit | $COMMIT |"
+            echo ""
+            echo "Next: make the GHCR package public if it is not already, then apply"
+            echo "the Unraid container update for cals-dev-v2 and run the smoke test."
+            echo "See docs/architecture/unraid-image-release.md."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -2,18 +2,23 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 11 PR #5 is merged into `cals-dev` (merge `714780d`); the focused task is now Part 2: publish the first V2 GHCR image, after which the owner installs V2 from the `cals-dev-v2.xml` Unraid template |
+| **Status** | 🟢 **ACTIVE HANDOFF — PR #5 (Phase 11 foundation) and PR #6 (Compose retirement / `cals-dev-v2` naming) are merged into `cals-dev`; the focused task is Part 2: publish the first V2 GHCR image.** The Part 2 PR adds the build-check and publish workflows; after it is merged and green, an owner-approved tag publishes the image, and the owner installs V2 from the `cals-dev-v2.xml` Unraid template |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
-| **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (next session's Part 2), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
+| **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
 
 ---
 
 ## Current owner-directed handoff (2026-10-02)
 
-1. **Done:** Phase 11 foundation PR #5 is merged into `cals-dev` (merge commit `714780d`; came from the Arena session branch, nothing merged to `main`). The owner explicitly authorized merging it before the Docker build could be run in the sandbox, so that build is recorded as **unverified** — Part 2's build-only CI check is the gate that must pass before the first image is published.
-2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document now reflects this — do not reintroduce Compose into installation instructions.
-3. **Next session:** pick up **Part 2 — publish the first V2 image** from [`unraid-image-release.md`](./unraid-image-release.md). Part 2 targets `ghcr.io/dougalbob/cals-dev-v2`, publishes an exact `v2.0.0-dev-rc1`-style prerelease tag plus `dev-latest`, and smoke-tests the image on Unraid using [`../../cals-dev-v2.xml`](../../cals-dev-v2.xml). After the first successful publication, the owner copies `cals-dev-v2.xml` into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it as the source template. The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename the package later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
+1. **Done:** Phase 11 foundation PR #5 is merged into `cals-dev` (merge commit `714780d`; came from the Arena session branch, nothing merged to `main`). The owner explicitly authorized merging it before the Docker build could be run in the sandbox, so that build is recorded as **unverified** — the `Docker build (validation)` workflow added in Part 2 is the gate that now proves the image builds on every pull request.
+2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document reflects this — do not reintroduce Compose into installation instructions. PR #6 (merged as `8695c7e`) renamed the V2 development deployment to `cals-dev-v2` end to end and rewrote the install manual.
+3. **In progress — Part 2: publish the first V2 image** (see [`unraid-image-release.md`](./unraid-image-release.md)):
+   - The Part 2 PR adds two workflows: `.github/workflows/docker-validate.yml` (build-only pull-request check, never pushes) and `.github/workflows/publish-dev-image.yml` (builds and publishes to GHCR when a development tag matching `v*-dev*` is pushed, after checking the tagged commit is on `cals-dev`, and creates the GitHub prerelease).
+   - **Owner gate 1:** review and merge that PR into `cals-dev`; its `Docker build (validation)` check must be green (this is the missing Phase 11 build evidence).
+   - **Owner gate 2:** approve the first tag by pushing `v2.0.0-dev-rc1` at a commit on `cals-dev` (or ask the session to push it). The workflow then publishes `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` and moves `dev-latest`. Nothing is published without this human action, and no `latest` image is produced from a development tag.
+   - **Owner actions after publishing:** make the GHCR package public if it is not already; copy `cals-dev-v2.xml` into the Unraid Docker UI (DockerMan) and create the `cals-dev-v2` container from it; smoke-test health, `/next/`, restart/data persistence and V1 isolation on 8150; record the tag, commit and image digest in the release log.
+   The package name `cals-dev-v2` is deliberately provisional — the owner plans to rename it later; see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ## 0. Before anything else: get the work
 
@@ -58,7 +63,8 @@ reachable; `go.dev` and the Go proxy are not):
 This copies the repo to `/tmp/calstest` and builds with CGO. It has been verified: the server
 starts, migrations create all 17 tables, `/api/users/me` correctly returns `401` without a
 Cloudflare JWT. Nothing in `/tmp` persists between turns. **Docker cannot run in the sandbox** —
-image builds must be checked by the owner.
+the `Docker build (validation)` GitHub Actions workflow builds the image on every pull request, and
+the publish workflow builds the exact tagged commit.
 
 ## 3. First standalone change: `DEV_MODE` (implemented in this branch)
 
@@ -112,11 +118,13 @@ on 2026-10-02:
 | UI improvement is a headline requirement; preview user-facing work on mobile and state the concrete improvement in its PR | A framework migration/parity alone is not success |
 | Run `npm run lint && npm run typecheck && npm test && npm run build` before any frontend PR | Cheap, deterministic, catches regressions |
 | Never change the bank, recipe or unit-conversion maths without tests | Those numbers are trusted |
+| Publish images only from an approved tag on `cals-dev`, and never assign `latest` to a development candidate | The tag push is the human approval step; `latest` is reserved for a stable release promoted to `main` (see [`unraid-image-release.md`](./unraid-image-release.md)) |
 
 ## 6. Definition of done for a phase
 
 - [ ] Committed on the session branch; nothing pushed to `main`
 - [ ] `npm run lint && npm run typecheck && npm test && npm run build && npm run build:go` pass (frontend) / `go build ./...` (backend)
+- [ ] `Docker build (validation)` check green on the PR for anything that changes the image (or `docker build` locally where Docker is available)
 - [ ] Verified against the real server locally where possible (`VITE_API_TARGET=http://localhost:8150`)
 - [ ] For user-facing work: previewed at phone size, documented the concrete UX improvement, and obtained owner review before merge/cutover
 - [ ] `docs/` updated, and the vision document's decisions table amended if a question was answered

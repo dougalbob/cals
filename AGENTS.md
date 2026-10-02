@@ -85,6 +85,11 @@ docker run --rm -p 8150:8150 \
 # cals-dev-v2.xml template — see docs/architecture/unraid-image-release.md
 ```
 
+Container images are published only by the tag-triggered `Publish V2 image (development)` workflow —
+never by hand, never from `main`, and never with `latest` for a development candidate. The
+`Docker build (validation)` workflow builds the image on every pull request without pushing, which
+is how the container build is verified if you cannot run Docker locally.
+
 **Arena sessions — start the preview first.** The sandbox is recycled between turns (no surviving
 processes; `node_modules/` is not snapshotted) and preview URLs are bound to the sandbox instance,
 so a previously opened preview tab reports *Expired*. As the **first action of a session**, run:
@@ -137,7 +142,7 @@ Notes:
 ## 6. Definition of done
 
 - [ ] The change is committed on a topic/session branch — nothing pushed to `main`
-- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; `docker build` for user-visible deployment changes, noting sandbox Docker limitation)
+- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; for image-affecting changes the `Docker build (validation)` workflow runs `docker build` on the PR — Docker itself cannot run in the Arena sandbox)
 - [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
 - [ ] For UI work, PR describes the concrete user experience improvement and includes a preview/screenshots for owner review; do not cut over on parity alone
 - [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 Target deployment design agreed; publishing workflow and first image still pending |
+| **Status** | 🟡 Target deployment design agreed; publishing workflow added (Part 2 PR, 2026-10-02); first image publication and Unraid smoke test pending |
 | **Updated** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md), [`local-development.md`](./local-development.md), [`../../cals-dev-v2.xml`](../../cals-dev-v2.xml) |
@@ -39,8 +39,39 @@ The development template tracks the moving `dev-latest` tag and pins the exact r
 
 1. **Git branch:** `cals-dev` contains the integration source.
 2. **Git tag / GitHub Release:** a tag such as `v2.0.0-dev-rc1` points at one exact commit on `cals-dev`. GitHub Releases are not restricted to `main`; mark this candidate as a prerelease. A GitHub Release is source/version metadata, not a built container image.
-3. **Container image:** a GitHub Actions workflow must build the Docker image from that tag and push it to GHCR with both the exact version tag and `dev-latest`. These are registry tags and must be assigned by the workflow; they are not automatically created from a GitHub Release.
+3. **Container image:** the [publish workflow](#publishing-workflow-added-2026-10-02-part-2-pr) builds the Docker image from that tag and pushes it to GHCR with both the exact version tag and `dev-latest`. These are registry tags assigned by the workflow; they are not automatically created from a GitHub Release.
 4. **Unraid:** `cals-dev-v2.xml` references `ghcr.io/dougalbob/cals-dev-v2:dev-latest`. When the container is updated, Unraid pulls the image currently behind that tag. The XML does not need changing for each RC. Moving the tag does not automatically restart/update a running container; use Unraid's update/apply flow to pull it.
+
+## Publishing workflow (added 2026-10-02, Part 2 PR)
+
+Two GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows) implement the publishing half of this document. Both build the checked-in `Dockerfile`, so the frontend lint/tests/production build and the CGO Go build run on every execution — a green run is the evidence that the image actually builds.
+
+| Workflow | File | Trigger | What it does | Token permissions |
+|---|---|---|---|---|
+| **Docker build (validation)** | `docker-validate.yml` | every pull request targeting `cals-dev` or `main` (plus manual dispatch) | `docker build` with no registry login, no push; writes the image id/size to the run summary | `contents: read` |
+| **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, then creates the GitHub prerelease with the image digest in its notes | `contents: write`, `packages: write` |
+
+Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.
+
+### Publishing a development checkpoint
+
+```bash
+git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev
+
+# Tag a commit that is already on cals-dev, not a session branch and not main.
+git tag -a v2.0.0-dev-rc1 -m "cals-dev-v2 first development checkpoint" <commit-on-cals-dev>
+git push origin v2.0.0-dev-rc1
+```
+
+The workflow then, in order:
+
+1. fails early if the tagged commit is not an ancestor of `origin/cals-dev` (the guard against building `main` by accident);
+2. pushes `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` and moves `ghcr.io/dougalbob/cals-dev-v2:dev-latest`;
+3. creates the GitHub **prerelease** for the tag, with the source commit and image digest in its notes.
+
+After it succeeds, make the GHCR package public if it is not already (see [GHCR visibility](#ghcr-visibility)), then apply the update to the `cals-dev-v2` container on Unraid (see [Installing V2 on Unraid](#installing-v2-on-unraid-template-method)).
+
+**If publishing fails:** check the run log first — the guard step names the reason. A GHCR permission error usually means the repository's **Settings → Actions → General → Workflow permissions** do not allow write access; the workflow requests `packages: write` explicitly, but this is the setting to confirm. A failure after the image is pushed (for example, creating the prerelease) can be fixed and the workflow re-run without rebuilding anything by hand.
 
 The GitHub “Latest release” indicator and the Docker image tag `:latest` are independent. The first public V2 candidate should be verified on Unraid before stable promotion through the existing `cals-dev` → `main` release process.
 
@@ -55,7 +86,7 @@ This is the documented installation. There is no Compose step and no source buil
 
 **Steps**
 
-1. **Get the template file.** Download `cals-dev-v2.xml` from the repository — raw URL: <https://raw.githubusercontent.com/dougalbob/cals/cals-dev/cals-dev-v2.xml>. While the source repository is still private the URL options below do not work; copy the file from a Git checkout instead. (Making the repository public is a prerequisite of the first image publication anyway — Part 2 checklist, item 1.)
+1. **Get the template file.** Download `cals-dev-v2.xml` from the repository — raw URL: <https://raw.githubusercontent.com/dougalbob/cals/cals-dev/cals-dev-v2.xml>. The repository is public (2026-10-02), so the raw URL and the Community Applications options below work; the URL was verified on 2026-10-02. If it ever 404s, copy the file from a Git checkout instead.
 2. **Make it available to Unraid.** Any one of:
    - Copy the file into the Community Applications custom templates directory on the server (`/boot/config/plugins/Community Applications/templates.custom/`) and refresh Community Applications.
    - Add the raw URL above as a custom repository in Community Applications; the `TemplateURL` inside the XML then also drives CA's template update checks.
@@ -89,7 +120,7 @@ This is the documented installation. There is no Compose step and no source buil
 
 Making the Git repository public does **not** guarantee that a GHCR container package is public. Container Registry package visibility is configured separately, and a newly published package can default to private. The image includes `org.opencontainers.image.source` so GitHub can associate it with this repository, but after the first push check the package settings and explicitly make the package public. Public GHCR container images can be pulled anonymously. See [GitHub's package visibility and permissions documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility) and [Container Registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
-Before making the source repository public, audit the current tree **and Git history** for committed `.env` files, credentials, or other private data. The runtime `.env` belongs in Unraid appdata and must never be committed or included in a Docker build context; `.gitignore` and `.dockerignore` exclude `.env` files.
+The source repository was made public on 2026-10-02 as a prerequisite of this publishing path (Part 2, item 1), so that audit is a continuing obligation: the tree **and Git history** must stay free of appdata, `.env` contents, credentials or other private data. The runtime `.env` belongs in Unraid appdata and must never be committed or included in a Docker build context; `.gitignore` and `.dockerignore` exclude `.env` files. Note that the application source is public but user data never is — data lives only in the Unraid appdata directory.
 
 ## V2 port and persistent configuration
 
@@ -101,27 +132,36 @@ Before making the source repository public, audit the current tree **and Git his
 
 The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
 
-## Next-session handoff: Part 2 — publish the first V2 image
+## Part 2 — publish the first V2 image (in progress)
 
 The owner-directed sequence is: **finish the Phase 11 foundation PR first (done — PR #5 is merged into `cals-dev`); make the first GHCR image the next focused task.** Do not bundle image publishing into feature PRs.
 
 Before starting Part 2, confirm you are on the current `cals-dev` using the explicit fetch instructions in [`git-workflow.md`](./git-workflow.md).
 
-Part 2 checklist:
+| # | Item | State |
+|---|---|---|
+| 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
+| 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, Part 2 PR — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr) |
+| 3 | First publication: `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` + moving `dev-latest` (`latest` **not** assigned) | ⬜ pending the owner-approved tag push |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ⬜ pending (the publish workflow creates it) |
+| 5 | GHCR package visibility set to public if needed | ⬜ owner action after the first push |
+| 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
+| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ⬜ |
 
-1. Read this document and [`cals-dev-v2.xml`](../../cals-dev-v2.xml); confirm the source repository is public as the owner intended. Do not expose appdata, `.env` contents, or credentials.
-2. Add GitHub Actions validation and publishing: first provide a build-only pull-request check that builds the Dockerfile without pushing, then publish from an approved version tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission. The build-only check must pass before the first tag is published (this is the gate that stands in for the unverified `docker compose build` recorded in the Phase 11 handoff). Check out and build the exact tagged commit; do not build `main` by accident.
-3. Publish to **`ghcr.io/dougalbob/cals-dev-v2`** with the immutable-by-convention candidate tag (initial example: `v2.0.0-dev-rc1`) and moving **`dev-latest`**. Do not assign plain `latest` to a development candidate; reserve it for a stable release after promotion to `main`.
-4. Create the corresponding GitHub prerelease for the Git tag. GitHub Release metadata and the GHCR image are separate artifacts; verify both exist.
-5. After the first push, explicitly set the GHCR package visibility to public if needed. A public source repository does not by itself guarantee a public container package.
-6. Verify the published image can be pulled and run from `cals-dev-v2.xml` on Unraid: host/container port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, and the V2 `.env` loading from that directory. Check health, `/next/`, restart/data persistence, and no conflict with V1 on 8150. Verify the Cloudflare Tunnel route separately if used. The owner then copies `cals-dev-v2.xml` into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it as the source template.
-7. Record the exact source commit, Git tag, image tags/digest, build result, and Unraid smoke-test result in the release notes/docs.
+The validation workflow must pass on the Part 2 PR before the first tag is published: that green run is the evidence that the image builds, and it stands in for the container build recorded as unverified in the Phase 11 handoff.
 
 This first image is a **development smoke-test image**, not a completed UI redesign or authorization to cut over V1. The `/next/` frontend is still a foundation; keep the UI improvement and owner-review gate for later user-facing phases.
 
+## Release log
+
+| Tag | Published | Source commit | Image digest | GitHub prerelease | Unraid smoke test |
+|---|---|---|---|---|---|
+| `v2.0.0-dev-rc1` | *not published yet* | — | — | — | — |
+
 ## Not implemented yet
 
-- No GitHub Actions image-publishing workflow exists yet.
-- No V2 image has been pushed to GHCR; `ghcr.io/dougalbob/cals-dev-v2:dev-latest` is a planned tag, not a currently pullable image.
-- The package has not yet been created or made public.
-- Docker build and first end-to-end Unraid pull/run remain to be verified.
+- No V2 image has been pushed to GHCR yet; `ghcr.io/dougalbob/cals-dev-v2:dev-latest` is a planned tag, not a currently pullable image.
+- The GHCR package has not been created or made public yet — that happens on the first publish.
+- The first end-to-end Unraid pull/run has not been verified. Docker cannot run in the Arena sandbox, so the first real proof is the owner's smoke test in item 6; the `Docker build (validation)` workflow verifies the image builds on every pull request from now on.
+- Stable publishing is not implemented: there is no workflow for a `latest` image after promotion to `main`, and none for `cals-dev-v2.xml` updates.
+- The application's reported version (`AppVersion` in `cmd/server/main.go`, currently `1.7.0`) does not match the `v2.0.0-dev-rc1` image tag. The tag identifies the checkpoint; whether `AppVersion` should follow the 2.x development line is an open owner decision. The first image carries the source's `1.7.0`.
