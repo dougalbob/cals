@@ -29,8 +29,11 @@
   stale and the two databases are diverging.
 - **The DEV identity switch is implemented** (`DEV_IDENTITY_SWITCH`, requires `DEV_MODE`):
   pick any existing user at `/dev/identity` or with `?as=<email>`, remembered in a cookie;
-  loopback/private peers only; never enabled on the Cloudflare container. The LAN-only dev
-  container recipe and its ready-to-import template are in
+  loopback/private peers only; never enabled on the Cloudflare container. Important navigation
+  detail: the bare `http://<unraid-lan-ip>:8152/` URL opens the normal app, not the picker. Use
+  `http://<unraid-lan-ip>:8152/dev/identity` (or the template's WebUI shortcut). A blank list
+  means the mounted database has no users yet; the picker only lists existing accounts. The
+  LAN-only dev container recipe and its ready-to-import template are in
   [`dev-identity-switch.md`](./dev-identity-switch.md) and `cals-dev-identity.xml`.
 - **Phase 12 (Diary) is implemented** — drink calories in the bank (+ regression tests), one
   source of truth for water (a `counts_toward_water` flag on drinks, the dead `water_entries`

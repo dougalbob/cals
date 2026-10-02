@@ -206,4 +206,5 @@ export interface WeeklyAnalysis {
 
 export interface VersionResponse {
   version: string
+  dev_identity_switch?: boolean
 }

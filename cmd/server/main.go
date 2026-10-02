@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -84,11 +85,7 @@ func main() {
 	})
 
 	// Version endpoint (unprotected)
-	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Write([]byte(`{"version":"` + AppVersion + `"}`))
-	})
+	mux.HandleFunc("GET /api/version", versionHandler(devIdentitySwitch))
 
 	// Debug endpoint (temporary; protected like every non-public API route)
 	mux.Handle("GET /api/debug/fatsecret", withAuth(http.HandlerFunc(handlers.HandleTestFatSecret)))
@@ -205,5 +202,21 @@ func main() {
 	if err := http.ListenAndServe(cfg.ListenAddress(), mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
 		os.Exit(1)
+	}
+}
+
+type apiVersionResponse struct {
+	Version           string `json:"version"`
+	DevIdentitySwitch bool   `json:"dev_identity_switch,omitempty"`
+}
+
+func versionHandler(devIdentitySwitch bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		_ = json.NewEncoder(w).Encode(apiVersionResponse{
+			Version:           AppVersion,
+			DevIdentitySwitch: devIdentitySwitch,
+		})
 	}
 }

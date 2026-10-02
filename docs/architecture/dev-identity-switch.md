@@ -39,6 +39,22 @@ The remembered identity lives in an `HttpOnly`, `SameSite=Lax` cookie named
 `cals_dev_identity` for 12 hours, per browser. Nothing is written to the database by the
 switch itself.
 
+### Where to find the picker
+
+The picker is a separate development page, not a dropdown inside the diary. The bare
+`http://<unraid-lan-ip>:8152/` address opens the normal cals app; use
+`http://<unraid-lan-ip>:8152/dev/identity` to choose an account. The Unraid template's
+**WebUI** shortcut points directly to the picker. Builds with the in-app convenience link
+also show **Switch user** in the app header, but the direct URL remains available in every
+build with the switch enabled. After choosing, select **Open cals** on the picker or use
+`/next/` for the React Diary preview.
+
+If the picker says no users were found, it is reading an empty `users` table from this
+container's mounted database. The picker never creates users. Confirm the container is using
+the disposable database copy described below; a brand-new dev database creates only the
+configured default account after the normal app is opened once, while other accounts must
+already exist in the copy. Never point this container at V1 or live V2 appdata.
+
 ### Hard constraints (all enforced in code and covered by tests)
 
 | Constraint | How it is enforced |

@@ -33,11 +33,21 @@ export function AppLayout() {
               </span>
             )}
           </div>
-          {user && (
-            <span className="text-sm opacity-90 truncate">
-              {user.name || user.email} · {user.daily_calorie_goal.toLocaleString('en-GB')} kcal
-            </span>
-          )}
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            {user && (
+              <span className="truncate text-xs opacity-90 sm:text-sm">
+                {user.name || user.email} · {user.daily_calorie_goal.toLocaleString('en-GB')} kcal
+              </span>
+            )}
+            {version?.dev_identity_switch && (
+              <a
+                href="/dev/identity"
+                className="shrink-0 whitespace-nowrap rounded-full border border-white/60 px-2 py-1 text-xs text-white no-underline hover:bg-white/15"
+              >
+                Switch user
+              </a>
+            )}
+          </div>
         </div>
       </header>
 

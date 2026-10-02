@@ -49,6 +49,10 @@ const API = {
         return this.request('GET', '/api/users/me');
     },
 
+    getVersion() {
+        return this.request('GET', '/api/version');
+    },
+
     updateCurrentUser(data) {
         return this.request('PUT', '/api/users/me', data);
     },

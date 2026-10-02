@@ -58,7 +58,9 @@ var devIdentityTemplate = template.Must(template.New("dev-identity").Parse(`<!do
   a.identity.current { border-color: #15803d; border-width: 2px; }
   .email { font-weight: 600; }
   .meta { font-size: .85rem; opacity: .75; }
+  .empty { margin-top: 1rem; padding: .85rem; border: 1px solid #b45309; border-radius: .75rem; }
   .tag { float: right; font-size: .8rem; color: #15803d; }
+  .app-link { display: inline-block; margin-top: .75rem; padding: .65rem .9rem; border-radius: .6rem; background: #15803d; color: #fff; text-decoration: none; }
   .clear { display: inline-block; margin-top: .5rem; font-size: .85rem; }
   code { font-size: .85rem; }
 </style>
@@ -70,6 +72,7 @@ var devIdentityTemplate = template.Must(template.New("dev-identity").Parse(`<!do
 </div>
 <h1>Choose an identity</h1>
 <p class="meta">Signed in as <span class="email">{{.CurrentEmail}}</span>. Picking a user stores a cookie for this browser only; no restart or variable change is needed.</p>
+{{if .Users}}
 <ul>
   {{range .Users}}
   <li>
@@ -81,8 +84,13 @@ var devIdentityTemplate = template.Must(template.New("dev-identity").Parse(`<!do
   </li>
   {{end}}
 </ul>
+{{else}}
+<p class="empty"><strong>No users found in this database.</strong></p>
+<p class="meta">The switch only lists existing accounts and never creates them. Confirm this container is mounted to its own disposable copy of the database containing the users you want to test. A brand-new dev database creates the configured default account when you open the app once; additional users must already be in the copy.</p>
+{{end}}
+<p><a class="app-link" href="/">Open cals</a></p>
 <p><a class="clear" href="{{.ClearURL}}">Clear the remembered identity and use the configured default</a></p>
-<p class="meta">Users are listed from this server's database — the switch can only select users that already exist. New users are created by signing in normally (production) or by the default DEV_MODE identity.</p>
+<p class="meta">Users are listed from this server's database. Never point this container at the live V1 or V2 appdata.</p>
 </body>
 </html>
 `))
