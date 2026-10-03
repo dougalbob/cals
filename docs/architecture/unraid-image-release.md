@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc11` are published; `dev-latest` points to rc11 and is anonymously pullable (verified in CI). The owner can now Force Update `cals-dev-v2` to review the Phase 13 serving/portion increment |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc12` are published; `dev-latest` points to rc12 and is anonymously pullable (verified in CI). The owner can now Force Update `cals-dev-v2` to review the Phase 13 tap-to-filter recipe tags and the `/next/` UI |
 | **Updated** | 2026-10-03 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -154,7 +154,7 @@ The source repository was made public on 2026-10-02 as a prerequisite of this pu
 
 The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
 
-## Part 2 — publish the first V2 image (complete; rc10 is current)
+## Part 2 — publish the first V2 image (complete; rc12 is current)
 
 The owner-directed sequence is: **finish the Phase 11 foundation PR first (done — PR #5 is merged into `cals-dev`); make the first GHCR image the next focused task.** Do not bundle image publishing into feature PRs.
 
@@ -164,13 +164,13 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc10 published; `dev-latest` currently points at rc10. See the [release log](#release-log) |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1), [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), [rc3](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc3), [rc4](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc4), [rc5](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc5), [rc6](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc6), [rc7](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc7), [rc8](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc8), [rc9](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc9) and [rc10](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc10), each with source commit and image digest in its notes |
+| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc12 published; `dev-latest` currently points at rc12. See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — every checkpoint from [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) to [rc12](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc12) has a prerelease carrying its source commit and image digest |
 | 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
-| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02. Owner action: Force Update the existing `cals-dev-v2` container to test each new candidate; rc10 is ready |
-| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 Source, tag, digest and CI build results are recorded through rc10; the owner should add the Unraid smoke-test result after Force Updating rc10 |
+| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02. Owner action: Force Update the existing `cals-dev-v2` container to test each new candidate; rc12 is ready (`rc11` and earlier were never Force Updated, so the container is still on an older image — check the in-app footer) |
+| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 Source, tag, digest and CI build results are recorded through rc12; the owner should add the Unraid smoke-test result after Force Updating |
 
-The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have since passed for rc1–rc10. The remaining owner gate is to Force Update the Unraid container and record the rc10 smoke-test result.
+The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have since passed for rc1–rc12. The remaining owner gate is to Force Update the Unraid container and record the smoke-test result.
 
 This first image is a **development smoke-test image**, not a completed UI redesign or authorization to cut over V1. The `/next/` frontend is still a foundation; keep the UI improvement and owner-review gate for later user-facing phases.
 
@@ -189,6 +189,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc9` | 2026-10-03, [run 37114327989](https://github.com/dougalbob/cals/actions/runs/37114327989) | `0ae1b3c` on `cals-dev` (PR #24: Diary real-server correctness follow-ups + Phase 13 serving/portion decisions) | `sha256:fd58d5a1a89f695ff9f30e7a331a6984099a0d151daac555ee099c36d9e22f73` | [v2.0.0-dev-rc9](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc9) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review the Diary correctness fixes; no schema migration or data copy |
 | `v2.0.0-dev-rc10` | 2026-10-03, [run 37122503399](https://github.com/dougalbob/cals/actions/runs/37122503399) | `94c502b` on `cals-dev` (PR #26: shared recipe metadata, per-user favourites and catalogue filters) | `sha256:d0b1ef9e54cd1915a2bb1a07c75d0728af6ec2d5b95815de6b7d4b11f297ccbd` | [v2.0.0-dev-rc10](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc10) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review Phase 13 Recipes; additive schema migration runs on startup, no appdata copy |
 | `v2.0.0-dev-rc11` | 2026-10-03, [run 37125235067](https://github.com/dougalbob/cals/actions/runs/37125235067) | `6740af9` on `cals-dev` (PR #28: food serving choices and recipe-to-Diary portions) | `sha256:95ea95e40d09a2ae875eade049b907c6291ec7735bd196a9c35a7f34237e4d63` | [v2.0.0-dev-rc11](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc11) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review Phase 13 servings/portions; additive schema migration (`food_servings` household rows + `recipe_user_portions`) runs on startup, no appdata copy |
+| `v2.0.0-dev-rc12` | 2026-10-03, [run 37130651708](https://github.com/dougalbob/cals/actions/runs/37130651708) | `ead2bf9` on `cals-dev` (PR #30: tap-to-filter recipe tags, decisions 41–54, docs restructure) | `sha256:59631e659d11cfd32423fa87d50ba35b93a578fbc0847d6ac51550ac9e7da928` | [v2.0.0-dev-rc12](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc12) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`); **no schema migration, no data copy, no appdata change** |
 
 ## Not implemented yet
 
@@ -296,3 +297,37 @@ Add to diary (fractions, grams, remembered usual) at phone size as both identiti
 The release was cut with the owner's **“Lets publish”** directive (owner decision 20, 2026-10-03); the
 sequence is now written down in [`git-workflow.md`](./git-workflow.md#lets-publish--the-owners-end-to-end-delivery-directive)
 so a later session does not have to rediscover it.
+
+### 2026-10-03 — rc12 tap-to-filter recipe tags, decisions 41–54 and the docs restructure
+
+Published **`v2.0.0-dev-rc12`**, source `ead2bf9a7d528f02171b8eeff6c63c5de024a0fd`
+(PR #30 merge on `cals-dev`). [Publish run 37130651708](https://github.com/dougalbob/cals/actions/runs/37130651708)
+passed the `cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease
+creation, and the anonymous-pull check. Image digest:
+`sha256:59631e659d11cfd32423fa87d50ba35b93a578fbc0847d6ac51550ac9e7da928`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc12).
+
+This checkpoint is Phase 13's third slice plus documentation work, and it is **frontend-only**:
+
+- **Tap-to-filter recipe tags** (owner decision 41): tapping a tag on a recipe card filters the
+  catalogue in place, and each further tag narrows it again because every selected tag must match
+  (AND). A “Filtering by” row lists the active tags with per-tag removal and **Clear tags**, the
+  results line reads “2 of 4 recipes match”, and the facet dropdowns stay in step with the tapped tags
+  as one selection. The selection rides in the URL (`/recipes?tags=…`), so reload, Back and a trip
+  into a recipe keep it; a tag on the recipe page opens the catalogue already filtered by it.
+- **The documentation restructure**: status now lives only in
+  [`../CURRENT_STATE.md`](../CURRENT_STATE.md), dated narrative in
+  [`../history/rebuild-log.md`](../history/rebuild-log.md), and `rebuild-kickoff.md` is commands and
+  guardrails only. This is why the release documentation did not have to change in four places.
+- **Discovery decisions 42–54** recorded in the decision log: unlogged days excluded from the bank
+  (42), per-person bank (43), user-definable ring window (44), an admin role with a swap-user control
+  rather than a household view (45), no notifications but a weekly report (46), user-selectable
+  tracked nutrients with a missing-data audit (47), no exercise credit for now (48), a planned
+  **calendar** for reaching historic dates (49), no logging shortcuts (50), the four meal slots stay
+  (51), no barcode scanning (52), no offline capability (53), and the household data is backed up (54).
+
+**No API, schema, migration, template or appdata change** — the tags were already in the recipe
+payload, so this image can be Force Updated over any earlier checkpoint with no data work. The session
+did not access Unraid or live appdata. `dev-latest` now points to rc12; the owner should Force Update
+`cals-dev-v2` on `8151` (and the LAN dev container on `8152` for `/next/`) and review the Recipes
+catalogue at phone size.

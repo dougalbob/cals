@@ -18,7 +18,7 @@
 
 | Thing | Port | State |
 |---|---|---|
-| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc11`**, but the container only changes when the owner **Force Update**s in Unraid — check the running version in the app footer or `GET /api/version` rather than assuming |
+| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc12`** (2026-10-03: tap-to-filter recipe tags, decisions 41–54, docs restructure — **frontend-only, no migration**), but the container only changes when the owner **Force Update**s in Unraid. Nothing past rc4 has been Force Updated, so the running image may be older than the newest checkpoint — check the in-app footer or `GET /api/version` rather than assuming |
 | **V1 `cals-counter`** | 8150 | Legacy vanilla-JS app, still running but **stale**: it stopped receiving household entries when the Cloudflare route moved to 8151 |
 | **`cals-dev-identity`** (dev only) | 8152, LAN only | Disposable copy used for the `DEV_IDENTITY_SWITCH` (`/dev/identity`, or the template's WebUI shortcut — the bare LAN URL opens the normal app). **The only container allowed to lose data** |
 
@@ -45,7 +45,7 @@ Phases 11–16 are defined in [`frontend-strategy.md`](architecture/frontend-str
 |---|---|---|
 | **11 — Foundation** | ✅ Merged (PR #5) | React 19 + TS + Vite + Tailwind shell at `/next/`, typed API client, fixture API, lint/typecheck/tests |
 | **12 — Diary** | ✅ Implemented, merged (PR #22, `v2.0.0-dev-rc8`) | Water/quick drinks, one ledger for fluids, drink calories in the bank, quantity Edit, dual ring. **Owner phone-size review on the LAN dev container (both identities) is still outstanding** — it is an acceptance gate, not a blocker for Phase 13 |
-| **13 — Foods + Recipes** | 🟡 In progress — three slices | **Slice 1** (catalogue, per-user favourites, detail, structured tags, facet filters) owner-reviewed. **Slice 2** (named gram-backed food measures; recipe-to-Diary portions with the remembered usual; decisions 29–32) owner-reviewed, merged (PR #28), published as **rc11**. **Slice 3** (tap-to-filter recipe tags, decision 41) implemented on `arena/01a101f3-cals` (**PR #30**), **awaiting the owner's preview review** |
+| **13 — Foods + Recipes** | 🟡 In progress — three slices merged | **Slice 1** (catalogue, per-user favourites, detail, structured tags, facet filters) owner-reviewed. **Slice 2** (named gram-backed food measures; recipe-to-Diary portions with the remembered usual; decisions 29–32) owner-reviewed, merged (PR #28). **Slice 3** (tap-to-filter recipe tags, decision 41 — plus the docs restructure and decisions 42–54) owner-reviewed in Arena, **merged as PR #30** and published as **rc12**; the phone-size review of it on Unraid is still outstanding |
 | **14 — Metrics + Nutrition** | ⬜ Not started | Owns the rolling-window bank metric for the ring (food + drink), the tracked-nutrients settings work (decision 47) and the weekly report |
 | **15 — Settings + PWA** | ⬜ Not started | Per-user ring limits and lookback window, the admin "swap user" capability (decision 45), themes, PWA/offline behaviour |
 | **16 — Cutover** | ⬜ Not started | Delete the legacy UI, make React the single SPA. Owner-approved UI improvement is the gate |
@@ -60,10 +60,9 @@ summary.
 
 | # | What | Where |
 |---|---|---|
-| 1 | **Preview review of Phase 13 slice 3** (tap-to-filter recipe tags) at phone size | Arena preview (fixture API), then `/next/` on `8152` |
-| 2 | **Force Update V2 to `rc11`** and phone-size review of the servings/portions slice | Unraid → `cals-dev-v2` → Force Update |
-| 3 | **Phase 12 acceptance review** — Home and Diary, both identities, phone size | `http://<unraid-lan-ip>:8152/next/` |
-| 4 | **"Lets publish"** for this session's work (merges PR #30 to `cals-dev`, tags `rc12`) | — |
+| 1 | **Force Update `cals-dev-v2` to `rc12`** and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`). No migration or appdata work — this checkpoint is frontend-only | Unraid → `cals-dev-v2` → Force Update |
+| 2 | **Phase 12 acceptance review** — Home and Diary, both identities, phone size (never completed) | `http://<unraid-lan-ip>:8152/next/` |
+| 3 | **Record the release-log smoke-test result** after the Force Update, so the log's last column is no longer ⬜ | `unraid-image-release.md` release log |
 
 ---
 
@@ -108,6 +107,8 @@ Full reasoning and every open sub-question:
 ---
 
 ## 6. Housekeeping done recently
+
+- **Published `v2.0.0-dev-rc12` (2026-10-03, PR #30):** tag filtering, decisions 41–54 and the docs restructure, merged to `cals-dev` and published by the tag-triggered workflow (run 37130651708; digest `sha256:59631e65…`), with the release log updated. Frontend-only — no migration.
 
 - **Second discovery pass completed (2026-10-03):** the remaining day-to-day questions are answered — logging flows need nothing new but a calendar for historic dates (49), no shortcuts (50), the four meal slots stay (51), no barcode scanning (52), no offline capability (53), and the household data is backed up (54). See §5 and the decision log.
 - **Documentation restructure (2026-10-03):** status is now here and nowhere else; `rebuild-kickoff.md` is commands and guardrails only; dated history moved to [`history/rebuild-log.md`](history/rebuild-log.md).
