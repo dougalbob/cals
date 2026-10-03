@@ -94,7 +94,7 @@ describe('RecipesRoute', () => {
     })
     expect(favouriteRecipeIds.has(1)).toBe(true)
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show favourites only' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Favourites' }))
     expect(screen.getByText('Chicken Curry')).toBeTruthy()
     expect(screen.queryByText('Porridge & Berries')).toBeNull()
     expect(screen.queryByText('Salmon Traybake')).toBeNull()
@@ -318,7 +318,7 @@ describe('RecipesRoute', () => {
     expect(favouriteRecipeIds.has(2)).toBe(false)
   })
 
-  it('hides archived recipes until "Show archived" is on, then offers Restore on the card', async () => {
+  it('hides archived recipes until the Archived toggle is on, then offers Restore on the card', async () => {
     // Archive one recipe through the fixture endpoint, as the detail page does.
     expect(handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })?.status).toBe(200)
     renderRoute()
@@ -327,11 +327,17 @@ describe('RecipesRoute', () => {
     expect(await screen.findByText('Chicken Curry')).toBeTruthy()
     expect(screen.queryByText('Salmon Traybake')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Restore Salmon Traybake' })).toBeNull()
-    const toggle = screen.getByRole('checkbox', { name: 'Show archived (1)' }) as HTMLInputElement
+    const toggle = screen.getByRole('button', { name: 'Archived' }) as HTMLButtonElement
     expect(toggle.disabled).toBe(false)
-    expect(toggle.checked).toBe(false)
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('title')).toBe('Show archived recipes (1)')
+    // The Favourites and Archived toggles share one row.
+    const row = screen.getByRole('group', { name: 'Recipe views' })
+    expect(within(row).getByRole('button', { name: 'Favourites' })).toBeTruthy()
+    expect(within(row).getByRole('button', { name: 'Archived' })).toBe(toggle)
 
     fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
     const archivedSection = await screen.findByRole('region', { name: /Archived recipes \(1\)/ })
     expect(within(archivedSection).getByText('Salmon Traybake')).toBeTruthy()
     // An archived card cannot be favourited, and offers Restore instead.
@@ -347,7 +353,7 @@ describe('RecipesRoute', () => {
 
   it('disables the archived toggle when nothing is archived', async () => {
     renderRoute()
-    const toggle = (await screen.findByRole('checkbox', { name: 'Show archived (0)' })) as HTMLInputElement
+    const toggle = (await screen.findByRole('button', { name: 'Archived' })) as HTMLButtonElement
     expect(toggle.disabled).toBe(true)
   })
 
@@ -357,14 +363,14 @@ describe('RecipesRoute', () => {
     }
     renderRoute()
     expect(await screen.findByText(/All your recipes are archived/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show archived (4)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
     expect(await screen.findByRole('region', { name: /Archived recipes \(4\)/ })).toBeTruthy()
   })
 
   it('applies search and tag filters to archived recipes too', async () => {
     handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })
     renderRoute()
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Show archived (1)' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Archived' }))
     await screen.findByRole('region', { name: /Archived recipes/ })
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search recipes' }), {

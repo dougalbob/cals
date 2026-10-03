@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
@@ -215,27 +215,22 @@ export function RecipesRoute() {
           placeholder="Search recipes…"
           className="min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-base"
         />
-        <label className="flex min-h-11 items-center gap-2 self-start text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={favouritesOnly}
-            onChange={(event) => setFavouritesOnly(event.target.checked)}
-            className="h-5 w-5 accent-red-600"
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Recipe views">
+          <ToggleChip
+            label="Favourites"
+            pressed={favouritesOnly}
+            onClick={() => setFavouritesOnly((current) => !current)}
+            icon={<HeartIcon filled={favouritesOnly} className="h-5 w-5" />}
           />
-          Show favourites only
-        </label>
-        <label className="flex min-h-11 items-center gap-2 self-start text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={showArchived}
+          <ToggleChip
+            label="Archived"
+            title={`Show archived recipes (${archivedCount})`}
+            pressed={showArchived}
             disabled={archivedCount === 0}
-            onChange={(event) => setShowArchived(event.target.checked)}
-            className="h-5 w-5 accent-primary"
+            onClick={() => setShowArchived((current) => !current)}
+            icon={<ArchiveIcon className="h-5 w-5" />}
           />
-          <span className={archivedCount === 0 ? 'text-ink-light' : undefined}>
-            Show archived ({archivedCount})
-          </span>
-        </label>
+        </div>
         <details className="border-t border-line-light pt-3">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary-dark">
             Filter by occasion, dish type or key food
@@ -483,16 +478,7 @@ function RecipeCard({
             aria-pressed={recipe.is_favourite}
             className="absolute right-3 top-3 z-20 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/95 shadow-card disabled:opacity-60"
           >
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className={`h-6 w-6 ${recipe.is_favourite ? 'fill-red-600 stroke-red-600 drop-shadow-[0_1px_2px_rgba(127,29,29,0.55)]' : 'fill-none stroke-red-600'}`}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
-            </svg>
+            <HeartIcon filled={recipe.is_favourite} className="h-6 w-6" />
           </button>
         )}
       </div>
@@ -527,5 +513,72 @@ function RecipeCard({
         )}
       </div>
     </article>
+  )
+}
+
+/** The favourite heart, shared by the card button and the Favourites toggle so they always match. */
+function HeartIcon({ filled, className }: { filled: boolean; className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={`${className} ${filled ? 'fill-red-600 stroke-red-600 drop-shadow-[0_1px_2px_rgba(127,29,29,0.55)]' : 'fill-none stroke-red-600'}`}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+    </svg>
+  )
+}
+
+/** An archive box: lid, body and a handle slot. */
+function ArchiveIcon({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={`${className} fill-none stroke-current`}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2.5" y="3.5" width="19" height="5" rx="1.2" />
+      <path d="M4.5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V8.5" />
+      <path d="M10 12.5h4" />
+    </svg>
+  )
+}
+
+/** An icon + label pill that behaves as an on/off button (aria-pressed), for list views. */
+function ToggleChip({
+  label,
+  title,
+  icon,
+  pressed,
+  disabled = false,
+  onClick,
+}: {
+  label: string
+  title?: string
+  icon: ReactNode
+  pressed: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={pressed}
+      title={title}
+      className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium disabled:opacity-50 ${
+        pressed ? 'border-primary bg-primary/10 text-primary-dark' : 'border-line bg-surface text-ink'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }

@@ -583,13 +583,13 @@ label everywhere, including historical entries. Current implementation status li
   `GET /api/recipes` hides archived recipes unless `?include_archived=true`;
   `GET /api/recipes/{id}` always opens and reports `is_archived`; `POST /api/diary` returns `409` for
   an archived recipe so no client can log one by ID; `DELETE /api/recipes/{id}` returns `409` for any
-  recipe the Diary references, archived or not. React: *Show archived (n)* toggle, *Archived recipes*
+  recipe the Diary references, archived or not. React: icon toggles on one row — heart **Favourites** and archive-box **Archived** (owner-requested, replacing the original checkboxes), *Archived recipes*
   section with **Restore** on each card, and an inline-confirmed **Archive recipe** on the detail page.
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
 - **Two choices made while building it, for the owner to confirm in the preview:**
-  1. *Show archived* is **always visible but disabled at 0**, rather than hidden until something is
+  1. The *Archived* toggle is **always visible but disabled at 0**, rather than hidden until something is
      archived, so the control is predictable.
   2. The default `GET /api/recipes` **excludes** archived recipes and the Recipes page opts in with
      `?include_archived=true`. Safe by default: the legacy UI and any future picker cannot offer an

@@ -60,7 +60,7 @@ summary.
 
 | # | What | Where |
 |---|---|---|
-| 0 | **Preview the recipe archive/restore slice** (Arena preview, phone size): archive a recipe from its detail page, check it leaves the list, turn on **Show archived**, **Restore** it; then say **"Lets publish"** to release it as `rc14`. Note the first start on rc14 runs the additive migration against live data, so confirm the backup (decision 54) beforehand | Arena preview `/recipes` |
+| 0 | **Preview the recipe archive/restore slice** (Arena preview, phone size): archive a recipe from its detail page, check it leaves the list, tap the archive-box **Archived** toggle (beside the heart **Favourites** toggle), **Restore** it; then say **"Lets publish"** to release it as `rc14`. Note the first start on rc14 runs the additive migration against live data, so confirm the backup (decision 54) beforehand | Arena preview `/recipes` |
 | 1 | **Force Update `cals-dev-v2` to `rc13`** and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`). rc13 is documentation-only — the app content is the same as rc12 — so either checkpoint shows the same Phase 13 tag-filter work. No migration or appdata work | Unraid → `cals-dev-v2` → Force Update |
 | 2 | **Phase 12 acceptance review** — Home and Diary, both identities, phone size (never completed) | `http://<unraid-lan-ip>:8152/next/` |
 | 3 | **Record the release-log smoke-test result** after the Force Update, so the log's last column is no longer ⬜ | `unraid-image-release.md` release log |
