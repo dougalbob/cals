@@ -325,7 +325,7 @@ target. The separate daily target is printed vertically across the glass at 90°
 card reports how far over target the user is after they pass it. This presentation
 work does not change the existing target-setting roadmap.
 
-### Follow-up refinements — 2026-10-03
+### Follow-up refinements — published in `v2.0.0-dev-rc18` (PR #42, 2026-10-03)
 
 - Today resolves the current daily hydration target instead of briefly showing the
   default when a custom target is configured, and the four meal tiles now fill in

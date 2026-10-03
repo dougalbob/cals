@@ -14,6 +14,27 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc18` (PR #42)
+
+After reviewing the live Arena preview, the owner authorized the full **“Lets Publish”** loop. PR #42
+passed both validation workflows — [Docker build](https://github.com/dougalbob/cals/actions/runs/37158443118)
+and [Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37158443251) — and merged to `cals-dev`
+as `cd3c4d770fd6067d8a4118c966f5404aa956ee29`. The post-merge Go test run
+[37158561468](https://github.com/dougalbob/cals/actions/runs/37158561468) passed before that exact merge
+commit was tagged `v2.0.0-dev-rc18`. [Publish run 37158593411](https://github.com/dougalbob/cals/actions/runs/37158593411)
+passed the ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and
+anonymous-pull check; digest `sha256:33b012aa2b80a0c71bd5c4acefa2874ba87d499cc5bec100b15e4b14170f036c`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc18).
+
+The frontend follow-up shows the configured daily hydration target and overage separately from the
+Water drink's per-tap glass volume; the glass target is vertical at 90°. Today meal cards get
+proportional calorie fills. Calendar in-month opacity now uses the selected month rather than the
+first padded grid date; padded out-of-month cells stay muted, and future dates remain muted and
+non-clickable. Regression coverage brings the frontend suite to 169/169. Lint, typecheck, `build:go`
+and `build:preview` passed. **No API/schema change, migration, data copy or template change; the
+hydration-target roadmap is unchanged.** The session did not touch Unraid or live appdata; Force Update
+and the real-data smoke-test result remain the owner's actions.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc17` (PR #40)
 
 The owner accepted the four items in-session and said **“Lets publish”** (decision 20), so the session
