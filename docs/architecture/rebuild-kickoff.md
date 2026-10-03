@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 close-out is merged on `cals-dev` (PR #22, merge `f6a6675`) and published as `v2.0.0-dev-rc8`; `dev-latest` points to it.** The first Phase 13 shared-Recipes metadata slice is implemented and owner-reviewed in the Arena preview. The second slice — known-Food serving choices and recipe-to-Diary portions (decisions 29–32) — was owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`; the owner's Force Update and phone-size review are pending. The next slice is **+ Add recipe** on each Diary meal card with the meal preselected (decision 40). Full recipe authoring remains before any production cutover |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 close-out is merged on `cals-dev` (PR #22, merge `f6a6675`) and published as `v2.0.0-dev-rc8`; `dev-latest` points to it.** The first Phase 13 shared-Recipes metadata slice is implemented and owner-reviewed in the Arena preview. The second slice — known-Food serving choices and recipe-to-Diary portions (decisions 29–32) — was owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`; the owner's Force Update and phone-size review are pending. A third slice — **recipe tags filter the catalogue when tapped** (decision 41) — is implemented on the current session branch and awaiting preview review. The next slice is **+ Add recipe** on each Diary meal card with the meal preselected (decision 40). Full recipe authoring remains before any production cutover |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -62,8 +62,10 @@ refspec was restricted. Explicitly fetch and merge the integration branch before
 git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev
 ```
 
-Then confirm you have it: `ls docs/architecture/` should show five documents, and
-`ls web/frontend/` should show the React spike.
+Then confirm you have it: `ls docs/architecture/` should show `frontend-strategy.md`,
+`rebuild-kickoff.md` and the rest of the architecture documents (nine at the time of writing), and
+`ls web/frontend/` should show the React spike. If `docs/architecture/` is missing
+`rebuild-kickoff.md` altogether, you have not synced.
 
 **Never push to `main`.** All work goes to the session branch and PRs target **`cals-dev`**. See
 [`git-workflow.md`](./git-workflow.md) and [`../../AGENTS.md`](../../AGENTS.md).
@@ -92,7 +94,7 @@ reachable; `go.dev` and the Go proxy are not):
 ```
 
 This copies the repo to `/tmp/calstest` and builds with CGO. It has been verified: the server
-starts, migrations create all 17 tables, `/api/users/me` correctly returns `401` without a
+starts, migrations create all 20 tables, `/api/users/me` correctly returns `401` without a
 Cloudflare JWT. Nothing in `/tmp` persists between turns. **Docker cannot run in the sandbox** —
 the `Docker build (validation)` GitHub Actions workflow builds the image on every pull request, and
 the publish workflow builds the exact tagged commit.
@@ -200,3 +202,26 @@ session branch (component tests pin both directions; the rendered ring was raste
 15° intervals) and needs no schema, API or appdata change. Phase 14's rolling metric and Phase 15's
 per-user limits inherit the same direction rule. Details:
 [`frontend-strategy.md`](./frontend-strategy.md#opposite-sweep-directions-for-surplus-and-deficit-2026-10-03).
+
+## Tap-to-filter recipe tags — 2026-10-03 (implemented, awaiting preview review)
+
+**Owner request, recorded as decision 41.** The tags already shown on each recipe card — meal
+occasion, dish type and known-Food key foods — are now the filters rather than decoration: tap
+**Chicken** and the catalogue narrows to chicken recipes; tap **Mushroom** on the
+**Chicken & Mushroom Pie** card in that list and it narrows again, because a recipe must carry
+**every** selected tag (AND). A “Filtering by” row lists the active tags with per-tag removal and
+**Clear tags**, the results line reads “2 of 4 recipes match”, and the three facet dropdowns stay in
+step with the tapped tags as a second view of one selection.
+
+Frontend-only: **no API, schema, appdata or migration change** — the tags were already in the recipe
+payload. The selection rides in the URL (`/recipes?tags=…`), so it survives reload and Back, and a
+tag on a recipe page opens the catalogue already filtered by it. Tests:
+`src/lib/recipeTags.test.ts` (keys, AND matching, URL round-trip) and `src/routes/RecipesRoute.test.tsx`
+(tap, narrow, remove, clear, empty state, dropdowns in step, detail-page flows). The demo fixture
+gained a **Chicken & Mushroom Pie** recipe with a Mushrooms key food so this exact example is
+reproducible; that is fixture data only, not a food or recipe created in anyone's database.
+
+Remaining for this slice: the owner's phone-size preview review (the Arena preview, then `/next/` on
+the LAN-only dev container). Decision 40 — **+ Add recipe** on each Diary meal card — is still the
+queued next slice, and the open question of whether same-facet taps should widen (Lunch **or**
+Dinner) rather than continue to AND is recorded in the decision log.

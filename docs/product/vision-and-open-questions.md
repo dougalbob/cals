@@ -119,7 +119,7 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 
 ### Phase 13 input: serving-based food quantities (owner request, 2026-10-03)
 
-The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”** instead of translating every portion into grams first. Foods already support an optional primary `serving_name` / `serving_grams`, and FatSecret foods may have multiple gram-backed `food_servings`. Diary entries store grams and a nutrition snapshot; `GET /api/diary` does not yet return serving metadata for Edit.
+The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”** instead of translating every portion into grams first. Foods already support an optional primary `serving_name` / `serving_grams`, and FatSecret foods may have multiple gram-backed `food_servings`. Diary entries store grams and a nutrition snapshot; `GET /api/diary` did not return serving metadata for Edit at the time of writing — that gap has since been closed (decision 29; the entry response now carries `food_serving_name`, `food_serving_grams` and `food_servings[]` without changing what the row stores).
 
 **Agreed Add/Edit interaction (2026-10-03):** show an explicit serving/grams mode toggle. Start in serving mode when the food has a reliable serving choice; otherwise start in grams mode. Always allow switching to grams, convert every choice through grams, and show the resulting grams and live kcal. Never invent a unit or conversion. Add optional serving metadata to the diary response so Edit can offer the same choices without changing the diary storage model.
 
@@ -201,9 +201,10 @@ serving, recipe-portion, recipe-discovery and visual direction are recorded in d
 first React Recipes increment—shared catalogue, per-user favourites, detail, metadata tags and facet
 filters—has been implemented and owner-reviewed in the Arena preview. The second increment—known-Food
 serving choices and recipe-to-Diary portion logging, per decisions 29–32—was owner-reviewed, merged
-(PR #28) and published as `v2.0.0-dev-rc11`; the next slice is **+ Add recipe** on each Diary meal card
-with the meal preselected (decision 40). Full recipe authoring and phase-wide phone-size review remain
-ahead. Mealie import is explicitly legacy-only and is not being ported. The highest-value open questions now are:
+(PR #28) and published as `v2.0.0-dev-rc11`. A third increment makes those same tags filter the
+catalogue in place (**decision 41**, implemented on the session branch and awaiting the owner's
+preview review); still queued after it is **+ Add recipe** on each Diary meal card with the meal
+preselected (decision 40). Full recipe authoring and phase-wide phone-size review remain ahead. Mealie import is explicitly legacy-only and is not being ported. The highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
@@ -244,6 +245,7 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 | 38 | 2026-10-03 | A calculated **Goodness rating is not part of Phase 13**. Revisit it as a separate future design question with a transparent method and suitable nutrition data; fat percentage alone is not a sufficient basis for the score. | Owner |
 | 39 | 2026-10-03 | Use `docs/product/recipeUX-example.jpg` as a **strong visual direction, not a rigid specification**: a prominent recipe photo, legible ingredient quantities and calories, a clear total, and an obvious add action. Recipe tags sit thoughtfully over the photo near the lower left; the favourite heart is at the upper right. | Owner |
 | 40 | 2026-10-03 | **Next Phase 13 slice (owner request):** every Diary meal card gains a **+ Add recipe** action beside **+ Add food**, on the same row, so a recipe can be logged without leaving the meal. Starting it from a meal card pre-selects that meal in the portion sheet (for example, **+ Add recipe** on Lunch opens the sheet with Lunch chosen). Decisions 29–32 are unchanged: fractions of the whole cooked recipe, direct gram editing, no guessed first quantity, and the remembered usual. | Owner |
+| 41 | 2026-10-03 | **Recipe tags become filters (owner request):** the tags already shown on a recipe card — meal occasion, dish type and known-Food key foods — are tappable. Tapping one filters the catalogue to the recipes carrying it; tapping a second tag **narrows further, requiring every selected tag** (AND), which is the Chicken → Chicken & Mushroom Pie → Mushroom flow the owner described. Selected tags stay visible as a “Filtering by” row with per-tag removal and **Clear tags**; the facet dropdowns remain in step with the tapped tags as two views of one selection. The selection lives in the URL (`/recipes?tags=…`), so it survives a reload and a trip into a recipe. On a recipe detail page a tag opens the catalogue already narrowed by it. The tag vocabulary itself does not change: still meal occasion, dish type and up to two known-Food key foods — no free-text tags (decision 35 stands). | Owner |
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
@@ -253,7 +255,7 @@ schema or API change was needed (`PUT /api/diary/{id}` already existed).
 
 ### Next increment — Add recipe from a Diary meal card (owner request, 2026-10-03)
 
-The Diary's four meal cards currently offer only **+ Add food**. The next slice adds **+ Add recipe**
+The Diary's four meal cards currently offer only **+ Add food**. The next queued slice (decision 40) adds **+ Add recipe**
 beside it on the same row. The action opens the recipe chooser (shared catalogue, searchable), and the
 portion sheet must open with **the meal card the action was started from already selected** — starting
 it from Lunch pre-selects Lunch rather than falling back to a time-of-day guess. Meal, date, fractions,
@@ -263,4 +265,31 @@ grams plus the nutrition snapshot.
 Design detail deliberately left open for that session: whether the chooser opens on the full catalogue
 with search, or leads with the user's favourites and recently logged recipes. Decide it against the
 phone-size preview rather than in advance.
+
+### Implemented — tags filter the list in place (owner request, 2026-10-03)
+
+**Decision 41.** Before this slice the tags on a recipe card were decoration: they told you what a
+recipe was, and filtering meant opening a collapsed panel and choosing from three dropdowns, one
+facet at a time. Now the tags themselves are the filter, which is the behaviour the owner described:
+
+| Step | What happens |
+|---|---|
+| Open Recipes | Every recipe is listed, exactly as before |
+| See a recipe tagged **Chicken** and wonder what else is chicken | Tap the tag on the card — the list narrows to recipes carrying it, and the tag highlights on every card that still matches |
+| In that list, open **Chicken & Mushroom Pie** and want both | Tap **Mushroom** on that card — the list narrows again, because a recipe must carry **every** selected tag to stay visible |
+| Change your mind | Tap a highlighted tag again, remove one tag in the “Filtering by” row, or press **Clear tags** |
+
+And the small details that make it hold together:
+
+- **The selection is visible.** A “Filtering by” row lists the active tags as chips, each removable, with a plain-language note that every tag has to match. The results line says “2 of 4 recipes match” rather than leaving the shorter list unexplained.
+- **Nothing dead-ends.** If a combination matches nothing, the empty state says so and offers **Clear filters**; the filter row is still there to unpick one tag at a time.
+- **The dropdowns did not go away.** Meal occasion, dish type and key food remain available for browsing, and they read the same selection the chips do — choosing a facet replaces that facet's tags, and tapped tags set the matching dropdown. The dropdown labels itself **“Multiple — see tags”** when a facet has more than one tapped value, so the two controls never silently disagree.
+- **The filter is in the URL** (`/recipes?tags=food:5,food:25`). A reload, the phone's back gesture and a tap into a recipe all keep it, and the recipe page's **← Back to recipes** returns to the same filtered list. On the detail page the tags are tappable too: tapping **Mushroom** there opens the catalogue narrowed by it.
+- **The vocabulary is unchanged.** Only the existing structured tags became filters — meal occasion, dish type and up to two known-Food key foods (decisions 34–35). No free-text tags were introduced.
+
+**Still open / for the owner's review**
+
+- **Same-facet taps always AND.** Two meal-occasion tags (Lunch **and** Dinner) is a legitimate request that usually matches nothing, and is currently the same dead end as any other empty combination. If tapping tags within one facet should widen instead (“Lunch **or** Dinner”), that is a small change with a real behavioural consequence — worth deciding after using it.
+- **Should the tap-to-filter idea spread?** The same tokens exist in the Diary and the Foods list. The Recipes catalogue is the natural first home; nothing else has been changed.
+- **Touch target.** The chips over the photo stay small so they do not crowd the image; their tap area is expanded invisibly, but this is exactly the kind of thing to judge at phone size on the LAN dev container, not on a laptop.
 

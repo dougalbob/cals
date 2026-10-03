@@ -1,11 +1,13 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has two implemented
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has three implemented
 slices.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
-implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. Full
+implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. The third
+makes the recipe tags themselves the filter (tap a tag to narrow the list, tap another to narrow it
+further) and is implemented on the session branch, awaiting the owner's preview review. Full
 recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
@@ -32,7 +34,7 @@ latter cannot render a full circle at the ±2,000 kcal limits — and both direc
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters; shared tags and optional total minutes can be edited below recipe ingredients. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it |
 
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing

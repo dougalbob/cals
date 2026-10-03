@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments. The shared-Recipes metadata slice was implemented and owner-reviewed in the Arena preview; known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) were owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`. The next slice — **+ Add recipe** on each Diary meal card, opening the portion sheet with that meal preselected (decision 40) — is queued for the following session. Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
+| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments. The shared-Recipes metadata slice was implemented and owner-reviewed in the Arena preview; known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) were owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`. A third increment — **tags as filters**: tapping a tag on a recipe card narrows the catalogue, and each further tag narrows it again (decision 41) — is implemented on the session branch and awaiting the owner's preview review. Also queued is **+ Add recipe** on each Diary meal card, opening the portion sheet with that meal preselected (decision 40). Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go`; Phase 13 allows narrow, additive food-serving/recipe-metadata API support and user-scoped preferences for recipe favourites and each user's usual recipe portion |
@@ -224,7 +224,7 @@ Measured, not estimated:
 | Question | Answer |
 |---|---|
 | Does the toolchain work in the Arena sandbox? | **Yes.** Node 22.22.3, npm 10.9.8, registry reachable, 63 packages installed in ~16 s, Vite dev server on `0.0.0.0:5173` with `allowedHosts: true` served the preview proxy cleanly |
-| Is the Go toolchain available in the sandbox? | **It can be, for verification.** By default there is no Go, and `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are unreachable — which is why the spike ships a fixture API. **However**, a real toolchain can be obtained from the PyPI wheel `go-bin` (PyPI *is* reachable) and modules can be fetched from GitHub. `scripts/verify-go-in-sandbox.sh` does this in `/tmp` without touching the working tree; it builds `./cmd/server` with CGO, and the real server has been run in-sandbox — creating all 17 tables via migrations and returning `401` on protected routes (Cloudflare middleware working). Limits: the toolchain is Go 1.27 while the Dockerfile pins 1.22, nothing in `/tmp` persists between turns, and **Docker cannot run in the sandbox**, so `docker build` must still be verified on your own machine |
+| Is the Go toolchain available in the sandbox? | **It can be, for verification.** By default there is no Go, and `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are unreachable — which is why the spike ships a fixture API. **However**, a real toolchain can be obtained from the PyPI wheel `go-bin` (PyPI *is* reachable) and modules can be fetched from GitHub. `scripts/verify-go-in-sandbox.sh` does this in `/tmp` without touching the working tree; it builds `./cmd/server` with CGO, and the real server has been run in-sandbox — creating all 20 tables via migrations and returning `401` on protected routes (Cloudflare middleware working). Limits: the toolchain is Go 1.27 while the Dockerfile pins 1.22, nothing in `/tmp` persists between turns, and **Docker cannot run in the sandbox**, so `docker build` must still be verified on your own machine |
 | What does it cost the client? | 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for three screens — one hashed, cacheable bundle versus ~4,500 lines of uncached vanilla JS today |
 | Does a test story appear on day one? | **Yes.** The original spike had 14 tests; Phase 11 added typed-API/client coverage (20 tests at that checkpoint). The suite now has 93 tests across date maths (DST, leap days), stones/lbs conversion, API handling, the Diary/Home/Drinks/Foods screens, serving/portion maths and cooked-weight recipe maths (2026-10-03) |
 | Does it typecheck strictly and build? | **Yes.** `tsc --noEmit` clean under `strict`, `noUnusedLocals`, `verbatimModuleSyntax`; production build in 628 ms |
@@ -390,6 +390,29 @@ This is a deliberately narrow exception to the current frontend-only migration b
 | Nothing remembered what a person actually eats, and a changed amount silently became the new habit | With no remembered amount nothing is preselected; the **first successful log becomes that user's usual**, later logs prefill it, and a different amount is one-off unless **“Make this my usual”** is ticked. The usual is per user and per recipe and never touches the shared recipe's `serves` |
 | Diary Edit only knew the logged grams | A logged food's response carries its serving metadata, so Edit offers the same named choices as Add without changing what the row stores: grams plus its own nutrition snapshot |
 
+**Third increment — the tags themselves filter the catalogue (owner request, 2026-10-03; decision 41
+in the [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03)).**
+Implemented on the session branch and awaiting the owner's preview review. The first increment put
+tags on the cards and filters behind a collapsed panel; this one makes the tags the filter, which is
+what the owner asked for: tap **Chicken** on a card and the list narrows to the chicken recipes, then
+tap **Mushroom** on **Chicken & Mushroom Pie** and it narrows to the recipes carrying both. A recipe
+must carry **every** selected tag (AND), because that is the flow described.
+
+| Before | Now |
+|---|---|
+| Tags were decoration — reading one meant opening a panel and choosing from a dropdown to filter by it | Tapping a tag on a card filters the list in place, highlights the tag on the cards that still match, and **narrows further with each additional tag** |
+| With several filters set there was no single place that showed them all | A **“Filtering by”** row shows every active tag as a removable chip with **Clear tags**, the results line reads “2 of 4 recipes match”, and an empty combination explains itself and offers a way back |
+| The three facet dropdowns were the only filter controls, and a tag couldn't reach them | The selection is one model with two views: tapping a tag sets the matching dropdown, choosing a dropdown replaces that facet's tags, and a multi-valued facet labels itself **“Multiple — see tags”** instead of showing a misleading “Any” |
+| A filter was lost on reload or when opening a recipe | The selection rides in the URL (`/recipes?tags=food:5,food:25`), so reload, the phone's back gesture and **← Back to recipes** all keep it; on a recipe page a tag opens the catalogue already narrowed by it |
+
+Scope notes: this is a presentation-layer change with no API, schema or data change — tags were
+already in the recipe payload (`internal/models/models.go`). The tag vocabulary is unchanged
+(meal occasions, dish type, up to two known-Food key foods; no free-text tags, decision 35). The
+matching rules and URL round-trip are unit-tested in `src/lib/recipeTags.test.ts`, and the
+tap/add/remove/clear and detail-page flows in `src/routes/RecipesRoute.test.tsx`. The demo fixture
+gained **Chicken & Mushroom Pie** (with a Mushrooms key food) so the owner's exact example is
+reproducible in the preview.
+
 **Next increment (owner request, 2026-10-03):** each Diary meal card gains **+ Add recipe** beside
 **+ Add food** on the same row, and the portion sheet opens with the meal the action was started from
 already selected (recorded as decision 40 in the [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03)).
@@ -406,7 +429,7 @@ into an error. Diary storage is unchanged: grams plus the client's nutrition sna
 concentration maths and its unit tests are untouched, and the fixture API mirrors all of it.
 
 - **Visual direction:** use [`../product/recipeUX-example.jpg`](../product/recipeUX-example.jpg) as inspiration, not a pixel specification. Prioritize a prominent recipe photo, readable ingredient quantities and calories, a clear total and an obvious add action. Overlay a restrained row of tags near the lower-left of the photo; place the favourite heart at the upper-right. In the editor, provide a structured **Add tag** action after the ingredient list. Keep controls touch-friendly and avoid overcrowding phone layouts.
-- **Recipe classification:** meal occasion (Breakfast, Lunch, Dinner, Snack, etc.) and dish type (Main, Side, etc.) are distinct facets, so a recipe can be both “Lunch” and “Main.” Meal occasion is multi-select. The current controlled lists stay deliberately small: Breakfast/Lunch/Dinner/Snack and Main/Side/Soup/Salad/Dessert. Do not add free-text tags or recreate Mealie's broad tagging feature set; recipe classification is shared metadata.
+- **Recipe classification:** meal occasion (Breakfast, Lunch, Dinner, Snack, etc.) and dish type (Main, Side, etc.) are distinct facets, so a recipe can be both “Lunch” and “Main.” Meal occasion is multi-select. The current controlled lists stay deliberately small: Breakfast/Lunch/Dinner/Snack and Main/Side/Soup/Salad/Dessert. Do not add free-text tags or recreate Mealie's broad tagging feature set; recipe classification is shared metadata. These same tags are the catalogue's filter controls (decision 41): tapping one filters in place, additional taps require every tag to match (AND), and the selection is carried in `?tags=` so it survives navigation.
 - **Key foods:** allow up to two key-food markers for recipe filtering, selected only from known cals Foods that belong to the recipe. Do not accept hand-typed food labels. This lets the same known food catalogue power ingredient selection and pantry-oriented search.
 - **Time:** store an optional exact prep-to-plate duration in minutes. Do not generate “Quick” / “Low and slow” labels in Phase 13; user-configurable time ranges belong in a future Settings design.
 - **Favourites:** a favourite belongs to the signed-in user, not the shared recipe. Use an outlined red heart when off and a filled red heart with a subtle shadow when on; expose its state accessibly.
