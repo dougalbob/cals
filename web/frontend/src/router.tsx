@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router'
 import { AppLayout } from './AppLayout'
 import { DiaryRoute } from './routes/DiaryRoute'
 import { FoodsRoute } from './routes/FoodsRoute'
+import { DrinksRoute } from './routes/DrinksRoute'
 import { HomeRoute } from './routes/HomeRoute'
 import { MetricsRoute } from './routes/MetricsRoute'
 
@@ -25,6 +26,7 @@ export const router = createBrowserRouter(
         { path: 'diary/:date', element: <DiaryRoute /> },
         { path: 'foods', element: <FoodsRoute /> },
         { path: 'metrics', element: <MetricsRoute /> },
+        { path: 'drinks', element: <DrinksRoute /> },
         { path: '*', element: <Navigate to="/diary" replace /> },
       ],
     },

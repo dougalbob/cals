@@ -18,8 +18,9 @@ import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
 import { DiaryRoute } from './DiaryRoute'
 import { addDays, formatNumber, todayIso } from '../lib/format'
-import { orderQuickDrinks } from '../components/QuickDrinks'
-import { pickWaterDrink } from '../components/WaterCard'
+import { orderQuickDrinks, quickDrinksForGrid } from '../components/QuickDrinks'
+import { pickWaterDrink } from '../components/FluidsCard'
+import { isWaterDrink } from '../lib/drinkCatalog'
 import type { Drink } from '../api/types'
 
 function renderDiary(path: string) {
@@ -73,12 +74,13 @@ describe('orderQuickDrinks', () => {
     ]
 
     expect(orderQuickDrinks(drinks).map((d) => d.name)).toEqual([
-      'Water',
       'Tea',
       'Coffee',
       'Squash',
+      'Water',
       'Lager',
     ])
+    expect(quickDrinksForGrid(drinks).map((d) => d.name)).toEqual(['Tea', 'Coffee', 'Squash', 'Lager'])
   })
 })
 
@@ -97,8 +99,8 @@ describe('pickWaterDrink', () => {
     expect(pickWaterDrink([drink(1, 'Black Coffee'), drink(2, 'Tea'), drink(3, 'Water')])?.name).toBe('Water')
   })
 
-  it('falls back to the first water-counting drink, and to null when there is none', () => {
-    expect(pickWaterDrink([drink(1, 'Squash')])?.name).toBe('Squash')
+  it('does not treat tea or squash as the glass, and returns null when there is no Water', () => {
+    expect(pickWaterDrink([drink(1, 'Squash')])).toBeNull()
     expect(pickWaterDrink([])).toBeNull()
   })
 })
@@ -118,9 +120,10 @@ describe('DiaryRoute', () => {
 
     // The quick selector offers the user's own drinks, not a hard-coded list
     const quick = screen.getByLabelText('Quick drinks')
-    for (const drink of seed.drinks) {
+    for (const drink of seed.drinks.filter((d) => !isWaterDrink(d))) {
       expect(within(quick).getByText(drink.name)).toBeTruthy()
     }
+    expect(within(quick).queryByText('Water')).toBeNull()
 
     // Drinks logged today are listed individually and are removable
     expect(await screen.findByText('Drinks logged')).toBeTruthy()
@@ -147,7 +150,7 @@ describe('DiaryRoute', () => {
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
     const card = await screen.findByLabelText('Fluids and drinks')
 
-    fireEvent.click(within(screen.getByLabelText('Quick drinks')).getByRole('button', { name: /^Add Water/ }))
+    fireEvent.click(within(card).getByRole('button', { name: /Add a 250 ml glass of water/ }))
 
     await waitFor(() =>
       expect(

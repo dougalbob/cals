@@ -105,7 +105,7 @@ describe('HomeRoute', () => {
     const before = within(card).getByRole('progressbar')
     expect(before.getAttribute('aria-valuenow')).toBe(String(Math.min(waterBefore, target)))
 
-    fireEvent.click(within(screen.getByLabelText('Quick drinks')).getByRole('button', { name: /^Add Water/ }))
+    fireEvent.click(within(card).getByRole('button', { name: /Add a 250 ml glass of water/ }))
 
     await waitFor(() =>
       expect(
@@ -113,25 +113,36 @@ describe('HomeRoute', () => {
       ).toBeTruthy(),
     )
   })
-  it('confirms long-press deletion without adding an extra drink', async () => {
+  it('confirms long-press deletion of a glass without adding an extra drink', async () => {
     renderHome()
-    await screen.findByLabelText('Fluids and drinks')
-    const quick = screen.getByLabelText('Quick drinks')
-    const before = seed.drinkEntriesFor(seed.TODAY).filter(e => e.drink_id === 3).length
+    const card = await screen.findByLabelText('Fluids and drinks')
+    const before = seed.drinkEntriesFor(seed.TODAY).filter((e) => e.drink_id === 3).length
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
-    const button = within(quick).getByRole('button', { name: /^Add Water/ })
+    const button = within(card).getByRole('button', { name: /Add a 250 ml glass of water/ })
     expect(before).toBeGreaterThan(0)
     vi.stubGlobal('PointerEvent', MouseEvent)
     fireEvent.pointerDown(button, { button: 0 })
     expect(await screen.findByRole('dialog', { name: 'Delete drink entry?' })).toBeTruthy()
     fireEvent.pointerUp(button)
     fireEvent.click(button)
-    expect(seed.drinkEntriesFor(seed.TODAY).filter(e => e.drink_id === 3).length).toBe(before)
+    expect(seed.drinkEntriesFor(seed.TODAY).filter((e) => e.drink_id === 3).length).toBe(before)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(within(quick).getByRole('button', {
-      name: `Add Water${before - 1 > 0 ? `, ${before - 1} logged today` : ''}`,
-    })).toBeTruthy())
+    await waitFor(() =>
+      expect(
+        within(card).getByRole('button', {
+          name: `Add a 250 ml glass of water${before - 1 > 0 ? `, ${before - 1} logged today` : ''}`,
+        }),
+      ).toBeTruthy(),
+    )
     expect(seed.waterFor(seed.TODAY).consumed_ml).toBe(waterBefore - 250)
+  })
+
+  it('keeps Water off the 2×2 and links to My drinks', async () => {
+    renderHome()
+    const quick = await screen.findByLabelText('Quick drinks')
+    expect(within(quick).queryByRole('button', { name: /^Add Water/ })).toBeNull()
+    expect(within(quick).getByRole('link', { name: 'My drinks' })).toBeTruthy()
+    expect(within(quick).getByRole('button', { name: /^Add Tea/ })).toBeTruthy()
   })
 
 })

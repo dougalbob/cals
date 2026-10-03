@@ -78,6 +78,10 @@ same window. Covered by `internal/handlers/bank_test.go`:
 
 These are recorded in the vision document as decisions 15–17.
 
+Daily setup and the Today-card UX (My drinks page, 2×2 grid, tappable glass, vary-this-time)
+are proposed separately in [`drinks-builder.md`](./drinks-builder.md) (decisions 21–26). That
+document does not change this ledger.
+
 ## Verification
 
 - Go: `go build ./...`, `go vet ./...`, `go test ./...` — includes new bank regression, water,

@@ -51,8 +51,15 @@ export function HomeRoute() {
   }
 
   const addDrink = useMutation({
-    mutationFn: ({ drink, volumeMl }: { drink: Drink; volumeMl?: number }) =>
-      addDrinkEntry(drink.id, date, volumeMl),
+    mutationFn: ({
+      drink,
+      volumeMl,
+      calories,
+    }: {
+      drink: Drink
+      volumeMl?: number
+      calories?: number
+    }) => addDrinkEntry(drink.id, date, { volumeMl, calories }),
     onMutate: ({ drink }) => setPendingDrink(drink.id),
     onSettled: () => setPendingDrink(null),
     onSuccess: refreshDrinkData,
@@ -78,11 +85,7 @@ export function HomeRoute() {
   const available = bank.data?.today_available ?? 2000
   const bankBalance = bank.data?.bank_balance ?? 0
 
-  const waterDrinks = useMemo(
-    () => (drinkDefinitions.data ?? []).filter((drink) => drink.counts_toward_water),
-    [drinkDefinitions.data],
-  )
-  const waterDrink = pickWaterDrink(waterDrinks)
+  const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
 
   const mealSummaries = useMemo(
     () =>
@@ -178,7 +181,7 @@ export function HomeRoute() {
         waterDrink={waterDrink}
         drinks={drinkDefinitions.data ?? []}
         entries={drinks.data ?? []}
-        onAddDrink={(drink, volumeMl) => addDrink.mutate({ drink, volumeMl })}
+        onAddDrink={(drink, opts) => addDrink.mutate({ drink, ...opts })}
         onDeleteDrinkEntry={(entryId, drinkName) => setDeleteConfirm({ entryId, drinkName })}
         pendingDrinkId={pendingDrink}
         deletingEntryId={deletingEntryId}

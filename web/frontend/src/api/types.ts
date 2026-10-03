@@ -122,6 +122,8 @@ export interface DailyBank {
   balance: number
 }
 
+export type SugarAmount = '0' | '1' | '2' | 'sweetener'
+
 export interface Drink {
   id: number
   user_id: number
@@ -131,6 +133,26 @@ export interface Drink {
   calories: number
   /** This drink contributes to the daily water target (one source of truth). */
   counts_toward_water: boolean
+  /** Shown on the vary-this-time sheet. Absent on older rows — infer from the catalog. */
+  accepts_milk?: boolean
+  accepts_sugar?: boolean
+  usual_milk?: boolean
+  usual_sugar?: SugarAmount
+  /** Lower numbers appear first on the Today 2×2. */
+  sort_order?: number
+}
+
+export interface DrinkInput {
+  name: string
+  icon: string
+  volume_ml: number
+  calories: number
+  counts_toward_water: boolean
+  accepts_milk?: boolean
+  accepts_sugar?: boolean
+  usual_milk?: boolean
+  usual_sugar?: SugarAmount
+  sort_order?: number
 }
 
 /** Daily water summary — derived from water-counting drink entries. */

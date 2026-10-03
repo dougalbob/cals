@@ -238,6 +238,14 @@ func RunMigrations() error {
 		`ALTER TABLE drinks ADD COLUMN counts_toward_water INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE drink_entries ADD COLUMN volume_ml INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE drink_entries ADD COLUMN calories INTEGER NOT NULL DEFAULT 0`,
+
+		// Drinks builder (My drinks / vary-this-time). Additive defaults so
+		// existing rows keep working as one-tap usuals with no extras sheet.
+		`ALTER TABLE drinks ADD COLUMN accepts_milk INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE drinks ADD COLUMN accepts_sugar INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE drinks ADD COLUMN usual_milk INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE drinks ADD COLUMN usual_sugar TEXT NOT NULL DEFAULT '0'`,
+		`ALTER TABLE drinks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
 	}
 
 	for _, migration := range migrations {
