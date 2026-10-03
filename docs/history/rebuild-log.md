@@ -14,6 +14,18 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc16` (PR #38)
+
+The owner said **"Lets publish"** (decision 20) after reviewing the four road-test fixes in the Arena
+preview, so PR #38 (checks green) was merged to `cals-dev` as `dd2cbef` and tagged `v2.0.0-dev-rc16`.
+The tag-triggered workflow ([run 37147534800](https://github.com/dougalbob/cals/actions/runs/37147534800))
+passed the ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the
+anonymous-pull check; digest `sha256:69ed52c0b7f409e13f5cff78fbce4a0040fd5b52ea59e72f1ccb25cfba8a175a`.
+This checkpoint carries the Calendar per-day calories fix (rc15 showed `0 / goal` on every day) and the
+calorie-wheel, hydration-glass and Quick-drinks changes. **No schema migration, no data copy, no
+template change**, and no Unraid or appdata access by the session. Details in the
+[release log](../architecture/unraid-image-release.md#release-log).
+
 ## 2026-10-03 — Road-test fixes: calorie wheel labels, inner-ring sweep, glass target, Android dots
 
 Four things the owner hit while road-testing, all frontend:
