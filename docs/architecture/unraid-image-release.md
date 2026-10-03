@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc7` are published; `dev-latest` points to rc7 and is anonymously pullable (verified in CI). The owner still needs to Force Update the Unraid containers to review rc7 |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc8` are published; `dev-latest` points to rc8 and is anonymously pullable (verified in CI). The owner still needs to Force Update the Unraid containers to review rc8 |
 | **Updated** | 2026-10-03 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -154,7 +154,7 @@ The source repository was made public on 2026-10-02 as a prerequisite of this pu
 
 The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
 
-## Part 2 — publish the first V2 image (complete; rc7 is current)
+## Part 2 — publish the first V2 image (complete; rc8 is current)
 
 The owner-directed sequence is: **finish the Phase 11 foundation PR first (done — PR #5 is merged into `cals-dev`); make the first GHCR image the next focused task.** Do not bundle image publishing into feature PRs.
 
@@ -164,8 +164,8 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc7 published; `dev-latest` currently points at rc7. See the [release log](#release-log) |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1), [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), [rc3](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc3), [rc4](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc4), [rc5](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc5), [rc6](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc6), and [rc7](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc7), each with source commit and image digest in its notes |
+| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc8 published; `dev-latest` currently points at rc8. See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1), [rc2](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc2), [rc3](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc3), [rc4](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc4), [rc5](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc5), [rc6](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc6), [rc7](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc7) and [rc8](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc8), each with source commit and image digest in its notes |
 | 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
 | 6 | Unraid smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, Cloudflare Tunnel route checked separately; then the owner copies the template into the Unraid Docker UI (DockerMan) and creates the `cals-dev-v2` container from it | ⬜ owner action |
 | 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 commits, tags, digests and build results recorded; the Unraid smoke-test result is the owner's to add after item 6 |
@@ -185,6 +185,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc5` | 2026-10-03, [run 37076288897](https://github.com/dougalbob/cals/actions/runs/37076288897) | `30c2f327` on `cals-dev` (PR #17 Today dashboard checkpoint) | `sha256:661ca057c2ab3d3b3c79028a89cd54bb9fbeb4e9364a280ce0fecff9ce0058d7` | [v2.0.0-dev-rc5](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc5) (prerelease) | ⬜ owner — Force Update and review dashboard as both identities |
 | `v2.0.0-dev-rc6` | 2026-10-03, [run 37082814035](https://github.com/dougalbob/cals/actions/runs/37082814035) | `fd427aa` on `cals-dev` (PR #19 My drinks builder and quick-drinks refinements) | `sha256:ac818a8d181487c9e57750e07ecd3d8169e0378f446fccafd7ecb605832c7839` | [v2.0.0-dev-rc6](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc6) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` / `cals-dev-identity` |
 | `v2.0.0-dev-rc7` | 2026-10-03, [run 37108058099](https://github.com/dougalbob/cals/actions/runs/37108058099) | `9202a4f` on `cals-dev` (PR #20 bank-based calorie ring) | `sha256:5f36771bc0bf260d9f26fa6d479627eac91d0789bc10e2dc6d1716667ec98bf9` | [v2.0.0-dev-rc7](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc7) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and review the ring at phone size; no schema migration |
+| `v2.0.0-dev-rc8` | 2026-10-03, [run 37110417233](https://github.com/dougalbob/cals/actions/runs/37110417233) | `f6a6675` on `cals-dev` (PR #22 Phase 12 close-out: opposite bank-ring sweep directions + Diary quantity edit) | `sha256:74a5094f079e558831b690f640536c9fc8af63d50b12bac930f3b1f6a95c72dc` | [v2.0.0-dev-rc8](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc8) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary at phone size as **both** identities; no schema migration or data copy |
 
 ## Not implemented yet
 
@@ -216,3 +217,19 @@ and anonymous pull of `dev-latest`. Digest:
 The checkpoint adds the fixed ±2,000 kcal bank ring; inner daily-goal display remains
 independent. No schema migration or data copy is required. The owner must Force Update
 `cals-dev-v2` to review on real data; V1 and the legacy root UI are unchanged.
+
+### 2026-10-03 — rc8 Phase 12 close-out checkpoint
+
+Published **`v2.0.0-dev-rc8`**, source `f6a6675c72c277b17edceb414f3f6781f29f869e`
+(PR #22 merge on `cals-dev`). [Publish run 37110417233](https://github.com/dougalbob/cals/actions/runs/37110417233)
+passed, including the `cals-dev` ancestry guard, Docker build, GHCR push, prerelease creation
+and anonymous pull of `dev-latest`. Digest:
+`sha256:74a5094f079e558831b690f640536c9fc8af63d50b12bac930f3b1f6a95c72dc`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc8).
+
+The checkpoint contains two frontend-only changes: the bank ring now starts both directions at
+12 o'clock, with a surplus sweeping clockwise in green and a deficit sweeping anticlockwise in
+red (decision 28), and logged food/recipe rows gained the missing Phase 12 **Edit** action, which
+rescales the entry's own saved nutrition with a live calorie preview. No backend, schema,
+API-contract, data-copy or template change. The owner must Force Update `cals-dev-v2` (8151) and
+`cals-dev-identity` (8152) to review on real data; V1 and the legacy root UI are unchanged.

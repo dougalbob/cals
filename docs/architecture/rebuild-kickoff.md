@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** The Phase 12 close-out is open as a single frontend-only PR, **#22**, covering opposite bank-ring sweep directions (surplus clockwise, deficit anticlockwise) and the logged-quantity **Edit** action. Once it is merged, publish a `v2.0.0-dev-rc*` tag and Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary as **both** users before Phase 13 |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 close-out is merged on `cals-dev` (PR #22, merge `f6a6675`) and published as `v2.0.0-dev-rc8`; `dev-latest` points to it.** Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary at phone size as **both** users. That review is the last gate before **Phase 13 — Foods + Recipes** |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -15,8 +15,8 @@
 2. **Installation method (owner decision, 2026-10-02): Docker Compose is retired as an install path.** The `cals-dev-v2.xml` Unraid template + prebuilt GHCR image is the only documented install method; `docker-compose.yml` is kept solely as legacy tooling for the existing V1 server. Every document reflects this — do not reintroduce Compose into installation instructions. PR #6 (merged as `8695c7e`) renamed the V2 development deployment to `cals-dev-v2` end to end and rewrote the install manual.
 3. **Done — Part 2: publish the V2 development image** (see [`unraid-image-release.md`](./unraid-image-release.md)):
    - PR #7 added `.github/workflows/docker-validate.yml` (build-only PR check, never pushes) and `.github/workflows/publish-dev-image.yml` (publishes approved `v*-dev*` tags to GHCR and creates prereleases). The publish workflow verifies anonymous pulls, as Unraid does.
-   - **Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc7` are published** with prereleases and recorded digests; `dev-latest` now points to rc7. PR #20 adds the fixed ±2,000 kcal bank ring, with no schema migration or data copy.
-   - The V2 `cals-dev-v2` container remains installed and Cloudflare-routed on `8151`; publishing a tag does not update a running container, so the owner must Force Update to review rc7.
+   - **Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc8` are published** with prereleases and recorded digests; `dev-latest` now points to rc8. PR #22 (the Phase 12 close-out) adds the opposite bank-ring sweep directions and the Diary quantity-edit action, with no schema migration or data copy.
+   - The V2 `cals-dev-v2` container remains installed and Cloudflare-routed on `8151`; publishing a tag does not update a running container, so the owner must Force Update to review rc8.
    - No `latest` image is produced from a development tag; stable publishing is still undesigned. The package name `cals-dev-v2` is deliberately provisional — see the Naming section of `unraid-image-release.md`. This is a technical development image only; it does not complete the UI redesign or authorize a V1 cutover.
 
 ### 2026-10-02 (later): V2 live and the DEV identity switch
@@ -40,12 +40,12 @@
   and a water card with one-tap glass and other-amount entry. Design and decisions:
   [`water-and-drinks.md`](./water-and-drinks.md) and
   [`frontend-strategy.md`](./frontend-strategy.md) §7.2.
-- **Phase 12 is now feature-complete** pending its merge review: the logged-quantity **Edit**
-  action is implemented (see the owner-feedback section below), so the remaining work is review,
-  not code. Review the Home and Diary at phone size on the LAN-only dev container
-  (`http://<unraid-lan-ip>:8152/next/`) as **both** identities. The owner-authorized ring
-  behavior is described in [`frontend-strategy.md`](./frontend-strategy.md); Phase 13 follows
-  that review.
+- **Phase 12 is merged and published** as `v2.0.0-dev-rc8`: the logged-quantity **Edit** action
+  and the opposite bank-ring sweep directions are both on `cals-dev` (PR #22). The remaining work
+  is review, not code — Force Update and look at Home and Diary at phone size on the LAN-only dev
+  container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities. **Phase 13 (Foods +
+  Recipes) follows that review**; the owner-authorized ring behavior is described in
+  [`frontend-strategy.md`](./frontend-strategy.md).
 - **Checkpoint `v2.0.0-dev-rc4` is published** (2026-10-02, [run 37066221932](https://github.com/dougalbob/cals/actions/runs/37066221932); digest `sha256:ea5e97aad9551a3e86188bba6296bdbf0fe5b31d01b74fd323ab72fee3919d25`; anonymous pull verified). The LAN dev container (`cals-dev-identity`) tracks `dev-latest`; the owner can Force Update it on `8152` now without changing its template variables or appdata. The new app-header **Switch user** link is included; `/dev/identity` remains available directly. The Cloudflare-routed `cals-dev-v2` container is not automatically updated. Recorded in the [release log](./unraid-image-release.md#release-log).
 
 ## 0. Before anything else: get the work

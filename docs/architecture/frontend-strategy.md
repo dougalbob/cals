@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented on `cals-dev` (2026-10-02).** Phase 12 (Diary: bank fix, water, quick drinks) is awaiting owner review at phone size on the LAN dev container; later screens and production cutover remain phase-gated |
+| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12 (Diary: bank fix, water, quick drinks, quantity edit) is awaiting owner review at phone size on the LAN dev container; **Phase 13 — Foods + Recipes** is next, and production cutover remains phase-gated |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go` |
