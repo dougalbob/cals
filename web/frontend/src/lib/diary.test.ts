@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { caloriesPer100g, isValidQuantity, scaleEntryToGrams } from './diary'
+import { caloriesPer100g, isValidQuantity, nutritionForGrams, scaleEntryToGrams } from './diary'
 
 /** A logged entry, as saved at the time: 150 g of something at 165 kcal/100 g. */
 const entry = {
@@ -29,6 +29,33 @@ describe('caloriesPer100g', () => {
 
   it('returns null rather than dividing by a zero or missing weight', () => {
     expect(caloriesPer100g({ ...entry, quantity_grams: 0 })).toBeNull()
+  })
+})
+
+describe('nutritionForGrams', () => {
+  const food = {
+    calories_per_100g: 447,
+    protein_per_100g: 6,
+    carbs_per_100g: 70,
+    fat_per_100g: 16,
+    fibre_per_100g: 4,
+  }
+
+  it('calculates and snapshots every nutrient without rounding', () => {
+    expect(nutritionForGrams(food, 25)).toEqual({
+      quantity_grams: 25,
+      calories: 111.75,
+      protein: 1.5,
+      carbs: 17.5,
+      fat: 4,
+      fibre: 1,
+    })
+  })
+
+  it('refuses zero, negative and non-finite quantities', () => {
+    expect(nutritionForGrams(food, 0)).toBeNull()
+    expect(nutritionForGrams(food, -25)).toBeNull()
+    expect(nutritionForGrams(food, Number.NaN)).toBeNull()
   })
 })
 

@@ -16,11 +16,11 @@ export interface CreateDiaryEntryInput {
   food_id?: number
   recipe_id?: number
   quantity_grams: number
-  calories?: number
-  protein?: number
-  carbs?: number
-  fat?: number
-  fibre?: number
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fibre: number
 }
 
 /** Typed same-origin API functions for the Diary's core resources. */

@@ -44,31 +44,48 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (response.status === 204) return undefined as T
 
   const contentType = response.headers.get('Content-Type') ?? ''
+  const normalizedContentType = contentType.toLowerCase()
+  const isJson =
+    normalizedContentType.includes('application/json') || normalizedContentType.includes('+json')
 
-  // Cloudflare Access served us a login page instead of JSON.
-  if (!contentType.includes('application/json') && response.ok) {
-    if (contentType.includes('text/html')) {
-      // A Cloudflare Access redirect is an HTML login page, not an API response.
-      // Reload once through the browser's normal navigation so Access can sign in.
-      reloadForAuthentication()
-      throw new AuthExpiredError()
-    }
-    throw new ApiError(`Unexpected response type: ${contentType || 'unknown'}`, response.status)
+  // Cloudflare Access served us a login page instead of JSON. Keep this check
+  // ahead of parsing: a 200 HTML login page is not a successful API response.
+  if (response.ok && normalizedContentType.includes('text/html')) {
+    reloadForAuthentication()
+    throw new AuthExpiredError()
   }
+
+  const text = await response.text()
 
   if (!response.ok) {
     let message = `Request failed (${response.status})`
-    if (contentType.includes('application/json')) {
-      const data = (await response.json().catch(() => null)) as { error?: unknown } | null
+    if (isJson) {
+      let data: { error?: unknown } | null = null
+      try {
+        data = JSON.parse(text) as { error?: unknown }
+      } catch {
+        // Keep the generic status message for malformed JSON error responses.
+      }
       if (data && typeof data.error === 'string' && data.error.trim()) message = data.error
-    } else {
-      const text = await response.text().catch(() => '')
-      if (text.trim()) message = text.trim()
+    } else if (text.trim()) {
+      message = text.trim()
     }
     throw new ApiError(message, response.status)
   }
 
-  return (await response.json()) as T
+  // A successful mutation may legitimately have no body. Likewise, accept
+  // valid JSON from a 2xx response even if a handler forgot its JSON header;
+  // this prevents a false client-side failure after the server already wrote.
+  if (text.trim() === '') return undefined as T
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    if (!isJson) {
+      throw new ApiError(`Unexpected response type: ${contentType || 'unknown'}`, response.status)
+    }
+    throw new ApiError('Invalid JSON response', response.status)
+  }
 }
 
 export const apiGet = <T>(path: string) => request<T>('GET', path)
