@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** Next: Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, finish the Phase 12 logged-quantity edit gap, then review Home/Diary as **both** users before Phase 13 |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** Next: Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, finish the Phase 12 logged-quantity edit gap, then review Home/Diary as **both** users before Phase 13. The owner's opposite-sweep bank-ring direction change (2026-10-03) is implemented on the session branch and is part of the Phase 12 close-out PR |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -183,3 +183,13 @@ dev container before moving on to Phase 13. See frontend-strategy.md for scope.
 ### Owner feedback — 2026-10-03
 
 Before Phase 13, close the Diary quantity-edit gap: Phase 12 already promises edit, the React view currently only deletes, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provide the path. The owner approved the interim ring behavior: inner ring on today's goal, outer ring on a signed balance with fixed ±2,000 kcal limits until Phase 15, with the exact balance visible. The owner has since suggested a recent lookback for the outer ring (tentatively 30 completed days) rather than lifetime accumulation: Phase 14 should add a separate food-and-drink rolling metric without changing the cumulative bank, and Phase 15 should make the lookback and limits configurable per user. This is not yet implemented. See [`frontend-strategy.md`](./frontend-strategy.md#owner-requested-diary-and-bank-ring-follow-ups-2026-10-03) and [`vision-and-open-questions.md`](../product/vision-and-open-questions.md#proposed-lookback-window-2026-10-03).
+
+**Owner decision (2026-10-03): opposite sweep directions on the bank ring.** A surplus should
+start at 12 o'clock and grow **clockwise**; a deficit should start at the same point and grow
+**anticlockwise**, so the sign reads instantly without relying on colour. This is visual only — the
+bank figure, the ±2,000 kcal scale, the inner daily-goal ring and all bank maths are unchanged.
+It is **implemented** in `web/frontend/src/components/CalorieRing.tsx` on the Phase 12 close-out
+session branch (component tests pin both directions; the rendered ring was rasterised and probed at
+15° intervals) and needs no schema, API or appdata change. Phase 14's rolling metric and Phase 15's
+per-user limits inherit the same direction rule. Details:
+[`frontend-strategy.md`](./frontend-strategy.md#opposite-sweep-directions-for-surplus-and-deficit-2026-10-03).

@@ -325,14 +325,26 @@ The observed grey-ring case has a concrete cause. The current outer ring draws `
 
 The approved outer ring is a **display of the cumulative bank balance**, not another daily-consumption ring. Until Phase 15 Settings, it uses fixed limits of +2,000 and -2,000 kcal:
 
-- Positive balance fills clockwise in green: +1,000 is 50%; +2,000 or more is full green.
-- Negative balance fills clockwise in red: -650 is 32.5%; -2,000 or less is full red.
+- Positive balance fills clockwise in green from 12 o'clock: +1,000 is 50%; +2,000 or more is full green.
+- Negative balance fills anticlockwise in red from the same 12 o'clock start: -650 is 32.5%; -2,000 or less is full red.
 - Zero has no colored arc; the unfilled part stays neutral grey.
 - Keep the exact bank figure visible beside the ring (so a capped -4,460 still reads -4,460), and expose the amount in the ring's accessible label. Color must not be the only signal.
 
 Keep the inner ring tied to today's `daily_goal` and today's calories. Do not change `bank_balance`, calorie-bank maths, or history to implement a visual scale. The owner approved shipping this gauge now with fixed ±2,000 defaults; Phase 15 will wire independently adjustable values from Settings.
 
 **Implementation status (2026-10-03):** The shared Home/Diary `CalorieRing` now uses this scale, labels the bank amount and percentage, and keeps the centre on today's goal. Component coverage pins +1,000 at 50%, -650 at 32.5%, and saturation at both limits, including a -4,460 deficit.
+
+### Opposite sweep directions for surplus and deficit (2026-10-03)
+
+The owner asked whether the surplus and deficit could grow in **opposite directions from the same 12 o'clock start** rather than both filling clockwise, so the sign of the balance is legible at a glance and not carried by colour alone. It can, and it is implemented in the same `CalorieRing`:
+
+- **Surplus (green):** starts at 12 o'clock and sweeps **clockwise** — the ring's original direction, unchanged.
+- **Deficit (red):** starts at 12 o'clock and sweeps **anticlockwise**, mirroring the geometry about the ring's vertical axis.
+- The centre, the inner daily-goal ring, the ±2,000 kcal scale, the printed bank figure and all bank maths are unaffected. Both directions saturate at their limit, and the accessible label now states the sweep direction as well as the amount.
+
+Implementation note for future work: the anticlockwise case **reflects the SVG geometry** (`translate(size 0) scale(-1 1)` before the 12 o'clock rotation) rather than using a negative `stroke-dashoffset`. A negative offset cannot render a *full* circle — at exactly 100% the whole dash falls into the gap and the ring would disappear at the limits it is meant to saturate at. The transform is produced by a small exported helper (`bankArcTransform`) so both directions stay pinned by component tests (`npm test`), and the rendered result was additionally rasterised and probed at 15° intervals during review: +1,000 occupies 12→6 o'clock clockwise, −650 occupies 12→3 o'clock anticlockwise, −4,460 fills the ring.
+
+This is a presentation-only change: no schema, API, or data change, and it does not alter the Phase 14 rolling-balance metric or the Phase 15 per-user limits, which will simply reuse whichever direction the signed value takes.
 
 ### Phase 14 — calculate a recent-window balance for the ring
 

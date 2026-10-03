@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import { BANK_RING_LIMIT_KCAL, CalorieRing } from './CalorieRing'
+import { BANK_RING_LIMIT_KCAL, bankArcTransform, CalorieRing } from './CalorieRing'
 
 const GREEN = '#26de81'
 const RED = '#fc5c65'
 const NEUTRAL = '#edf2f7'
+/** A plain rotation: the arc's dash starts at 12 o'clock and runs forwards (clockwise). */
+const CLOCKWISE = 'rotate(-90 95 95)'
+/** A reflection about the ring's vertical axis: same 12 o'clock start, mirrored sweep. */
+const ANTICLOCKWISE = `translate(190 0) scale(-1 1) ${CLOCKWISE}`
 
 afterEach(cleanup)
 
@@ -21,26 +25,41 @@ function renderRing(bankBalance: number, consumed = 1_500, goal = 2_000) {
   return {
     image,
     outerProgress,
+    transform: outerProgress.getAttribute('transform'),
     unmount: view.unmount,
     fraction: 1 - offset / circumference,
   }
 }
 
+describe('bankArcTransform', () => {
+  it("anchors both directions at 12 o'clock and only mirrors the deficit", () => {
+    expect(bankArcTransform(1_000, 190)).toBe(CLOCKWISE)
+    expect(bankArcTransform(0, 190)).toBe(CLOCKWISE)
+    expect(bankArcTransform(-1, 190)).toBe(ANTICLOCKWISE)
+    expect(bankArcTransform(-2_000, 190)).toBe(ANTICLOCKWISE)
+  })
+})
+
 describe('CalorieRing', () => {
   it('shows half a green outer ring at half of the positive bank limit', () => {
-    const { image, outerProgress, fraction } = renderRing(1_000)
+    const { image, outerProgress, fraction, transform } = renderRing(1_000)
 
     expect(outerProgress.getAttribute('stroke')).toBe(GREEN)
     expect(fraction).toBeCloseTo(0.5, 6)
+    expect(transform).toBe(CLOCKWISE)
     expect(image.getAttribute('aria-label')).toContain('Bank balance +1,000 kcal in surplus')
+    expect(image.getAttribute('aria-label')).toContain("filling clockwise from 12 o'clock")
     expect(screen.getByText('Bank +1,000 kcal · 50% of ±2,000 kcal scale')).toBeTruthy()
   })
 
-  it('shows a red third-ring deficit at -650 kcal', () => {
-    const { outerProgress, fraction } = renderRing(-650)
+  it("shows a red third-ring deficit at -650 kcal, sweeping the other way from 12 o'clock", () => {
+    const { image, outerProgress, fraction, transform } = renderRing(-650)
 
     expect(outerProgress.getAttribute('stroke')).toBe(RED)
     expect(fraction).toBeCloseTo(0.325, 6)
+    expect(transform).toBe(ANTICLOCKWISE)
+    expect(transform?.endsWith(CLOCKWISE)).toBe(true)
+    expect(image.getAttribute('aria-label')).toContain("filling anticlockwise from 12 o'clock")
     expect(screen.getByText('Bank -650 kcal · 32.5% of ±2,000 kcal scale')).toBeTruthy()
   })
 
@@ -58,6 +77,7 @@ describe('CalorieRing', () => {
     const deficit = renderRing(-4_460)
     expect(deficit.fraction).toBeCloseTo(1, 6)
     expect(deficit.outerProgress.getAttribute('stroke')).toBe(RED)
+    expect(deficit.transform).toBe(ANTICLOCKWISE)
     expect(deficit.image.getAttribute('aria-label')).toContain('Bank balance -4,460 kcal in deficit')
   })
 

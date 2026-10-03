@@ -16,6 +16,12 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 |---|---|---|
 | Today | `/` | Summary landing: calorie ring, four meal tiles, merged fluids card |
 | Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search |
+
+The shared `CalorieRing` outer arc is anchored at 12 o'clock in both directions: a bank **surplus
+sweeps clockwise** in green, a **deficit sweeps anticlockwise** in red (owner decision 28,
+2026-10-03). It uses a reflected SVG transform rather than a negative `stroke-dashoffset` — the
+latter cannot render a full circle at the ±2,000 kcal limits — and both directions are pinned by
+`src/components/CalorieRing.test.tsx`.
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`) |
