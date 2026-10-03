@@ -49,16 +49,18 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 | `BIND_ADDRESS` | *(all interfaces in production; `127.0.0.1` in dev mode)* | Listener IP; dev mode accepts only loopback/private IPs |
 | `FATSECRET_CLIENT_ID` | *(disabled)* | FatSecret API client ID |
 | `FATSECRET_CLIENT_SECRET` | *(disabled)* | FatSecret API client secret |
-| `MEALIE_BASE_URL` | *(disabled)* | Base URL of your Mealie instance (e.g. `http://mealie:9000`) |
-| `MEALIE_API_KEY` | *(disabled)* | Mealie API key (****** |
+| `MEALIE_BASE_URL` | *(disabled)* | Base URL of your Mealie instance (legacy integration only; not part of the React Phase 13 work) |
+| `MEALIE_API_KEY` | *(disabled)* | Mealie API key (legacy integration only) |
 
 > **Note:** If `MEALIE_BASE_URL` or `MEALIE_API_KEY` are not set the application still starts normally; the Mealie endpoints return `503 Service Unavailable` until both variables are provided.
 
 ---
 
-## Mealie Integration (v1)
+## Legacy Mealie Integration (v1; not part of React Phase 13)
 
-Allows searching recipes stored in a separately hosted [Mealie](https://mealie.io) container and importing them into cals.
+The current vanilla-JavaScript Recipes view has a legacy search/import integration for recipes stored in a separately hosted [Mealie](https://mealie.io) container. The owner is **not pursuing this importer now**, so it will not be ported into the React Recipes experience in Phase 13. Importing requires parsing Mealie's external recipe payload, which could break after significant Mealie changes; the current importer also stores ingredient lines as text rather than matching them to known cals Foods. If the legacy UI is removed at Phase 16 cutover, the Mealie search/import feature will disappear unless it is separately reconsidered.
+
+The configuration and endpoint notes below describe the existing legacy implementation, not a commitment to maintain or expand it.
 
 ### Reaching Mealie from cals
 
@@ -75,7 +77,7 @@ All endpoints are protected by Cloudflare Access middleware.
 
 ### Recipes view behaviour
 
-In the **Recipes** tab, the `Search recipes...` box now searches both:
+In the **legacy Recipes** tab, the `Search recipes...` box searches both:
 
 - local cals recipes (shown under **In cals**)
 - Mealie recipes (shown under **From Mealie** when you type a query)

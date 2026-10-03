@@ -180,6 +180,8 @@ func main() {
 	mux.Handle("POST /api/recipes", withAuth(http.HandlerFunc(handlers.HandleCreateRecipe)))
 	mux.Handle("PUT /api/recipes/{id}", withAuth(http.HandlerFunc(handlers.HandleUpdateRecipe)))
 	mux.Handle("DELETE /api/recipes/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteRecipe)))
+	mux.Handle("PUT /api/recipes/{id}/favourite", withAuth(http.HandlerFunc(handlers.HandleSetRecipeFavourite)))
+	mux.Handle("PUT /api/recipes/{id}/metadata", withAuth(http.HandlerFunc(handlers.HandleUpdateRecipeMetadata)))
 
 	// Recipe images
 	mux.Handle("POST /api/recipes/{id}/image", withAuth(http.HandlerFunc(handlers.HandleUploadRecipeImage)))

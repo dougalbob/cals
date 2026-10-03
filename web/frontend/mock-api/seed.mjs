@@ -76,7 +76,20 @@ const foodById = new Map(foods.map((f) => [f.id, f]))
 // Recipes (weight-reduction maths mirrors internal/handlers/recipes.go)
 // ---------------------------------------------------------------------------
 
-function buildRecipe({ id, name, description, instructions, serves, items, text, cookedWeight }) {
+function buildRecipe({
+  id,
+  name,
+  description,
+  instructions,
+  serves,
+  items,
+  text,
+  cookedWeight,
+  mealOccasions = [],
+  dishType = '',
+  keyFoodIds = [],
+  totalTimeMinutes = null,
+}) {
   const ingredients = items.map(([foodId, grams], i) => {
     const f = foodById.get(foodId)
     return {
@@ -114,6 +127,10 @@ function buildRecipe({ id, name, description, instructions, serves, items, text,
     instructions,
     image_filename: '',
     serves,
+    meal_occasions: [...mealOccasions],
+    dish_type: dishType || undefined,
+    key_foods: keyFoodIds.map((foodId) => ({ food_id: foodId, food_name: foodById.get(foodId).name })),
+    total_time_minutes: totalTimeMinutes,
     created_by_user_id: 1,
     created_by_name: 'Dougal',
     calculated_weight_grams: calculated,
@@ -151,6 +168,10 @@ export const recipes = [
     items: [[5, 600], [9, 400], [12, 15], [10, 200]],
     text: ['2 tsp curry powder', '1 onion', '2 cloves garlic'],
     cookedWeight: 1050,
+    mealOccasions: ['lunch', 'dinner'],
+    dishType: 'main',
+    keyFoodIds: [5, 9],
+    totalTimeMinutes: 60,
   }),
   buildRecipe({
     id: 2,
@@ -160,6 +181,9 @@ export const recipes = [
     serves: 1,
     items: [[1, 60], [2, 200], [4, 80]],
     cookedWeight: 340,
+    mealOccasions: ['breakfast'],
+    keyFoodIds: [1, 4],
+    totalTimeMinutes: 10,
   }),
   buildRecipe({
     id: 3,
@@ -169,8 +193,15 @@ export const recipes = [
     serves: 2,
     items: [[11, 280], [9, 300], [10, 200], [12, 10]],
     cookedWeight: 780,
+    mealOccasions: ['dinner'],
+    dishType: 'main',
+    keyFoodIds: [11],
+    totalTimeMinutes: 25,
   }),
 ]
+
+// In-memory, signed-in-user favourite state for the fixture API.
+export const favouriteRecipeIds = new Set()
 
 const recipeById = new Map(recipes.map((r) => [r.id, r]))
 
@@ -535,12 +566,23 @@ export function dateOffset(daysAgo) {
 }
 
 // ---------------------------------------------------------------------------
-// Test/dev helper: restore the seeded diary and drinks after mutations, so
-// tests are deterministic and the preview can be reset without a restart.
+// Test/dev helper: restore seeded mutable data after mutations, so tests are
+// deterministic and the preview can be reset without a restart.
 // ---------------------------------------------------------------------------
 const initialDiaryEntries = diaryEntries.slice()
 const initialDrinkEntries = drinkEntries.map((e) => ({ ...e }))
 const initialDrinks = drinks.map((d) => ({ ...d }))
+const initialRecipeMetadata = new Map(recipes.map((recipe) => [
+  recipe.id,
+  {
+    meal_occasions: [...recipe.meal_occasions],
+    dish_type: recipe.dish_type,
+    key_foods: recipe.key_foods.map((keyFood) => ({ ...keyFood })),
+    total_time_minutes: recipe.total_time_minutes,
+    updated_at: recipe.updated_at,
+  },
+]))
+const initialFavouriteRecipeIds = [...favouriteRecipeIds]
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 
@@ -551,6 +593,16 @@ export function resetFixtures() {
   drinkEntries.push(...initialDrinkEntries.map((e) => ({ ...e })))
   drinks.length = 0
   drinks.push(...initialDrinks.map((d) => ({ ...d })))
+  favouriteRecipeIds.clear()
+  for (const recipeId of initialFavouriteRecipeIds) favouriteRecipeIds.add(recipeId)
+  for (const recipe of recipes) {
+    const initial = initialRecipeMetadata.get(recipe.id)
+    recipe.meal_occasions = [...initial.meal_occasions]
+    recipe.dish_type = initial.dish_type
+    recipe.key_foods = initial.key_foods.map((keyFood) => ({ ...keyFood }))
+    recipe.total_time_minutes = initial.total_time_minutes
+    recipe.updated_at = initial.updated_at
+  }
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq
 }

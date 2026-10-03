@@ -26,6 +26,10 @@ export interface SeedRecipe {
   instructions: string
   image_filename: string
   serves: number
+  meal_occasions: ('breakfast' | 'lunch' | 'dinner' | 'snack')[]
+  dish_type?: 'main' | 'side' | 'soup' | 'salad' | 'dessert'
+  key_foods: { food_id: number; food_name: string }[]
+  total_time_minutes: number | null
   created_by_user_id: number
   created_by_name: string
   calculated_weight_grams: number
@@ -154,6 +158,7 @@ export interface SeedTotals {
 
 export const foods: SeedFood[]
 export const recipes: SeedRecipe[]
+export const favouriteRecipeIds: Set<number>
 export const drinks: SeedDrink[]
 export const drinkEntries: SeedDrinkEntry[]
 export const diaryEntries: SeedDiaryEntry[]

@@ -42,6 +42,81 @@ export interface Food {
   servings?: FoodServing[]
 }
 
+export const RECIPE_MEAL_OCCASIONS = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+  { value: 'snack', label: 'Snack' },
+] as const
+
+export type RecipeMealOccasion = (typeof RECIPE_MEAL_OCCASIONS)[number]['value']
+
+export const RECIPE_DISH_TYPES = [
+  { value: 'main', label: 'Main' },
+  { value: 'side', label: 'Side' },
+  { value: 'soup', label: 'Soup' },
+  { value: 'salad', label: 'Salad' },
+  { value: 'dessert', label: 'Dessert' },
+] as const
+
+export type RecipeDishType = (typeof RECIPE_DISH_TYPES)[number]['value']
+
+export interface RecipeKeyFood {
+  food_id: number
+  food_name: string
+}
+
+/** Shared recipe content; favourite state is returned for the signed-in user. */
+export interface Recipe {
+  id: number
+  name: string
+  description?: string
+  instructions?: string
+  image_filename?: string
+  serves: number
+  created_by_user_id: number
+  created_by_name?: string
+  calculated_weight_grams: number
+  total_weight_grams: number
+  total_calories: number
+  calories_per_100g: number
+  updated_at?: string
+  is_favourite: boolean
+  meal_occasions: RecipeMealOccasion[]
+  dish_type?: RecipeDishType
+  key_foods: RecipeKeyFood[]
+  total_time_minutes: number | null
+}
+
+export interface RecipeIngredient {
+  id: number
+  recipe_id: number
+  food_id: number
+  food_name: string
+  quantity_grams: number
+  calories?: number
+  sort_order: number
+}
+
+export interface RecipeTextIngredient {
+  id: number
+  recipe_id: number
+  description: string
+  sort_order: number
+}
+
+export interface RecipeDetail extends Recipe {
+  ingredients?: RecipeIngredient[]
+  text_ingredients?: RecipeTextIngredient[]
+}
+
+export interface RecipeMetadataInput {
+  meal_occasions: RecipeMealOccasion[]
+  dish_type: RecipeDishType | ''
+  key_food_ids: number[]
+  total_time_minutes: number | null
+}
+
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
 
 export const MEALS: { id: Meal; label: string; icon: string }[] = [

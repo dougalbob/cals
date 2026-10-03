@@ -8,6 +8,7 @@ const NAV = [
   { to: '/diary', label: 'Diary', icon: '📔', end: false },
   { to: '/metrics', label: 'Metrics', icon: '📈', end: false },
   { to: '/foods', label: 'Foods', icon: '🥗', end: false },
+  { to: '/recipes', label: 'Recipes', icon: '🍽️', end: false },
 ]
 
 export function AppLayout() {
@@ -57,7 +58,7 @@ export function AppLayout() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-line safe-bottom">
-        <div className="mx-auto max-w-2xl grid grid-cols-4">
+        <div className="mx-auto max-w-2xl grid grid-cols-5">
           {NAV.map((item) => (
             <NavLink
               key={item.to}

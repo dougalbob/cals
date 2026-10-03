@@ -143,8 +143,8 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 
 ## G. Recipes, Mealie and external data
 
-16. **Is Mealie the long-term home for recipes**, with cals importing one-way? Or would you rather recipes lived only in cals?
-17. **Would you want changes made in cals pushed back to Mealie?** (Today: imports only, text ingredients only, no food matching.)
+16. ~~**Is Mealie the long-term home for recipes**, with cals importing one-way?~~ **Answered for the current rebuild (2026-10-03): Mealie import is not being pursued.** The existing search/import code is legacy-only and will not be ported into the React Recipes experience. Importing depends on parsing an external service's recipe payload, which could break if Mealie makes significant changes; imported ingredient lines are also text-only and are not matched to cals foods. The legacy feature may disappear when the old UI is removed unless it is separately reconsidered.
+17. ~~**Would you want changes made in cals pushed back to Mealie?**~~ **Deferred:** no Mealie sync or write-back work is planned while the integration is not being pursued.
 18. **FatSecret is IP-whitelisted and used only for food search.** Keep it long-term, or is the local food database enough for your regular foods?
 19. **Would a proper UK food database import** (e.g. McCance & Widdowson / CoFID) be more useful than a commercial API?
 
@@ -197,8 +197,12 @@ Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is 
 
 Core identity, water units/target and the drink-template choices are settled (decisions 15–17).
 Phase 12 is implemented, with real-server Diary correctness follow-ups now verified. Phase 13's food
-serving and recipe-portion direction is recorded in decisions 29–32; implementation is next, while
-phone-size review and remaining product questions stay open. The highest-value open questions now are:
+serving, recipe-portion, recipe-discovery and visual direction are recorded in decisions 29–39. The
+first React Recipes increment—shared catalogue, per-user favourites, detail, metadata tags and facet
+filters—has been implemented and owner-reviewed in the Arena preview. The next planned increment is
+known-Food serving choices and recipe-to-Diary portion logging, per decisions 29–32; full Food/recipe
+authoring and phase-wide phone-size review remain ahead. Mealie import is explicitly legacy-only and
+is not being ported. The highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
@@ -223,7 +227,7 @@ phone-size review and remaining product questions stay open. The highest-value o
 
 Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain. Decision 28 refines decision 27's presentation (arc start and sweep direction) without touching its scale or limits, and applies equally to Phase 14's rolling metric and Phase 15's per-user limits.
 
-## Phase 13 quantity decisions — 2026-10-03
+## Phase 13 recipe and quantity decisions — 2026-10-03
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -231,6 +235,13 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 | 30 | 2026-10-03 | For flexibility, support multiple named gram-backed units per food alongside FatSecret's units. Reuse the existing per-food serving structures; keep custom choices attached to a food rather than creating universal household conversions (such as one generic “mug”). | Agent recommendation; owner delegated the unit-model choice |
 | 31 | 2026-10-03 | Recipe logging supports both a remembered **usual grams per user and recipe** and fractions of the whole cooked recipe, with direct gram editing. Keep `serves` as recipe yield information, not an assumption about an individual user's portion; diary rows remain gram/nutrition snapshots. | Owner |
 | 32 | 2026-10-03 | On first recipe log, do not guess or preselect a quantity. Let the user choose a fraction or grams; remember the first successful logged amount as their usual. Later quantity changes are one-off unless the user explicitly chooses **“Make this my usual.”** | Owner |
+| 33 | 2026-10-03 | The existing Mealie search/import integration is **legacy-only** and is not being ported into Phase 13's React Recipes experience. It depends on parsing an external payload and imports text-only ingredients without cals food matching; it may disappear when the legacy UI is removed unless separately reconsidered. No Mealie sync/write-back work is planned. | Owner |
+| 34 | 2026-10-03 | Recipe classification uses separate structured facets for **meal occasion** and **dish type** (for example, Lunch and Main are not alternatives). A recipe can have multiple meal occasions, such as Lunch and Snack. These are shared recipe metadata, not user-specific settings. | Owner |
+| 35 | 2026-10-03 | A recipe can mark up to two **key foods** for filtering, chosen from known cals Foods rather than free-text labels. Key foods must represent foods in the recipe; text labels cannot be entered manually. | Owner |
+| 36 | 2026-10-03 | Store optional **prep-to-plate total time** as an exact number of minutes. Defer labels such as “Quick” or “Low and slow” until user-defined time ranges are designed in a future phase. | Owner |
+| 37 | 2026-10-03 | **Recipe favourites are per-user**, because recipes are shared but preference is personal. The favourite control uses an outlined red heart when off and a filled red heart when on. | Owner |
+| 38 | 2026-10-03 | A calculated **Goodness rating is not part of Phase 13**. Revisit it as a separate future design question with a transparent method and suitable nutrition data; fat percentage alone is not a sufficient basis for the score. | Owner |
+| 39 | 2026-10-03 | Use `docs/product/recipeUX-example.jpg` as a **strong visual direction, not a rigid specification**: a prominent recipe photo, legible ingredient quantities and calories, a clear total, and an obvious add action. Recipe tags sit thoughtfully over the photo near the lower left; the favourite heart is at the upper right. | Owner |
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
