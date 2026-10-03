@@ -1,14 +1,14 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has three implemented
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has three merged
 slices.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
 implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. The third
 makes the recipe tags themselves the filter (tap a tag to narrow the list, tap another to narrow it
-further) and is implemented on the session branch, awaiting the owner's preview review. Full
-recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
+further); it was owner-reviewed in the Arena preview and merged as PR #30, published as
+`v2.0.0-dev-rc12`. Full recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline

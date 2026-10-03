@@ -14,6 +14,22 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc12` (PR #30)
+
+Owner said **"Lets publish"** (decision 20), so PR #30 was merged to `cals-dev` as `ead2bf9` and the
+merge commit was tagged `v2.0.0-dev-rc12`. The tag-triggered workflow
+([run 37130651708](https://github.com/dougalbob/cals/actions/runs/37130651708)) passed the `cals-dev`
+ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the
+anonymous-pull check; digest
+`sha256:59631e659d11cfd32423fa87d50ba35b93a578fbc0847d6ac51550ac9e7da928`.
+
+The checkpoint contains Phase 13 slice 3 (tap-to-filter recipe tags, decision 41), the documentation
+restructure, and decisions 42–54 from the second and third discovery passes. **Frontend-only** — no
+API, schema, migration, template or appdata change, so it can be Force Updated over any earlier
+checkpoint with no data work. `dev-latest` moved to rc12; the owner's Force Update and phone-size
+review are the remaining gates, and `rc11` (servings/portions) was never Force Updated either, so the
+container may be on an older image than either checkpoint.
+
 ## 2026-10-03 — Second discovery pass completed (decisions 42–54)
 
 The owner answered the remaining day-to-day questions, and the picture is now unusually clear:
