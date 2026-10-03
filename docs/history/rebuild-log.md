@@ -38,7 +38,8 @@ Four things the owner hit while road-testing, all frontend:
    padded clear of it.
 
 Vitest 135/135, lint and typecheck green. The deferred RFC3339-date issue on the fitness, weight and
-measurement endpoints was written up as a known issue for the metrics phase rather than fixed.
+measurement endpoints was written up as a known issue for the metrics phase rather than fixed. Both
+this and the calendar fix are queued for `v2.0.0-dev-rc16`.
 
 ## 2026-10-03 — Calendar read every day as 0 kcal: the SQLite `DATE` decltype trap
 
@@ -61,8 +62,8 @@ Fix: every calendar query now selects `date(date) AS day` (an expression has no 
 comes back as text) and compares `date(date) >= date(?)`; scanned values and the bank start date go
 through a new `isoDate` helper; `daysBetweenInclusive` refuses a zero start instead of overflowing.
 Three Go regression tests cover per-day totals, dates stored with a time component, and the
-running-total seed. No schema change, no API-shape change, and the bug never reached a published
-image — it ships with rc15.
+running-total seed. No schema change and no API-shape change. The defect **is** in the published
+`rc15` image (it was found by road-testing that image), so the fix ships in `rc16`.
 
 ## 2026-10-03 — Published `v2.0.0-dev-rc14` (PR #34)
 

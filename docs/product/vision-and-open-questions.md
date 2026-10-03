@@ -633,9 +633,10 @@ Inspected on 2026-10-03:
 Columns declared `DATE`/`DATETIME` are converted to `time.Time` by `mattn/go-sqlite3` (it reads
 `sqlite3_column_decltype`), and `database/sql` then renders that as RFC3339 when the scan
 destination is a string. A row holding `2026-09-07` therefore comes back as
-`2026-09-07T00:00:00Z`. This is what made the new calendar read `0 / 1,250 kcal` on every day with a
+`2026-09-07T00:00:00Z`. This is what made the `rc15` calendar read `0 / 1,250 kcal` on every day with a
 bank of `+133,184,631 kcal` — see the
-[rebuild log entry](../history/rebuild-log.md) and the fix in `internal/handlers/calendar.go`.
+[rebuild log entry](../history/rebuild-log.md) and the fix in `internal/handlers/calendar.go`
+(shipping in `rc16`).
 
 The same pattern is still live in three handlers that select the bare column and scan it into a
 string, so their JSON carries `2026-09-07T00:00:00Z` rather than `2026-09-07`:
