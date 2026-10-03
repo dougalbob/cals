@@ -199,10 +199,10 @@ Core identity, water units/target and the drink-template choices are settled (de
 Phase 12 is implemented, with real-server Diary correctness follow-ups now verified. Phase 13's food
 serving, recipe-portion, recipe-discovery and visual direction are recorded in decisions 29–39. The
 first React Recipes increment—shared catalogue, per-user favourites, detail, metadata tags and facet
-filters—has been implemented and owner-reviewed in the Arena preview. The next planned increment is
-known-Food serving choices and recipe-to-Diary portion logging, per decisions 29–32; full Food/recipe
-authoring and phase-wide phone-size review remain ahead. Mealie import is explicitly legacy-only and
-is not being ported. The highest-value open questions now are:
+filters—has been implemented and owner-reviewed in the Arena preview. The second increment—known-Food
+serving choices and recipe-to-Diary portion logging, per decisions 29–32—is implemented and awaiting
+owner preview review; full recipe authoring and phase-wide phone-size review remain ahead. Mealie
+import is explicitly legacy-only and is not being ported. The highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.

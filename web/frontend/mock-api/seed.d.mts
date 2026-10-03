@@ -4,6 +4,14 @@
  * internal/models/models.go.
  */
 
+export interface SeedFoodServing {
+  id: number
+  food_id: number
+  fatsecret_serving_id?: string
+  description: string
+  grams: number
+}
+
 export interface SeedFood {
   id: number
   fatsecret_id?: string
@@ -17,6 +25,7 @@ export interface SeedFood {
   serving_name?: string
   serving_grams?: number
   is_edited: boolean
+  servings: SeedFoodServing[]
 }
 
 export interface SeedRecipe {
@@ -186,5 +195,18 @@ export function waterFor(date: string): SeedWaterSummary
 export function nextDrinkEntryId(): number
 export function nextDrinkId(): number
 export function findDrink(id: number | string): SeedDrink | undefined
+export function nextFoodId(): number
+export function nextFoodServingId(): number
+export function findFood(id: number | string): SeedFood | undefined
+/** A diary entry's food measures, read from the food definition like Go does. */
+export function foodMeasuresFor(foodId: number): {
+  food_serving_name?: string
+  food_serving_grams?: number
+  food_servings?: SeedFoodServing[]
+}
+/** Per-user usual recipe portions (user 1 in the fixture). */
+export const recipePortions: Map<number, number>
+export function usualGramsFor(recipeId: number): number | null
+export function rememberRecipePortion(recipeId: number, grams: number, makeUsual: boolean): void
 /** Restores the seeded diary/drinks after a test has mutated them. */
 export function resetFixtures(): void

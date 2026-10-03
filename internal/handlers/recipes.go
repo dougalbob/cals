@@ -43,11 +43,13 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		           SELECT 1 FROM recipe_favourites rf
 		           WHERE rf.recipe_id = r.id AND rf.user_id = ?
 		       ) AS is_favourite,
-		       r.updated_at, r.dish_type, r.total_time_minutes
+		       r.updated_at, r.dish_type, r.total_time_minutes,
+		       p.grams AS usual_grams
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
+		LEFT JOIN recipe_user_portions p ON p.recipe_id = r.id AND p.user_id = ?
 		ORDER BY r.name
-	`, user.ID)
+	`, user.ID, user.ID)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -57,18 +59,22 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var recipe models.Recipe
 		var desc, img, dishType sql.NullString
-		var calcWeight sql.NullFloat64
+		var calcWeight, usualGrams sql.NullFloat64
 		var totalTime sql.NullInt64
 		var isFavourite int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
 			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
-			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime)
+			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime, &usualGrams)
 		if err != nil {
 			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		recipe.IsFavourite = isFavourite != 0
+		if usualGrams.Valid {
+			grams := usualGrams.Float64
+			recipe.UsualGrams = &grams
+		}
 		if dishType.Valid {
 			recipe.DishType = dishType.String
 		}
@@ -248,7 +254,58 @@ func getRecipeForUser(id, userID int64) (*models.Recipe, error) {
 		return nil, err
 	}
 	recipe.IsFavourite = isFavourite != 0
+
+	usualGrams, err := loadUsualRecipePortion(userID, id)
+	if err != nil {
+		return nil, err
+	}
+	recipe.UsualGrams = usualGrams
+
 	return recipe, nil
+}
+
+// loadUsualRecipePortion returns one user's remembered grams for a recipe, or
+// nil when they have never logged it.
+func loadUsualRecipePortion(userID, recipeID int64) (*float64, error) {
+	var grams float64
+	err := database.DB.QueryRow(`
+		SELECT grams FROM recipe_user_portions WHERE user_id = ? AND recipe_id = ?
+	`, userID, recipeID).Scan(&grams)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &grams, nil
+}
+
+// rememberRecipePortion records a user's usual grams for a recipe.
+//
+// Decision 32: the first successful log becomes their usual, and later logs do
+// not change it unless the client explicitly asks (`make_usual`). A one-off
+// larger or smaller portion therefore never quietly rewrites the usual.
+func rememberRecipePortion(userID, recipeID int64, grams float64, makeUsual bool) error {
+	if !(grams > 0) {
+		return nil
+	}
+
+	if makeUsual {
+		_, err := database.DB.Exec(`
+			INSERT INTO recipe_user_portions (user_id, recipe_id, grams, updated_at)
+			VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+			ON CONFLICT(user_id, recipe_id)
+			DO UPDATE SET grams = excluded.grams, updated_at = CURRENT_TIMESTAMP
+		`, userID, recipeID, grams)
+		return err
+	}
+
+	_, err := database.DB.Exec(`
+		INSERT INTO recipe_user_portions (user_id, recipe_id, grams)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id, recipe_id) DO NOTHING
+	`, userID, recipeID, grams)
+	return err
 }
 
 func getRecipeByID(id int64) (*models.Recipe, error) {

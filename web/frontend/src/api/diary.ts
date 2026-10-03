@@ -21,6 +21,12 @@ export interface CreateDiaryEntryInput {
   carbs: number
   fat: number
   fibre: number
+  /**
+   * Recipe logs only: replace this user's remembered usual portion with this
+   * quantity. Without it, a first log becomes the usual and later logs stay
+   * one-off (owner decision 32).
+   */
+  make_usual?: boolean
 }
 
 /** Typed same-origin API functions for the Diary's core resources. */

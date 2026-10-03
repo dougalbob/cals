@@ -13,9 +13,11 @@ import {
   type RecipeMetadataInput,
 } from '../api/types'
 import { RecipeTags } from '../components/RecipeTags'
+import { RecipePortionSheet } from '../components/RecipePortionSheet'
 
 export function RecipeDetailRoute() {
   const { id: idParam } = useParams()
+  const [isLogging, setIsLogging] = useState(false)
   const recipeId = Number(idParam)
   const validId = Number.isInteger(recipeId) && recipeId > 0
   const queryClient = useQueryClient()
@@ -85,6 +87,25 @@ export function RecipeDetailRoute() {
             {recipe.total_time_minutes !== null && <span>{recipe.total_time_minutes} min total</span>}
           </div>
 
+          <div className="flex flex-wrap items-center gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setIsLogging(true)}
+              className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+            >
+              🍽 Add to diary
+            </button>
+            {recipe.usual_grams !== null ? (
+              <span className="text-xs text-ink-light">
+                Your usual portion: {Math.round(recipe.usual_grams)} g
+              </span>
+            ) : (
+              <span className="text-xs text-ink-light">
+                Choose a portion when you log it; the first one becomes your usual.
+              </span>
+            )}
+          </div>
+
           <section className="pt-4" aria-labelledby="recipe-ingredients-title">
             <h3 id="recipe-ingredients-title" className="m-0 text-base font-semibold">Ingredients</h3>
             {ingredients.length === 0 && textIngredients.length === 0 ? (
@@ -129,6 +150,8 @@ export function RecipeDetailRoute() {
           )}
         </div>
       </article>
+
+      {isLogging && <RecipePortionSheet recipe={recipe} onClose={() => setIsLogging(false)} />}
     </div>
   )
 }

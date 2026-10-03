@@ -19,7 +19,8 @@ export interface User {
 
 export interface FoodServing {
   id: number
-  food_id: number
+  food_id?: number
+  /** Present on FatSecret-provided measures; user-defined ones have none. */
   fatsecret_serving_id?: string
   description: string
   grams: number
@@ -39,7 +40,28 @@ export interface Food {
   serving_name?: string
   serving_grams?: number
   is_edited: boolean
+  /** Named gram-backed measures: the preferred serving plus any others. */
   servings?: FoodServing[]
+}
+
+/** A named measure sent to POST/PUT /api/foods. Grams stay canonical. */
+export interface FoodServingInput {
+  description: string
+  grams: number
+}
+
+export interface FoodInput {
+  name: string
+  brand?: string
+  calories_per_100g: number
+  protein_per_100g: number
+  carbs_per_100g: number
+  fat_per_100g: number
+  fibre_per_100g: number
+  serving_name?: string
+  serving_grams?: number
+  /** User-defined measures. FatSecret-provided rows are never sent here. */
+  servings?: FoodServingInput[]
 }
 
 export const RECIPE_MEAL_OCCASIONS = [
@@ -80,8 +102,14 @@ export interface Recipe {
   total_weight_grams: number
   total_calories: number
   calories_per_100g: number
+  protein_per_100g: number
+  carbs_per_100g: number
+  fat_per_100g: number
+  fibre_per_100g: number
   updated_at?: string
   is_favourite: boolean
+  /** The signed-in user's remembered portion in grams; null until they log it. */
+  usual_grams: number | null
   meal_occasions: RecipeMealOccasion[]
   dish_type?: RecipeDishType
   key_foods: RecipeKeyFood[]
@@ -143,6 +171,14 @@ export interface DiaryEntry {
   updated_at: string
   food_name?: string
   recipe_name?: string
+  /**
+   * The logged food's current measures, so Edit can offer the same choices as
+   * Add. Read from the food definition; the entry itself still stores only
+   * grams and its own nutrition snapshot.
+   */
+  food_serving_name?: string
+  food_serving_grams?: number
+  food_servings?: FoodServing[]
 }
 
 export interface DailyTotals {

@@ -116,6 +116,26 @@ func RunMigrations() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_recipe_key_foods_food_id ON recipe_key_foods(food_id)`,
 
+		// Phase 13: a person's usual portion of a shared recipe. `serves` stays
+		// recipe-level yield information; it is not an assumption about how much
+		// an individual eats. Recipe logging converts every choice to grams and
+		// diary rows keep their own nutrition snapshot.
+		`CREATE TABLE IF NOT EXISTS recipe_user_portions (
+			user_id INTEGER NOT NULL,
+			recipe_id INTEGER NOT NULL,
+			grams REAL NOT NULL,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (user_id, recipe_id),
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+		)`,
+
+		// Food measures (serving_name/serving_grams plus additional named
+		// gram-backed choices) are stored in food_servings beside the
+		// FatSecret-provided rows; user-defined rows have no
+		// fatsecret_serving_id and are the ones an edit may replace.
+		`CREATE INDEX IF NOT EXISTS idx_food_servings_food_id ON food_servings(food_id)`,
+
 		`CREATE TABLE IF NOT EXISTS diary_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,

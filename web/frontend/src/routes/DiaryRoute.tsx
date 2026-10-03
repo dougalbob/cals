@@ -13,11 +13,13 @@ import type { CreateDiaryEntryInput } from '../api/diary'
 import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
+import { QuantityPicker } from '../components/QuantityPicker'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
 import { caloriesPer100g, nutritionForGrams, scaleEntryToGrams } from '../lib/diary'
+import { defaultServing, servingChoices } from '../lib/foodServings'
 
 const MEAL_ACCENT: Record<Meal, string> = {
   breakfast: 'border-l-meal-breakfast',
@@ -334,7 +336,9 @@ export function DiaryRoute() {
         )}
       </section>
 
+      {/* Keyed by meal so a fresh open starts clean, not on last time's food. */}
       <AddFoodModal
+        key={addingTo ?? 'closed'}
         meal={addingTo}
         onClose={() => setAddingTo(null)}
         onAdd={(food, grams) => {
@@ -432,14 +436,21 @@ function EditQuantityModal({
   error: string | null
 }) {
   const name = entry.food_name || entry.recipe_name || 'this entry'
-  const [grams, setGrams] = useState(String(entry.quantity_grams))
-  const parsed = Number.parseFloat(grams)
-  const valid = Number.isFinite(parsed) && parsed > 0
+  const [gramsText, setGramsText] = useState(String(entry.quantity_grams))
+  const grams = Number.parseFloat(gramsText)
+  const valid = Number.isFinite(grams) && grams > 0
   const per100g = caloriesPer100g(entry)
   // The preview scales the entry's own saved values, so it can never promise a
-  // number the save would not write.
-  const update = valid ? scaleEntryToGrams(entry, parsed) : null
-  const changed = valid && parsed !== entry.quantity_grams
+  // number the save would not write. The entry's saved snapshot stays the
+  // basis — a food definition edited since the log cannot rewrite the day.
+  const update = valid ? scaleEntryToGrams(entry, grams) : null
+  const changed = valid && grams !== entry.quantity_grams
+  const foodMeasures = {
+    serving_name: entry.food_serving_name,
+    serving_grams: entry.food_serving_grams,
+    servings: entry.food_servings,
+  }
+  const hasMeasures = servingChoices(foodMeasures).length > 0
 
   return (
     <Modal open title={`Edit ${name}`} onClose={onClose}>
@@ -448,35 +459,27 @@ function EditQuantityModal({
         {per100g !== null ? ` · ${formatNumber(per100g)} kcal per 100 g` : ''}
       </p>
 
-      <label className="block text-sm text-ink-light mt-4 mb-1" htmlFor="edit-grams">
-        Weight (grams)
-      </label>
-      <div className="flex items-center gap-2">
-        <input
-          id="edit-grams"
-          type="number"
-          inputMode="decimal"
-          min={1}
-          step={5}
-          value={grams}
-          onChange={(event) => setGrams(event.target.value)}
-          autoFocus
-          aria-invalid={!valid}
-          aria-describedby="edit-grams-preview"
-          className="w-28 min-h-11 rounded-xl border border-line px-3 text-base tabular-nums"
+      <div className="mt-4">
+        <QuantityPicker
+          key={entry.id}
+          food={foodMeasures}
+          value={gramsText}
+          onValueChange={setGramsText}
+          grams={grams}
+          idPrefix="edit-entry"
+          preview={
+            valid && update
+              ? `${formatGrams(grams)} = ${formatNumber(update.calories)} kcal`
+              : 'Enter a weight greater than zero'
+          }
         />
-        <span className="text-sm text-ink-light">g</span>
       </div>
 
-      <p
-        id="edit-grams-preview"
-        aria-live="polite"
-        className={`mt-2 mb-0 text-sm tabular-nums ${valid ? 'text-ink' : 'text-danger'}`}
-      >
-        {valid && update
-          ? `${formatGrams(parsed)} = ${formatNumber(update.calories)} kcal`
-          : 'Enter a weight greater than zero'}
-      </p>
+      {hasMeasures && (
+        <p className="m-0 mt-2 text-xs text-ink-light">
+          A serving is converted to grams; the entry keeps its own saved nutrition.
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="mt-2 mb-0 text-sm text-danger">
@@ -495,7 +498,7 @@ function EditQuantityModal({
         <button
           type="button"
           disabled={!valid || !changed || saving}
-          onClick={() => onSave(parsed)}
+          onClick={() => onSave(grams)}
           className="min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-medium border-0 cursor-pointer disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save'}
@@ -519,72 +522,131 @@ function AddFoodModal({
   error: string | null
 }) {
   const [term, setTerm] = useState('')
-  const [grams, setGrams] = useState(100)
+  const [selected, setSelected] = useState<Food | null>(null)
+  const [gramsText, setGramsText] = useState('100')
   const debounced = useDebounced(term, 250)
 
   const results = useQuery<Food[]>({
     queryKey: queryKeys.foodSearch(debounced),
     queryFn: () => apiGet<Food[]>(`/api/foods/search?q=${encodeURIComponent(debounced)}`),
-    enabled: debounced.trim().length >= 2,
+    enabled: debounced.trim().length >= 2 && selected === null,
   })
 
   const label = MEALS.find((m) => m.id === meal)?.label ?? ''
+  const grams = Number.parseFloat(gramsText)
+  const nutrition = selected ? nutritionForGrams(selected, grams) : null
+
+  /** Start on the food's preferred measure when it has one; grams otherwise. */
+  const choose = (food: Food) => {
+    setSelected(food)
+    setGramsText(defaultServing(food) === null ? '100' : String(defaultServing(food)?.grams))
+  }
+
+  const close = () => {
+    setSelected(null)
+    setTerm('')
+    onClose()
+  }
 
   return (
-    <Modal open={meal !== null} title={`Add to ${label}`} onClose={onClose}>
-      <input
-        type="search"
-        value={term}
-        onChange={(event) => setTerm(event.target.value)}
-        placeholder="Search foods…"
-        autoFocus
-        className="w-full min-h-11 rounded-xl border border-line px-3 mb-3 text-base"
-      />
+    <Modal open={meal !== null} title={selected ? `Add ${selected.name}` : `Add to ${label}`} onClose={close}>
+      {selected ? (
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-xs text-ink-light">
+            {formatNumber(selected.calories_per_100g)} kcal per 100 g
+            {selected.brand ? ` · ${selected.brand}` : ''}
+          </p>
 
-      <label className="block text-sm text-ink-light mb-1" htmlFor="grams">
-        Quantity (grams)
-      </label>
-      <input
-        id="grams"
-        type="number"
-        min={1}
-        step={5}
-        value={grams}
-        onChange={(event) => setGrams(Number(event.target.value))}
-        className="w-28 min-h-11 rounded-xl border border-line px-3 mb-3 text-base"
-      />
+          <QuantityPicker
+            key={String(selected.id)}
+            food={selected}
+            value={gramsText}
+            onValueChange={setGramsText}
+            grams={grams}
+            idPrefix="add-food"
+            preview={
+              nutrition
+                ? `${formatGrams(grams)} = ${formatNumber(nutrition.calories)} kcal`
+                : 'Enter a weight greater than zero'
+            }
+          />
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+          {error && (
+            <p role="alert" className="m-0 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
-      {results.isFetching && <p className="text-sm text-ink-light m-0">Searching…</p>}
-
-      <ul className="list-none m-0 p-0">
-        {(results.data ?? []).map((food) => (
-          <li key={String(food.id)} className="border-b border-line-light last:border-0">
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
-              disabled={saving || typeof food.id === 'string'}
-              onClick={() => onAdd(food, grams)}
-              className="w-full text-left bg-transparent border-0 py-2.5 min-h-11 cursor-pointer disabled:opacity-40"
-              title={typeof food.id === 'string' ? 'FatSecret results are read-only in the spike' : undefined}
+              onClick={() => setSelected(null)}
+              className="min-h-11 px-3 rounded-xl border border-line bg-surface text-sm text-ink"
             >
-              <span className="block text-sm font-medium">
-                {food.name}
-                {food.brand ? <span className="text-ink-light font-normal"> · {food.brand}</span> : null}
-              </span>
-              <span className="block text-xs text-ink-light">
-                {formatNumber(Math.round((food.calories_per_100g * grams) / 100))} kcal for {grams} g
-                {food.serving_name ? ` · ${food.serving_name}` : ''}
-              </span>
+              ← Different food
             </button>
-          </li>
-        ))}
-      </ul>
+            <button
+              type="button"
+              disabled={!nutrition || saving}
+              onClick={() => selected && onAdd(selected, grams)}
+              className="min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-medium disabled:opacity-50"
+            >
+              {saving ? 'Adding…' : `Add to ${label}`}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <input
+            type="search"
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder="Search foods…"
+            autoFocus
+            className="w-full min-h-11 rounded-xl border border-line px-3 mb-3 text-base"
+          />
 
-      {debounced.trim().length >= 2 && !results.isFetching && (results.data ?? []).length === 0 && (
-        <p className="text-sm text-ink-muted">No matches.</p>
+          {error && (
+            <p role="alert" className="m-0 mb-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
+          {results.isFetching && <p className="text-sm text-ink-light m-0">Searching…</p>}
+
+          <ul className="list-none m-0 p-0">
+            {(results.data ?? []).map((food) => {
+              const portion = defaultServing(food)
+              const portionGrams = portion?.grams ?? 100
+              const kcal = Math.round((food.calories_per_100g * portionGrams) / 100)
+              return (
+                <li key={String(food.id)} className="border-b border-line-light last:border-0">
+                  <button
+                    type="button"
+                    disabled={saving || typeof food.id === 'string'}
+                    onClick={() => choose(food)}
+                    className="w-full text-left bg-transparent border-0 py-2.5 min-h-11 cursor-pointer disabled:opacity-40"
+                    title={typeof food.id === 'string' ? 'FatSecret results are read-only in the spike' : undefined}
+                  >
+                    <span className="block text-sm font-medium">
+                      {food.name}
+                      {food.brand ? <span className="text-ink-light font-normal"> · {food.brand}</span> : null}
+                    </span>
+                    <span className="block text-xs text-ink-light">
+                      {formatNumber(kcal)} kcal for{' '}
+                      {portion ? `${portion.label} (${formatGrams(portionGrams)})` : formatGrams(portionGrams)}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          {debounced.trim().length >= 2 && !results.isFetching && (results.data ?? []).length === 0 && (
+            <p className="text-sm text-ink-muted">No matches.</p>
+          )}
+          {debounced.trim().length < 2 && <p className="text-sm text-ink-muted">Type at least 2 characters.</p>}
+        </>
       )}
-      {debounced.trim().length < 2 && <p className="text-sm text-ink-muted">Type at least 2 characters.</p>}
     </Modal>
   )
 }
