@@ -34,7 +34,9 @@ beforeEach(() => {
       init?.body ? JSON.parse(String(init.body)) : null,
     )
     if (!result) return new Response('not found', { status: 404 })
-    return new Response(typeof result.body === 'string' ? result.body : JSON.stringify(result.body), {
+    // A 204 must not carry a body — `new Response('', { status: 204 })` throws.
+    const body = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
+    return new Response(result.status === 204 ? null : body, {
       status: result.status,
       headers: { 'Content-Type': result.contentType ?? 'application/json' },
     })

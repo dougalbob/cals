@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. The first Phase 13 shared-Recipes metadata increment is implemented and owner-reviewed in the Arena preview; the next planned increment is known-Food servings and recipe-to-Diary portion logging. Full Food/recipe authoring, phase-wide phone-size review and production cutover remain outstanding |
+| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments: the shared-Recipes metadata slice is implemented and owner-reviewed in the Arena preview, and known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) are implemented and awaiting the owner's preview review. Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go`; Phase 13 allows narrow, additive food-serving/recipe-metadata API support and user-scoped preferences for recipe favourites and each user's usual recipe portion |
@@ -226,7 +226,7 @@ Measured, not estimated:
 | Does the toolchain work in the Arena sandbox? | **Yes.** Node 22.22.3, npm 10.9.8, registry reachable, 63 packages installed in ~16 s, Vite dev server on `0.0.0.0:5173` with `allowedHosts: true` served the preview proxy cleanly |
 | Is the Go toolchain available in the sandbox? | **It can be, for verification.** By default there is no Go, and `go.dev`, `dl.google.com`, `proxy.golang.org`, apt and Docker are unreachable — which is why the spike ships a fixture API. **However**, a real toolchain can be obtained from the PyPI wheel `go-bin` (PyPI *is* reachable) and modules can be fetched from GitHub. `scripts/verify-go-in-sandbox.sh` does this in `/tmp` without touching the working tree; it builds `./cmd/server` with CGO, and the real server has been run in-sandbox — creating all 17 tables via migrations and returning `401` on protected routes (Cloudflare middleware working). Limits: the toolchain is Go 1.27 while the Dockerfile pins 1.22, nothing in `/tmp` persists between turns, and **Docker cannot run in the sandbox**, so `docker build` must still be verified on your own machine |
 | What does it cost the client? | 374 kB JS (116 kB gzip) + 16 kB CSS (4.2 kB gzip) for three screens — one hashed, cacheable bundle versus ~4,500 lines of uncached vanilla JS today |
-| Does a test story appear on day one? | **Yes.** The original spike had 14 tests; Phase 11 added typed-API/client coverage (20 tests at that checkpoint). The current suite has 65 tests across date maths (DST, leap days), stones/lbs conversion, API handling, Diary/Home/Drinks screens and domain maths (2026-10-03) |
+| Does a test story appear on day one? | **Yes.** The original spike had 14 tests; Phase 11 added typed-API/client coverage (20 tests at that checkpoint). The suite now has 93 tests across date maths (DST, leap days), stones/lbs conversion, API handling, the Diary/Home/Drinks/Foods screens, serving/portion maths and cooked-weight recipe maths (2026-10-03) |
 | Does it typecheck strictly and build? | **Yes.** `tsc --noEmit` clean under `strict`, `noUnusedLocals`, `verbatimModuleSyntax`; production build in 628 ms |
 
 Findings that affect the plan:
@@ -378,7 +378,26 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 ## Phase 13 — Foods + Recipes: owner decisions (2026-10-03)
 
-**First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients. **Next planned increment:** known-Food serving choices and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Full recipe authoring and phase-wide phone-size acceptance remain outstanding.
+**First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients.
+
+**Second increment implemented 2026-10-03, awaiting owner preview review:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Recipes still have no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed.
+
+| Before | Now |
+|---|---|
+| A portion had to be converted into grams before it could be logged, even for a known “1 bag = 25 g” | Add/Edit opens with an explicit **serving / grams** mode: named gram-backed measures when the food has one, grams otherwise, with a one-tap switch and a live gram + kcal readout. Nothing is ever converted by guesswork |
+| A custom food could carry one serving name (`serving_name` / `serving_grams`) and no more | A food can carry several named measures (`1 bag` 25 g, `1 slice` 12.5 g, …) beside FatSecret's own options; the food editor adds, edits and removes household measures while FatSecret rows are preserved and shown read-only |
+| Logging a recipe meant deciding the grams yourself, every time | Recipe detail logs a portion: whole-recipe fractions (¼, ½, ¾, all), direct gram editing, the date and meal, and a live “grams = kcal” line taken from the cooked-weight concentration maths |
+| Nothing remembered what a person actually eats, and a changed amount silently became the new habit | With no remembered amount nothing is preselected; the **first successful log becomes that user's usual**, later logs prefill it, and a different amount is one-off unless **“Make this my usual”** is ticked. The usual is per user and per recipe and never touches the shared recipe's `serves` |
+| Diary Edit only knew the logged grams | A logged food's response carries its serving metadata, so Edit offers the same named choices as Add without changing what the row stores: grams plus its own nutrition snapshot |
+
+**What this added to the API (all additive):** `food_servings` now holds household measures
+(`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and
+replacing only household rows; `GET /api/diary` entries optionally carry `food_serving_name`,
+`food_serving_grams` and `food_servings[]`; a new `recipe_user_portions (user_id, recipe_id, grams)`
+table backs a nullable `usual_grams` on recipe responses, and `POST /api/diary` accepts
+`make_usual` for recipe logs. A portion-writing failure is logged and never turns a saved diary entry
+into an error. Diary storage is unchanged: grams plus the client's nutrition snapshot. Cooked-weight
+concentration maths and its unit tests are untouched, and the fixture API mirrors all of it.
 
 - **Visual direction:** use [`../product/recipeUX-example.jpg`](../product/recipeUX-example.jpg) as inspiration, not a pixel specification. Prioritize a prominent recipe photo, readable ingredient quantities and calories, a clear total and an obvious add action. Overlay a restrained row of tags near the lower-left of the photo; place the favourite heart at the upper-right. In the editor, provide a structured **Add tag** action after the ingredient list. Keep controls touch-friendly and avoid overcrowding phone layouts.
 - **Recipe classification:** meal occasion (Breakfast, Lunch, Dinner, Snack, etc.) and dish type (Main, Side, etc.) are distinct facets, so a recipe can be both “Lunch” and “Main.” Meal occasion is multi-select. The current controlled lists stay deliberately small: Breakfast/Lunch/Dinner/Snack and Main/Side/Soup/Salad/Dessert. Do not add free-text tags or recreate Mealie's broad tagging feature set; recipe classification is shared metadata.

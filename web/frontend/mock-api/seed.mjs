@@ -52,23 +52,77 @@ const FOOD_ROWS = [
   [24, 'Roast Potatoes', '', 149, 2.6, 26.0, 4.0, 2.0, '200g', 200, null],
 ]
 
+// Extra named gram-backed measures (Phase 13), keyed by food id. The preferred
+// serving above stays the first choice; these follow it. Grams stay canonical.
+const EXTRA_MEASURES = {
+  1: [['30 g scoop', 30]],              // Porridge Oats
+  6: [['1 thick slice', 60]],           // Wholemeal Bread
+  14: [['1 large', 150]],               // Banana
+  17: [['2 bags', 50]],                 // Crisps, ready salted
+}
+
+let servingId = 1
+
 export const foods = FOOD_ROWS.map(
-  ([id, name, brand, cal, protein, carbs, fat, fibre, servingName, servingGrams, fsId]) => ({
-    id,
-    // Go structs use `omitempty`, so absent values are omitted rather than null.
-    fatsecret_id: fsId ?? undefined,
-    name,
-    brand: brand || undefined,
-    calories_per_100g: cal,
-    protein_per_100g: protein,
-    carbs_per_100g: carbs,
-    fat_per_100g: fat,
-    fibre_per_100g: fibre,
-    serving_name: servingName,
-    serving_grams: servingGrams,
-    is_edited: fsId === null,
-  }),
+  ([id, name, brand, cal, protein, carbs, fat, fibre, servingName, servingGrams, fsId]) => {
+    const servings = []
+    if (servingName) {
+      servings.push({ id: servingId++, food_id: id, description: servingName, grams: servingGrams })
+    }
+    for (const [description, grams] of EXTRA_MEASURES[id] ?? []) {
+      servings.push({ id: servingId++, food_id: id, description, grams })
+    }
+    return {
+      id,
+      // Go structs use `omitempty`, so absent values are omitted rather than null.
+      fatsecret_id: fsId ?? undefined,
+      name,
+      brand: brand || undefined,
+      calories_per_100g: cal,
+      protein_per_100g: protein,
+      carbs_per_100g: carbs,
+      fat_per_100g: fat,
+      fibre_per_100g: fibre,
+      serving_name: servingName,
+      serving_grams: servingGrams,
+      is_edited: fsId === null,
+      servings,
+    }
+  },
 )
+
+let foodIdSeq = Math.max(0, ...foods.map((f) => f.id))
+
+export function nextFoodId() {
+  foodIdSeq += 1
+  return foodIdSeq
+}
+
+let foodServingIdSeq = servingId
+
+export function nextFoodServingId() {
+  foodServingIdSeq += 1
+  return foodServingIdSeq
+}
+
+export function findFood(id) {
+  return foods.find((f) => String(f.id) === String(id))
+}
+
+/**
+ * A diary entry's food measures, read from the food definition at response
+ * time exactly as the Go GET /api/diary handler does.
+ */
+export function foodMeasuresFor(foodId) {
+  const food = findFood(foodId)
+  if (!food) return {}
+  const servings = (food.servings ?? []).map((serving) => ({ ...serving }))
+  return {
+    ...(food.serving_name ? { food_serving_name: food.serving_name } : {}),
+    ...(food.serving_grams ? { food_serving_grams: food.serving_grams } : {}),
+    ...(servings.length > 0 ? { food_servings: servings } : {}),
+  }
+}
 
 const foodById = new Map(foods.map((f) => [f.id, f]))
 
@@ -202,6 +256,24 @@ export const recipes = [
 
 // In-memory, signed-in-user favourite state for the fixture API.
 export const favouriteRecipeIds = new Set()
+
+// Per-user usual recipe portions (user 1 is the signed-in fixture user).
+// Seeded for one recipe so the preview shows the "usual already saved" state as
+// well as the first-log state.
+export const recipePortions = new Map([[3, 390]])
+
+export function usualGramsFor(recipeId) {
+  return recipePortions.has(recipeId) ? recipePortions.get(recipeId) : null
+}
+
+export function rememberRecipePortion(recipeId, grams, makeUsual) {
+  if (!(grams > 0)) return
+  if (makeUsual) {
+    recipePortions.set(recipeId, grams)
+    return
+  }
+  if (!recipePortions.has(recipeId)) recipePortions.set(recipeId, grams)
+}
 
 const recipeById = new Map(recipes.map((r) => [r.id, r]))
 
@@ -583,18 +655,33 @@ const initialRecipeMetadata = new Map(recipes.map((recipe) => [
   },
 ]))
 const initialFavouriteRecipeIds = [...favouriteRecipeIds]
+const initialRecipePortions = new Map(recipePortions)
+const initialFoods = foods.map((food) => ({
+  ...food,
+  servings: food.servings.map((serving) => ({ ...serving })),
+}))
+const initialDiaryEntriesDeep = diaryEntries.map((e) => ({ ...e }))
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
+const initialFoodIdSeq = foodIdSeq
+const initialFoodServingIdSeq = foodServingIdSeq
 
 export function resetFixtures() {
   diaryEntries.length = 0
-  diaryEntries.push(...initialDiaryEntries)
+  diaryEntries.push(...initialDiaryEntriesDeep.map((e) => ({ ...e })))
   drinkEntries.length = 0
   drinkEntries.push(...initialDrinkEntries.map((e) => ({ ...e })))
   drinks.length = 0
   drinks.push(...initialDrinks.map((d) => ({ ...d })))
   favouriteRecipeIds.clear()
   for (const recipeId of initialFavouriteRecipeIds) favouriteRecipeIds.add(recipeId)
+  recipePortions.clear()
+  for (const [recipeId, grams] of initialRecipePortions) recipePortions.set(recipeId, grams)
+  foods.length = 0
+  foods.push(...initialFoods.map((food) => ({
+    ...food,
+    servings: food.servings.map((serving) => ({ ...serving })),
+  })))
   for (const recipe of recipes) {
     const initial = initialRecipeMetadata.get(recipe.id)
     recipe.meal_occasions = [...initial.meal_occasions]
@@ -605,4 +692,6 @@ export function resetFixtures() {
   }
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq
+  foodIdSeq = initialFoodIdSeq
+  foodServingIdSeq = initialFoodServingIdSeq
 }

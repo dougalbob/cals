@@ -30,7 +30,7 @@ A personal calorie and nutrition tracking PWA.
 | Layer | Tech |
 |---|---|
 | Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
-| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and the first Phase 13 Recipes metadata slice, and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
+| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and two Phase 13 slices (Recipes metadata; food servings and recipe-to-Diary portions), and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (legacy recipe import; not pursued in React Phase 13), Google Fit (steps) |
 | Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
@@ -64,7 +64,8 @@ web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
 web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
 web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
 web/frontend/             React 19 + TS + Vite + Tailwind rebuild (Phase 11 foundation, Phase 12 screens,
-                          first Phase 13 Recipes metadata slice); production bundle served under temporary
+                          two Phase 13 slices — Recipes metadata, and food servings plus
+                          recipe-to-Diary portions); production bundle served under temporary
                           /next/ only — see its README
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth

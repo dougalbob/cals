@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -30,6 +31,13 @@ type DiaryEntry struct {
 	// Joined data
 	FoodName   string `json:"food_name,omitempty"`
 	RecipeName string `json:"recipe_name,omitempty"`
+	// Current serving metadata for a logged food, so the edit sheet can offer
+	// the same named measures the add sheet did. This is read from the food
+	// definition and changes nothing about diary storage: the row keeps only
+	// grams and its own nutrition snapshot.
+	FoodServingName  string            `json:"food_serving_name,omitempty"`
+	FoodServingGrams float64           `json:"food_serving_grams,omitempty"`
+	FoodServings     []ServingResponse `json:"food_servings,omitempty"`
 }
 
 // DiaryResponse includes entries and daily totals
@@ -95,7 +103,9 @@ func getDiaryEntries(userID int64, date string) ([]DiaryEntry, error) {
 			d.quantity_grams, d.calories, d.protein, d.carbs, d.fat, d.fibre,
 			d.created_at, d.updated_at,
 			COALESCE(f.name, '') as food_name,
-			COALESCE(r.name, '') as recipe_name
+			COALESCE(r.name, '') as recipe_name,
+			COALESCE(f.serving_name, '') as food_serving_name,
+			COALESCE(f.serving_grams, 0) as food_serving_grams
 		FROM diary_entries d
 		LEFT JOIN foods f ON d.food_id = f.id
 		LEFT JOIN recipes r ON d.recipe_id = r.id
@@ -124,6 +134,7 @@ func getDiaryEntries(userID int64, date string) ([]DiaryEntry, error) {
 			&e.ID, &e.UserID, &e.Date, &e.Meal, &foodID, &recipeID,
 			&e.QuantityGrams, &e.Calories, &e.Protein, &e.Carbs, &e.Fat, &e.Fibre,
 			&createdAt, &updatedAt, &e.FoodName, &e.RecipeName,
+			&e.FoodServingName, &e.FoodServingGrams,
 		)
 		if err != nil {
 			return nil, err
@@ -139,6 +150,34 @@ func getDiaryEntries(userID int64, date string) ([]DiaryEntry, error) {
 		e.UpdatedAt = updatedAt.Format(time.RFC3339)
 
 		entries = append(entries, e)
+	}
+
+	// Attach each logged food's named measures in one batched query, so the
+	// edit sheet never has to guess or invent a unit.
+	foodIDs := make([]int64, 0, len(entries))
+	seenFood := make(map[int64]struct{}, len(entries))
+	for _, entry := range entries {
+		if entry.FoodID == nil {
+			continue
+		}
+		if _, seen := seenFood[*entry.FoodID]; seen {
+			continue
+		}
+		seenFood[*entry.FoodID] = struct{}{}
+		foodIDs = append(foodIDs, *entry.FoodID)
+	}
+
+	servingsByFood, err := loadServingsForFoods(foodIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range entries {
+		if entries[i].FoodID == nil {
+			continue
+		}
+		if servings, ok := servingsByFood[*entries[i].FoodID]; ok && len(servings) > 0 {
+			entries[i].FoodServings = servingToResponse(servings)
+		}
 	}
 
 	if entries == nil {
@@ -168,6 +207,11 @@ func HandleCreateDiaryEntry(w http.ResponseWriter, r *http.Request) {
 		Carbs         float64 `json:"carbs"`
 		Fat           float64 `json:"fat"`
 		Fibre         float64 `json:"fibre"`
+		// MakeUsual only applies to recipe logs: it replaces the signed-in
+		// user's remembered portion with this quantity. Without it, the first
+		// successful log of a recipe becomes the usual and later logs are
+		// deliberately one-off.
+		MakeUsual bool `json:"make_usual"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -199,6 +243,15 @@ func HandleCreateDiaryEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entryID, _ := result.LastInsertId()
+
+	// A logged recipe teaches cals that person's usual portion. This is
+	// bookkeeping beside a successful log, so a failure here must not turn a
+	// saved diary entry into an error response.
+	if input.RecipeID != nil {
+		if err := rememberRecipePortion(user.ID, *input.RecipeID, input.QuantityGrams, input.MakeUsual); err != nil {
+			log.Printf("could not remember recipe portion for user %d recipe %d: %v", user.ID, *input.RecipeID, err)
+		}
+	}
 
 	// Return the created entry
 	entry := DiaryEntry{

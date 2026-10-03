@@ -7,7 +7,7 @@
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
  * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata PUT),
- *          /api/foods/search, /api/foods/custom, /api/diary (+ POST/PUT/DELETE),
+ *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
@@ -150,17 +150,14 @@ export function handle(method, url, body) {
   if (pathname === '/api/users/me' && method === 'GET') return json(user)
 
   if (pathname === '/api/recipes' && method === 'GET') {
-    return json(recipes.map((recipe) => ({
-      ...recipe,
-      is_favourite: seed.favouriteRecipeIds.has(recipe.id),
-    })))
+    return json(recipes.map((recipe) => recipeResponse(recipe)))
   }
 
   const recipeDetailMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
   if (recipeDetailMatch && method === 'GET') {
     const recipe = recipes.find((item) => item.id === Number(recipeDetailMatch[1]))
     if (!recipe) return err(404, 'Recipe not found')
-    return json({ ...recipe, is_favourite: seed.favouriteRecipeIds.has(recipe.id) })
+    return json(recipeResponse(recipe))
   }
 
   if (pathname === '/api/foods/search' && method === 'GET') {
@@ -174,16 +171,27 @@ export function handle(method, url, body) {
         const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1
         return aStarts - bStarts || a.name.localeCompare(b.name)
       })
+      .map(foodResponse)
     return json(results)
   }
 
   if (pathname === '/api/foods/custom' && method === 'GET') {
-    return json(foods.filter((f) => f.is_edited))
+    return json(
+      foods
+        .filter((f) => f.fatsecret_id == null)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(foodResponse),
+    )
   }
 
   if (pathname === '/api/diary' && method === 'GET') {
     const date = searchParams.get('date') ?? today
-    return json({ date, entries: seed.entriesFor(date), totals: seed.totalsFor(date) })
+    const entries = seed.entriesFor(date).map((entry) => ({
+      ...entry,
+      ...(entry.food_id != null ? seed.foodMeasuresFor(entry.food_id) : {}),
+    }))
+    return json({ date, entries, totals: seed.totalsFor(date) })
   }
 
   if (pathname === '/api/bank' && method === 'GET') {
@@ -340,6 +348,11 @@ export function handle(method, url, body) {
       ...(food ? { food_name: food.name } : { recipe_name: recipe.name }),
     }
     seed.diaryEntries.push(entry)
+
+    // Decision 32: the first successful recipe log becomes that user's usual;
+    // later logs are one-off unless the client explicitly asks otherwise.
+    if (recipe) seed.rememberRecipePortion(recipe.id, grams, Boolean(body?.make_usual))
+
     return json(entry, 201)
   }
 
@@ -426,6 +439,61 @@ export function handle(method, url, body) {
     return json({ success: true })
   }
 
+  if (pathname === '/api/foods' && method === 'POST') {
+    const built = buildFoodInput(body)
+    if (built.error) return err(400, built.error)
+    const food = {
+      id: seed.nextFoodId(),
+      name: built.name,
+      brand: built.brand,
+      calories_per_100g: built.calories,
+      protein_per_100g: built.protein,
+      carbs_per_100g: built.carbs,
+      fat_per_100g: built.fat,
+      fibre_per_100g: built.fibre,
+      serving_name: built.servingName,
+      serving_grams: built.servingGrams,
+      is_edited: false,
+      servings: [],
+    }
+    applyMeasures(food, built.servings)
+    seed.foods.push(food)
+    return json(foodResponse(food), 201)
+  }
+
+  const foodMatch = pathname.match(/^\/api\/foods\/(\d+)$/)
+  if (foodMatch && method === 'PUT') {
+    const food = seed.findFood(Number(foodMatch[1]))
+    if (!food) return err(404, 'Food not found')
+    const built = buildFoodInput(body)
+    if (built.error) return err(400, built.error)
+
+    Object.assign(food, {
+      name: built.name,
+      brand: built.brand,
+      calories_per_100g: built.calories,
+      protein_per_100g: built.protein,
+      carbs_per_100g: built.carbs,
+      fat_per_100g: built.fat,
+      fibre_per_100g: built.fibre,
+      serving_name: built.servingName,
+      serving_grams: built.servingGrams,
+      is_edited: true,
+    })
+    // FatSecret-provided measures survive an edit; the household's are replaced.
+    food.servings = (food.servings ?? []).filter((serving) => serving.fatsecret_serving_id != null)
+    applyMeasures(food, built.servings)
+    return json(foodResponse(food))
+  }
+
+  if (foodMatch && method === 'DELETE') {
+    const index = seed.foods.findIndex((f) => f.id === Number(foodMatch[1]))
+    if (index === -1) return err(404, 'Food not found')
+    if (seed.foods[index].fatsecret_id != null) return err(403, 'Cannot delete cached FatSecret foods')
+    seed.foods.splice(index, 1)
+    return { status: 204, body: '', contentType: 'application/json' }
+  }
+
   if (pathname.startsWith('/api/')) {
     return err(501, `Fixture API: ${method} ${pathname} is not implemented in the spike`)
   }
@@ -460,6 +528,94 @@ function buildDrink(body, id) {
       usual_sugar: sugar === '1' || sugar === '2' || sugar === 'sweetener' ? sugar : '0',
       sort_order: Number.isFinite(Number(body?.sort_order)) ? Number(body.sort_order) : 0,
     },
+  }
+}
+
+// A food as JSON: measures are only included when there are any, matching the
+// Go struct's `omitempty`.
+function foodResponse(food) {
+  const servings = (food.servings ?? []).map((serving) => ({ ...serving }))
+  return {
+    ...food,
+    ...(servings.length > 0 ? { servings } : {}),
+  }
+}
+
+function recipeResponse(recipe) {
+  return {
+    ...recipe,
+    is_favourite: seed.favouriteRecipeIds.has(recipe.id),
+    usual_grams: seed.usualGramsFor(recipe.id),
+  }
+}
+
+const MEASURE_ERRORS = {
+  blankDescription: 'Every named measure needs a description',
+  blankPreferredName: 'Give the preferred serving a name, for example “1 bag”',
+  preferredNeedsGrams: 'The preferred serving needs a weight in grams greater than zero',
+}
+
+/** Validates a food write, mirroring the Go handler's rules. Returns numbers, not strings. */
+function buildFoodInput(body) {
+  const name = String(body?.name ?? '').trim()
+  if (!name) return { error: 'Name is required' }
+
+  const number = (value, fallback = 0) => {
+    if (value === undefined || value === null || value === '') return fallback
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+  }
+
+  const calories = number(body?.calories_per_100g)
+  const macros = ['protein_per_100g', 'carbs_per_100g', 'fat_per_100g', 'fibre_per_100g'].map((key) =>
+    number(body?.[key]),
+  )
+  if (!Number.isFinite(calories) || calories < 0 || macros.some((value) => !Number.isFinite(value) || value < 0)) {
+    return { error: 'Nutrition values must be zero or more' }
+  }
+
+  const servingName = String(body?.serving_name ?? '').trim()
+  const servingGrams = number(body?.serving_grams, Number.NaN)
+  if (servingName && !(servingGrams > 0)) return { error: MEASURE_ERRORS.preferredNeedsGrams }
+  if (!servingName && servingGrams > 0) return { error: MEASURE_ERRORS.blankPreferredName }
+
+  const servings = []
+  const seen = new Set()
+  for (const serving of body?.servings ?? []) {
+    const description = String(serving?.description ?? '').trim()
+    if (!description) return { error: MEASURE_ERRORS.blankDescription }
+    const grams = number(serving?.grams, Number.NaN)
+    if (!(grams > 0)) {
+      return { error: `The measure "${description}" needs a weight in grams greater than zero` }
+    }
+    if (seen.has(description.toLowerCase())) return { error: `Duplicate named measure: ${description}` }
+    seen.add(description.toLowerCase())
+    servings.push({ description, grams })
+  }
+  if (servings.length > 20) return { error: 'A food can have at most 20 named measures' }
+
+  return {
+    name,
+    brand: String(body?.brand ?? '').trim(),
+    calories,
+    protein: macros[0],
+    carbs: macros[1],
+    fat: macros[2],
+    fibre: macros[3],
+    servingName,
+    servingGrams: Number.isNaN(servingGrams) ? 0 : servingGrams,
+    servings,
+  }
+}
+
+function applyMeasures(food, servings) {
+  for (const serving of servings) {
+    food.servings.push({
+      id: seed.nextFoodServingId(),
+      food_id: food.id,
+      description: serving.description,
+      grams: serving.grams,
+    })
   }
 }
 

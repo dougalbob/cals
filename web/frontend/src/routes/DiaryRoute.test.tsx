@@ -47,11 +47,13 @@ beforeEach(() => {
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     const method = init?.method ?? 'GET'
-    const body = init?.body ? JSON.parse(String(init.body)) : null
-    const result = handle(method, url, body)
+    const requestBody = init?.body ? JSON.parse(String(init.body)) : null
+    const result = handle(method, url, requestBody)
 
     if (!result) return new Response('not found', { status: 404 })
-    return new Response(typeof result.body === 'string' ? result.body : JSON.stringify(result.body), {
+    // A 204 must not carry a body — `new Response('', { status: 204 })` throws.
+    const responseBody = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
+    return new Response(result.status === 204 ? null : responseBody, {
       status: result.status,
       headers: { 'Content-Type': result.contentType ?? 'application/json' },
     })
@@ -155,9 +157,13 @@ describe('DiaryRoute', () => {
     fireEvent.change(screen.getByPlaceholderText('Search foods…'), { target: { value: 'Porridge' } })
     const modal = screen.getByRole('dialog')
     const porridge = await within(modal).findByRole('button', { name: /Porridge Oats/ })
-    const quantity = screen.getByLabelText('Quantity (grams)')
-    fireEvent.change(quantity, { target: { value: '50' } })
     fireEvent.click(porridge)
+
+    // Porridge has named measures, so Add starts in serving mode; a typed weight
+    // is always available behind the Grams switch (owner decision 29).
+    fireEvent.click(within(modal).getByRole('button', { name: 'Grams' }))
+    fireEvent.change(within(modal).getByLabelText('Weight (grams)'), { target: { value: '50' } })
+    fireEvent.click(within(modal).getByRole('button', { name: 'Add to Breakfast' }))
 
     await waitFor(() => {
       const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
@@ -170,6 +176,32 @@ describe('DiaryRoute', () => {
         fat: 3.25,
         fibre: 5.05,
       })
+    })
+  })
+
+  it('adds a food by its own named measure and converts it through grams', async () => {
+    renderDiary('/diary')
+
+    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
+    const snacks = (await screen.findByText('Snacks')).closest('section')
+    fireEvent.click(within(snacks as HTMLElement).getByRole('button', { name: '+ Add food' }))
+
+    fireEvent.change(screen.getByPlaceholderText('Search foods…'), { target: { value: 'Porridge' } })
+    const modal = screen.getByRole('dialog')
+    fireEvent.click(await within(modal).findByRole('button', { name: /Porridge Oats/ }))
+
+    // Both of the food's measures are offered, with grams underneath.
+    const scoop = within(modal).getByRole('button', { name: /30 g scoop/ })
+    fireEvent.click(scoop)
+    // 30 g of a 379 kcal/100 g food; the displayed figure is rounded at the
+    // presentation layer, the stored snapshot is not.
+    expect(within(modal).getByText(/^30 g = 114 kcal$/)).toBeTruthy()
+
+    fireEvent.click(within(modal).getByRole('button', { name: 'Add to Snacks' }))
+
+    await waitFor(() => {
+      const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
+      expect(added).toMatchObject({ food_id: 1, quantity_grams: 30, calories: 113.7 })
     })
   })
 
@@ -237,6 +269,9 @@ describe('DiaryRoute', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
 
+    // The food has named measures, so the sheet offers them first; the logged
+    // weight is still what the gram input starts from.
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Grams' }))
     const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
     expect(input.value).toBe(String(originalGrams))
 
@@ -273,6 +308,7 @@ describe('DiaryRoute', () => {
     const originalCalories = seeded?.calories ?? 0
 
     fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Grams' }))
     const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
 
     for (const bad of ['0', '-50', '']) {
@@ -296,6 +332,7 @@ describe('DiaryRoute', () => {
     // Pre-filled with the logged weight, so there is nothing to save yet.
     expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
 
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Grams' }))
     const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
     fireEvent.change(input, { target: { value: String((entry?.quantity_grams ?? 0) + 25) } })
     await waitFor(() =>

@@ -1,10 +1,12 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; the first Phase 13 Recipes
-metadata slice is implemented and owner-reviewed in the Arena preview.** It includes a photo-led
-catalogue, search, per-user favourites, shared structured tags, known-Food key foods, facet filters and
-optional total time in minutes. The next planned Phase 13 slice is known-Food servings and recipe-to-
-Diary portion logging; full recipe authoring remains later work. The legacy Mealie importer is
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has two implemented
+slices.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
+structured tags, known-Food key foods, facet filters and optional total time in minutes — was
+owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
+mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
+implemented and awaiting the owner's preview review. Full recipe authoring (name, ingredients,
+method, image) remains later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
@@ -29,8 +31,8 @@ latter cannot render a full circle at the ±2,000 kcal limits — and both direc
 `src/components/CalorieRing.test.tsx`.
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
-| Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`) |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters; shared tags and optional total minutes can be edited below recipe ingredients on the detail page |
+| Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters; shared tags and optional total minutes can be edited below recipe ingredients. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill |
 
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing
@@ -38,8 +40,8 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 
 ## What's deliberately missing
 
-Full recipe content authoring (name, ingredients and method), image upload, food serving/custom-food
-management, recipe-to-diary portion logging, Google Fit, settings, themes, the PWA/service worker, and
+Full recipe content authoring (name, ingredients and method), image upload, Google Fit, settings,
+themes, the PWA/service worker, per-user food measures (measures are shared per food for now), and
 most remaining mutations. The existing Mealie search/import is legacy-only and is intentionally not
 part of the React migration; see the product decisions. The React Diary supports adding, **editing the
 logged weight** and deleting entries. Editing rescales the entry's own saved nutrition
@@ -120,7 +122,8 @@ of drinks, ~120 days of weight with realistic noise, five measurement sets, and 
 part-filled (dinner not logged yet).
 
 **Mapped fixtures** (kept aligned with the Go handler contract): `/api/version`, `/api/users/me`,
-`/api/foods/search`, `/api/foods/custom`, `/api/recipes` (GET), `/api/recipes/{id}` (GET),
+`/api/foods/search`, `/api/foods/custom`, `/api/foods` (POST), `/api/foods/{id}` (PUT/DELETE),
+`/api/recipes` (GET), `/api/recipes/{id}` (GET),
 `/api/recipes/{id}/favourite` (PUT), `/api/recipes/{id}/metadata` (PUT),
 `/api/diary` (GET/POST/PUT/DELETE), `/api/bank`,
 `/api/drinks` (GET/POST/PUT/DELETE), `/api/drinks/entries` (GET/POST/DELETE), `/api/water`,
@@ -128,9 +131,13 @@ part-filled (dinner not logged yet).
 `/api/nutrition/settings`, and `/api/nutrition/weekly`. Diary creation stores the nutrition snapshot
 sent by the client, matching Go; it deliberately does not calculate from the current food definition.
 
-**Stubbed**: the Phase 13 operations not yet ported (food create/update/delete, core recipe
-create/update/delete and image upload) return a clear `501` so the preview does not pretend those
-flows are implemented. Mealie search/import is intentionally not implemented in this React frontend.
+Food create/update/delete carry household measures the same way the Go handlers do, recipe responses
+carry the signed-in user's `usual_grams`, and `POST /api/diary` honours `make_usual` — first log
+becomes the usual, later amounts stay one-off. `GET /api/diary` entries carry the logged food's
+`food_serving_name`, `food_serving_grams` and `food_servings[]` so Edit offers the same choices.
+
+**Stubbed**: the Phase 13 operations not yet ported (core recipe create/update/delete and image
+upload) return a clear `501` so the preview does not pretend those flows are implemented. Mealie search/import is intentionally not implemented in this React frontend.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
@@ -145,8 +152,9 @@ npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
 npm run build:go      # production shell for the Go /next/ route → web/dist/
 ```
 
-The tests exercise typed API behavior, domain maths and render all three implemented screens against
-the fixture API, including add/edit/delete diary flows (65 tests total as of 2026-10-03).
+The tests exercise typed API behavior, domain maths and render the implemented screens against the
+fixture API, including add/edit/delete diary flows, serving/grams mode and recipe portion logging
+(93 tests total as of 2026-10-03).
 
 ## Phase 11 Go integration
 
