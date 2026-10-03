@@ -139,6 +139,7 @@ Notes:
 - **UI improvement is a headline product requirement.** A new framework, a passing build, or functional parity alone is not success. User-facing phases must show a concrete improvement in the mobile-first daily experience and include a preview/screenshots for owner review before merge or cutover. Phase 11 may be foundation-only; it does not waive this later acceptance gate.
 - **Quick drinks:** the Diary must retain a familiar quick-add selector for Tea, Coffee and Water, using user-specific drink records rather than hard-coded nutrition values. Drink calories must count toward the bank; see the product decisions and Phase 12 plan.
 - **Domain maths is precious.** Bank/rolling balance, cooked-weight concentration, macro percentages, stones/lbs ↔ kg conversion and Google Fit step sync all have subtle, hard-won behaviour. Never change them incidentally; add tests if you touch them.
+- **Recipes are definitions; diary rows are records.** A diary entry keeps its own grams and nutrition snapshot and is what the bank and stats sum. **Editing a recipe (or a food) must never change recorded history** — no handler may re-read a definition to recompute or repair a saved diary entry, and nothing may cascade a diary row away because its recipe changed (decision 55). Recipe names are fixed at creation for the same reason (decision 58). Add a regression test whenever you touch this path.
 
 ## 5. Documentation duties
 
