@@ -428,6 +428,19 @@ already selected (recorded as decision 40 in the [decision log](../product/visio
 Not yet implemented: the Diary currently adds food only, and recipe logging starts from the recipe. Leave
 decisions 29–32 behaviour — fractions, direct grams, no guessed quantity, remembered usual — untouched.
 
+**Adapting an existing recipe — planned, decisions 55–58 (owner-raised, 2026-10-03).** The React
+Recipes experience cannot currently change a recipe's own content: catalogue, detail, tags, favourites
+and portion logging exist, but there is no editor. The owner asked for that gap to be closed and set
+the constraint that makes it safe: **an edit applies to future logs only.** `diary_entries` already
+stores its own grams and nutrition snapshot, and `HandleUpdateRecipe` rewrites only `recipes`,
+`recipe_ingredients` and `recipe_text_ingredients`, so the guarantee holds today — but it is not yet
+pinned by a test, and the two edges are recorded rather than left to be discovered in the slice: renaming a recipe relabels its
+historic diary rows (the name comes from a join, hence decision 58's fixed names), and deleting a
+recipe that any diary row references fails with a foreign-key error. The decisions (edit in place, no
+per-user forks, any household user may edit), the verification, the implementation notes and the
+regression tests the slice owes are in the
+[decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
+
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and
 replacing only household rows; `GET /api/diary` entries optionally carry `food_serving_name`,

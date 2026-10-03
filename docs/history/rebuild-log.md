@@ -14,6 +14,34 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Adapting a recipe must not rewrite history (decisions 55–58)
+
+The owner raised the gap that Phase 13's React rebuild had not covered: **there is no way to adapt an
+existing recipe**. The catalogue, filters, favourites, tags and recipe-to-Diary portion logging are
+built, but the React app has no recipe editor at all, and the only editor in the repo is the legacy
+vanilla-JS one that is not being ported. He attached a hard requirement to any fix: **once a recipe
+can be edited, the change must not affect the calories recorded in historic diary data.**
+
+**This session was planning only — no code changed.** The requirement was confirmed and recorded:
+
+- **Decision 55** — editing a recipe applies to future logs only; a diary row keeps its own grams and
+  nutrition snapshot and no handler may recompute or repair it from a definition.
+- **Decision 56** — "adapt" means **editing the existing recipe in place**, not a private fork.
+- **Decision 57** — any household user may edit any shared recipe.
+- **Decision 58** — **names are fixed at creation** (the owner chose this over an additive migration
+  to snapshot the name on diary rows), so a rename can never relabel historic entries.
+
+The guarantee was then **verified against the real Go handlers** in a scratch sandbox database rather
+than asserted: a recipe was created, a portion logged, the recipe edited and renamed, and a delete
+attempted. The diary row and day totals were unchanged by the edit (150 kcal before and after, while
+the recipe's own figures moved); the historic row's displayed name did follow the rename; and
+`DELETE /api/recipes/{id}` failed with `FOREIGN KEY constraint failed` (500) because `diary_entries`
+references the recipe — which the legacy UI currently surfaces verbatim as "Failed to delete: …".
+Both edges are written into the plan, with the regression tests the implementation slice owes and two
+open questions (rename before the first log; the delete policy) recorded in
+[the decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
+Status and ordering live in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc12` (PR #30)
 
 Owner said **"Lets publish"** (decision 20), so PR #30 was merged to `cals-dev` as `ead2bf9` and the

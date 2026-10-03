@@ -70,7 +70,7 @@ summary.
 
 1. **Decision 40 — `+ Add recipe` on each Diary meal card**, opening the portion sheet with that meal preselected. Queued; not implemented.
 2. **The calendar for historic dates** (decision 49's follow-up) — a month view opened from the Diary's date header, tap a day and land on `/diary/:date`, with markers on days that have data. Small and Diary-shaped, so it is the natural companion to the `+ Add recipe` slice.
-3. **Full recipe authoring** (name, ingredients, method, image) — the largest remaining Phase 13 item.
+3. **Adapting an existing recipe** (owner-raised 2026-10-03; decisions 55–58) — **planned, not built**: the React app has no recipe editor, so an existing recipe cannot currently be changed. Adapting means **editing it in place**, any household user may edit a shared recipe, and the name is fixed at creation. The hard rule: a recipe edit must never change the calories or macros recorded in historic diary data — a diary row keeps its own grams and nutrition snapshot, and only future logs see the new version. The rest of Phase 13's authoring item — creating a recipe from scratch (ingredients, method, image) — follows. See [`product/vision-and-open-questions.md`](product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
 4. **Phase 14** — rolling bank window for the ring (food + drink, completed days only, unlogged days excluded), the weekly report, tracked-nutrients settings and the missing-data audit.
 5. **Phase 15** — per-user ring limits/lookback, admin swap-user, themes, PWA install (no offline work: decision 53).
 
@@ -107,6 +107,8 @@ Full reasoning and every open sub-question:
 ---
 
 ## 6. Housekeeping done recently
+
+- **Recipe-adaptation requirement recorded (2026-10-03):** the owner raised the missing edit path for existing recipes and required that a recipe edit must never change historic diary calories. **Documentation only — no code changed.** Decisions 55–58 settle the shape (edit in place, any household user, names fixed at creation, frozen history) and the plan records the two findings verified against a real server: renaming a recipe relabels its historic diary rows (the name comes from a join), and `DELETE /api/recipes/{id}` fails with a foreign-key error for a recipe with history. See [`product/vision-and-open-questions.md`](product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
 
 - **Published `v2.0.0-dev-rc12` (2026-10-03, PR #30):** tag filtering, decisions 41–54 and the docs restructure, merged to `cals-dev` and published by the tag-triggered workflow (run 37130651708; digest `sha256:59631e65…`), with the release log updated. Frontend-only — no migration.
 

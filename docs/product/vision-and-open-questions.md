@@ -268,6 +268,13 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 | 40 | 2026-10-03 | **Next Phase 13 slice (owner request):** every Diary meal card gains a **+ Add recipe** action beside **+ Add food**, on the same row, so a recipe can be logged without leaving the meal. Starting it from a meal card pre-selects that meal in the portion sheet (for example, **+ Add recipe** on Lunch opens the sheet with Lunch chosen). Decisions 29–32 are unchanged: fractions of the whole cooked recipe, direct gram editing, no guessed first quantity, and the remembered usual. | Owner |
 | 41 | 2026-10-03 | **Recipe tags become filters (owner request):** the tags already shown on a recipe card — meal occasion, dish type and known-Food key foods — are tappable. Tapping one filters the catalogue to the recipes carrying it; tapping a second tag **narrows further, requiring every selected tag** (AND), which is the Chicken → Chicken & Mushroom Pie → Mushroom flow the owner described. Selected tags stay visible as a “Filtering by” row with per-tag removal and **Clear tags**; the facet dropdowns remain in step with the tapped tags as two views of one selection. The selection lives in the URL (`/recipes?tags=…`), so it survives a reload and a trip into a recipe. On a recipe detail page a tag opens the catalogue already narrowed by it. The tag vocabulary itself does not change: still meal occasion, dish type and up to two known-Food key foods — no free-text tags (decision 35 stands). | Owner |
 
+> **Queued after the Diary work (owner-raised, 2026-10-03):** the catalogue can show, filter,
+> favourite and log a recipe, but there is still **no way to change a recipe itself** — the React app
+> has no recipe editor at all, and the legacy vanilla UI's one is not being ported as-is. The owner
+> asked for **adapting an existing recipe**, with the rule that doing so must never change recorded
+> history. **Decisions 55–58** in [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03)
+> settle the shape and the implementation plan. It is planned, not built.
+
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
 saved calories/protein/carbs/fat/fibre are rescaled by the new-to-old ratio so the saved snapshot —
@@ -477,3 +484,80 @@ designed: water not tracked for days, weight not entered for weeks, a recipe wit
   summary line.
 - Whether raising an issue can change the bank maths (recommendation: **no** — issues are a
   workflow, the bank has one rule, decision 42).
+
+## Adapting an existing recipe — decisions 55–58 (2026-10-03)
+
+**The gap the owner raised.** Phase 13's React Recipes experience can list, filter, favourite and log
+a recipe, and edit its tags/occasion metadata — but it cannot **change a recipe itself**. There is no
+recipe editor in `web/frontend/`; the only one in the repository is the legacy vanilla-JS editor
+(`web/static/js/components/recipes.js`), which is not being ported as-is. So "I want to adapt this
+recipe" has no answer in the app the household is moving to.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 55 | 2026-10-03 | **Editing a recipe must never change recorded history.** A diary row is the record of what was eaten and keeps its own grams and nutrition snapshot; a recipe is a definition used by *future* logs. After an edit, every existing diary row — and therefore every day total, bank figure and statistic — must be **byte-identical**. No handler may re-read a food or recipe definition to recompute, correct or "repair" a saved diary entry. | Owner (requirement, confirmed 2026-10-03) |
+| 56 | 2026-10-03 | **"Adapt" means editing the existing recipe in place**, not duplicating it into a private variant. There is no fork/copy concept in this slice: the shared catalogue entry changes for everyone from that point on, which matches recipes being household-shared. | Owner |
+| 57 | 2026-10-03 | **Any household user may edit any shared recipe.** No creator-only lock. Favourites and each user's usual portion remain personal (decisions 31–32, 37). | Owner |
+| 58 | 2026-10-03 | **Recipe names are fixed at creation and are not editable.** The owner declined a name-snapshot migration, and freezing the name removes the only way historic diary rows could be relabelled after the fact (the diary response reads the name through a join). A recipe is named when it is created; the field is read-only afterwards. | Owner |
+
+### Why the guarantee holds today — and where the edges are
+
+**Status: decided, not implemented.** Until the slice lands, the React app cannot edit a recipe at
+all, and the API and legacy editor can still rename one.
+
+Verified on 2026-10-03 by running the real Go handlers against a scratch SQLite database in the Arena
+sandbox (recipe created → portion logged → recipe edited/renamed → delete attempted):
+
+- `POST /api/diary` stores the client's nutrition snapshot; it does not derive it from the recipe.
+- `PUT /api/diary/{id}` (the logged-quantity edit) writes exactly what it is sent; the client scales
+  **the row's own saved snapshot** by the new-to-old gram ratio (`scaleEntryToGrams`). Neither side
+  re-reads the food or recipe, so a changed definition cannot rewrite a past day.
+- `GET /api/diary`, `/api/bank` and `/api/stats` sum the diary rows' stored values; none of them
+  re-derives nutrition from a recipe.
+- `PUT /api/recipes/{id}` rewrites `recipes`, `recipe_ingredients` and `recipe_text_ingredients` —
+  and nothing else. A diary entry logged before the edit kept its exact calories and macros (day
+  totals unchanged: 150 kcal → 150 kcal across the edit, while the recipe's own figures changed).
+
+Two findings make the edges explicit rather than accidental:
+
+- **Renaming relabels history.** `GET /api/diary` joins `recipes` for `recipe_name`, so a renamed
+  recipe shows its new name against old entries (confirmed in the same test). That is display only —
+  the calories do not move — but it is why decision 58 freezes the name.
+- **Deleting a logged recipe already fails.** `diary_entries.recipe_id` has a foreign key and the
+  connection enables `_foreign_keys=on`, with no `ON DELETE` clause, so `DELETE /api/recipes/{id}`
+  returns **500 `Database error: FOREIGN KEY constraint failed`** while any diary row references the
+  recipe (confirmed against a real database; the legacy UI surfaces this as
+  "Failed to delete: Database error: FOREIGN KEY constraint failed"). Nothing rewrites or orphans
+  history — but it is not a designed behaviour either.
+
+### What the implementation slice must do
+
+1. **Editor in the React recipe detail view** covering the recipe's own content — ingredient lines
+   (known cals Foods plus grams), text ingredients, serves, method/instructions and description —
+   reusing the existing `PUT /api/recipes/{id}` handler. Cooked-weight concentration maths is
+   untouched and stays unit-tested (AGENTS.md §4: domain maths is precious).
+2. **The name is read-only** (decision 58). Enforce it in the API rather than only hiding the field,
+   and deal with the legacy editor's name input in the same change so the household's current UI does
+   not start failing its Update action with a server error.
+3. **Pin the guarantee with Go regression tests**, because today it is an emergent property of three
+   handlers rather than a rule anyone has defended:
+   - log a recipe portion, edit the recipe so its kcal/100 g changes, and assert the existing row,
+     the day's totals and `GET /api/bank` are unchanged — while a *new* log of the same recipe uses
+     the new figures;
+   - assert editing one user's view of a recipe cannot alter the other user's history;
+   - assert the logged-quantity edit path (`PUT /api/diary/{id}`) keeps scaling the stored snapshot.
+4. **Fixture parity** in `web/frontend/mock-api/` (the Arena preview is how the owner reviews this) and
+   a component/render test for the editor, following the existing Phase 13 patterns.
+
+### Open questions for that implementation session
+
+- **Renaming before the first log.** Decision 58 freezes the name outright; a recipe created with a
+  typo, or renamed before anyone has logged it, has no history to protect. Recommendation: allow a
+  rename while **no diary entry references the recipe** and reject it afterwards — that keeps the
+  guarantee exactly as strong and is friendlier in practice. Owner to confirm.
+- **Deleting a recipe that has been logged.** Today it is hard-blocked by the foreign key with a 500.
+  Options: (a) keep the block but answer with a clear `409`/message the UI can explain, or (b)
+  **soft-delete/archive** — hide it from the catalogue while the row survives so history keeps its
+  name and link. Recommendation: (a) now, (b) as its own small slice if the owner ever wants to
+  retire a recipe without losing the label on old days. No React delete UI exists yet, so nothing
+  user-visible depends on the choice today.
