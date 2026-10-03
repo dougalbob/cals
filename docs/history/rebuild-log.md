@@ -14,6 +14,57 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Road-test fixes: calorie wheel labels, inner-ring sweep, glass target, Android dots
+
+Four things the owner hit while road-testing, all frontend:
+
+1. **The calorie wheel labels itself.** The two captions underneath
+   (`Bank −394 kcal · 19.7% of ±2,000 kcal scale` and `177 kcal over today's allowance`) are gone.
+   The hub now reads `bank ±N` (the bank balance **plus** what is left of today — the owner's
+   definition of headroom in hand), the day's spend in large type, and `daily ±N` (today's own
+   remainder). Both small lines are colour-coded green/red by sign and use a true minus sign. The
+   `of 2,000 kcal` line was dropped at the owner's request: the goal is already in the tile beside
+   the wheel. All of the removed wording survives in the SVG `aria-label`.
+2. **The inner ring now follows the outer ring's convention.** Under the goal it still counts down
+   clockwise in green; once the day is overspent it grows **anticlockwise in red** from 12 o'clock,
+   scaled by how far the overspend has eaten into another whole day's goal and saturating at a full
+   circle. `bankArcTransform` was generalised to `arcTransform` (the old name is kept as an alias).
+3. **The hydration target is written across the glass** at 45°, drawn over the water with a white
+   halo so it stays legible at any level, which let the redundant `2,000 / 2,000 ml` caption go. The
+   glass is slightly larger (66×96) to carry the text.
+4. **The milk/sugar button is visible on Android.** It was three `·` glyphs in light grey on a
+   transparent background — crisp on a desktop monitor, near-invisible on a phone. It is now a
+   bordered 32 px circular chip containing an SVG three-dot icon in full ink, and the drink name is
+   padded clear of it.
+
+Vitest 135/135, lint and typecheck green. The deferred RFC3339-date issue on the fitness, weight and
+measurement endpoints was written up as a known issue for the metrics phase rather than fixed. Both
+this and the calendar fix are queued for `v2.0.0-dev-rc16`.
+
+## 2026-10-03 — Calendar read every day as 0 kcal: the SQLite `DATE` decltype trap
+
+The owner tested the new calendar on the Unraid container and every day — past days included —
+rendered `0 / 1,250 kcal` with `+133,184,631 kcal` in the bank line, while the same days were
+correct on Home and in the Diary.
+
+`mattn/go-sqlite3` inspects `sqlite3_column_decltype` and converts any column declared
+`DATE`/`DATETIME`/`TIMESTAMP` into a `time.Time`; `database/sql` then formats that as RFC3339 when
+the scan destination is a string. So `SELECT date FROM diary_entries` returns
+`"2026-09-07T00:00:00Z"`, not `"2026-09-07"`. `internal/handlers/calendar.go` keyed its pre-filled
+per-day map on the raw scanned value, so **no row ever matched a day** and every total stayed zero.
+The same conversion applies to `users.bank_start_date` (the legacy UI already works around it with
+`bank_start_date.split('T')[0]`), so `time.Parse("2006-01-02", …)` failed, left the zero
+`time.Time`, and `bt.Sub(a)` saturated at the maximum `time.Duration` (~292 years) — 106,752 days ×
+1,250 kcal − 255,369 kcal consumed is exactly the 133,184,631 the owner saw. `HandleGetBank` was
+unaffected because it already wraps both sides in `date(...)`.
+
+Fix: every calendar query now selects `date(date) AS day` (an expression has no declared type, so it
+comes back as text) and compares `date(date) >= date(?)`; scanned values and the bank start date go
+through a new `isoDate` helper; `daysBetweenInclusive` refuses a zero start instead of overflowing.
+Three Go regression tests cover per-day totals, dates stored with a time component, and the
+running-total seed. No schema change and no API-shape change. The defect **is** in the published
+`rc15` image (it was found by road-testing that image), so the fix ships in `rc16`.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc14` (PR #34)
 
 Owner said **"Lets publish"** (decision 20) after reviewing recipe archive/restore in the Arena

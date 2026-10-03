@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import { BANK_RING_LIMIT_KCAL, bankArcTransform, CalorieRing } from './CalorieRing'
+import { BANK_RING_LIMIT_KCAL, arcTransform, bankArcTransform, CalorieRing } from './CalorieRing'
 
 const GREEN = '#26de81'
 const RED = '#fc5c65'
@@ -18,25 +18,34 @@ function renderRing(bankBalance: number, consumed = 1_500, goal = 2_000) {
   const image = screen.getByRole('img')
   const circles = image.querySelectorAll('circle')
   const outerProgress = circles[1]
-  if (!outerProgress) throw new Error('Expected the outer progress circle')
+  const innerProgress = circles[3]
+  if (!outerProgress || !innerProgress) throw new Error('Expected both progress circles')
 
   const circumference = Number(outerProgress.getAttribute('stroke-dasharray'))
   const offset = Number(outerProgress.getAttribute('stroke-dashoffset'))
+  const innerCircumference = Number(innerProgress.getAttribute('stroke-dasharray'))
+  const innerOffset = Number(innerProgress.getAttribute('stroke-dashoffset'))
+
   return {
     image,
     outerProgress,
+    innerProgress,
     transform: outerProgress.getAttribute('transform'),
+    innerTransform: innerProgress.getAttribute('transform'),
     unmount: view.unmount,
     fraction: 1 - offset / circumference,
+    innerFraction: 1 - innerOffset / innerCircumference,
   }
 }
 
-describe('bankArcTransform', () => {
-  it("anchors both directions at 12 o'clock and only mirrors the deficit", () => {
-    expect(bankArcTransform(1_000, 190)).toBe(CLOCKWISE)
-    expect(bankArcTransform(0, 190)).toBe(CLOCKWISE)
-    expect(bankArcTransform(-1, 190)).toBe(ANTICLOCKWISE)
-    expect(bankArcTransform(-2_000, 190)).toBe(ANTICLOCKWISE)
+describe('arcTransform', () => {
+  it("anchors both directions at 12 o'clock and only mirrors the negative sweep", () => {
+    expect(arcTransform(1_000, 190)).toBe(CLOCKWISE)
+    expect(arcTransform(0, 190)).toBe(CLOCKWISE)
+    expect(arcTransform(-1, 190)).toBe(ANTICLOCKWISE)
+    expect(arcTransform(-2_000, 190)).toBe(ANTICLOCKWISE)
+    // The outer ring keeps its original name.
+    expect(bankArcTransform).toBe(arcTransform)
   })
 })
 
@@ -49,7 +58,13 @@ describe('CalorieRing', () => {
     expect(transform).toBe(CLOCKWISE)
     expect(image.getAttribute('aria-label')).toContain('Bank balance +1,000 kcal in surplus')
     expect(image.getAttribute('aria-label')).toContain("filling clockwise from 12 o'clock")
-    expect(screen.getByText('Bank +1,000 kcal · 50% of ±2,000 kcal scale')).toBeTruthy()
+    // The hub carries the bank *plus* what is left of today: 1,000 + (2,000 − 1,500).
+    expect(screen.getByText('+1,500')).toBeTruthy()
+    expect(screen.getByText('1,500')).toBeTruthy()
+    expect(screen.getByText('+500')).toBeTruthy()
+    // The old captions underneath are gone.
+    expect(screen.queryByText(/kcal scale/)).toBeNull()
+    expect(screen.queryByText(/allowance left/)).toBeNull()
   })
 
   it("shows a red third-ring deficit at -650 kcal, sweeping the other way from 12 o'clock", () => {
@@ -60,7 +75,8 @@ describe('CalorieRing', () => {
     expect(transform).toBe(ANTICLOCKWISE)
     expect(transform?.endsWith(CLOCKWISE)).toBe(true)
     expect(image.getAttribute('aria-label')).toContain("filling anticlockwise from 12 o'clock")
-    expect(screen.getByText('Bank -650 kcal · 32.5% of ±2,000 kcal scale')).toBeTruthy()
+    // −650 bank + 500 left of today = −150 headroom, shown with a true minus sign.
+    expect(screen.getByText('−150')).toBeTruthy()
   })
 
   it('saturates at the fixed limits without hiding the actual bank balance', () => {
@@ -71,7 +87,8 @@ describe('CalorieRing', () => {
     positive.unmount()
     const aboveLimit = renderRing(3_250)
     expect(aboveLimit.fraction).toBeCloseTo(1, 6)
-    expect(screen.getByText('Bank +3,250 kcal · 100% of ±2,000 kcal scale')).toBeTruthy()
+    expect(aboveLimit.image.getAttribute('aria-label')).toContain('100% of its plus or minus 2,000 kcal')
+    expect(screen.getByText('+3,750')).toBeTruthy()
 
     aboveLimit.unmount()
     const deficit = renderRing(-4_460)
@@ -82,12 +99,45 @@ describe('CalorieRing', () => {
   })
 
   it('keeps a zero balance neutral and keeps the inner ring on the daily goal', () => {
-    const { outerProgress, fraction } = renderRing(0, 1_500, 2_000)
+    const { outerProgress, fraction, innerProgress, innerFraction, innerTransform } = renderRing(
+      0,
+      1_500,
+      2_000,
+    )
 
     expect(outerProgress.getAttribute('stroke')).toBe(NEUTRAL)
     expect(fraction).toBe(0)
-    expect(screen.getByText('of 2,000 kcal')).toBeTruthy()
-    expect(screen.getByText('500 kcal allowance left')).toBeTruthy()
+    // Inner ring counts the allowance down clockwise: 500 of 2,000 left.
+    expect(innerProgress.getAttribute('stroke')).toBe(GREEN)
+    expect(innerFraction).toBeCloseTo(0.25, 6)
+    expect(innerTransform).toBe(CLOCKWISE)
+    // Bank 0 + 500 left of today, so both hub lines read +500.
+    expect(screen.getAllByText('+500')).toHaveLength(2)
     expect(BANK_RING_LIMIT_KCAL).toBe(2_000)
+  })
+
+  it('sweeps the inner ring anticlockwise in red once the day is overspent', () => {
+    const { innerProgress, innerFraction, innerTransform, image } = renderRing(0, 2_500, 2_000)
+
+    expect(innerProgress.getAttribute('stroke')).toBe(RED)
+    // 500 kcal over a 2,000 kcal goal = a quarter of another day.
+    expect(innerFraction).toBeCloseTo(0.25, 6)
+    expect(innerTransform).toBe(ANTICLOCKWISE)
+    expect(screen.getAllByText('−500')).toHaveLength(2)
+    expect(image.getAttribute('aria-label')).toContain('growing anticlockwise')
+  })
+
+  it('saturates the inner ring at a whole extra day and never passes it', () => {
+    const { innerFraction, innerTransform } = renderRing(0, 6_000, 2_000)
+
+    expect(innerFraction).toBeCloseTo(1, 6)
+    expect(innerTransform).toBe(ANTICLOCKWISE)
+  })
+
+  it('still shows the bank alone when no daily goal is set', () => {
+    renderRing(750, 1_200, 0)
+
+    expect(screen.getByText('+750')).toBeTruthy()
+    expect(screen.getByText('daily goal not set')).toBeTruthy()
   })
 })

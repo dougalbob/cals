@@ -62,12 +62,18 @@ describe('HomeRoute', () => {
     const percent = Math.round((Math.min(Math.abs(expected.bank_balance) / 2_000, 1) * 1_000)) / 10
     const percentText = `${formatNumber(percent, Number.isInteger(percent) ? 0 : 1)}%`
 
-    expect(await screen.findByText(`of ${formatNumber(expected.daily_goal)} kcal`)).toBeTruthy()
+    // The wheel labels itself: "bank" (balance plus what is left of today),
+    // the day's spend, and "daily". The captions underneath are gone.
+    expect(await screen.findByText('bank')).toBeTruthy()
+    expect(screen.getByText('daily')).toBeTruthy()
     expect(screen.getByText('Daily goal')).toBeTruthy()
     expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
       `Bank balance ${signedBalance} kcal`,
     )
-    expect(screen.getByText(`Bank ${signedBalance} kcal · ${percentText} of ±2,000 kcal scale`)).toBeTruthy()
+    expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
+      `${percentText} of its plus or minus 2,000 kcal display scale`,
+    )
+    expect(screen.queryByText(/kcal scale/)).toBeNull()
   })
 
   it('summarises each meal without listing the individual foods', async () => {
@@ -93,8 +99,11 @@ describe('HomeRoute', () => {
     const consumed = Math.round(totals.calories + drinkCalories)
 
     expect(entries.length + seed.drinkEntriesFor(seed.TODAY).length).toBeGreaterThan(0)
-    expect(await screen.findByText(`of ${formatNumber(bank.daily_goal)} kcal allowance left`).catch(() => null) ??
-      screen.getByText(new RegExp("kcal (allowance left|over today's allowance)"))).toBeTruthy()
+    // Today's remainder is the hub's bottom line, signed and colour-coded.
+    const dailyLeft = bank.daily_goal - consumed
+    const dailyText = `${dailyLeft < 0 ? '−' : '+'}${formatNumber(Math.abs(dailyLeft))}`
+    expect(await screen.findByText('daily')).toBeTruthy()
+    expect(screen.getAllByText(dailyText).length).toBeGreaterThan(0)
 
     // The inner ring is a countdown of the plain daily goal, drawn from 12
     // o'clock: the arc length is the allowance that is left.
@@ -117,9 +126,9 @@ describe('HomeRoute', () => {
     fireEvent.click(within(card).getByRole('button', { name: /Add a 250 ml glass of water/ }))
 
     await waitFor(() =>
-      expect(
-        within(card).getByText(formatNumber(waterBefore + 250)),
-      ).toBeTruthy(),
+      expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
+        String(Math.min(waterBefore + 250, target)),
+      ),
     )
   })
   it('confirms long-press deletion of a glass without adding an extra drink', async () => {

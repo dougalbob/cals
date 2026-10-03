@@ -14,12 +14,19 @@ export function WaterGlass({
   width = 74,
   height = 106,
   label,
+  targetLabel,
 }: {
   /** Remaining fraction of the daily target: 1 = full, 0 = drained. */
   level: number
   width?: number
   height?: number
   label?: string
+  /**
+   * The daily target, written across the glass at 45° (e.g. "2,000 ml"). It is
+   * drawn over the water so it stays readable at any level, which lets the card
+   * drop its separate "x / y ml" caption (owner request, 2026-10-03).
+   */
+  targetLabel?: string
 }) {
   const clipId = useId()
   const gradientId = useId()
@@ -79,6 +86,30 @@ export function WaterGlass({
         {/* Glass shine */}
         <rect x="17" y="16" width="5" height="66" rx="2.5" fill="#ffffff" opacity="0.25" />
       </g>
+
+      {/* The target, written across the glass at 45°. Drawn after the water so
+          it stays legible as the level changes: a white halo (paint-order:
+          stroke) keeps it readable against both the empty glass and the blue. */}
+      {targetLabel && (
+        <text
+          x="32"
+          y="56"
+          transform="rotate(45 32 56)"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize="13"
+          fontWeight="700"
+          fill="#334155"
+          stroke="#ffffff"
+          strokeWidth="2.75"
+          strokeLinejoin="round"
+          paintOrder="stroke"
+          opacity="0.9"
+          pointerEvents="none"
+        >
+          {targetLabel}
+        </text>
+      )}
 
       {/* Outline drawn last so the water never covers the rim */}
       <path d={glassPath} fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinejoin="round" />

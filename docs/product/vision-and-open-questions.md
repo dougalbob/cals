@@ -625,3 +625,37 @@ Inspected on 2026-10-03:
 - Verify future logs made from refreshed definitions use corrected figures, while all previously
   stored Diary rows, day totals, bank figures and statistics stay unchanged. Corrected food labels
   following their joins are explicitly permitted by decision 61.
+
+## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
+
+**Not a bug the household can see today. Pick this up at the start of the metrics phase.**
+
+Columns declared `DATE`/`DATETIME` are converted to `time.Time` by `mattn/go-sqlite3` (it reads
+`sqlite3_column_decltype`), and `database/sql` then renders that as RFC3339 when the scan
+destination is a string. A row holding `2026-09-07` therefore comes back as
+`2026-09-07T00:00:00Z`. This is what made the `rc15` calendar read `0 / 1,250 kcal` on every day with a
+bank of `+133,184,631 kcal` — see the
+[rebuild log entry](../history/rebuild-log.md) and the fix in `internal/handlers/calendar.go`
+(shipping in `rc16`).
+
+The same pattern is still live in three handlers that select the bare column and scan it into a
+string, so their JSON carries `2026-09-07T00:00:00Z` rather than `2026-09-07`:
+
+| Handler | Query |
+|---|---|
+| `internal/handlers/fitness.go` | `SELECT date, steps FROM step_entries …` |
+| `internal/handlers/weight.go` | `SELECT id, user_id, date, weight_kg, created_at FROM weight_entries …` |
+| `internal/handlers/measurements.go` | `SELECT id, user_id, date, … FROM measurement_entries …` |
+
+`users.bank_start_date` has the same shape; the legacy UI already works around it with
+`bank_start_date.split('T')[0]` (`web/static/js/app.js`).
+
+**Why it is deferred:** the legacy UI tolerates the suffix, and the React Metrics screen is still a
+spike. It only becomes a real defect when the metrics phase starts keying or grouping by those
+dates — exactly the mistake the calendar made.
+
+**What to do then:** select `date(date) AS day` (an expression has no declared type, so the driver
+returns plain text) and compare with `date(date) >= date(?)`, as `HandleGetBank` and the fixed
+calendar handler do; normalise anything scanned into a string with the `isoDate` helper in
+`internal/handlers/calendar.go`. Decide at the same time whether `GET /api/users/me` should return a
+plain `YYYY-MM-DD` `bank_start_date` — changing it would let the legacy UI drop its `split('T')`.
