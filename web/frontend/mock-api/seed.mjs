@@ -50,6 +50,7 @@ const FOOD_ROWS = [
   [22, 'Naan Bread', '', 310, 8.7, 50.0, 7.6, 2.2, '1 naan', 90, 'fs_1013'],
   [23, 'Chicken Tikka Masala, takeaway', '', 130, 9.5, 6.0, 7.2, 1.0, 'Portion', 400, 'fs_1014'],
   [24, 'Roast Potatoes', '', 149, 2.6, 26.0, 4.0, 2.0, '200g', 200, null],
+  [25, 'Mushrooms, sliced', '', 22, 3.1, 0.4, 0.5, 1.0, '80g handful', 80, null],
 ]
 
 // Extra named gram-backed measures (Phase 13), keyed by food id. The preferred
@@ -251,6 +252,20 @@ export const recipes = [
     dishType: 'main',
     keyFoodIds: [11],
     totalTimeMinutes: 25,
+  }),
+  buildRecipe({
+    id: 4,
+    name: 'Chicken & Mushroom Pie',
+    description: 'Sunday pie, shop-bought pastry.',
+    instructions: 'Brown the chicken, soften the mushrooms, add flour and milk, top with pastry and bake 30 min.',
+    serves: 4,
+    items: [[5, 700], [25, 300], [12, 15], [2, 100]],
+    text: ['1 sheet puff pastry', '2 tbsp plain flour'],
+    cookedWeight: 1000,
+    mealOccasions: ['dinner'],
+    dishType: 'main',
+    keyFoodIds: [5, 25],
+    totalTimeMinutes: 75,
   }),
 ]
 

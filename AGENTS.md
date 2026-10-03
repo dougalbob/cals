@@ -30,16 +30,22 @@ A personal calorie and nutrition tracking PWA.
 | Layer | Tech |
 |---|---|
 | Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
-| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and two Phase 13 slices (Recipes metadata; food servings and recipe-to-Diary portions), and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
+| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and three Phase 13 slices (Recipes metadata; food servings and recipe-to-Diary portions; recipe tags that filter the catalogue when tapped), and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (legacy recipe import; not pursued in React Phase 13), Google Fit (steps) |
 | Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
 
-**Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
+**Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative.
+**Read [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) first**: status (what is deployed, which phase
+is in progress, what is waiting on the owner, what to do next) lives **only** there. If another
+document disagrees with it, that document is the bug — and if you change the state, update that page
+in the same PR. Dated history goes in [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md).
 
 | Read this | For |
 |---|---|
-| [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) | What cals should become; every open question |
+| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | **Where the project is right now** — deployments, phase status, next work, blockers |
+| [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md) | What happened, when — dated record, newest first |
+| [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) | What cals should become; every decision and every open question |
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
@@ -64,9 +70,9 @@ web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
 web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
 web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
 web/frontend/             React 19 + TS + Vite + Tailwind rebuild (Phase 11 foundation, Phase 12 screens,
-                          two Phase 13 slices — Recipes metadata, and food servings plus
-                          recipe-to-Diary portions); production bundle served under temporary
-                          /next/ only — see its README
+                          three Phase 13 slices — Recipes metadata, food servings plus
+                          recipe-to-Diary portions, and tap-to-filter recipe tags); production
+                          bundle served under temporary /next/ only — see its README
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth
  docs/                     canonical documentation: product/ and architecture/
@@ -111,7 +117,7 @@ Vite).
 This sandbox has Node but **no Go toolchain installed**, so the Go server cannot be run here out
 of the box. It *can* be obtained for verification purposes — `scripts/verify-go-in-sandbox.sh`
 installs a Go toolchain from the PyPI wheel `go-bin` into `/tmp`, copies the repo to `/tmp/calstest`,
-and builds `./cmd/server` with CGO (verified: the real server starts, creates all 17 tables, and
+and builds `./cmd/server` with CGO (verified: the real server starts, creates all 20 tables, and
 returns `401` on protected routes without a Cloudflare JWT). Caveats: nothing in `/tmp` persists
 between turns, the toolchain is Go 1.27 rather than the Dockerfile's 1.22, and **Docker itself
 cannot run in the sandbox**, so image builds must be verified on your own machine.
@@ -137,8 +143,10 @@ Notes:
 ## 5. Documentation duties
 
 - **`docs/` is the source of truth for documentation** (see [`docs/README.md`](docs/README.md)). Update the relevant document — or add one, following the folder conventions — for any architectural, product or workflow change.
+- **Status has exactly one home:** [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md). Change it whenever the state changes (a merge, a deployment, a new gate), and link to it from everywhere else rather than repeating it. Prose that repeats status is how the "17 tables" and "five documents" drifts happened.
+- **Dated narrative goes to [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md)**, newest first, with links to decisions and PRs — not into the documents an agent must read to work.
 - **Do not append to `ai_contextual_docs/context.txt`.** It is legacy and frozen; see the section above.
-- Update [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) when a question is answered or a new one appears — record the answer in its *Decisions so far* table with a date.
+- Update [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) when a question is answered or a new one appears — record the answer in a dated decision table.
 - Mark documents with a status header: 🟡 Proposed / Live discovery, 🟢 Adopted, 🔴 Legacy. Never describe unbuilt work as if it exists.
 - Where documentation and code disagree, the code wins and the documentation is the bug — fix it in the same PR.
 

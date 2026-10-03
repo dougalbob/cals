@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered moves to [Decisions so far](#decisions-so-far) with a date.
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in a dated decision table (decisions 1–17, 18–28, 29–41 and the [second pass](#second-discovery-pass--2026-10-03) 42–48). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -29,7 +29,7 @@ That is already how the backend behaves — `users` is keyed by email and an acc
 
 **Still open**
 
-- **Does either of you ever need to see the other's day?** For example, you checking whether she hit her water goal, or a shared household view. The backend has an unused `GET /api/users` endpoint commented *"for viewing others' data"*, so it was once intended. If the answer is yes, that is a new screen; if no, the endpoint should probably be removed or locked down rather than left exposed.
+- ~~**Does either of you ever need to see the other's day?**~~ **Answered (2026-10-03, decision 45): not as a household view — via an admin role.** The owner needs to see the household data far more than his wife needs to see his: he has almost no data under his own profile, so he "cannot tell how the app is performing unless I borrow my wife's phone". The answer is therefore an **admin flag on the owner's user record plus a "Swap user" control with full read/write access**, not a read-only household screen. That also settles the unused `GET /api/users` endpoint: it becomes the authenticated user list behind the admin capability rather than an exposed curiosity. See the [admin role section](#admin-role-and-swap-user-2026-10-03) for the design and its guardrails.
 - **What would she want that isn't in the app today?** She is the real user — worth asking her directly rather than guessing on her behalf.
 
 ## B. Water — ✅ answered ("both"), with one design decision to settle
@@ -94,32 +94,32 @@ Phase 15 will make the positive-bank cap and deficit magnitude independently adj
 
 The current grey arc at a large deficit is explained by the old outer ring dividing by `today_available`: once that value is negative, progress clamps to zero and the arc has no visible length. The fixed-range ring currently uses the signed cumulative `bank_balance` directly.
 
-### Proposed lookback window — 2026-10-03
+### Proposed lookback window — 2026-10-03 (settled as decision 44)
 
-The owner has suggested that the outer ring represent a recent rolling balance rather than all time since `bank_start_date`, tentatively the last 30 completed days, with the lookback length adjustable per user. Recommendation: make this a separate **display metric for the ring**; do not change the cumulative bank or the calculation of today's available allowance. The Banked/Deficit tile should continue to show the exact cumulative balance, while the ring label states the selected period (for example, “Last 30 days”).
+The owner has suggested that the outer ring represent a recent rolling balance rather than all time since `bank_start_date`, tentatively the last 30 completed days, with the lookback length adjustable per user — **settled on 2026-10-03 as decision 44: the window is user-definable, and “no window” means cumulative from day 1.** Recommendation: make this a separate **display metric for the ring**; do not change the cumulative bank or the calculation of today's available allowance. The Banked/Deficit tile should continue to show the exact cumulative balance, while the ring label states the selected period (for example, “Last 30 days”).
 
 This is not already implemented: the existing `GET /api/stats/bank?days=30` returns 30 dated snapshots, but each snapshot is cumulative from `bank_start_date`, not a rolling-window total. It also currently omits drink calories. Schedule a tested rolling calculation and food+drink consistency with Phase 14 Metrics, then make the lookback per-user and editable with the ring limits in Phase 15 Settings. The 30-day default and exact settings range remain to be confirmed during that design.
 
 1. ~~**Does it ever reset?**~~ **Answered (2026-10-02, decision 17): manual only.** No automatic reset; the existing `bank_start_date` setting in Settings is the "start fresh from today" control, and it resets the running balance without touching history.
-2. **Should exercise credit the bank?** Google Fit steps are already synced but have no effect on the maths. "Eat back your steps" is a real decision, and a common source of drift.
-3. **Should the bank be per-user, or shared as a household?**
-4. **What should a day with no logging at all count as** — zero consumed (bank inflates, as now), or "no data"?
-5. **Would an average be more useful than a running total** — e.g. "you've been under by 250 kcal/day for a fortnight"?
+2. **Should exercise credit the bank?** **Deferred by the owner (2026-10-03): not now.** Google Fit steps keep syncing and stay informational (Metrics), with no effect on the bank maths. Revisit as its own decision; "eat back your steps" is a common source of drift, and a future version could credit only steps above a daily floor.
+3. ~~**Should the bank be per-user, or shared as a household?**~~ **Answered (2026-10-03, decision 43): per person, as now.** Each of you keeps your own bank, goals and history. Seeing the other person's numbers is handled by the admin role (decision 45), not by merging the banks.
+4. ~~**What should a day with no logging at all count as**~~ **Answered (2026-10-03, decision 42): no data — the day is excluded from the bank.** It neither adds the daily budget nor removes consumption, so an unlogged day is a wash rather than an inflated bank. This is a change from today's behaviour (which counts it as zero consumed) and lands in Phase 14. Because the usual cause is human oversight, the owner wants a future **Issues** feature — a bell on Home that raises "you didn't log this day" and asks the user to resolve it — so the exclusion is visible rather than silent.
+5. ~~**Would an average be more useful than a running total**~~ **Answered (2026-10-03, decision 44): keep the running total, and make the window user-definable.** The owner's earlier lookback idea (a rolling period, tentatively 30 days) is generalised: the ring shows a **user-selected window**, and if no window is chosen it shows the cumulative figure from day 1 to today. The Banked/Deficit tile continues to show the exact cumulative balance. Phase 14 computes the rolling metric; Phase 15 adds the setting.
 
 ## E. Daily logging ergonomics
 
 This is where a rebuild earns its keep, so it is worth being specific about the friction.
 
-6. **What do you (or your wife) log most days that takes the most taps today?** A habitual breakfast, coffee, the same lunch?
-7. **Would "same as yesterday", favourites, or recently-logged shortcuts help?** Any of these would be a headline feature of the rebuild.
-8. **Are the four meal slots right** (breakfast, lunch, dinner, snacks)? Is there anything logged that fits none of them?
+6. ~~**What do you (or your wife) log most days that takes the most taps today?**~~ **Answered (2026-10-03, decision 49): nothing else needs changing — only finding historic dates.** Aside from reaching an earlier day's entries, the owner is happy with the current logging flows. The Diary's date navigation is currently **‹ / › day-stepping** (`/diary/:date`), so a day three weeks back is twenty taps; the owner intends to solve it with a **calendar** (see [the calendar idea](#the-calendar-idea--diary-date-navigation-2026-10-03)). This is the last known logging-friction item.
+7. ~~**Would "same as yesterday", favourites, or recently-logged shortcuts help?**~~ **Answered (2026-10-03, decision 50): none required.** No shortcut feature is to be built; the current flows are fast enough.
+8. ~~**Are the four meal slots right**~~ **Answered (2026-10-03, decision 51): yes — breakfast, lunch, dinner and snacks stay exactly as they are.** No rename and no fifth slot.
 9. **Recipe diary portions — answered 2026-10-03.** A user's usual amount is personal and may differ from another person's; offer a remembered usual weight per user and recipe (for example, 200 g), editable in grams, plus fractions of the whole cooked recipe for visually served dishes (for example, ¼ of a lasagne). All choices convert to grams; diary entries continue to store only grams and the nutrition snapshot. The per-user preference is separate from diary history. This resolves whether recipe logging should be weight-based or serving-based: support both, without assuming every user's portion is the recipe's `serves` value.
-10. **How often do you log away from home** — pub, restaurant, takeaway — where you're estimating rather than weighing? How is that handled today?
-11. **Barcode scanning** — genuinely useful, or is the food repertoire stable enough that it isn't?
+10. **How often do you log away from home** — pub, restaurant, takeaway — where you're estimating rather than weighing? How is that handled today? *(Still open. Worth an answer before the Diary is treated as finished, since takeaway food is already in the fixture data and "eating out" is where the least precise entries come from.)*
+11. ~~**Barcode scanning**~~ **Answered (2026-10-03, decision 52): not now.** Not planned in the near future; it may be revisited **after a full stable release**, but it is not part of the rebuild. The food repertoire plus FatSecret search is enough.
 
 ### Phase 13 input: serving-based food quantities (owner request, 2026-10-03)
 
-The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”** instead of translating every portion into grams first. Foods already support an optional primary `serving_name` / `serving_grams`, and FatSecret foods may have multiple gram-backed `food_servings`. Diary entries store grams and a nutrition snapshot; `GET /api/diary` does not yet return serving metadata for Edit.
+The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”** instead of translating every portion into grams first. Foods already support an optional primary `serving_name` / `serving_grams`, and FatSecret foods may have multiple gram-backed `food_servings`. Diary entries store grams and a nutrition snapshot; `GET /api/diary` did not return serving metadata for Edit at the time of writing — that gap has since been closed (decision 29; the entry response now carries `food_serving_name`, `food_serving_grams` and `food_servings[]` without changing what the row stores).
 
 **Agreed Add/Edit interaction (2026-10-03):** show an explicit serving/grams mode toggle. Start in serving mode when the food has a reliable serving choice; otherwise start in grams mode. Always allow switching to grams, convert every choice through grams, and show the resulting grams and live kcal. Never invent a unit or conversion. Add optional serving metadata to the diary response so Edit can offer the same choices without changing the diary storage model.
 
@@ -137,7 +137,7 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 ## F. Nutrition targets
 
 12. **Are the current traffic-light rules right?** (Protein g/kg bodyweight, fibre 30 g, fat <35%, carbs 45–65%.)
-13. **Do you want more than macros and fibre** — salt, sugar, saturated fat, iron? That means either a richer data source or manual entry; FatSecret supplies a limited set today.
+13. ~~**Do you want more than macros and fibre**~~ **Answered (2026-10-03, decision 47): yes, the full set — but each nutrient is user-selectable.** Macros and fibre stay on by default; the user ticks further nutrients (for example **saturated fat**) in a Settings sheet, and the app then **audits the existing foods and reports the gaps** ("these 23 foods have no saturated-fat values") so the data can be filled in rather than silently missing. This is a settings-driven, incremental version of "a richer data source": nothing is turned on that the household's data cannot support. Full design, including the audit's exact behaviour and how partially-covered nutrients should affect the traffic lights, is recorded in [Tracked nutrients and the missing-data audit](#tracked-nutrients-and-the-missing-data-audit-2026-10-03).
 14. **Is the 7-day rolling window right**, or would a 28-day trend be more useful?
 15. **Should targets change with activity** (steps, training), or stay static?
 
@@ -151,11 +151,11 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 ## H. Devices, form factor and deployment
 
 20. **Phone-first, or desk-first?** The current design is mobile-first; is that right?
-21. **Do you need offline logging?** (No signal, on a train.) A significant scope decision for a PWA.
-22. **Notifications and reminders** — logging nudges, water nudges, a weekly summary — wanted or unwanted?
-23. **Anything needed on a watch, or via Siri/shortcuts?**
-24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need?
-25. **How is `appdata/cals` backed up today?** Worth confirming there is a copy before we make any structural change.
+21. ~~**Do you need offline logging?**~~ **Answered (2026-10-03, decision 53): no.** Neither offline logging nor an offline read requirement is needed — logging happens where there is a connection. Phase 15's PWA work therefore covers **installability and a clean service worker only**: no write queue, no sync-conflict handling, and no cached-data promise. That removes the riskiest part of the phase.
+22. ~~**Notifications and reminders**~~ **Answered (2026-10-03, decision 46): none — but a weekly report is wanted.** No logging nudges, no water nagging, no push notifications. Instead the owner wants a **weekly report** (what the week's numbers looked like, how the bank moved). If it fits naturally in Phase 14's Metrics redesign, it lives there; otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
+23. **Anything needed on a watch, or via Siri/shortcuts?** *(Still open — no requirement recorded either way.)*
+24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need? *(Still open — note Google Fit steps already sync and, per decision 48, do not affect the bank.)*
+25. ~~**How is `appdata/cals` backed up today?**~~ **Answered (2026-10-03, decision 54): it is backed up.** The owner confirms a backup of the household's live data exists, which satisfies the "check before a structural change" rule in [`data-copy-warning.md`](../architecture/data-copy-warning.md). Recording the **location and cadence** in that document is still worth doing so a future session does not have to ask.
 
 ## I. The rebuild itself
 
@@ -195,20 +195,42 @@ Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is 
 
 ## Where to go next
 
-Core identity, water units/target and the drink-template choices are settled (decisions 15–17).
-Phase 12 is implemented, with real-server Diary correctness follow-ups now verified. Phase 13's food
-serving, recipe-portion, recipe-discovery and visual direction are recorded in decisions 29–39. The
-first React Recipes increment—shared catalogue, per-user favourites, detail, metadata tags and facet
-filters—has been implemented and owner-reviewed in the Arena preview. The second increment—known-Food
-serving choices and recipe-to-Diary portion logging, per decisions 29–32—was owner-reviewed, merged
-(PR #28) and published as `v2.0.0-dev-rc11`; the next slice is **+ Add recipe** on each Diary meal card
-with the meal preselected (decision 40). Full recipe authoring and phase-wide phone-size review remain
-ahead. Mealie import is explicitly legacy-only and is not being ported. The highest-value open questions now are:
+**Where the project actually is right now lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** — phase
+status is deliberately not repeated here, and the dated story is in
+[`../history/rebuild-log.md`](../history/rebuild-log.md). This document is the *record of answers*:
+sections A–I are the questionnaire, and the decision tables at the end are the results.
 
-1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
-2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
-3. **Logging friction** (section E, questions 6–8) — what actually takes the most taps for the primary user.
-4. ~~**Quick-drink setup**~~ **Answered (2026-10-03, decisions 21–26):** a My drinks page with a short catalog picker (not auto-seeded rows). See [`drinks-builder.md`](../architecture/drinks-builder.md).
+**Settled in the 2026-10-03 second and third passes (decisions 42–54):** unlogged days are excluded
+from the bank (42); the bank stays per person (43); the ring window is user-definable with a
+since-day-1 default (44); cross-viewing becomes an admin role with a swap-user control rather than a
+household view (45); no notifications, but a weekly report is wanted (46); tracked nutrients become
+user-selectable with a missing-data audit (47); steps do **not** credit the bank for now (48); nothing
+else needs fixing in the logging flows, but a **calendar** is planned for reaching historic dates
+(49); **no logging shortcuts** are wanted (50); the **four meal slots stay** (51); **no barcode
+scanning** for now (52); **no offline capability** is required (53); and the household data **is
+backed up** (54).
+
+**Highest-value questions still open**
+
+1. **Away-from-home logging** (section E, question 10) — pub, restaurant and takeaway, where portions
+   are estimated rather than weighed. It is the least precise data the app holds and the last
+   unanswered logging question.
+2. **Nutrient coverage rules** (decision 47 design) — which nutrient list to offer, and what a traffic
+   light should do when the data behind it is only partly covered.
+3. **Traffic-light rules and the rolling window** (section F questions 12 and 14) — whether the current
+   thresholds are right, and whether the 7-day nutrition window should be longer; decision 47's new
+   nutrients make this urgent.
+4. **FatSecret and a UK food database** (section G, questions 18–19) — whether the commercial API stays
+   long-term or CoFID/McCance & Widdowson is more useful, which decides how fillable a nutrient audit
+   can ever be.
+5. **Watch/Siri and other trackers** (section H questions 23–24) — no requirement recorded either way.
+6. **Timescale and involvement** (section I, questions 29–30) — a few weeks of evenings or months;
+   review each phase, or "show me when it looks finished".
+7. **Question 26 — the single most annoying thing today** — asked at the start and never answered; now
+   that the logging flow questions are settled, it is the best remaining prompt for finding work the
+   plan has not anticipated.
+8. **Record the backup's location and cadence** (decision 54) — the backup exists, but nobody has
+   written down where it is.
 
 ## Dashboard decisions — 2026-10-03
 
@@ -244,6 +266,7 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 | 38 | 2026-10-03 | A calculated **Goodness rating is not part of Phase 13**. Revisit it as a separate future design question with a transparent method and suitable nutrition data; fat percentage alone is not a sufficient basis for the score. | Owner |
 | 39 | 2026-10-03 | Use `docs/product/recipeUX-example.jpg` as a **strong visual direction, not a rigid specification**: a prominent recipe photo, legible ingredient quantities and calories, a clear total, and an obvious add action. Recipe tags sit thoughtfully over the photo near the lower left; the favourite heart is at the upper right. | Owner |
 | 40 | 2026-10-03 | **Next Phase 13 slice (owner request):** every Diary meal card gains a **+ Add recipe** action beside **+ Add food**, on the same row, so a recipe can be logged without leaving the meal. Starting it from a meal card pre-selects that meal in the portion sheet (for example, **+ Add recipe** on Lunch opens the sheet with Lunch chosen). Decisions 29–32 are unchanged: fractions of the whole cooked recipe, direct gram editing, no guessed first quantity, and the remembered usual. | Owner |
+| 41 | 2026-10-03 | **Recipe tags become filters (owner request):** the tags already shown on a recipe card — meal occasion, dish type and known-Food key foods — are tappable. Tapping one filters the catalogue to the recipes carrying it; tapping a second tag **narrows further, requiring every selected tag** (AND), which is the Chicken → Chicken & Mushroom Pie → Mushroom flow the owner described. Selected tags stay visible as a “Filtering by” row with per-tag removal and **Clear tags**; the facet dropdowns remain in step with the tapped tags as two views of one selection. The selection lives in the URL (`/recipes?tags=…`), so it survives a reload and a trip into a recipe. On a recipe detail page a tag opens the catalogue already narrowed by it. The tag vocabulary itself does not change: still meal occasion, dish type and up to two known-Food key foods — no free-text tags (decision 35 stands). | Owner |
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
@@ -253,7 +276,7 @@ schema or API change was needed (`PUT /api/diary/{id}` already existed).
 
 ### Next increment — Add recipe from a Diary meal card (owner request, 2026-10-03)
 
-The Diary's four meal cards currently offer only **+ Add food**. The next slice adds **+ Add recipe**
+The Diary's four meal cards currently offer only **+ Add food**. The next queued slice (decision 40) adds **+ Add recipe**
 beside it on the same row. The action opens the recipe chooser (shared catalogue, searchable), and the
 portion sheet must open with **the meal card the action was started from already selected** — starting
 it from Lunch pre-selects Lunch rather than falling back to a time-of-day guess. Meal, date, fractions,
@@ -264,3 +287,193 @@ Design detail deliberately left open for that session: whether the chooser opens
 with search, or leads with the user's favourites and recently logged recipes. Decide it against the
 phone-size preview rather than in advance.
 
+### Implemented — tags filter the list in place (owner request, 2026-10-03)
+
+**Decision 41.** Before this slice the tags on a recipe card were decoration: they told you what a
+recipe was, and filtering meant opening a collapsed panel and choosing from three dropdowns, one
+facet at a time. Now the tags themselves are the filter, which is the behaviour the owner described:
+
+| Step | What happens |
+|---|---|
+| Open Recipes | Every recipe is listed, exactly as before |
+| See a recipe tagged **Chicken** and wonder what else is chicken | Tap the tag on the card — the list narrows to recipes carrying it, and the tag highlights on every card that still matches |
+| In that list, open **Chicken & Mushroom Pie** and want both | Tap **Mushroom** on that card — the list narrows again, because a recipe must carry **every** selected tag to stay visible |
+| Change your mind | Tap a highlighted tag again, remove one tag in the “Filtering by” row, or press **Clear tags** |
+
+And the small details that make it hold together:
+
+- **The selection is visible.** A “Filtering by” row lists the active tags as chips, each removable, with a plain-language note that every tag has to match. The results line says “2 of 4 recipes match” rather than leaving the shorter list unexplained.
+- **Nothing dead-ends.** If a combination matches nothing, the empty state says so and offers **Clear filters**; the filter row is still there to unpick one tag at a time.
+- **The dropdowns did not go away.** Meal occasion, dish type and key food remain available for browsing, and they read the same selection the chips do — choosing a facet replaces that facet's tags, and tapped tags set the matching dropdown. The dropdown labels itself **“Multiple — see tags”** when a facet has more than one tapped value, so the two controls never silently disagree.
+- **The filter is in the URL** (`/recipes?tags=food:5,food:25`). A reload, the phone's back gesture and a tap into a recipe all keep it, and the recipe page's **← Back to recipes** returns to the same filtered list. On the detail page the tags are tappable too: tapping **Mushroom** there opens the catalogue narrowed by it.
+- **The vocabulary is unchanged.** Only the existing structured tags became filters — meal occasion, dish type and up to two known-Food key foods (decisions 34–35). No free-text tags were introduced.
+
+**Still open / for the owner's review**
+
+- **Same-facet taps always AND.** Two meal-occasion tags (Lunch **and** Dinner) is a legitimate request that usually matches nothing, and is currently the same dead end as any other empty combination. If tapping tags within one facet should widen instead (“Lunch **or** Dinner”), that is a small change with a real behavioural consequence — worth deciding after using it.
+- **Should the tap-to-filter idea spread?** The same tokens exist in the Diary and the Foods list. The Recipes catalogue is the natural first home; nothing else has been changed.
+- **Touch target.** The chips over the photo stay small so they do not crowd the image; their tap area is expanded invisibly, but this is exactly the kind of thing to judge at phone size on the LAN dev container, not on a laptop.
+
+
+## Second discovery pass — 2026-10-03
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 42 | 2026-10-03 | **An unlogged day is excluded from the bank** — it counts as “no data”, not as zero consumed, so a missed day neither banks the daily budget nor spends anything. Unlogged means no food, recipe or drink entries for that date; a day with any logging counts normally. Because the usual cause is oversight, the owner wants the exclusion to be **visible** rather than silent (see the [Issues bell](#the-issues-bell-proposed-future-feature)). | Owner |
+| 43 | 2026-10-03 | **The bank stays per person.** No shared household bank; seeing the other person's numbers is handled by the admin role (decision 45), not by merging the maths. | Owner |
+| 44 | 2026-10-03 | **The ring's window is user-definable**, generalising the earlier 30-day lookback idea: the user picks a rolling window, and **“no window” means the cumulative figure from day 1 to today**. The Banked/Deficit tile always shows the exact cumulative balance. Phase 14 computes the metric; Phase 15 adds the setting. | Owner |
+| 45 | 2026-10-03 | **An admin role plus a “Swap user” control**, rather than a household view. The owner needs to browse the household's data because his own profile has almost none; the flag grants **full read/write** as the other user, with the app making it unmistakable that you are acting as someone else. `GET /api/users` stops being an exposed curiosity and becomes admin-only. | Owner |
+| 46 | 2026-10-03 | **No notifications or reminders** — not for logging, not for water. Instead the owner wants a **weekly report**: an in-app recap of the week's numbers, ideally part of Phase 14's Metrics redesign and its own small feature set if it does not fit. | Owner |
+| 47 | 2026-10-03 | **Tracked nutrients become user-selectable.** Macros and fibre stay on by default; further nutrients (for example saturated fat) are ticked on in a Settings sheet, and the app **audits the existing foods and reports which ones have no values for a newly enabled nutrient** so the gaps can be filled rather than silently ignored. The nutrient list and the audit's exact behaviour are Phase 14 design work (this is an additive API/schema exception, like the Phase 15 settings work). | Owner |
+| 48 | 2026-10-03 | **Exercise does not credit the bank for now.** Steps keep syncing and stay informational; “eat back your steps” is deferred, not rejected, and revisiting it must be its own decision with tests. | Owner |
+| 49 | 2026-10-03 | **No further logging-ergonomics work is needed.** The owner is content with the current add/edit flows; the only friction left is **finding historic date entries**, which he intends to solve with a **calendar** (see [the calendar idea](#the-calendar-idea--diary-date-navigation-2026-10-03)) rather than by changing how things are logged. | Owner |
+| 50 | 2026-10-03 | **No logging shortcuts.** "Same as yesterday", favourites/recents and saved meals are *not* required — the current flows are fast enough. This closes section E's shortcut question; do not build one speculatively. | Owner |
+| 51 | 2026-10-03 | **The four meal slots stay as they are** — breakfast, lunch, dinner and snacks. No rename, no fifth slot, no "drinks" slot. | Owner |
+| 52 | 2026-10-03 | **Barcode scanning is not planned.** It is not part of the rebuild and may be revisited after a full stable release; FatSecret search plus the local food catalogue is sufficient for now. | Owner |
+| 53 | 2026-10-03 | **Offline capability is not required** — no offline logging, no queued writes, no offline read promise. Phase 15's PWA work is limited to installability and a clean service worker; do not build a sync queue. This removes the phase's largest technical risk. | Owner |
+| 54 | 2026-10-03 | **The household's live appdata is backed up.** The owner confirms a backup exists, satisfying the pre-change check in [`data-copy-warning.md`](../architecture/data-copy-warning.md); the backup's **location and cadence** should still be recorded there so no future session has to ask. | Owner |
+
+Decision 42 changes behaviour that exists today, so it is a Phase 14 correctness item, not just a
+display preference: the rolling window and any cumulative figure must agree about which days count,
+and both need tests for a fully unlogged day, a partially logged day, and today (which is always in
+progress and is never excluded).
+
+### Admin role and swap user (2026-10-03)
+
+**The problem.** The owner has almost no data under his own profile, so he cannot tell how the app is
+behaving without borrowing his wife's phone. His wife has no corresponding need to see his day.
+
+**The shape of the answer.**
+
+- An additive `users.is_admin` flag (default `0`), so no existing row changes meaning.
+- The admin identity should come from configuration rather than a hard-coded email in the repository
+  (the source tree is public). Recommended: an `ADMIN_EMAILS` list applied at startup, carried in the
+  Unraid template like the other secrets/settings; alternatively a documented one-off SQL step. This
+  is a decision for the implementation session.
+- A **Swap user** control using the existing `/dev/identity` pattern, but production-appropriate:
+  authenticated, admin-only, **server-side** (a cookie or header the API validates on every request —
+  never a client-side claim), loopback restriction **not** applied (it must work through Cloudflare),
+  and with a persistent, obvious banner such as “Viewing as Sarah — return to my account”.
+- **Full read/write**, per the owner: entries written while swapped belong to the person being acted
+  as, exactly as if they had logged them. There is no second data model.
+- `GET /api/users` returns the user list **only to an admin**; for everyone else it stays
+  unavailable. That removes the current "unused endpoint for viewing others' data" exposure.
+
+**Open for that design session**
+
+- An audit trail: the diary schema has no "entered by" concept, and adding one is a storage change.
+  For a two-person household, a log line plus honest diary timestamps is probably enough — worth
+  confirming rather than assuming.
+- Whether the non-admin user should ever be told that an admin edited their data (leaning: no, and
+  not worth the complexity).
+- Whether the admin can edit **settings** (targets, drink definitions) as the other user, or only
+  diary data. Leaning: yes, settings too — it is the same "walk a mile in their shoes" need.
+- How this relates to the LAN-only `DEV_IDENTITY_SWITCH` (decision 13): they stay separate features.
+  DEV is a development convenience restricted to private peers; the admin role is a production
+  capability tied to a real user record.
+
+### The weekly report — 2026-10-03
+
+No notifications (decision 46), but a report is wanted. Recommended shape: a **report card view** in
+Metrics for a chosen week (the current week and the previous one at minimum), showing calories against
+goal, how the bank moved, water, weight change, the nutrition traffic lights, the best and worst days,
+and **which days were excluded as unlogged** (decision 42) so the numbers are never quietly
+unexplained. Keep it in-app; there is no requirement for email or push.
+
+Open: whether the report is a fixed "last week" card or a date-range view; whether it should be
+shareable/printable; and whether it waits for the tracked-nutrients work (decision 47) before adding
+non-macro lines. Recommendation: build it with today's nutrients, and let enabled nutrients appear
+automatically.
+
+### Tracked nutrients and the missing-data audit (2026-10-03)
+
+**Owner's direction:** the full set of nutrients should be available, but the individual values must
+be **user-selectable** — a Settings sheet of checkboxes starting from today's macros and fibre, with
+"saturated fat" as the example of something ticked on later. When a nutrient is newly enabled, the app
+should **audit the current foods and say what is missing** ("these 23 food items have no saturated-fat
+values") rather than displaying a silently incomplete picture.
+
+**Recommended design points**
+
+- Keep `nutrition_settings` as the home for thresholds and add a per-user **enabled-nutrients** set
+  (a small side table, or an ordered list on the settings row). Defaults: protein, carbs, fat, fibre
+  on; salt, sugar, saturated fat, iron, calcium off.
+- Add per-100 g values additively to `foods` for the new nutrients. FatSecret supplies a limited set,
+  the local food editor can accept manual entry, and **nothing is inferred** — an absent value stays
+  absent rather than becoming zero.
+- The audit runs against **the foods the user actually logs**, not the whole catalogue: "23 of the
+  40 foods you logged this month have no saturated-fat value" is actionable; "4,000 catalogue rows"
+  is not. The same audit should be reachable from Settings and from the nutrient's own traffic light.
+- Each gap should be resolvable three ways: fill the value in (opens the food editor), mark the food
+  as "no data / don't ask again", or leave it — but the count stays visible.
+
+**Open for the Phase 14 design session**
+
+- The exact nutrient list. The owner asked for the full set, so the practical constraint is the data
+  source: salt, sugar and saturated fat are commonly available, iron and calcium less so, and
+  micronutrients rarely. Recommendation: offer what can be entered reliably and grow the list rather
+  than showing lots of empty lines.
+- **Coverage behaviour.** A traffic light computed from partially-covered data can mislead. Recommended
+  rule: show a nutrient's traffic light only when the logged foods' coverage for that nutrient is
+  above a threshold (for example 90% of what was eaten that week), and otherwise show "not enough
+  data" with a link to the audit. This is exactly the sort of rule that needs the owner's eye.
+- Traffic-light thresholds for the new nutrients (UK guidance suggests salt ≤ 6 g/day, free sugars
+  ≤ 30 g/day, saturated fat < 10% of energy), which touches the still-open question about whether the
+  current traffic-light rules are right at all (question 12).
+- Whether enabling a nutrient should be blocked when coverage is hopeless, or always allowed with the
+  caveat shown. Leaning: allow, warn, and keep the audit one tap away.
+
+### The calendar idea — Diary date navigation (2026-10-03)
+
+**Owner idea, recorded as decision 49's follow-up.** Finding a historic entry is the last real logging
+friction: the React Diary navigates with **‹ / › one day at a time** (`/diary/:date`), so last
+month's takeaway is twenty taps away. The owner's plan is a **calendar**: a month view you can open
+from the Diary's date header, tap a day, and land on that date's diary. Looking back at a day's
+entries, and correcting them, then becomes a couple of taps instead of a scroll through time.
+
+**Recommended shape (to be confirmed against a phone-size preview)**
+
+- A **month grid** opened from the Diary date header (and from Today, so "what did I eat on Tuesday?"
+  works from the landing screen too). Tapping a day navigates to `/diary/:date`; the URL stays the
+  source of truth, so Back still returns to where you were.
+- **Markers on days that have data**, so the calendar answers "when did I last log?" as well as
+  "take me there" — a filled dot for a day with entries, a banked/deficit hint if it can be shown
+  without clutter.
+- **No editing from the calendar.** It navigates; the Diary remains the place entries change. This
+  keeps one editing surface and avoids a second way to alter history.
+- Today stays one tap away, and the ‹ / › stepping stays as it is for yesterday/today corrections.
+
+**Open for that design session**
+
+- Whether the markers carry meaning beyond "has entries" (calories vs goal, water met, a bank
+  indicator) or stay as a plain dot for legibility on a phone.
+- Whether it is a bottom sheet (quick jump) or its own route (`/diary/calendar`); a sheet is likely
+  better on a phone, but the URL should still reflect the chosen date.
+- Whether it should also reach **another person's** day — no, per decision 45: that is the admin
+  swap-user control, not the calendar.
+- Whether the calendar is Phase 13 or Phase 14 work. It is small, self-contained and Diary-shaped, so
+  it fits either; recommendation: fold it into the next Diary slice after decision 40's **+ Add
+  recipe**, so the Diary is finished in one pass.
+
+### The Issues bell (proposed future feature)
+
+**Owner's idea (2026-10-03), prompted by decision 42:** because an unlogged day is usually oversight
+rather than choice, the app should not silently exclude it. A **bell icon on Home** would open a small
+list of things needing attention — starting with "Wednesday 1 October has no logging" — each with a
+resolve action ("I didn't log that day" → stays excluded; "Add what I ate" → opens that date's diary).
+
+This is a **new feature with real backend work** (an `issues` table and its own migrations and
+handlers), so it is deliberately not scheduled into a phase yet. It also generalises well: the
+missing-nutrient gaps from decision 47 are the obvious second issue type ("23 foods have no saturated
+fat value"), which would give the audit a natural home. Other candidates worth considering when it is
+designed: water not tracked for days, weight not entered for weeks, a recipe with no image.
+
+**Open questions for that design session**
+
+- Which conditions raise an issue, which of them resolve themselves, and how long an issue lives
+  before it is dismissed automatically.
+- Whether dismissing is per-issue or "never ask me about this again".
+- Whether the bell is the *only* surfacing (a badge with a count) or whether Home also shows a small
+  summary line.
+- Whether raising an issue can change the bank maths (recommendation: **no** — issues are a
+  workflow, the bank has one rule, decision 42).
