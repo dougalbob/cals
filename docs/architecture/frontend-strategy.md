@@ -422,11 +422,31 @@ tap/add/remove/clear and detail-page flows in `src/routes/RecipesRoute.test.tsx`
 gained **Chicken & Mushroom Pie** (with a Mushrooms key food) so the owner's exact example is
 reproducible in the preview.
 
-**Next increment (owner request, 2026-10-03):** each Diary meal card gains **+ Add recipe** beside
-**+ Add food** on the same row, and the portion sheet opens with the meal the action was started from
-already selected (recorded as decision 40 in the [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03)).
-Not yet implemented: the Diary currently adds food only, and recipe logging starts from the recipe. Leave
-decisions 29–32 behaviour — fractions, direct grams, no guessed quantity, remembered usual — untouched.
+**Decision 40 — `+ Add recipe` on each Diary meal card — implemented 2026-10-03 (rc15).** Each meal
+card now has **+ Add food** and **🍽 Add recipe** side by side (two-column grid). Tapping Add recipe
+opens a searchable recipe picker (non-archived recipes only; decision 59), and selecting one hands
+off to the existing `RecipePortionSheet` with the originating meal and Diary date already
+preselected, so the user does not have to pick the meal twice. The two-step flow mirrors Add food,
+decisions 29–32 behaviour is preserved (fractions, direct grams, no guessed quantity, remembered
+usual with first-log-becomes-usual), and no API/schema change was needed beyond the new calendar
+endpoint below. The picker carries day context so on a past date the portion sheet logs to that day.
+
+**Calendar for historic dates (decision 49 follow-up) — implemented 2026-10-03 (rc15).** A new
+`/calendar` route (bottom-nav tab 📅) offers Month and Week views toggled by a segmented control.
+Month is a compact 6×7 Monday–Sunday grid with a per-day calorie progress bar (green at/below goal,
+red over), a 💧 pip when the hydration target is met, a signed bank figure and a primary-blue ring
+on today. Week (the phone-friendly view the owner asked for) shows 7 stacked cards with weekday,
+date, calories vs goal, a signed bank total, four meal rows with icons (`🌅 Breakfast 355 kcal`,
+etc.) and a 💧 Hydration `x / y ml` line. Tapping any day hard-links to `/diary/:date`. State rides
+in the URL (`/calendar/month/2026-10`, `/calendar/week/2026-10-05`) so reload and deep links work; a
+📅 button in the Diary date header opens the calendar on today or the viewed date.
+
+The calendar is backed by a new additive read-only endpoint `GET /api/calendar?from=&to=` (max 400
+days) which returns per-day food + drink totals, meal breakdowns, hydration ml from water-counting
+drinks, goal and the end-of-day bank balance — mirrored from the existing bank maths so figures
+agree with `GET /api/bank`. No schema migration. The Fluids card label was renamed from "Water" to
+**💧 Hydration** because tea/coffee/squash etc. all contribute to the daily ml target (owner
+request, 2026-10-03).
 
 **Adapting an existing recipe — planned, decisions 55–58 (owner-raised, 2026-10-03).** The React
 Recipes experience cannot currently change a recipe's own content: catalogue, detail, tags, favourites

@@ -8,7 +8,7 @@
  *
  * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata + archive PUT),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
- *          /api/bank, /api/drinks, /api/weight, /api/measurements,
+ *          /api/bank, /api/calendar, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
  *          demo flows and recipe favourite/metadata/archive edits are implemented for the preview.
@@ -271,6 +271,87 @@ export function handle(method, url, body) {
   if (pathname === '/api/nutrition/weekly' && method === 'GET') {
     const days = clampDays(searchParams.get('days'), 7)
     return json(nutritionAnalysis(days))
+  }
+
+  // Calendar per-day summaries for month/week views (decision 49 follow-up).
+  // Additive endpoint; mirrors internal/handlers/calendar.go.
+  if (pathname === '/api/calendar' && method === 'GET') {
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
+    if (!from || !to) return err(400, 'from and to dates are required')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to))
+      return err(400, 'invalid date format')
+    const DAY_MS_LOCAL = 24 * 60 * 60 * 1000
+    const startMs = Date.parse(`${from}T00:00:00Z`)
+    const endMs = Date.parse(`${to}T00:00:00Z`)
+    if (!(endMs >= startMs)) return err(400, 'to must be on or after from')
+    const dayCount = Math.round((endMs - startMs) / DAY_MS_LOCAL) + 1
+    if (dayCount > 400) return err(400, 'range exceeds 400 days')
+
+    const days = []
+    const waterDrinkIds = new Set(drinks.filter((d) => d.counts_toward_water).map((d) => d.id))
+    const isoFromMs = (ms) => new Date(ms).toISOString().slice(0, 10)
+    const addDays = (isoDate, n) => isoFromMs(Date.parse(`${isoDate}T00:00:00Z`) + n * 24 * 60 * 60 * 1000)
+    let runningConsumed = 0
+    // Seed running total from bank_start_date up to day before `from` so balances
+    // stay correct when the window starts mid-run.
+    const bankStart = user.bank_start_date
+    if (bankStart && from > bankStart) {
+      const dayBeforeFrom = addDays(from, -1)
+      runningConsumed =
+        seed.caloriesBetween(bankStart, addDays(dayBeforeFrom, 1)) +
+        seed.drinkCaloriesBetween(bankStart, addDays(dayBeforeFrom, 1))
+    }
+
+    for (let i = 0; i < dayCount; i++) {
+      const date = isoFromMs(startMs + i * 24 * 60 * 60 * 1000)
+      const entries = seed.entriesFor(date)
+      const meals = { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 }
+      let foodCal = 0
+      for (const e of entries) {
+        meals[e.meal] = Math.round((meals[e.meal] ?? 0) + e.calories)
+        foodCal += e.calories
+      }
+      const drinkCal = seed
+        .drinkEntriesFor(date)
+        .reduce((acc, e) => acc + e.calories, 0)
+      const hydrationMl = seed
+        .drinkEntriesFor(date)
+        .filter((e) => waterDrinkIds.has(e.drink_id))
+        .reduce((acc, e) => acc + e.volume_ml, 0)
+      const totalCal = foodCal + drinkCal
+
+      // End-of-day bank balance: completed days from bankStart through `date`
+      // times goal, minus total consumption in that window.
+      let bankBalance = 0
+      if (bankStart && date >= bankStart) {
+        runningConsumed += totalCal
+        const completed = seed.daysBetween(bankStart, addDays(date, 1))
+        bankBalance = completed * user.daily_calorie_goal - Math.trunc(runningConsumed)
+      }
+
+      days.push({
+        date,
+        food_calories: num(foodCal),
+        drink_calories: num(drinkCal),
+        calories: num(totalCal),
+        goal: user.daily_calorie_goal,
+        hydration_ml: hydrationMl,
+        hydration_target_ml: user.daily_water_goal_ml,
+        bank_balance: bankBalance,
+        meals,
+        is_today: date === TODAY,
+        has_data: totalCal > 0 || hydrationMl > 0,
+      })
+    }
+
+    return json({
+      from,
+      to,
+      daily_goal: user.daily_calorie_goal,
+      bank_start: bankStart,
+      days,
+    })
   }
 
   // --- a couple of mutations so the demo is clickable ----------------------

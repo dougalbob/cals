@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
 import {
@@ -10,10 +10,12 @@ import {
   updateDiaryEntry,
 } from '../api/diary'
 import type { CreateDiaryEntryInput } from '../api/diary'
-import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api/types'
+import { getRecipe, getRecipes } from '../api/recipes'
+import { MEALS, type DiaryEntry, type Drink, type Food, type Meal, type Recipe, type RecipeDetail } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
 import { QuantityPicker } from '../components/QuantityPicker'
+import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
@@ -38,6 +40,8 @@ export function DiaryRoute() {
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today
 
   const [addingTo, setAddingTo] = useState<Meal | null>(null)
+  const [addingRecipeTo, setAddingRecipeTo] = useState<Meal | null>(null)
+  const [pickedRecipe, setPickedRecipe] = useState<RecipeDetail | null>(null)
   const [pendingDrink, setPendingDrink] = useState<number | null>(null)
   const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ entryId: number; drinkName: string } | null>(null)
@@ -173,7 +177,7 @@ export function DiaryRoute() {
         >
           ‹
         </button>
-        <div className="text-center">
+        <div className="text-center flex-1">
           <p className="m-0 font-semibold">
             {date === today ? 'Today' : new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' })}
           </p>
@@ -181,6 +185,14 @@ export function DiaryRoute() {
             {new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
           </p>
         </div>
+        <Link
+          to={date === today ? '/calendar' : `/calendar/week/${date}`}
+          aria-label="Open calendar"
+          className="min-h-11 min-w-11 rounded-xl bg-card border border-line text-base flex items-center justify-center no-underline text-ink cursor-pointer hover:border-primary"
+          title="Calendar"
+        >
+          📅
+        </Link>
         <button
           type="button"
           onClick={() => go(1)}
@@ -282,13 +294,20 @@ export function DiaryRoute() {
               {mealEntries.length === 0 && <li className="py-2 text-sm text-ink-muted">Nothing logged yet</li>}
             </ul>
 
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setAddingTo(meal.id)}
-                className="w-full min-h-10 rounded-xl bg-primary-light/15 text-primary-dark font-medium border-0 cursor-pointer"
+                className="min-h-10 rounded-xl bg-primary-light/15 text-primary-dark font-medium border-0 cursor-pointer"
               >
                 + Add food
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingRecipeTo(meal.id)}
+                className="min-h-10 rounded-xl bg-surface border border-line text-ink font-medium cursor-pointer"
+              >
+                🍽 Add recipe
               </button>
             </div>
           </section>
@@ -359,6 +378,27 @@ export function DiaryRoute() {
           onSave={(grams) => updateEntry.mutate({ entry: editingEntry, grams })}
           saving={updateEntry.isPending}
           error={updateEntry.isError ? (updateEntry.error as Error).message : null}
+        />
+      )}
+
+      {/* Add recipe from the Diary (decision 40): pick a recipe, then log a
+          portion with this meal already selected. */}
+      <AddRecipeModal
+        key={`recipe-${addingRecipeTo ?? 'closed'}`}
+        meal={addingRecipeTo}
+        date={date}
+        onClose={() => setAddingRecipeTo(null)}
+        onPick={(recipe) => setPickedRecipe(recipe)}
+      />
+      {pickedRecipe && addingRecipeTo && (
+        <RecipePortionSheet
+          recipe={pickedRecipe}
+          initialMeal={addingRecipeTo}
+          initialDate={date}
+          onClose={() => {
+            setPickedRecipe(null)
+            setAddingRecipeTo(null)
+          }}
         />
       )}
 
@@ -647,6 +687,140 @@ function AddFoodModal({
           {debounced.trim().length < 2 && <p className="text-sm text-ink-muted">Type at least 2 characters.</p>}
         </>
       )}
+    </Modal>
+  )
+}
+
+/**
+ * Pick a recipe to log to the Diary (decision 40).
+ *
+ * A two-step flow mirrors Add food: search → tap a recipe → the caller opens
+ * the full portion sheet with this meal/date already selected. The picker
+ * itself never offers archived recipes (decision 59), since an archived recipe
+ * must be restored before it can be logged.
+ */
+function AddRecipeModal({
+  meal,
+  date,
+  onClose,
+  onPick,
+}: {
+  meal: Meal | null
+  date: string
+  onClose: () => void
+  onPick: (recipe: RecipeDetail) => void
+}) {
+  const [term, setTerm] = useState('')
+  const [loadingId, setLoadingId] = useState<number | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const debounced = useDebounced(term, 200)
+
+  const catalogue = useQuery<Recipe[]>({
+    // The default excludes archived recipes, which is exactly what a picker
+    // that logs to the Diary must do (decision 59).
+    queryKey: queryKeys.recipes,
+    queryFn: () => getRecipes(),
+  })
+
+  const label = MEALS.find((m) => m.id === meal)?.label ?? ''
+
+  const matches = useMemo(() => {
+    const list = catalogue.data ?? []
+    const q = debounced.trim().toLocaleLowerCase()
+    if (!q) return list
+    return list.filter(
+      (recipe) =>
+        recipe.name.toLocaleLowerCase().includes(q) ||
+        (recipe.description ?? '').toLocaleLowerCase().includes(q),
+    )
+  }, [catalogue.data, debounced])
+
+  const choose = async (recipe: { id: number }) => {
+    setLoadError(null)
+    setLoadingId(recipe.id)
+    try {
+      const detail = await getRecipe(recipe.id)
+      onPick(detail)
+    } catch (error) {
+      setLoadError((error as Error).message)
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
+  return (
+    <Modal open={meal !== null} title={`Add recipe to ${label}`} onClose={onClose}>
+      <>
+        <input
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder="Search recipes…"
+          autoFocus
+          className="w-full min-h-11 rounded-xl border border-line px-3 mb-3 text-base"
+        />
+
+        {catalogue.isError && (
+          <p role="alert" className="m-0 mb-2 text-sm text-danger">
+            Could not load recipes: {(catalogue.error as Error).message}
+          </p>
+        )}
+        {loadError && (
+          <p role="alert" className="m-0 mb-2 text-sm text-danger">
+            {loadError}
+          </p>
+        )}
+        {catalogue.isFetching && <p className="text-sm text-ink-light m-0">Loading recipes…</p>}
+
+        {!catalogue.isFetching && catalogue.data && (
+          <>
+            <ul className="list-none m-0 p-0 max-h-[55vh] overflow-y-auto">
+              {matches.map((recipe) => (
+                <li key={recipe.id} className="border-b border-line-light last:border-0">
+                  <button
+                    type="button"
+                    disabled={loadingId !== null}
+                    onClick={() => choose(recipe)}
+                    className="w-full text-left bg-transparent border-0 py-2.5 min-h-11 cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="block text-sm font-medium">{recipe.name}</span>
+                    <span className="block text-xs text-ink-light">
+                      {formatNumber(Math.round(recipe.calories_per_100g))} kcal / 100 g
+                      {recipe.total_weight_grams > 0 && (
+                        <>
+                          {' · '}
+                          {formatNumber(Math.round(recipe.total_weight_grams))} g cooked
+                        </>
+                      )}
+                      {recipe.usual_grams !== null && (
+                        <>
+                          {' · '}
+                          usual {formatGrams(recipe.usual_grams)}
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {matches.length === 0 && debounced.trim().length >= 2 && (
+              <p className="text-sm text-ink-muted">No recipes match “{debounced}”.</p>
+            )}
+            {catalogue.data.length === 0 && (
+              <p className="text-sm text-ink-muted">
+                No recipes yet. Create one from the Recipes tab first.
+              </p>
+            )}
+            {catalogue.data.length > 0 && debounced.trim().length < 2 && term.trim().length === 0 && (
+              <p className="mt-2 text-xs text-ink-light mb-0">
+                Showing all {catalogue.data.length} recipes
+                {date !== todayIso() ? ` — portion will be logged to ${date}.` : '.'}
+              </p>
+            )}
+          </>
+        )}
+      </>
     </Modal>
   )
 }

@@ -7,6 +7,7 @@ import { HomeRoute } from './routes/HomeRoute'
 import { MetricsRoute } from './routes/MetricsRoute'
 import { RecipesRoute } from './routes/RecipesRoute'
 import { RecipeDetailRoute } from './routes/RecipeDetailRoute'
+import { CalendarRoute } from './routes/CalendarRoute'
 
 /**
  * URL is state: the selected diary date lives in the route, so refresh, back
@@ -26,6 +27,8 @@ export const router = createBrowserRouter(
         { path: 'today', element: <HomeRoute /> },
         { path: 'diary', element: <DiaryRoute /> },
         { path: 'diary/:date', element: <DiaryRoute /> },
+        { path: 'calendar', element: <CalendarRoute /> },
+        { path: 'calendar/:view/:anchor', element: <CalendarRoute /> },
         { path: 'foods', element: <FoodsRoute /> },
         { path: 'recipes', element: <RecipesRoute /> },
         { path: 'recipes/:id', element: <RecipeDetailRoute /> },

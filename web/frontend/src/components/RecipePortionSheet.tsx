@@ -29,14 +29,26 @@ import { Modal } from './Modal'
 export function RecipePortionSheet({
   recipe,
   onClose,
+  initialMeal,
+  initialDate,
 }: {
   recipe: RecipeDetail
   onClose: () => void
+  /**
+   * When opened from the Diary, the meal the action was started from is
+   * preselected so the user does not have to pick it twice (decision 40).
+   * When opened from recipe detail, the sheet still guesses by time of day.
+   */
+  initialMeal?: Meal
+  /** Defaults to today; the Diary passes the date being viewed. */
+  initialDate?: string
 }) {
   const queryClient = useQueryClient()
   const today = todayIso()
-  const [date, setDate] = useState(today)
-  const [meal, setMeal] = useState<Meal>(() => suggestedMeal(new Date().getHours()))
+  const [date, setDate] = useState(initialDate ?? today)
+  const [meal, setMeal] = useState<Meal>(
+    initialMeal ?? suggestedMeal(new Date().getHours()),
+  )
   const [gramsText, setGramsText] = useState(
     recipe.usual_grams === null ? '' : String(recipe.usual_grams),
   )

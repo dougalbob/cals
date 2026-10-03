@@ -342,6 +342,37 @@ export interface WeeklyAnalysis {
   days_with_data: number
 }
 
+/**
+ * Per-day summary returned by GET /api/calendar?from=&to= (decision 49).
+ *
+ * Additive endpoint — no existing response shape is changed. Each day carries
+ * total calories (food + drink), food calories broken down by meal, a hydration
+ * total in ml (drinks flagged counts_toward_water), and the end-of-day bank
+ * balance, so the month/week views can render a rich cell without N extra
+ * requests.
+ */
+export interface CalendarDay {
+  date: string
+  food_calories: number
+  drink_calories: number
+  calories: number
+  goal: number
+  hydration_ml: number
+  hydration_target_ml: number
+  bank_balance: number
+  meals: Partial<Record<Meal, number>>
+  is_today: boolean
+  has_data: boolean
+}
+
+export interface CalendarResponse {
+  from: string
+  to: string
+  daily_goal: number
+  bank_start: string
+  days: CalendarDay[]
+}
+
 export interface VersionResponse {
   version: string
   dev_identity_switch?: boolean
