@@ -14,6 +14,28 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Second discovery pass completed (decisions 42–54)
+
+The owner answered the remaining day-to-day questions, and the picture is now unusually clear:
+
+- **Bank:** unlogged days are **excluded** (42), not counted as zero eaten; the bank stays **per
+  person** (43); the ring's window becomes **user-definable** with "since day 1" as the default (44);
+  and steps do **not** credit the bank for now (48). Because an excluded day is usually oversight, the
+  owner wants a future **Issues bell** on Home (proposed feature, with its own design notes).
+- **Household access:** cross-viewing is solved by an **admin role plus a Swap user control** with
+  full read/write (45) — the owner needs it because his own profile has almost no data — which also
+  makes `GET /api/users` admin-only instead of an exposed curiosity.
+- **Nutrition:** **no notifications**, but a **weekly report** is wanted (46); tracked nutrients
+  become **user-selectable checkboxes** with a **missing-data audit** ("these 23 foods have no
+  saturated-fat values") over the foods actually logged (47).
+- **Ergonomics:** the logging flows need nothing new except a **calendar** for reaching historic dates
+  (49); **no shortcuts** are wanted (50); the **four meal slots stay** (51); **no barcode scanning**
+  (52); **no offline capability** (53); and the household data **is backed up** (54).
+
+Nothing here is scheduled work yet except where noted; each answer has a design section in
+[`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) recording the
+recommended shape and the questions deliberately left open.
+
 ## 2026-10-03 — Phase 13 slice 3: recipe tags filter the catalogue (decision 41)
 
 Owner request: tapping a recipe's tag should filter the list in place, and a second tag should narrow

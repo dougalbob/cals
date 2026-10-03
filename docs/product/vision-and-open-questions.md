@@ -110,12 +110,12 @@ This is not already implemented: the existing `GET /api/stats/bank?days=30` retu
 
 This is where a rebuild earns its keep, so it is worth being specific about the friction.
 
-6. **What do you (or your wife) log most days that takes the most taps today?** A habitual breakfast, coffee, the same lunch?
-7. **Would "same as yesterday", favourites, or recently-logged shortcuts help?** Any of these would be a headline feature of the rebuild.
-8. **Are the four meal slots right** (breakfast, lunch, dinner, snacks)? Is there anything logged that fits none of them?
+6. ~~**What do you (or your wife) log most days that takes the most taps today?**~~ **Answered (2026-10-03, decision 49): nothing else needs changing — only finding historic dates.** Aside from reaching an earlier day's entries, the owner is happy with the current logging flows. The Diary's date navigation is currently **‹ / › day-stepping** (`/diary/:date`), so a day three weeks back is twenty taps; the owner intends to solve it with a **calendar** (see [the calendar idea](#the-calendar-idea--diary-date-navigation-2026-10-03)). This is the last known logging-friction item.
+7. ~~**Would "same as yesterday", favourites, or recently-logged shortcuts help?**~~ **Answered (2026-10-03, decision 50): none required.** No shortcut feature is to be built; the current flows are fast enough.
+8. ~~**Are the four meal slots right**~~ **Answered (2026-10-03, decision 51): yes — breakfast, lunch, dinner and snacks stay exactly as they are.** No rename and no fifth slot.
 9. **Recipe diary portions — answered 2026-10-03.** A user's usual amount is personal and may differ from another person's; offer a remembered usual weight per user and recipe (for example, 200 g), editable in grams, plus fractions of the whole cooked recipe for visually served dishes (for example, ¼ of a lasagne). All choices convert to grams; diary entries continue to store only grams and the nutrition snapshot. The per-user preference is separate from diary history. This resolves whether recipe logging should be weight-based or serving-based: support both, without assuming every user's portion is the recipe's `serves` value.
-10. **How often do you log away from home** — pub, restaurant, takeaway — where you're estimating rather than weighing? How is that handled today?
-11. **Barcode scanning** — genuinely useful, or is the food repertoire stable enough that it isn't?
+10. **How often do you log away from home** — pub, restaurant, takeaway — where you're estimating rather than weighing? How is that handled today? *(Still open. Worth an answer before the Diary is treated as finished, since takeaway food is already in the fixture data and "eating out" is where the least precise entries come from.)*
+11. ~~**Barcode scanning**~~ **Answered (2026-10-03, decision 52): not now.** Not planned in the near future; it may be revisited **after a full stable release**, but it is not part of the rebuild. The food repertoire plus FatSecret search is enough.
 
 ### Phase 13 input: serving-based food quantities (owner request, 2026-10-03)
 
@@ -151,11 +151,11 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 ## H. Devices, form factor and deployment
 
 20. **Phone-first, or desk-first?** The current design is mobile-first; is that right?
-21. **Do you need offline logging?** (No signal, on a train.) A significant scope decision for a PWA.
+21. ~~**Do you need offline logging?**~~ **Answered (2026-10-03, decision 53): no.** Neither offline logging nor an offline read requirement is needed — logging happens where there is a connection. Phase 15's PWA work therefore covers **installability and a clean service worker only**: no write queue, no sync-conflict handling, and no cached-data promise. That removes the riskiest part of the phase.
 22. ~~**Notifications and reminders**~~ **Answered (2026-10-03, decision 46): none — but a weekly report is wanted.** No logging nudges, no water nagging, no push notifications. Instead the owner wants a **weekly report** (what the week's numbers looked like, how the bank moved). If it fits naturally in Phase 14's Metrics redesign, it lives there; otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
-23. **Anything needed on a watch, or via Siri/shortcuts?**
-24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need?
-25. **How is `appdata/cals` backed up today?** Worth confirming there is a copy before we make any structural change.
+23. **Anything needed on a watch, or via Siri/shortcuts?** *(Still open — no requirement recorded either way.)*
+24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need? *(Still open — note Google Fit steps already sync and, per decision 48, do not affect the bank.)*
+25. ~~**How is `appdata/cals` backed up today?**~~ **Answered (2026-10-03, decision 54): it is backed up.** The owner confirms a backup of the household's live data exists, which satisfies the "check before a structural change" rule in [`data-copy-warning.md`](../architecture/data-copy-warning.md). Recording the **location and cadence** in that document is still worth doing so a future session does not have to ask.
 
 ## I. The rebuild itself
 
@@ -200,32 +200,37 @@ status is deliberately not repeated here, and the dated story is in
 [`../history/rebuild-log.md`](../history/rebuild-log.md). This document is the *record of answers*:
 sections A–I are the questionnaire, and the decision tables at the end are the results.
 
-**Settled in the 2026-10-03 second pass (decisions 42–48):** unlogged days are excluded from the bank
-(42); the bank stays per person (43); the ring window is user-definable with a since-day-1 default
-(44); cross-viewing becomes an admin role with a swap-user control rather than a household view (45);
-no notifications, but a weekly report is wanted (46); tracked nutrients become user-selectable with a
-missing-data audit (47); and steps do **not** credit the bank for now (48).
+**Settled in the 2026-10-03 second and third passes (decisions 42–54):** unlogged days are excluded
+from the bank (42); the bank stays per person (43); the ring window is user-definable with a
+since-day-1 default (44); cross-viewing becomes an admin role with a swap-user control rather than a
+household view (45); no notifications, but a weekly report is wanted (46); tracked nutrients become
+user-selectable with a missing-data audit (47); steps do **not** credit the bank for now (48); nothing
+else needs fixing in the logging flows, but a **calendar** is planned for reaching historic dates
+(49); **no logging shortcuts** are wanted (50); the **four meal slots stay** (51); **no barcode
+scanning** for now (52); **no offline capability** is required (53); and the household data **is
+backed up** (54).
 
 **Highest-value questions still open**
 
-1. **Logging friction** (section E, questions 6–8) — what actually takes the most taps for the primary
-   user, and whether "copy yesterday", favourites or saved meals should be built. This is the biggest
-   remaining product unknown and Phase 13/14 work is already close to it.
-2. **Meal slots** (section E, question 8) — whether the four slots are right; adding a fifth later is
-   awkward once the Diary is settled.
-3. **Nutrient coverage rules** (decision 47 design) — which nutrient list to offer, and what a traffic
+1. **Away-from-home logging** (section E, question 10) — pub, restaurant and takeaway, where portions
+   are estimated rather than weighed. It is the least precise data the app holds and the last
+   unanswered logging question.
+2. **Nutrient coverage rules** (decision 47 design) — which nutrient list to offer, and what a traffic
    light should do when the data behind it is only partly covered.
-4. **Barcode scanning and offline logging** (section E question 11, section H question 21) — each one
-   decides real work in Foods/Diary and Phase 15's PWA scope.
-5. **A confirmed backup of the household's live data** (section H question 25) — worth checking before
-   any structural change, and currently unverified.
-6. **Timescale and involvement** (section I, questions 29–30) — a few weeks of evenings, or months;
+3. **Traffic-light rules and the rolling window** (section F questions 12 and 14) — whether the current
+   thresholds are right, and whether the 7-day nutrition window should be longer; decision 47's new
+   nutrients make this urgent.
+4. **FatSecret and a UK food database** (section G, questions 18–19) — whether the commercial API stays
+   long-term or CoFID/McCance & Widdowson is more useful, which decides how fillable a nutrient audit
+   can ever be.
+5. **Watch/Siri and other trackers** (section H questions 23–24) — no requirement recorded either way.
+6. **Timescale and involvement** (section I, questions 29–30) — a few weeks of evenings or months;
    review each phase, or "show me when it looks finished".
-7. **Traffic-light rules and the rolling window** (section F questions 12 and 14) — whether the current
-   thresholds and the 7-day nutrition window are right, which decision 47's new nutrients make urgent.
-8. **FatSecret and a UK food database** (section G, questions 18–19) — whether the commercial API stays
-   long-term or CoFID/McCance & Widdowson is more useful; relevant to how well a nutrient audit can
-   ever be filled.
+7. **Question 26 — the single most annoying thing today** — asked at the start and never answered; now
+   that the logging flow questions are settled, it is the best remaining prompt for finding work the
+   plan has not anticipated.
+8. **Record the backup's location and cadence** (decision 54) — the backup exists, but nobody has
+   written down where it is.
 
 ## Dashboard decisions — 2026-10-03
 
@@ -321,6 +326,12 @@ And the small details that make it hold together:
 | 46 | 2026-10-03 | **No notifications or reminders** — not for logging, not for water. Instead the owner wants a **weekly report**: an in-app recap of the week's numbers, ideally part of Phase 14's Metrics redesign and its own small feature set if it does not fit. | Owner |
 | 47 | 2026-10-03 | **Tracked nutrients become user-selectable.** Macros and fibre stay on by default; further nutrients (for example saturated fat) are ticked on in a Settings sheet, and the app **audits the existing foods and reports which ones have no values for a newly enabled nutrient** so the gaps can be filled rather than silently ignored. The nutrient list and the audit's exact behaviour are Phase 14 design work (this is an additive API/schema exception, like the Phase 15 settings work). | Owner |
 | 48 | 2026-10-03 | **Exercise does not credit the bank for now.** Steps keep syncing and stay informational; “eat back your steps” is deferred, not rejected, and revisiting it must be its own decision with tests. | Owner |
+| 49 | 2026-10-03 | **No further logging-ergonomics work is needed.** The owner is content with the current add/edit flows; the only friction left is **finding historic date entries**, which he intends to solve with a **calendar** (see [the calendar idea](#the-calendar-idea--diary-date-navigation-2026-10-03)) rather than by changing how things are logged. | Owner |
+| 50 | 2026-10-03 | **No logging shortcuts.** "Same as yesterday", favourites/recents and saved meals are *not* required — the current flows are fast enough. This closes section E's shortcut question; do not build one speculatively. | Owner |
+| 51 | 2026-10-03 | **The four meal slots stay as they are** — breakfast, lunch, dinner and snacks. No rename, no fifth slot, no "drinks" slot. | Owner |
+| 52 | 2026-10-03 | **Barcode scanning is not planned.** It is not part of the rebuild and may be revisited after a full stable release; FatSecret search plus the local food catalogue is sufficient for now. | Owner |
+| 53 | 2026-10-03 | **Offline capability is not required** — no offline logging, no queued writes, no offline read promise. Phase 15's PWA work is limited to installability and a clean service worker; do not build a sync queue. This removes the phase's largest technical risk. | Owner |
+| 54 | 2026-10-03 | **The household's live appdata is backed up.** The owner confirms a backup exists, satisfying the pre-change check in [`data-copy-warning.md`](../architecture/data-copy-warning.md); the backup's **location and cadence** should still be recorded there so no future session has to ask. | Owner |
 
 Decision 42 changes behaviour that exists today, so it is a Phase 14 correctness item, not just a
 display preference: the rolling window and any cumulative figure must agree about which days count,
@@ -411,6 +422,38 @@ values") rather than displaying a silently incomplete picture.
   current traffic-light rules are right at all (question 12).
 - Whether enabling a nutrient should be blocked when coverage is hopeless, or always allowed with the
   caveat shown. Leaning: allow, warn, and keep the audit one tap away.
+
+### The calendar idea — Diary date navigation (2026-10-03)
+
+**Owner idea, recorded as decision 49's follow-up.** Finding a historic entry is the last real logging
+friction: the React Diary navigates with **‹ / › one day at a time** (`/diary/:date`), so last
+month's takeaway is twenty taps away. The owner's plan is a **calendar**: a month view you can open
+from the Diary's date header, tap a day, and land on that date's diary. Looking back at a day's
+entries, and correcting them, then becomes a couple of taps instead of a scroll through time.
+
+**Recommended shape (to be confirmed against a phone-size preview)**
+
+- A **month grid** opened from the Diary date header (and from Today, so "what did I eat on Tuesday?"
+  works from the landing screen too). Tapping a day navigates to `/diary/:date`; the URL stays the
+  source of truth, so Back still returns to where you were.
+- **Markers on days that have data**, so the calendar answers "when did I last log?" as well as
+  "take me there" — a filled dot for a day with entries, a banked/deficit hint if it can be shown
+  without clutter.
+- **No editing from the calendar.** It navigates; the Diary remains the place entries change. This
+  keeps one editing surface and avoids a second way to alter history.
+- Today stays one tap away, and the ‹ / › stepping stays as it is for yesterday/today corrections.
+
+**Open for that design session**
+
+- Whether the markers carry meaning beyond "has entries" (calories vs goal, water met, a bank
+  indicator) or stay as a plain dot for legibility on a phone.
+- Whether it is a bottom sheet (quick jump) or its own route (`/diary/calendar`); a sheet is likely
+  better on a phone, but the URL should still reflect the chosen date.
+- Whether it should also reach **another person's** day — no, per decision 45: that is the admin
+  swap-user control, not the calendar.
+- Whether the calendar is Phase 13 or Phase 14 work. It is small, self-contained and Diary-shaped, so
+  it fits either; recommendation: fold it into the next Diary slice after decision 40's **+ Add
+  recipe**, so the Diary is finished in one pass.
 
 ### The Issues bell (proposed future feature)
 

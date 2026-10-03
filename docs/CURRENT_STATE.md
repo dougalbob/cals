@@ -70,9 +70,10 @@ summary.
 ## 4. Next work, in order
 
 1. **Decision 40 — `+ Add recipe` on each Diary meal card**, opening the portion sheet with that meal preselected. Queued; not implemented.
-2. **Full recipe authoring** (name, ingredients, method, image) — the largest remaining Phase 13 item.
-3. **Phase 14** — rolling bank window for the ring (food + drink, completed days only), tracked-nutrients settings and the weekly report.
-4. **Phase 15** — per-user ring limits/lookback, admin swap-user, themes, PWA.
+2. **The calendar for historic dates** (decision 49's follow-up) — a month view opened from the Diary's date header, tap a day and land on `/diary/:date`, with markers on days that have data. Small and Diary-shaped, so it is the natural companion to the `+ Add recipe` slice.
+3. **Full recipe authoring** (name, ingredients, method, image) — the largest remaining Phase 13 item.
+4. **Phase 14** — rolling bank window for the ring (food + drink, completed days only, unlogged days excluded), the weekly report, tracked-nutrients settings and the missing-data audit.
+5. **Phase 15** — per-user ring limits/lookback, admin swap-user, themes, PWA install (no offline work: decision 53).
 
 ---
 
@@ -83,23 +84,31 @@ that actually block upcoming work:
 
 | Question | Why it matters | Section |
 |---|---|---|
-| Should steps/exercise credit the bank? (deferred by the owner, 2026-10-03) | Changes Phase 14's rolling maths and the ring | D |
-| What takes the most taps in a normal day? | Decides whether "copy yesterday", favourites or saved meals get built | E |
-| Are the four meal slots right? | Diary layout; adding a fifth slot is cheap now, awkward later | E |
-| Barcode scanning — wanted? | Decides whether a scanner appears in Foods/Diary at all | E |
-| Offline logging — wanted? | Decides how much of Phase 15's PWA work is real | H |
-| Backup of `appdata/cals` confirmed? | Before any structural change to the database | H |
+| Away-from-home logging (pub/restaurant/takeaway) | The least precise data the app holds, and the last unanswered logging question | E |
+| Nutrient list and coverage rules (decision 47) | Which nutrients to offer, and what a traffic light shows when data is partly covered | F |
+| Traffic-light thresholds and the 7-day window | Made urgent by decision 47; the current rules have never been reviewed | F |
+| FatSecret long-term, or a UK database (CoFID) | Decides how fillable a nutrient audit can ever be | G |
+| Watch/Siri, other trackers | No requirement recorded either way | H |
+| Timescale and how involved you want to be | Sizes the plan and the review gates | I |
+| **What is the single most annoying thing about cals today?** | Asked at the start, never answered — the best prompt for work the plan hasn't anticipated | I |
+| Record the backup's location and cadence | The backup exists (decision 54) but nobody has written down where it is | H |
 
-Answered on 2026-10-03 and now settled: unlogged days are **excluded** from the bank (a future
-"Issues" bell will flag them instead), the bank stays **per person**, the ring window becomes
-**user-definable** (with "since day 1" as the no-window option), cross-viewing is solved by an
-**admin role with a swap-user control** rather than a household view, notifications are **none** but
-a **weekly report is wanted**, and **tracked nutrients become user-selectable checkboxes with a
-missing-data audit**. Details: decisions 42–47.
+**Settled on 2026-10-03 (decisions 42–54), so stop asking:** unlogged days are **excluded** from the
+bank (a future "Issues" bell flags them instead); the bank stays **per person**; the ring window is
+**user-definable** ("since day 1" when none is set); cross-viewing is an **admin role with a
+swap-user control**, not a household view; **no notifications**, but a **weekly report** is wanted;
+**tracked nutrients are user-selectable checkboxes** with a missing-data audit; steps do **not** credit
+the bank for now; the logging flows need nothing new but a **calendar** is planned for reaching
+historic dates; **no logging shortcuts**; the **four meal slots stay**; **no barcode scanning**;
+**no offline capability**; and the household data **is backed up**.
+
+Full reasoning and every open sub-question:
+[`product/vision-and-open-questions.md`](product/vision-and-open-questions.md).
 
 ---
 
 ## 6. Housekeeping done recently
 
+- **Second discovery pass completed (2026-10-03):** the remaining day-to-day questions are answered — logging flows need nothing new but a calendar for historic dates (49), no shortcuts (50), the four meal slots stay (51), no barcode scanning (52), no offline capability (53), and the household data is backed up (54). See §5 and the decision log.
 - **Documentation restructure (2026-10-03):** status is now here and nowhere else; `rebuild-kickoff.md` is commands and guardrails only; dated history moved to [`history/rebuild-log.md`](history/rebuild-log.md).
 - **Documentation review fixes (2026-10-03), in the same PR:** "17 tables" corrected to **20** in the three places it appeared (re-verified by running the real server in-sandbox); the kickoff's sync check no longer claims `docs/architecture/` holds five documents; the vision document no longer says `GET /api/diary` lacks serving metadata (decision 29 closed that gap).
