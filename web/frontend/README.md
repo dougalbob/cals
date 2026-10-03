@@ -15,7 +15,13 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Screen | Route | Notes |
 |---|---|---|
 | Today | `/` | Summary landing: calorie ring, four meal tiles, merged fluids card |
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search |
+
+The shared `CalorieRing` outer arc is anchored at 12 o'clock in both directions: a bank **surplus
+sweeps clockwise** in green, a **deficit sweeps anticlockwise** in red (owner decision 28,
+2026-10-03). It uses a reflected SVG transform rather than a negative `stroke-dashoffset` — the
+latter cannot render a full circle at the ±2,000 kcal limits — and both directions are pinned by
+`src/components/CalorieRing.test.tsx`.
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`) |
@@ -27,10 +33,11 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 ## What's deliberately missing
 
 Recipes, recipe images, Mealie import, Google Fit, settings, themes, the PWA/service worker, and
-most mutations. The React Diary currently supports adding and deleting entries but has not yet
-ported the legacy food/recipe quantity-edit flow; that is a Phase 12 close-out item, not a new
-backend feature (the API endpoint already exists). The production migration phases cover the
-remaining work (see the strategy doc: phases 11–16).
+most mutations. The React Diary supports adding, **editing the logged weight** and deleting entries;
+editing rescales the entry's own saved nutrition (`src/lib/diary.ts`, unit-tested) rather than
+re-reading the food or recipe definition, which mirrors the legacy flow and keeps past days
+truthful. The production migration phases cover the remaining work (see the strategy doc:
+phases 11–16).
 
 ## Running it
 

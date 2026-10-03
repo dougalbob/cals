@@ -88,6 +88,8 @@ The bank is the most distinctive feature of cals. It runs from a `bank_start_dat
 
 The owner approved separating the two stories shown by the Home and Diary rings: the **outer ring** visualizes the cumulative bank, while the **inner ring** continues to show today's calories against the daily goal. Until Phase 15 Settings, the display limits are fixed at +2,000 kcal and -2,000 kcal: +1,000 fills half green, -650 fills about one third red, and balances at or beyond either limit fill the outer ring completely. The exact balance remains visible even when the arc is capped; these boundaries affect presentation only, never the bank maths.
 
+**Direction (decision 28, 2026-10-03):** both arcs begin at 12 o'clock, but a surplus grows **clockwise** (green) and a deficit grows **anticlockwise** (red), so the sign of the balance is visible from the shape alone rather than from colour alone. Implemented; it changes no figure and no maths.
+
 Phase 15 will make the positive-bank cap and deficit magnitude independently adjustable per user, defaulting to 2,000 kcal each. Persist the settings through the user's API/schema so they follow the user across devices, not in browser-only storage. This is a narrow backend addition to the otherwise frontend-only rebuild.
 
 The current grey arc at a large deficit is explained by the old outer ring dividing by `today_available`: once that value is negative, progress clamps to zero and the arc has no visible length. The fixed-range ring currently uses the signed cumulative `bank_balance` directly.
@@ -199,5 +201,12 @@ highest-value open questions now are:
 | 25 | 2026-10-03 | Catalog types (everyday four first, no scroll): **Coffee, Tea, Milk, Juice**, then Cappuccino, Latte, Hot chocolate, Squash, Soft drink, Beer, Wine. Nothing auto-inserted into `drinks` (decision 16 still holds). | Owner |
 | 26 | 2026-10-03 | Quick drinks render as an **equal-width 2×2**. More than four: vertical scroll-snap with haptic. | Owner |
 | 27 | 2026-10-03 | The calorie ring uses the **cumulative bank balance** on the outer ring, with fixed ±2,000 kcal visual limits until Phase 15; the inner ring remains today's calories against the daily goal. The exact bank value remains visible, and the gauge does not change bank maths. Phase 15 adds independent per-user limits. | Owner |
+| 28 | 2026-10-03 | On the outer ring, a **surplus grows clockwise in green and a deficit grows anticlockwise in red, both starting at 12 o'clock** — the direction itself carries the sign, so colour is not the only signal. Implemented in the Phase 12 close-out PR; presentation only, no change to the bank figure, scale or maths. | Owner |
 
-Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain.
+Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain. Decision 28 refines decision 27's presentation (arc start and sweep direction) without touching its scale or limits, and applies equally to Phase 14's rolling metric and Phase 15's per-user limits.
+
+**Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
+weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
+saved calories/protein/carbs/fat/fibre are rescaled by the new-to-old ratio so the saved snapshot —
+not a possibly-changed food definition — is what changes. Zero and negative weights are refused. No
+schema or API change was needed (`PUT /api/diary/{id}` already existed).

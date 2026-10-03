@@ -202,6 +202,7 @@ action. Details: [`water-and-drinks.md`](./water-and-drinks.md).
 | Water showed a hard-coded `0 / 2000 ml` and never moved — the same dead value in both UIs | A water card shows real intake against the user's target, with a progress bar, one-tap glass (their own glass size) and an "other amount" entry |
 | Drinks were logged from a popup list that included invented defaults (Beer/Milk) and could not be corrected | A quick-drinks row lists the user's own drinks, keeps Tea/Coffee/Water first when they exist, logs in one tap, and every logged drink is listed with its own delete button |
 | "Banked" and the day's ring disagreed whenever a drink was logged | Both now use the same numbers, so the ring, the bank tile and the drink total agree |
+| A logged food could only be deleted; correcting a portion meant deleting the row and adding it again | Every row has an **Edit** action: the logged weight can be corrected with a live calorie preview, rescaling that entry's own saved nutrition (see the close-out note below) |
 | A drink's calories were re-read live, so editing a definition rewrote past days | Entries keep the values they were logged with; corrections apply from then on |
 | Drinks were fetched ad hoc per screen | Typed API client + TanStack Query keys; logging a drink refreshes diary, water, bank and the drink list together |
 
@@ -313,11 +314,16 @@ Unraid review against both real identities remains outstanding before Phase 13.
 
 These are sequenced recommendations from the owner's review, not changes to the bank calculation. They fit the rebuild, but belong at different points in it:
 
-### Phase 12 close-out: edit the quantity of a logged food or recipe
+### Phase 12 close-out: edit the quantity of a logged food or recipe — implemented 2026-10-03
 
-This is an **existing Phase 12 requirement**, not new scope: the phase table already promises add/edit/delete diary entries. The React Diary currently exposes delete but not edit. The legacy UI had an edit-weight flow, and the Go API already has `PUT /api/diary/{id}`, so this is a missing port rather than a reason to redesign the backend.
+This was an **existing Phase 12 requirement**, not new scope: the phase table already promises add/edit/delete diary entries. The legacy UI had an edit-weight flow and the Go API already had `PUT /api/diary/{id}`, so it was a missing port rather than a reason to redesign the backend. **It is now implemented** (`web/frontend/src/routes/DiaryRoute.tsx`), and the port keeps to the agreed behaviour:
 
-Add an Edit action with a grams input and live calorie preview. On save, scale the entry's saved calories, protein, carbohydrate, fat and fibre by the new-to-old quantity ratio; preserve the diary-entry snapshot rather than re-reading a food or recipe that may since have changed. Refresh the diary totals and bank, and reject zero/negative quantities. **Close this gap before treating Phase 12 as accepted or moving to Phase 13.** No schema migration should be needed.
+- Every logged row has an **Edit** action (44 px target, next to Delete) that opens a sheet showing the entry as logged, its derived kcal per 100 g and a weight input with a **live calorie preview**.
+- On save, the entry's saved calories, protein, carbohydrate, fat and fibre are **scaled by the new-to-old quantity ratio** (`scaleEntryToGrams` in `web/frontend/src/lib/diary.ts`, unit-tested). The dairy-entry snapshot is preserved: no food or recipe definition is re-read, so editing a definition still cannot rewrite a past day. This matches the legacy vanilla-JS calculation exactly.
+- Quantities are validated before anything is sent: **zero, negative and non-numeric weights keep Save disabled** and the helper returns `null`, so no invalid row can reach the API. The sheet also refuses to save an unchanged weight.
+- On success the diary totals and the bank are both invalidated; no schema migration, API change or appdata work was needed.
+
+Two small honesty notes for future work. First, the fixture API (`web/frontend/mock-api/handler.mjs`) gained a matching `PUT /api/diary/{id}` so the Arena preview and the render tests exercise the same flow the Go handler serves; like the Go handler, it writes exactly the fields it is given and does not re-derive them. Second, the **Arena preview dies with the sandbox**: a preview started in one turn is gone in the next, and the tab reports "Expired". Re-run `./scripts/serve-frontend-preview.sh` at the start of a turn, or use the preview panel rather than refreshing an old tab.
 
 ### Phase 12 dashboard follow-up: make the outer ring represent the bank
 
@@ -325,14 +331,26 @@ The observed grey-ring case has a concrete cause. The current outer ring draws `
 
 The approved outer ring is a **display of the cumulative bank balance**, not another daily-consumption ring. Until Phase 15 Settings, it uses fixed limits of +2,000 and -2,000 kcal:
 
-- Positive balance fills clockwise in green: +1,000 is 50%; +2,000 or more is full green.
-- Negative balance fills clockwise in red: -650 is 32.5%; -2,000 or less is full red.
+- Positive balance fills clockwise in green from 12 o'clock: +1,000 is 50%; +2,000 or more is full green.
+- Negative balance fills anticlockwise in red from the same 12 o'clock start: -650 is 32.5%; -2,000 or less is full red.
 - Zero has no colored arc; the unfilled part stays neutral grey.
 - Keep the exact bank figure visible beside the ring (so a capped -4,460 still reads -4,460), and expose the amount in the ring's accessible label. Color must not be the only signal.
 
 Keep the inner ring tied to today's `daily_goal` and today's calories. Do not change `bank_balance`, calorie-bank maths, or history to implement a visual scale. The owner approved shipping this gauge now with fixed ±2,000 defaults; Phase 15 will wire independently adjustable values from Settings.
 
 **Implementation status (2026-10-03):** The shared Home/Diary `CalorieRing` now uses this scale, labels the bank amount and percentage, and keeps the centre on today's goal. Component coverage pins +1,000 at 50%, -650 at 32.5%, and saturation at both limits, including a -4,460 deficit.
+
+### Opposite sweep directions for surplus and deficit (2026-10-03)
+
+The owner asked whether the surplus and deficit could grow in **opposite directions from the same 12 o'clock start** rather than both filling clockwise, so the sign of the balance is legible at a glance and not carried by colour alone. It can, and it is implemented in the same `CalorieRing`:
+
+- **Surplus (green):** starts at 12 o'clock and sweeps **clockwise** — the ring's original direction, unchanged.
+- **Deficit (red):** starts at 12 o'clock and sweeps **anticlockwise**, mirroring the geometry about the ring's vertical axis.
+- The centre, the inner daily-goal ring, the ±2,000 kcal scale, the printed bank figure and all bank maths are unaffected. Both directions saturate at their limit, and the accessible label now states the sweep direction as well as the amount.
+
+Implementation note for future work: the anticlockwise case **reflects the SVG geometry** (`translate(size 0) scale(-1 1)` before the 12 o'clock rotation) rather than using a negative `stroke-dashoffset`. A negative offset cannot render a *full* circle — at exactly 100% the whole dash falls into the gap and the ring would disappear at the limits it is meant to saturate at. The transform is produced by a small exported helper (`bankArcTransform`) so both directions stay pinned by component tests (`npm test`), and the rendered result was additionally rasterised and probed at 15° intervals during review: +1,000 occupies 12→6 o'clock clockwise, −650 occupies 12→3 o'clock anticlockwise, −4,460 fills the ring.
+
+This is a presentation-only change: no schema, API, or data change, and it does not alter the Phase 14 rolling-balance metric or the Phase 15 per-user limits, which will simply reuse whichever direction the signed value takes.
 
 ### Phase 14 — calculate a recent-window balance for the ring
 

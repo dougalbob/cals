@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** Next: Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, finish the Phase 12 logged-quantity edit gap, then review Home/Diary as **both** users before Phase 13 |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** The Phase 12 close-out is open as a single frontend-only PR, **#22**, covering opposite bank-ring sweep directions (surplus clockwise, deficit anticlockwise) and the logged-quantity **Edit** action. Once it is merged, publish a `v2.0.0-dev-rc*` tag and Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary as **both** users before Phase 13 |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -40,11 +40,12 @@
   and a water card with one-tap glass and other-amount entry. Design and decisions:
   [`water-and-drinks.md`](./water-and-drinks.md) and
   [`frontend-strategy.md`](./frontend-strategy.md) §7.2.
-- **Phase 12 is not yet closed:** restore the planned Edit action for logged food/recipe quantities,
-  then review the Home and Diary at phone size on the LAN-only dev container
+- **Phase 12 is now feature-complete** pending its merge review: the logged-quantity **Edit**
+  action is implemented (see the owner-feedback section below), so the remaining work is review,
+  not code. Review the Home and Diary at phone size on the LAN-only dev container
   (`http://<unraid-lan-ip>:8152/next/`) as **both** identities. The owner-authorized ring
   behavior is described in [`frontend-strategy.md`](./frontend-strategy.md); Phase 13 follows
-  the edit close-out and both-user review.
+  that review.
 - **Checkpoint `v2.0.0-dev-rc4` is published** (2026-10-02, [run 37066221932](https://github.com/dougalbob/cals/actions/runs/37066221932); digest `sha256:ea5e97aad9551a3e86188bba6296bdbf0fe5b31d01b74fd323ab72fee3919d25`; anonymous pull verified). The LAN dev container (`cals-dev-identity`) tracks `dev-latest`; the owner can Force Update it on `8152` now without changing its template variables or appdata. The new app-header **Switch user** link is included; `/dev/identity` remains available directly. The Cloudflare-routed `cals-dev-v2` container is not automatically updated. Recorded in the [release log](./unraid-image-release.md#release-log).
 
 ## 0. Before anything else: get the work
@@ -182,4 +183,16 @@ dev container before moving on to Phase 13. See frontend-strategy.md for scope.
 
 ### Owner feedback — 2026-10-03
 
-Before Phase 13, close the Diary quantity-edit gap: Phase 12 already promises edit, the React view currently only deletes, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provide the path. The owner approved the interim ring behavior: inner ring on today's goal, outer ring on a signed balance with fixed ±2,000 kcal limits until Phase 15, with the exact balance visible. The owner has since suggested a recent lookback for the outer ring (tentatively 30 completed days) rather than lifetime accumulation: Phase 14 should add a separate food-and-drink rolling metric without changing the cumulative bank, and Phase 15 should make the lookback and limits configurable per user. This is not yet implemented. See [`frontend-strategy.md`](./frontend-strategy.md#owner-requested-diary-and-bank-ring-follow-ups-2026-10-03) and [`vision-and-open-questions.md`](../product/vision-and-open-questions.md#proposed-lookback-window-2026-10-03).
+**Done (2026-10-03, the Phase 12 close-out PR): the Diary quantity-edit gap is closed.** Phase 12 already promised edit, the React view only deleted, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provided the path. Every logged row now has an Edit action with a weight input and live calorie preview; saving rescales that entry's own saved nutrition and refreshes the diary and bank, and zero/negative weights are refused. No backend, schema or appdata change.
+
+The owner approved the interim ring behavior: inner ring on today's goal, outer ring on a signed balance with fixed ±2,000 kcal limits until Phase 15, with the exact balance visible. The owner has since suggested a recent lookback for the outer ring (tentatively 30 completed days) rather than lifetime accumulation: Phase 14 should add a separate food-and-drink rolling metric without changing the cumulative bank, and Phase 15 should make the lookback and limits configurable per user. This is not yet implemented. See [`frontend-strategy.md`](./frontend-strategy.md#owner-requested-diary-and-bank-ring-follow-ups-2026-10-03) and [`vision-and-open-questions.md`](../product/vision-and-open-questions.md#proposed-lookback-window-2026-10-03).
+
+**Owner decision (2026-10-03): opposite sweep directions on the bank ring.** A surplus should
+start at 12 o'clock and grow **clockwise**; a deficit should start at the same point and grow
+**anticlockwise**, so the sign reads instantly without relying on colour. This is visual only — the
+bank figure, the ±2,000 kcal scale, the inner daily-goal ring and all bank maths are unchanged.
+It is **implemented** in `web/frontend/src/components/CalorieRing.tsx` on the Phase 12 close-out
+session branch (component tests pin both directions; the rendered ring was rasterised and probed at
+15° intervals) and needs no schema, API or appdata change. Phase 14's rolling metric and Phase 15's
+per-user limits inherit the same direction rule. Details:
+[`frontend-strategy.md`](./frontend-strategy.md#opposite-sweep-directions-for-surplus-and-deficit-2026-10-03).

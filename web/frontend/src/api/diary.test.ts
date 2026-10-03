@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createDiaryEntry, deleteDiaryEntry, getBank, getDiary, getDrinkEntries } from './diary'
+import { createDiaryEntry, deleteDiaryEntry, getBank, getDiary, getDrinkEntries, updateDiaryEntry } from './diary'
+import { scaleEntryToGrams } from '../lib/diary'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -58,5 +59,28 @@ describe('typed Diary API client', () => {
     })
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/diary/11')
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: 'DELETE' })
+  })
+
+  it('puts the rescaled snapshot to the entry it belongs to', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const entry = { quantity_grams: 150, calories: 300, protein: 30, carbs: 6, fat: 9, fibre: 3 }
+    const update = scaleEntryToGrams(entry, 75)
+    expect(update).not.toBeNull()
+    await updateDiaryEntry(9, update as NonNullable<typeof update>)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/diary/9')
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify({
+        quantity_grams: 75,
+        calories: 150,
+        protein: 15,
+        carbs: 3,
+        fat: 4.5,
+        fibre: 1.5,
+      }),
+    })
   })
 })
