@@ -14,6 +14,21 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc17` (PR #40)
+
+The owner accepted the four items in-session and said **“Lets publish”** (decision 20), so the session
+ran the whole loop: PR #40 checked green on *both* validation workflows — the build-only Docker check
+and, for the first time, `Go tests (validation)` — merged to `cals-dev` as `5d05f27`, and that exact
+commit was tagged `v2.0.0-dev-rc17`. The tag-triggered workflow
+([run 37154091274](https://github.com/dougalbob/cals/actions/runs/37154091274)) passed the ancestry
+guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the anonymous-pull
+check; digest `sha256:429a63c2987d08571f31d0a8ad011b2545064c8bdc3018d28ecc7548bed70f74`.
+
+**Frontend changes plus one new workflow file: no schema migration, no data copy, no template change**,
+and no Unraid or live-appdata access by the session — the Force Update is the owner's step. The
+release-record docs landed on `cals-dev` in the follow-up PR (#41), which is why the publish entry
+predates it.
+
 ## 2026-10-03 — Calendar day bars, a calendar that stops at today, the recipe pick moves to the recipe box, and CI learns `go test`
 
 The owner's next session of road-test notes, plus the loose end the previous session left behind.
