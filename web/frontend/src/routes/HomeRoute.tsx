@@ -20,7 +20,7 @@ function greeting(hour: number): string {
  * "Today" — the landing page for the current state of play.
  *
  * Designed around four primary interactions:
- * 1. At a glance calorie ring (outer available vs inner daily allowance countdown).
+ * 1. At a glance calorie ring (outer cumulative bank vs inner daily-goal countdown).
  * 2. 4 square meal buttons in a row showing calories, meal icon, items count,
  *    linking directly to that meal in the diary.
  * 3. Merged FluidsCard with the draining water glass and quick drinks, counters,
@@ -82,7 +82,6 @@ export function HomeRoute() {
     [drinks.data],
   )
   const consumed = Math.round(foodCalories + drinkCalories)
-  const available = bank.data?.today_available ?? 2000
   const bankBalance = bank.data?.bank_balance ?? 0
 
   const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
@@ -127,7 +126,7 @@ export function HomeRoute() {
         <h2 className="m-0 text-base font-semibold">{formatLongDate(date)}</h2>
 
         <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center">
-          <CalorieRing consumed={consumed} available={available} goal={bank.data?.daily_goal ?? 0} />
+          <CalorieRing consumed={consumed} bankBalance={bankBalance} goal={bank.data?.daily_goal ?? 0} />
 
           <div className="w-full flex-1 grid grid-cols-2 gap-3">
             <Tile label="Daily goal" value={formatNumber(bank.data?.daily_goal ?? 0)} unit="kcal" />

@@ -171,8 +171,8 @@ The timeboxed spike is complete. The owner authorized **Phase 11 — Foundation*
 | **11 — Foundation** | `web/frontend/` scaffold, Tailwind theme tokens, typed API client and query hooks for core endpoints, dev proxy, Go serving `web/dist` under a temporary `/next/` path, multi-stage Docker build, lint + typecheck + tests | New shell is reachable at `/next/` while the old UI remains the default; fixture and real-API dev loops work; typecheck, lint, tests and production build pass |
 | **12 — Diary** | Diary view at `/diary/:date` with meal sections, a familiar quick-add selector for Tea/Coffee/Water, drinks, bank ring, date navigation, add/edit/delete food entries (optimistic) | The primary phone-based logging flow is demonstrably easier than the current build; owner reviews the mobile preview; drink calories are included in the bank with a regression test; old diary stays reachable until approval |
 | **13 — Foods + Recipes** | Custom foods list/create/edit/delete, recipe list/create/edit, ingredient search, image upload with crop, recipe→diary flow | Recipe builder parity, including cooked-weight concentration maths with unit tests |
-| **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect | Charts render identically; projections reproduce current numbers |
-| **15 — Settings + PWA** | Settings, calorie/water targets, themes, `vite-plugin-pwa`, PWA install/offline behaviour, remove legacy no-cache hacks | Lighthouse PWA pass on mobile; SW installs cleanly |
+| **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect, **rolling bank balance for the wheel (30 completed days by default)** | Rolling balance uses the selected completed-day window and includes both food and drink calories; the cumulative bank and today's available allowance remain unchanged; charts render correctly |
+| **15 — Settings + PWA** | Settings, calorie/water targets, **per-user bank-ring display limits and lookback window**, themes, `vite-plugin-pwa`, PWA install/offline behaviour, remove legacy no-cache hacks | Ring limits and lookback persist per user; changing either affects only the display, not bank maths; Lighthouse PWA pass on mobile; SW installs cleanly |
 | **16 — Cutover** | Delete `web/static/**`, `web/templates/index.html`, and old SW cache rules; make React the single SPA; update `docs/` (keep legacy `ai_contextual_docs/context.txt` frozen) | Total front-end LOC and file count drop sharply; no dead code left; owner approves the demonstrated UI improvement |
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
@@ -308,3 +308,42 @@ before deleting the latest matching entry, restoring its recorded ml/calories.
 The Diary uses the same fluids card. Phone layouts stack water/drinks; wider layouts
 use a vertical divider. No backend or schema changes, no data copy, no root cutover.
 Unraid review against both real identities remains outstanding before Phase 13.
+
+## Owner-requested Diary and bank-ring follow-ups (2026-10-03)
+
+These are sequenced recommendations from the owner's review, not changes to the bank calculation. They fit the rebuild, but belong at different points in it:
+
+### Phase 12 close-out: edit the quantity of a logged food or recipe
+
+This is an **existing Phase 12 requirement**, not new scope: the phase table already promises add/edit/delete diary entries. The React Diary currently exposes delete but not edit. The legacy UI had an edit-weight flow, and the Go API already has `PUT /api/diary/{id}`, so this is a missing port rather than a reason to redesign the backend.
+
+Add an Edit action with a grams input and live calorie preview. On save, scale the entry's saved calories, protein, carbohydrate, fat and fibre by the new-to-old quantity ratio; preserve the diary-entry snapshot rather than re-reading a food or recipe that may since have changed. Refresh the diary totals and bank, and reject zero/negative quantities. **Close this gap before treating Phase 12 as accepted or moving to Phase 13.** No schema migration should be needed.
+
+### Phase 12 dashboard follow-up: make the outer ring represent the bank
+
+The observed grey-ring case has a concrete cause. The current outer ring draws `consumed / today_available`, where `today_available = daily_goal + bank_balance`. With a large deficit, `today_available` can be negative; `percentOf` clamps that progress to zero, so the colored arc has no length and the grey track remains visible—even though the stroke colour has been set to red.
+
+The approved outer ring is a **display of the cumulative bank balance**, not another daily-consumption ring. Until Phase 15 Settings, it uses fixed limits of +2,000 and -2,000 kcal:
+
+- Positive balance fills clockwise in green: +1,000 is 50%; +2,000 or more is full green.
+- Negative balance fills clockwise in red: -650 is 32.5%; -2,000 or less is full red.
+- Zero has no colored arc; the unfilled part stays neutral grey.
+- Keep the exact bank figure visible beside the ring (so a capped -4,460 still reads -4,460), and expose the amount in the ring's accessible label. Color must not be the only signal.
+
+Keep the inner ring tied to today's `daily_goal` and today's calories. Do not change `bank_balance`, calorie-bank maths, or history to implement a visual scale. The owner approved shipping this gauge now with fixed ±2,000 defaults; Phase 15 will wire independently adjustable values from Settings.
+
+**Implementation status (2026-10-03):** The shared Home/Diary `CalorieRing` now uses this scale, labels the bank amount and percentage, and keeps the centre on today's goal. Component coverage pins +1,000 at 50%, -650 at 32.5%, and saturation at both limits, including a -4,460 deficit.
+
+### Phase 14 — calculate a recent-window balance for the ring
+
+The owner has also proposed that the outer ring look back over a recent, adjustable period (tentatively 30 days) rather than visualizing a balance accumulated since the bank start date. This is **not already implemented**. `GET /api/stats/bank?days=30` returns a 30-day series, but each point is still a cumulative snapshot from `bank_start_date`; it is not a rolling 30-day balance. The stats handler also currently sums food entries without drinks, unlike the current `/api/bank` handler.
+
+Recommendation: add a separate rolling-balance value for the ring while preserving the existing cumulative bank and `today_available` behavior. For an as-of date, calculate over the previous N **completed calendar days** (excluding the as-of date), bounded below by `bank_start_date`; include both food and drink calories. Keep the exact cumulative balance in the existing Banked/Deficit tile, and label the ring as `Last N days` so it cannot be mistaken for the full bank. Add tests for the window boundary, shorter history after a manual bank reset, food + drink inclusion, and unchanged cumulative-bank behavior.
+
+Phase 14 is the right home for the separate metric/API calculation and tests because it already owns stats and charts. Use 30 days as its default while the setting is not yet available.
+
+### Phase 15 — make the ring limits and lookback user-adjustable
+
+This fits naturally beside the planned Settings screen. Store the positive-bank cap and deficit magnitude as **separate per-user kcal preferences**, defaulting to 2,000 each, plus a per-user lookback window defaulting to 30 days. Keep the positive and negative limits independent. Persist all three through the user's API/settings rather than browser local storage, so they follow the user across devices. The ring should saturate at either limit while using the selected window's rolling balance; the full cumulative bank and today's allowance remain unchanged.
+
+This is a deliberately narrow exception to the current frontend-only migration boundary: it needs additive user fields, an SQLite migration, and `/api/users/me` read/update support. Keep that preference change isolated and tested; it must not alter calorie-bank calculations.

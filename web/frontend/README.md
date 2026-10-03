@@ -27,8 +27,10 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 ## What's deliberately missing
 
 Recipes, recipe images, Mealie import, Google Fit, settings, themes, the PWA/service worker, and
-every mutation except add/delete diary entry. The production migration phases cover these
-(see the strategy doc: phases 11–16).
+most mutations. The React Diary currently supports adding and deleting entries but has not yet
+ported the legacy food/recipe quantity-edit flow; that is a Phase 12 close-out item, not a new
+backend feature (the API endpoint already exists). The production migration phases cover the
+remaining work (see the strategy doc: phases 11–16).
 
 ## Running it
 

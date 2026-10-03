@@ -175,18 +175,21 @@ describe('DiaryRoute', () => {
     )
   })
 
-  it("shows the bank surplus and today's available allowance", async () => {
+  it("shows the exact bank balance and keeps the inner ring on today's goal", async () => {
     renderDiary(`/diary/${todayIso()}`)
 
     const bank = handle('GET', new URL(`http://localhost/api/bank?date=${seed.TODAY}`), null)
-    const expected = (bank?.body as { bank_balance: number; today_available: number; daily_goal: number })
+    const expected = (bank?.body as { bank_balance: number; daily_goal: number })
 
     // Bank maths includes drink calories, so the seeded household can be in
-    // surplus or deficit; the tile labels and signs it accordingly.
+    // surplus or deficit; the tile and outer ring reflect that exact balance.
     expect(await screen.findByText(expected.bank_balance >= 0 ? 'Banked' : 'Deficit')).toBeTruthy()
-    expect(await screen.findByText(`of ${formatNumber(expected.today_available)} kcal`)).toBeTruthy()
-    const signed = `${expected.bank_balance >= 0 ? '+' : ''}${formatNumber(expected.bank_balance)}`
+    expect(await screen.findByText(`of ${formatNumber(expected.daily_goal)} kcal`)).toBeTruthy()
+    const signed = `${expected.bank_balance > 0 ? '+' : ''}${formatNumber(expected.bank_balance)}`
     expect(await screen.findByText(signed)).toBeTruthy()
+    expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
+      `Bank balance ${signed} kcal`,
+    )
   })
 
   it('renders a past date from the route param, with every meal logged', async () => {

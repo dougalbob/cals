@@ -51,14 +51,21 @@ afterEach(() => {
 })
 
 describe('HomeRoute', () => {
-  it("shows today's allowance, including the bank, in the ring", async () => {
+  it("shows today's goal inside and the exact bank balance on the outer ring", async () => {
     renderHome()
 
     const bank = handle('GET', new URL(`http://localhost/api/bank?date=${seed.TODAY}`), null)
-    const expected = bank?.body as { today_available: number; daily_goal: number }
+    const expected = bank?.body as { bank_balance: number; daily_goal: number }
+    const signedBalance = `${expected.bank_balance > 0 ? '+' : ''}${formatNumber(expected.bank_balance)}`
+    const percent = Math.round((Math.min(Math.abs(expected.bank_balance) / 2_000, 1) * 1_000)) / 10
+    const percentText = `${formatNumber(percent, Number.isInteger(percent) ? 0 : 1)}%`
 
-    expect(await screen.findByText(`of ${formatNumber(expected.today_available)} kcal`)).toBeTruthy()
+    expect(await screen.findByText(`of ${formatNumber(expected.daily_goal)} kcal`)).toBeTruthy()
     expect(screen.getByText('Daily goal')).toBeTruthy()
+    expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
+      `Bank balance ${signedBalance} kcal`,
+    )
+    expect(screen.getByText(`Bank ${signedBalance} kcal · ${percentText} of ±2,000 kcal scale`)).toBeTruthy()
   })
 
   it('summarises each meal without listing the individual foods', async () => {
