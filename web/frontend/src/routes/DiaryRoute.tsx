@@ -2,14 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
-import { addDrinkEntry, createDiaryEntry, deleteDiaryEntry, deleteDrinkEntry } from '../api/diary'
-import { MEALS, type Drink, type Food, type Meal } from '../api/types'
+import {
+  addDrinkEntry,
+  createDiaryEntry,
+  deleteDiaryEntry,
+  deleteDrinkEntry,
+  updateDiaryEntry,
+} from '../api/diary'
+import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
+import { caloriesPer100g, scaleEntryToGrams } from '../lib/diary'
 
 const MEAL_ACCENT: Record<Meal, string> = {
   breakfast: 'border-l-meal-breakfast',
@@ -31,6 +38,7 @@ export function DiaryRoute() {
   const [pendingDrink, setPendingDrink] = useState<number | null>(null)
   const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ entryId: number; drinkName: string } | null>(null)
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null)
 
   const diary = useDiary(date)
   const bank = useBank(date)
@@ -56,6 +64,20 @@ export function DiaryRoute() {
   const deleteEntry = useMutation({
     mutationFn: deleteDiaryEntry,
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
+    },
+  })
+
+  /** Editing the weight rescales the entry's own saved snapshot; no definition is re-read. */
+  const updateEntry = useMutation({
+    mutationFn: ({ entry, grams }: { entry: DiaryEntry; grams: number }) => {
+      const update = scaleEntryToGrams(entry, grams)
+      if (!update) return Promise.reject(new Error('Enter a weight greater than zero'))
+      return updateDiaryEntry(entry.id, update)
+    },
+    onSuccess: () => {
+      setEditingEntry(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
     },
@@ -238,9 +260,17 @@ export function DiaryRoute() {
                   </div>
                   <button
                     type="button"
+                    onClick={() => setEditingEntry(entry)}
+                    className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer"
+                    aria-label={`Edit ${entry.food_name || entry.recipe_name}`}
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => deleteEntry.mutate(entry.id)}
                     disabled={deleteEntry.isPending}
-                    className="min-h-9 min-w-9 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
+                    className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
                     aria-label={`Delete ${entry.food_name || entry.recipe_name}`}
                   >
                     🗑
@@ -312,6 +342,18 @@ export function DiaryRoute() {
         error={addEntry.isError ? (addEntry.error as Error).message : null}
       />
 
+      {/* Edit the weight of a logged entry. Keyed by id so the input resets per entry. */}
+      {editingEntry && (
+        <EditQuantityModal
+          key={editingEntry.id}
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSave={(grams) => updateEntry.mutate({ entry: editingEntry, grams })}
+          saving={updateEntry.isPending}
+          error={updateEntry.isError ? (updateEntry.error as Error).message : null}
+        />
+      )}
+
       {/* Deletion confirmation modal for long-press ----------------------- */}
       <Modal
         open={deleteConfirm !== null}
@@ -369,6 +411,93 @@ function Tile({
       </p>
       {hint && <p className="m-0 text-[0.65rem] text-ink-muted">{hint}</p>}
     </div>
+  )
+}
+
+function EditQuantityModal({
+  entry,
+  onClose,
+  onSave,
+  saving,
+  error,
+}: {
+  entry: DiaryEntry
+  onClose: () => void
+  onSave: (grams: number) => void
+  saving: boolean
+  error: string | null
+}) {
+  const name = entry.food_name || entry.recipe_name || 'this entry'
+  const [grams, setGrams] = useState(String(entry.quantity_grams))
+  const parsed = Number.parseFloat(grams)
+  const valid = Number.isFinite(parsed) && parsed > 0
+  const per100g = caloriesPer100g(entry)
+  // The preview scales the entry's own saved values, so it can never promise a
+  // number the save would not write.
+  const update = valid ? scaleEntryToGrams(entry, parsed) : null
+  const changed = valid && parsed !== entry.quantity_grams
+
+  return (
+    <Modal open title={`Edit ${name}`} onClose={onClose}>
+      <p className="m-0 text-xs text-ink-light">
+        Logged as {formatGrams(entry.quantity_grams)} · {formatNumber(entry.calories)} kcal
+        {per100g !== null ? ` · ${formatNumber(per100g)} kcal per 100 g` : ''}
+      </p>
+
+      <label className="block text-sm text-ink-light mt-4 mb-1" htmlFor="edit-grams">
+        Weight (grams)
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id="edit-grams"
+          type="number"
+          inputMode="decimal"
+          min={1}
+          step={5}
+          value={grams}
+          onChange={(event) => setGrams(event.target.value)}
+          autoFocus
+          aria-invalid={!valid}
+          aria-describedby="edit-grams-preview"
+          className="w-28 min-h-11 rounded-xl border border-line px-3 text-base tabular-nums"
+        />
+        <span className="text-sm text-ink-light">g</span>
+      </div>
+
+      <p
+        id="edit-grams-preview"
+        aria-live="polite"
+        className={`mt-2 mb-0 text-sm tabular-nums ${valid ? 'text-ink' : 'text-danger'}`}
+      >
+        {valid && update
+          ? `${formatGrams(parsed)} = ${formatNumber(update.calories)} kcal`
+          : 'Enter a weight greater than zero'}
+      </p>
+
+      {error && (
+        <p role="alert" className="mt-2 mb-0 text-sm text-danger">
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center justify-end gap-2 mt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-11 px-3.5 rounded-xl border border-line bg-surface text-ink text-sm cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!valid || !changed || saving}
+          onClick={() => onSave(parsed)}
+          className="min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-medium border-0 cursor-pointer disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 

@@ -204,3 +204,9 @@ highest-value open questions now are:
 | 28 | 2026-10-03 | On the outer ring, a **surplus grows clockwise in green and a deficit grows anticlockwise in red, both starting at 12 o'clock** — the direction itself carries the sign, so colour is not the only signal. Implemented in the Phase 12 close-out PR; presentation only, no change to the bank figure, scale or maths. | Owner |
 
 Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain. Decision 28 refines decision 27's presentation (arc start and sweep direction) without touching its scale or limits, and applies equally to Phase 14's rolling metric and Phase 15's per-user limits.
+
+**Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
+weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
+saved calories/protein/carbs/fat/fibre are rescaled by the new-to-old ratio so the saved snapshot —
+not a possibly-changed food definition — is what changes. Zero and negative weights are refused. No
+schema or API change was needed (`PUT /api/diary/{id}` already existed).

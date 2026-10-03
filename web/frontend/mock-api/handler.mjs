@@ -7,10 +7,10 @@
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
  * Mapped:  /api/version, /api/users/me, /api/foods/search, /api/foods/custom,
- *          /api/diary, /api/bank, /api/drinks, /api/weight, /api/measurements,
+ *          /api/diary (+ POST/PUT/DELETE), /api/bank, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
- * Stubbed: mutations (POST/PUT/DELETE) — the diary add/delete is real enough to
- *          click; everything else returns 501 with a clear message.
+ * Stubbed: mutations (POST/PUT/DELETE) — the diary add/edit/delete is real enough
+ *          to click; everything else returns 501 with a clear message.
  */
 
 import * as seed from './seed.mjs'
@@ -330,6 +330,23 @@ export function handle(method, url, body) {
     const index = seed.drinkEntries.findIndex((e) => e.id === id)
     if (index === -1) return err(404, 'not found')
     seed.drinkEntries.splice(index, 1)
+    return json({ success: true })
+  }
+
+  // Edit a logged quantity. Mirrors the Go handler: it writes exactly the fields
+  // it is given (the client scales them from the entry's own snapshot) and does
+  // not re-read the food or recipe definition.
+  if (pathname.startsWith('/api/diary/') && method === 'PUT') {
+    const id = Number.parseInt(pathname.split('/').pop(), 10)
+    const entry = seed.diaryEntries.find((e) => e.id === id)
+    if (!entry) return err(404, 'not found')
+
+    for (const key of ['quantity_grams', 'calories', 'protein', 'carbs', 'fat', 'fibre']) {
+      const value = body?.[key]
+      if (value != null && Number.isFinite(Number(value))) entry[key] = Number(value)
+    }
+    if (typeof body?.meal === 'string') entry.meal = body.meal
+    entry.updated_at = new Date().toISOString()
     return json({ success: true })
   }
 

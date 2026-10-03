@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from './client'
+import type { DiaryQuantityUpdate } from '../lib/diary'
 import type {
   BankResponse,
   DiaryEntry,
@@ -77,6 +78,17 @@ export function deleteDrinkEntry(id: number): Promise<void> {
 
 export function createDiaryEntry(date: string, input: CreateDiaryEntryInput): Promise<DiaryEntry> {
   return apiPost<DiaryEntry>('/api/diary', { ...input, date })
+}
+
+/**
+ * Change the weight of a logged entry.
+ *
+ * The scaled nutrition values are sent rather than a bare new weight, because the
+ * Go handler writes exactly the fields it is given — and the entry's saved
+ * snapshot is the correct source, not the food/recipe definition it came from.
+ */
+export function updateDiaryEntry(id: number, input: DiaryQuantityUpdate): Promise<void> {
+  return apiPut<void>(`/api/diary/${id}`, input)
 }
 
 export function deleteDiaryEntry(id: number): Promise<void> {

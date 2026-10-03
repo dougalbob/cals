@@ -202,6 +202,7 @@ action. Details: [`water-and-drinks.md`](./water-and-drinks.md).
 | Water showed a hard-coded `0 / 2000 ml` and never moved — the same dead value in both UIs | A water card shows real intake against the user's target, with a progress bar, one-tap glass (their own glass size) and an "other amount" entry |
 | Drinks were logged from a popup list that included invented defaults (Beer/Milk) and could not be corrected | A quick-drinks row lists the user's own drinks, keeps Tea/Coffee/Water first when they exist, logs in one tap, and every logged drink is listed with its own delete button |
 | "Banked" and the day's ring disagreed whenever a drink was logged | Both now use the same numbers, so the ring, the bank tile and the drink total agree |
+| A logged food could only be deleted; correcting a portion meant deleting the row and adding it again | Every row has an **Edit** action: the logged weight can be corrected with a live calorie preview, rescaling that entry's own saved nutrition (see the close-out note below) |
 | A drink's calories were re-read live, so editing a definition rewrote past days | Entries keep the values they were logged with; corrections apply from then on |
 | Drinks were fetched ad hoc per screen | Typed API client + TanStack Query keys; logging a drink refreshes diary, water, bank and the drink list together |
 
@@ -313,11 +314,16 @@ Unraid review against both real identities remains outstanding before Phase 13.
 
 These are sequenced recommendations from the owner's review, not changes to the bank calculation. They fit the rebuild, but belong at different points in it:
 
-### Phase 12 close-out: edit the quantity of a logged food or recipe
+### Phase 12 close-out: edit the quantity of a logged food or recipe — implemented 2026-10-03
 
-This is an **existing Phase 12 requirement**, not new scope: the phase table already promises add/edit/delete diary entries. The React Diary currently exposes delete but not edit. The legacy UI had an edit-weight flow, and the Go API already has `PUT /api/diary/{id}`, so this is a missing port rather than a reason to redesign the backend.
+This was an **existing Phase 12 requirement**, not new scope: the phase table already promises add/edit/delete diary entries. The legacy UI had an edit-weight flow and the Go API already had `PUT /api/diary/{id}`, so it was a missing port rather than a reason to redesign the backend. **It is now implemented** (`web/frontend/src/routes/DiaryRoute.tsx`), and the port keeps to the agreed behaviour:
 
-Add an Edit action with a grams input and live calorie preview. On save, scale the entry's saved calories, protein, carbohydrate, fat and fibre by the new-to-old quantity ratio; preserve the diary-entry snapshot rather than re-reading a food or recipe that may since have changed. Refresh the diary totals and bank, and reject zero/negative quantities. **Close this gap before treating Phase 12 as accepted or moving to Phase 13.** No schema migration should be needed.
+- Every logged row has an **Edit** action (44 px target, next to Delete) that opens a sheet showing the entry as logged, its derived kcal per 100 g and a weight input with a **live calorie preview**.
+- On save, the entry's saved calories, protein, carbohydrate, fat and fibre are **scaled by the new-to-old quantity ratio** (`scaleEntryToGrams` in `web/frontend/src/lib/diary.ts`, unit-tested). The dairy-entry snapshot is preserved: no food or recipe definition is re-read, so editing a definition still cannot rewrite a past day. This matches the legacy vanilla-JS calculation exactly.
+- Quantities are validated before anything is sent: **zero, negative and non-numeric weights keep Save disabled** and the helper returns `null`, so no invalid row can reach the API. The sheet also refuses to save an unchanged weight.
+- On success the diary totals and the bank are both invalidated; no schema migration, API change or appdata work was needed.
+
+Two small honesty notes for future work. First, the fixture API (`web/frontend/mock-api/handler.mjs`) gained a matching `PUT /api/diary/{id}` so the Arena preview and the render tests exercise the same flow the Go handler serves; like the Go handler, it writes exactly the fields it is given and does not re-derive them. Second, the **Arena preview dies with the sandbox**: a preview started in one turn is gone in the next, and the tab reports "Expired". Re-run `./scripts/serve-frontend-preview.sh` at the start of a turn, or use the preview panel rather than refreshing an old tab.
 
 ### Phase 12 dashboard follow-up: make the outer ring represent the bank
 

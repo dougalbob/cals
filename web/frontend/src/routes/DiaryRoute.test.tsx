@@ -192,6 +192,88 @@ describe('DiaryRoute', () => {
     )
   })
 
+  it('edits a logged quantity, rescaling the entry snapshot and refreshing the bank', async () => {
+    renderDiary('/diary')
+
+    // The seeded breakfast entry we are going to correct. Copy the numbers out:
+    // the fixture holds live object references, so reading them after the save
+    // would report the new values rather than the originals.
+    const seeded = seed.entriesFor(seed.TODAY).find((e) => e.food_name === 'Porridge Oats')
+    expect(seeded).toBeTruthy()
+    const { id, food_name: name } = seeded as { id: number; food_name: string }
+    const originalGrams = seeded?.quantity_grams ?? 0
+    const originalCalories = seeded?.calories ?? 0
+    const originalProtein = seeded?.protein ?? 0
+    const originalFat = seeded?.fat ?? 0
+
+    fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
+
+    const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
+    expect(input.value).toBe(String(originalGrams))
+
+    // Doubling the weight doubles the previewed calories.
+    fireEvent.change(input, { target: { value: String(originalGrams * 2) } })
+    expect(
+      await screen.findByText(new RegExp(`= ${formatNumber(Math.round(originalCalories * 2))} kcal$`)),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      const after = seed.entriesFor(seed.TODAY).find((e) => e.id === id)
+      expect(after?.quantity_grams).toBe(originalGrams * 2)
+      expect(after?.calories).toBeCloseTo(originalCalories * 2, 6)
+    })
+
+    // The snapshot scales as a whole, so the entry's own composition is preserved…
+    const after = seed.entriesFor(seed.TODAY).find((e) => e.id === id)
+    expect(after?.protein).toBeCloseTo(originalProtein * 2, 6)
+    expect(after?.fat).toBeCloseTo(originalFat * 2, 6)
+
+    // …the sheet closes, and the row shows the corrected weight.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText(new RegExp(`^${formatNumber(originalGrams * 2)} g`))).toBeTruthy()
+  })
+
+  it('refuses a zero or negative quantity instead of saving one', async () => {
+    renderDiary('/diary')
+
+    const seeded = seed.entriesFor(seed.TODAY).find((e) => e.food_name === 'Porridge Oats')
+    const { id, food_name: name } = seeded as { id: number; food_name: string }
+    const originalGrams = seeded?.quantity_grams ?? 0
+    const originalCalories = seeded?.calories ?? 0
+
+    fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
+    const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
+
+    for (const bad of ['0', '-50', '']) {
+      fireEvent.change(input, { target: { value: bad } })
+      expect(await screen.findByText('Enter a weight greater than zero')).toBeTruthy()
+      expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+    }
+
+    // Nothing was written: the entry still has its original weight and calories.
+    const unchanged = seed.entriesFor(seed.TODAY).find((e) => e.id === id)
+    expect(unchanged?.quantity_grams).toBe(originalGrams)
+    expect(unchanged?.calories).toBe(originalCalories)
+  })
+
+  it('leaves Save disabled until the weight actually changes', async () => {
+    renderDiary('/diary')
+
+    const entry = seed.entriesFor(seed.TODAY).find((e) => e.food_name === 'Porridge Oats')
+    fireEvent.click(await screen.findByRole('button', { name: `Edit ${entry?.food_name}` }))
+
+    // Pre-filled with the logged weight, so there is nothing to save yet.
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+
+    const input = (await screen.findByLabelText('Weight (grams)')) as HTMLInputElement
+    fireEvent.change(input, { target: { value: String((entry?.quantity_grams ?? 0) + 25) } })
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false),
+    )
+  })
+
   it('renders a past date from the route param, with every meal logged', async () => {
     const past = addDays(todayIso(), -7)
     renderDiary(`/diary/${past}`)
