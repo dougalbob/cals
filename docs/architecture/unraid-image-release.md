@@ -193,6 +193,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc13` | 2026-10-03, [run 37132678548](https://github.com/dougalbob/cals/actions/runs/37132678548) | `9260e10` on `cals-dev` (PR #32: recipe-adaptation requirement and frozen history, decisions 55–58 — **documentation only**) | `sha256:d28a820975261cff158c6d7f89f652d4846cac7cc68bc707de3c13f1dbf48103` | [v2.0.0-dev-rc13](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc13) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and review the Recipes tag filter at phone size (also `/next/` on `8152`); **documentation-only checkpoint: the image is functionally identical to rc12**; no schema migration, no data copy, no appdata change |
 | `v2.0.0-dev-rc14` | 2026-10-03, [run 37137097231](https://github.com/dougalbob/cals/actions/runs/37137097231) | `29bd7bb` on `cals-dev` (PR #34: recipe archive/restore, decision 59) | `sha256:be601ee04bb8f57182a525931570cc7eba703cbafc3e4fd25bf2f193254233f5` | [v2.0.0-dev-rc14](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc14) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review Recipes → Archive / Archived / Restore at phone size; **additive schema migration** (`recipes.is_archived`, `recipes.archived_at`) runs on first start — confirm the backup first; no data copy, no template change |
 | `v2.0.0-dev-rc15` | 2026-10-03, [run 37143693979](https://github.com/dougalbob/cals/actions/runs/37143693979) | `be70776` on `cals-dev` (PR #36: decision 40 + Calendar month/week + Hydration relabel + `GET /api/calendar`) | `sha256:0755a3b6f9fddd15644eea6099a95d43dfe1bc7d8a68de665222023ec1bc17be` | [v2.0.0-dev-rc15](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc15) (prerelease) | ⬜ owner — confirm backup, then Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review at phone size: **+ Add recipe** from each Diary meal opens the recipe picker + portion sheet with the meal preselected; Calendar (Month + Week, day cells link to `/diary/:date`, meal kcal lines, 💧 Hydration ml vs target, bank figure in week cards, 📅 tab/button in nav and Diary header); Fluids card labelled **Hydration** rather than Water. **No schema migration, no data copy, no template change** — rc15 adds one read-only endpoint (`GET /api/calendar`) and the Calendar React route; Phase 12 acceptance is signed off |
+| `v2.0.0-dev-rc16` | 2026-10-03, [run 37147534800](https://github.com/dougalbob/cals/actions/runs/37147534800) | `dd2cbef` on `cals-dev` (PR #38: calendar per-day calories fix + owner road-test fixes) | `sha256:69ed52c0b7f409e13f5cff78fbce4a0040fd5b52ea59e72f1ccb25cfba8a175a` | [v2.0.0-dev-rc16](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc16) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review at phone size: the **Calendar showing real per-day calories and bank figures** (rc15 showed `0 / goal` on every day), the **calorie wheel** with `bank` / spend / `daily` inside the ring and the inner ring sweeping anticlockwise in red when overspent, the **hydration glass** with the target written across it at 45°, and the **Quick-drinks milk/sugar dots** now visible on Android. **No schema migration, no data copy, no template change** |
 
 ## Not implemented yet
 
@@ -388,3 +389,31 @@ appdata. Because it is the first checkpoint since rc11 to change the schema, the
 the backup (decision 54) before Force Updating `cals-dev-v2` on `8151`, then review Recipes at phone
 size. `dev-latest` now points to rc14. Decision 60 (recalculating recipes after a food correction) is
 not in this image.
+
+### 2026-10-03 — rc16 calendar fix and the owner's road-test changes
+
+Published **`v2.0.0-dev-rc16`**, source `dd2cbefee630478b0e0ca66a07bbf5f95eb723d1`
+(PR #38 merge on `cals-dev`). [Publish run 37147534800](https://github.com/dougalbob/cals/actions/runs/37147534800)
+passed the `cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease
+creation and the anonymous-pull check. Image digest:
+`sha256:69ed52c0b7f409e13f5cff78fbce4a0040fd5b52ea59e72f1ccb25cfba8a175a`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc16). PR #38's build-only
+Docker check also passed before the merge.
+
+**The reason for this checkpoint:** rc15's Calendar rendered `0 / 1,250 kcal` on every day with a
+bank of `+133,184,631 kcal` on the owner's live container, while Home and Diary were correct.
+`mattn/go-sqlite3` converts columns declared `DATE` into `time.Time`, which `database/sql` renders
+as RFC3339 when scanned into a string, so the handler's per-day map never matched a `YYYY-MM-DD`
+key and the unparsable bank start date overflowed `time.Duration`. Every calendar query now selects
+and compares `date(...)`, as `HandleGetBank` already did, with three Go regression tests.
+
+Also in this image, from the owner's road test: the calorie wheel's two captions moved inside the
+ring (`bank ±N` = balance plus what is left of today, the day's spend, `daily ±N`); the inner ring
+now sweeps anticlockwise in red once the day is overspent, matching the outer ring's convention; the
+hydration target is written across the glass at 45° so the `x / y ml` caption could go; and the
+Quick-drinks milk/sugar control became a bordered chip with a drawn SVG icon after the old `·`
+glyphs proved invisible on Android.
+
+**No schema migration, no data copy, no template change** — the only backend change is the SQL
+inside the existing read-only `GET /api/calendar`. The session did not touch Unraid or live appdata.
+`dev-latest` now points to rc16.
