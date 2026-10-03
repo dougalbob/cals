@@ -328,7 +328,7 @@ const Recipes = {
             <div class="recipe-view-footer">
                 <button class="btn-primary" id="add-recipe-to-diary">Add to Diary</button>
                 <button class="btn-secondary" id="edit-recipe">Edit</button>
-                <button class="btn-danger" id="delete-recipe">Delete</button>
+                <button class="btn-danger" id="archive-recipe">Archive</button>
             </div>
         `;
 
@@ -343,14 +343,14 @@ const Recipes = {
             this.showEditor(recipe);
         });
 
-        document.getElementById("delete-recipe").addEventListener("click", async () => {
-            if (confirm("Delete this recipe?")) {
+        document.getElementById("archive-recipe").addEventListener("click", async () => {
+            if (confirm("Archive this recipe? It will be hidden from the recipe list for everyone, and past diary entries will not change. You can restore it later from the new Recipes page.")) {
                 try {
-                    await API.deleteRecipe(recipe.id);
+                    await API.archiveRecipe(recipe.id);
                     Modal.close();
                     this.loadList();
                 } catch (err) {
-                    alert("Failed to delete: " + err.message);
+                    alert("Failed to archive: " + err.message);
                 }
             }
         });

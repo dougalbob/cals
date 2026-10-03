@@ -555,9 +555,73 @@ Two findings make the edges explicit rather than accidental:
   typo, or renamed before anyone has logged it, has no history to protect. Recommendation: allow a
   rename while **no diary entry references the recipe** and reject it afterwards — that keeps the
   guarantee exactly as strong and is friendlier in practice. Owner to confirm.
-- **Deleting a recipe that has been logged.** Today it is hard-blocked by the foreign key with a 500.
-  Options: (a) keep the block but answer with a clear `409`/message the UI can explain, or (b)
-  **soft-delete/archive** — hide it from the catalogue while the row survives so history keeps its
-  name and link. Recommendation: (a) now, (b) as its own small slice if the owner ever wants to
-  retire a recipe without losing the label on old days. No React delete UI exists yet, so nothing
-  user-visible depends on the choice today.
+- **Deleting a recipe that has been logged — resolved by decision 59 below, now implemented.** The
+  owner chose archive/restore as the normal retirement mechanism, rather than a permanent Delete
+  action. `DELETE /api/recipes/{id}` now answers `409` with a message pointing at Archive when any
+  Diary row references the recipe (it used to be an opaque `500` from the foreign key).
+
+## Retiring recipes and correcting foods — decisions 59–61 (2026-10-03)
+
+The owner proposed archive/restore for recipes and accepted the recommendations to keep corrected
+food nutrition and dependent recipe definitions consistent without changing any saved Diary nutrition.
+He also challenged freezing food names: correcting **“Chickken” to “Chicken”** should improve the
+label everywhere, including historical entries. Current implementation status lives in
+[`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 59 | 2026-10-03 | **Archive/restore replaces normal recipe deletion.** Add an archive flag through an additive migration; retain the recipe ID, ingredients and Diary references. Hide archived recipes from the catalogue by default, provide a **Show archived** toggle and **Restore** on archived cards. Hide them from new-entry recipe pickers and require restoration before new logging, including at the API boundary. Historical links still open the recipe with an archived indicator. Archiving is household-wide because recipes are shared; favourites and usual portions remain personal. Cover React, the API and the legacy interface so retirement cannot damage history or differ by client. | Owner proposal; owner accepted recommendations |
+| 60 | 2026-10-03 | **Food nutrition corrections affect future logs only, including dependent recipes.** Recalculate affected recipe definitions when a food’s nutritional values change, preserving cooked-weight concentration maths. Never recalculate, repair or overwrite saved Diary nutrition as part of a catalogue edit. Diary quantity edits continue scaling the entry’s original snapshot. Add regression coverage for food edits, dependent recipe recalculation, archive/restore, both users’ history, day totals and the bank. | Owner accepted recommendations |
+| 61 | 2026-10-03 | **Food-name corrections are allowed, including after logging.** Historical labels may follow a correction such as “Chickken” → “Chicken”; no food-name freeze or name-snapshot migration is required for this use case. A different food should be a new catalogue record, not a repurposed existing one. Saved grams and nutrition remain unchanged. This is a food-name policy, not a revision of decision 58’s recipe-name rule. | Owner clarification |
+
+### Status (2026-10-03)
+
+- **Decision 59 — built, awaiting preview review.** Schema: `recipes.is_archived INTEGER NOT NULL
+  DEFAULT 0` and `recipes.archived_at DATETIME` (additive; every existing recipe stays visible).
+  API: `PUT /api/recipes/{id}/archive` with `{"is_archived": bool}` (idempotent; keeps the original
+  `archived_at`; does not touch `updated_at`, favourites, usual portions or any Diary row);
+  `GET /api/recipes` hides archived recipes unless `?include_archived=true`;
+  `GET /api/recipes/{id}` always opens and reports `is_archived`; `POST /api/diary` returns `409` for
+  an archived recipe so no client can log one by ID; `DELETE /api/recipes/{id}` returns `409` for any
+  recipe the Diary references, archived or not. React: icon toggles on one row — heart **Favourites** and archive-box **Archived** (owner-requested, replacing the original checkboxes), *Archived recipes*
+  section with **Restore** on each card, and an inline-confirmed **Archive recipe** on the detail page.
+  Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
+  Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
+  the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
+- **Two choices made while building it, for the owner to confirm in the preview:**
+  1. The *Archived* toggle is **always visible but disabled at 0**, rather than hidden until something is
+     archived, so the control is predictable.
+  2. The default `GET /api/recipes` **excludes** archived recipes and the Recipes page opts in with
+     `?include_archived=true`. Safe by default: the legacy UI and any future picker cannot offer an
+     archived recipe by accident.
+- **Decisions 60–61 — not built.** The next slice is the food-correction recalculation.
+- **Known edge, left as is:** the Mealie import duplicate-name check still matches an archived recipe,
+  so importing a recipe whose name matches an archived one reports "already exists".
+
+### Code findings behind the food-correction decision
+
+Inspected on 2026-10-03:
+
+- `HandleUpdateFood` updates `foods` and custom `food_servings` in a transaction; it does not update
+  dependent recipes or Diary entries.
+- Recipe totals are stored when a recipe is created or saved. Its overall per-100 g figures are
+  derived from those stored totals and its final weight.
+- Recipe detail loads ingredient calories from the **current** food values through a join. A food
+  correction can therefore make ingredient calories disagree with the recipe’s saved total, and new
+  recipe logs can use stale totals until the recipe is saved again.
+- Diary responses and bank/statistics calculations use saved Diary nutrition. Names are joined from
+  current catalogue rows, so a corrected food name changes the displayed label, not calorie spend.
+
+### Implementation requirements
+
+- Treat a food nutrition correction and dependent recipe recalculations as one transaction, so a
+  failure cannot leave only part of the catalogue updated. Reuse the existing recipe calculation
+  rules; do not change cooked weight or unrelated recipe content.
+- Preserve archived recipes’ ingredients and personal favourites/usual portions. Recalculate their
+  definitions too if an ingredient changes, so restoration does not reintroduce stale totals.
+- Retain database foreign keys and protect any remaining permanent-delete API path with a clear
+  conflict response when history references the recipe. Archive filtering must never filter a Diary
+  read or make a historic link disappear.
+- Verify future logs made from refreshed definitions use corrected figures, while all previously
+  stored Diary rows, day totals, bank figures and statistics stay unchanged. Corrected food labels
+  following their joins are explicitly permitted by decision 61.

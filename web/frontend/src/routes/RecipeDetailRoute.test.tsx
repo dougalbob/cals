@@ -96,6 +96,59 @@ describe('RecipeDetailRoute', () => {
   })
 })
 
+describe('RecipeDetailRoute archive and restore', () => {
+  it('archives after a confirmation, then offers Restore and stops offering Add to diary', async () => {
+    renderRoute(3)
+    expect(await screen.findByRole('heading', { name: 'Salmon Traybake' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Add to diary/ })).toBeTruthy()
+    expect(screen.queryByText('This recipe is archived')).toBeNull()
+
+    // Two steps, so one stray tap cannot retire a shared recipe.
+    fireEvent.click(screen.getByRole('button', { name: 'Archive recipe' }))
+    expect(seedRecipe(3).is_archived).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, archive it' }))
+
+    expect(await screen.findByText('This recipe is archived')).toBeTruthy()
+    expect(seedRecipe(3).is_archived).toBe(true)
+    expect(screen.queryByRole('button', { name: /Add to diary/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Archive recipe' })).toBeNull()
+    // The recipe itself is still fully readable.
+    expect(screen.getByRole('heading', { name: 'Ingredients' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore recipe' }))
+    await waitFor(() => expect(screen.queryByText('This recipe is archived')).toBeNull())
+    expect(seedRecipe(3).is_archived).toBe(false)
+    expect(screen.getByRole('button', { name: /Add to diary/ })).toBeTruthy()
+  })
+
+  it('lets the user back out of archiving', async () => {
+    renderRoute(3)
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive recipe' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it' }))
+    expect(screen.getByRole('button', { name: 'Archive recipe' })).toBeTruthy()
+    expect(seedRecipe(3).is_archived).toBe(false)
+  })
+
+  it('opens an archived recipe from a link and keeps recorded history untouched', async () => {
+    const before = seed.diaryEntries.map((entry) => ({ ...entry }))
+    handle('PUT', new URL('/api/recipes/1/archive', 'http://localhost'), { is_archived: true })
+
+    renderRoute(1)
+    expect(await screen.findByText('This recipe is archived')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Chicken Curry' })).toBeTruthy()
+
+    expect(seed.diaryEntries).toEqual(before)
+  })
+
+  it('refuses to log an archived recipe at the API, not just in the UI', () => {
+    handle('PUT', new URL('/api/recipes/2/archive', 'http://localhost'), { is_archived: true })
+    const refused = handle('POST', new URL('/api/diary', 'http://localhost'), {
+      date: '2026-10-03', meal: 'breakfast', recipe_id: 2, quantity_grams: 100, calories: 50,
+    })
+    expect(refused?.status).toBe(409)
+  })
+})
+
 describe('RecipePortionSheet', () => {
   it('guesses nothing on a first log, then remembers the first portion as usual', async () => {
     renderRoute()

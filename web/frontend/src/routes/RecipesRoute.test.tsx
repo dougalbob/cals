@@ -4,9 +4,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { handle } from '../../mock-api/handler.mjs'
-import { favouriteRecipeIds, resetFixtures } from '../../mock-api/seed.mjs'
+import { favouriteRecipeIds, recipes as seedRecipes, resetFixtures } from '../../mock-api/seed.mjs'
 import { RecipeDetailRoute } from './RecipeDetailRoute'
 import { RecipesRoute } from './RecipesRoute'
+
+/** Reads the fixture's archive flag back, to prove the UI really called the API. */
+function seedRecipeArchived(id: number) {
+  return seedRecipes.find((recipe) => recipe.id === id)?.is_archived
+}
 
 /** Lets the tests assert that the tag filter really is in the URL. */
 function LocationProbe() {
@@ -89,7 +94,7 @@ describe('RecipesRoute', () => {
     })
     expect(favouriteRecipeIds.has(1)).toBe(true)
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show favourites only' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Favourites' }))
     expect(screen.getByText('Chicken Curry')).toBeTruthy()
     expect(screen.queryByText('Porridge & Berries')).toBeNull()
     expect(screen.queryByText('Salmon Traybake')).toBeNull()
@@ -311,5 +316,67 @@ describe('RecipesRoute', () => {
       expect(screen.getByRole('button', { name: 'Add Porridge & Berries to favourites' }).getAttribute('aria-pressed')).toBe('false')
     })
     expect(favouriteRecipeIds.has(2)).toBe(false)
+  })
+
+  it('hides archived recipes until the Archived toggle is on, then offers Restore on the card', async () => {
+    // Archive one recipe through the fixture endpoint, as the detail page does.
+    expect(handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })?.status).toBe(200)
+    renderRoute()
+
+    // Hidden by default: not in the list, and the toggle counts it.
+    expect(await screen.findByText('Chicken Curry')).toBeTruthy()
+    expect(screen.queryByText('Salmon Traybake')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Restore Salmon Traybake' })).toBeNull()
+    const toggle = screen.getByRole('button', { name: 'Archived' }) as HTMLButtonElement
+    expect(toggle.disabled).toBe(false)
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('title')).toBe('Show archived recipes (1)')
+    // The Favourites and Archived toggles share one row.
+    const row = screen.getByRole('group', { name: 'Recipe views' })
+    expect(within(row).getByRole('button', { name: 'Favourites' })).toBeTruthy()
+    expect(within(row).getByRole('button', { name: 'Archived' })).toBe(toggle)
+
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    const archivedSection = await screen.findByRole('region', { name: /Archived recipes \(1\)/ })
+    expect(within(archivedSection).getByText('Salmon Traybake')).toBeTruthy()
+    // An archived card cannot be favourited, and offers Restore instead.
+    expect(within(archivedSection).queryByRole('button', { name: /favourites/ })).toBeNull()
+
+    fireEvent.click(within(archivedSection).getByRole('button', { name: 'Restore Salmon Traybake' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /Archived recipes/ })).toBeNull()
+    })
+    expect(await screen.findByText('Salmon Traybake')).toBeTruthy()
+    expect(seedRecipeArchived(3)).toBe(false)
+  })
+
+  it('disables the archived toggle when nothing is archived', async () => {
+    renderRoute()
+    const toggle = (await screen.findByRole('button', { name: 'Archived' })) as HTMLButtonElement
+    expect(toggle.disabled).toBe(true)
+  })
+
+  it('explains an all-archived catalogue instead of saying there are no recipes', async () => {
+    for (const id of [1, 2, 3, 4]) {
+      handle('PUT', new URL(`/api/recipes/${id}/archive`, 'http://localhost'), { is_archived: true })
+    }
+    renderRoute()
+    expect(await screen.findByText(/All your recipes are archived/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    expect(await screen.findByRole('region', { name: /Archived recipes \(4\)/ })).toBeTruthy()
+  })
+
+  it('applies search and tag filters to archived recipes too', async () => {
+    handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })
+    renderRoute()
+    fireEvent.click(await screen.findByRole('button', { name: 'Archived' }))
+    await screen.findByRole('region', { name: /Archived recipes/ })
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search recipes' }), {
+      target: { value: 'porridge' },
+    })
+    expect(screen.queryByRole('region', { name: /Archived recipes/ })).toBeNull()
+    expect(screen.getByText('Porridge & Berries')).toBeTruthy()
   })
 })

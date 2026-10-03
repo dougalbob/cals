@@ -73,6 +73,7 @@ type Recipe struct {
 	CreatedAt             time.Time              `json:"created_at"`
 	UpdatedAt             time.Time              `json:"updated_at"`
 	IsFavourite           bool                   `json:"is_favourite"`
+	IsArchived            bool                   `json:"is_archived"` // household-wide (decision 59): hidden from the catalogue and not loggable, history untouched
 	UsualGrams            *float64               `json:"usual_grams"` // signed-in user's remembered portion; null until they first log it
 	MealOccasions         []string               `json:"meal_occasions"`
 	DishType              string                 `json:"dish_type,omitempty"`

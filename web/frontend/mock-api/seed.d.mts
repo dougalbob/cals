@@ -56,6 +56,7 @@ export interface SeedRecipe {
   fibre_per_100g: number
   created_at: string
   updated_at: string
+  is_archived: boolean
   ingredients: {
     id: number
     recipe_id: number

@@ -120,3 +120,35 @@ func TestMigrationsBackfillWaterFlagAndEntrySnapshots(t *testing.T) {
 		t.Errorf("entry volume_ml = %d, want 250 (backfilled from the drink)", volume)
 	}
 }
+
+// Decision 59: archiving is an additive column pair. Existing recipes must come
+// through unarchived, and re-running migrations must be harmless.
+func TestRecipeArchiveColumnsAreAdditiveAndDefaultToVisible(t *testing.T) {
+	Close()
+	dbPath := filepath.Join(t.TempDir(), "archive.db")
+	if err := Initialize(dbPath); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO users (email) VALUES ('wife@example.com')`); err != nil {
+		t.Fatalf("inserting user: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO recipes (name, created_by_user_id) VALUES ('Existing recipe', 1)`); err != nil {
+		t.Fatalf("inserting recipe: %v", err)
+	}
+	Close()
+
+	// A second start re-runs every migration against a populated database.
+	if err := Initialize(dbPath); err != nil {
+		t.Fatalf("second Initialize() error = %v", err)
+	}
+	t.Cleanup(Close)
+
+	var isArchived int
+	var archivedAt *string
+	if err := DB.QueryRow(`SELECT is_archived, archived_at FROM recipes WHERE name = 'Existing recipe'`).Scan(&isArchived, &archivedAt); err != nil {
+		t.Fatalf("reading archive columns: %v", err)
+	}
+	if isArchived != 0 || archivedAt != nil {
+		t.Errorf("existing recipe should stay visible: is_archived=%d archived_at=%v", isArchived, archivedAt)
+	}
+}

@@ -1,14 +1,15 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
 **Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has three merged
-slices.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
+slices and a fourth (recipe archive/restore) awaiting preview review.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
 implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. The third
 makes the recipe tags themselves the filter (tap a tag to narrow the list, tap another to narrow it
 further); it was owner-reviewed in the Arena preview and merged as PR #30, published as
-`v2.0.0-dev-rc12`. Full recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
+`v2.0.0-dev-rc12`. The fourth (decision 59) lets a recipe be archived and restored without touching
+Diary history; it is built and awaiting the owner's preview review. Full recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
@@ -34,7 +35,7 @@ latter cannot render a full circle at the ±2,000 kcal limits — and both direc
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored |
 
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing
@@ -127,6 +128,8 @@ part-filled (dinner not logged yet).
 `/api/foods/search`, `/api/foods/custom`, `/api/foods` (POST), `/api/foods/{id}` (PUT/DELETE),
 `/api/recipes` (GET), `/api/recipes/{id}` (GET),
 `/api/recipes/{id}/favourite` (PUT), `/api/recipes/{id}/metadata` (PUT),
+`/api/recipes/{id}/archive` (PUT; `/api/recipes` hides archived unless `?include_archived=true`, and
+`POST /api/diary` returns 409 for an archived recipe, as the Go server does),
 `/api/diary` (GET/POST/PUT/DELETE), `/api/bank`,
 `/api/drinks` (GET/POST/PUT/DELETE), `/api/drinks/entries` (GET/POST/DELETE), `/api/water`,
 `/api/weight`, `/api/measurements`, `/api/stats/calories`, `/api/stats/bank`,

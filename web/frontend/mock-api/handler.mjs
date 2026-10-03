@@ -6,12 +6,12 @@
  * same ordering, same nullability. This is what makes the spike honest: the UI
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
- * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata PUT),
+ * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata + archive PUT),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
- *          demo flows and recipe favourite/metadata edits are implemented for the preview.
+ *          demo flows and recipe favourite/metadata/archive edits are implemented for the preview.
  */
 
 import * as seed from './seed.mjs'
@@ -150,7 +150,13 @@ export function handle(method, url, body) {
   if (pathname === '/api/users/me' && method === 'GET') return json(user)
 
   if (pathname === '/api/recipes' && method === 'GET') {
-    return json(recipes.map((recipe) => recipeResponse(recipe)))
+    // Decision 59: archived recipes are hidden unless the caller opts in, as in the Go handler.
+    const includeArchived = searchParams.get('include_archived') === 'true'
+    return json(
+      recipes
+        .filter((recipe) => includeArchived || !recipe.is_archived)
+        .map((recipe) => recipeResponse(recipe)),
+    )
   }
 
   const recipeDetailMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
@@ -309,6 +315,16 @@ export function handle(method, url, body) {
     return json({ ...recipe, is_favourite: seed.favouriteRecipeIds.has(recipe.id) })
   }
 
+  const archiveMatch = pathname.match(/^\/api\/recipes\/(\d+)\/archive$/)
+  if (archiveMatch && method === 'PUT') {
+    const recipe = recipes.find((item) => item.id === Number(archiveMatch[1]))
+    if (!recipe) return err(404, 'Recipe not found')
+    if (typeof body?.is_archived !== 'boolean') return err(400, 'is_archived must be a boolean')
+    // Flag only: updated_at, the diary rows, favourites and usual portions are untouched.
+    recipe.is_archived = body.is_archived
+    return json(recipeResponse(recipe))
+  }
+
   const favouriteMatch = pathname.match(/^\/api\/recipes\/(\d+)\/favourite$/)
   if (favouriteMatch && method === 'PUT') {
     const recipeId = Number(favouriteMatch[1])
@@ -326,6 +342,10 @@ export function handle(method, url, body) {
     const recipe = recipes.find((r) => String(r.id) === String(body?.recipe_id))
     const source = food ?? recipe
     if (!source) return err(400, 'unknown food_id or recipe_id')
+    // Decision 59: an archived recipe must be restored before it can be logged again.
+    if (recipe?.is_archived) {
+      return err(409, 'This recipe is archived. Restore it before adding it to the Diary.')
+    }
 
     // The real Go handler stores the nutrition snapshot sent by the client;
     // it does not re-read the current food/recipe definition. Keep the fixture
