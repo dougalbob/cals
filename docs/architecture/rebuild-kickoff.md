@@ -126,11 +126,11 @@ on 2026-10-02:
   target, with **one source of truth** — a flag on `drinks` marking which count toward water, and a
   target derived from those. The unused `water_entries` table must be dropped or repurposed, never
   left as a second ledger.
-- **Drink calories count towards the bank** (owner-confirmed). The current `bank.go` still ignores
-  drink calories; implement the fix with a regression test in Phase 12.
+- **Drink calories count towards the bank** (owner-confirmed and implemented in Phase 12, with a
+  regression test in `internal/handlers/bank_test.go`).
 - **Diary quick drinks:** preserve a fast, familiar quick-add selector for Tea, Coffee and Water,
-  backed by per-user drink definitions (not hard-coded calories). Whether new users receive editable
-  starter templates for these three remains to be confirmed before Phase 12; no generic defaults.
+  backed by per-user drink definitions (not hard-coded calories). **No starter drinks are provisioned**
+  (decision 16); when a user's list is empty, point them to Settings to create their own.
 
 ## 5. Guardrails
 
@@ -178,3 +178,7 @@ four meal tiles and shared water/quick drinks with counters and confirmed long-p
 delete. Legacy root is still the default; open `/next/` on Unraid to see this work.
 No appdata copy or schema migration is required. Review both identities on the LAN
 dev container before moving on to Phase 13. See frontend-strategy.md for scope.
+
+### Owner feedback — 2026-10-03
+
+Before Phase 13, close the Diary quantity-edit gap: Phase 12 already promises edit, the React view currently only deletes, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provide the path. The owner approved the interim ring behavior: inner ring on today's goal, outer ring on a signed balance with fixed ±2,000 kcal limits until Phase 15, with the exact balance visible. The owner has since suggested a recent lookback for the outer ring (tentatively 30 completed days) rather than lifetime accumulation: Phase 14 should add a separate food-and-drink rolling metric without changing the cumulative bank, and Phase 15 should make the lookback and limits configurable per user. This is not yet implemented. See [`frontend-strategy.md`](./frontend-strategy.md#owner-requested-diary-and-bank-ring-follow-ups-2026-10-03) and [`vision-and-open-questions.md`](../product/vision-and-open-questions.md#proposed-lookback-window-2026-10-03).

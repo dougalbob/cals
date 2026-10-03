@@ -82,7 +82,21 @@ The Diary must retain a fast, familiar quick-add interaction like the current bu
 
 ## D. The calorie bank
 
-The bank is the most distinctive feature of cals. It runs from a `bank_start_date` (configurable) and compounds: budget minus consumed, carried forward, with today's ring sized to goal + bank. **Drink calories are confirmed as consumption and must reduce the bank, just like food calories.** The current implementation does not yet do that; Phase 12 owns the fix and regression test.
+The bank is the most distinctive feature of cals. It runs from a `bank_start_date` (configurable) and compounds: budget minus consumed, carried forward, with today's available allowance currently sized to goal + bank. **Drink calories are confirmed as consumption and reduce the bank, just like food calories.**
+
+### Bank-ring presentation (2026-10-03)
+
+The owner approved separating the two stories shown by the Home and Diary rings: the **outer ring** visualizes the cumulative bank, while the **inner ring** continues to show today's calories against the daily goal. Until Phase 15 Settings, the display limits are fixed at +2,000 kcal and -2,000 kcal: +1,000 fills half green, -650 fills about one third red, and balances at or beyond either limit fill the outer ring completely. The exact balance remains visible even when the arc is capped; these boundaries affect presentation only, never the bank maths.
+
+Phase 15 will make the positive-bank cap and deficit magnitude independently adjustable per user, defaulting to 2,000 kcal each. Persist the settings through the user's API/schema so they follow the user across devices, not in browser-only storage. This is a narrow backend addition to the otherwise frontend-only rebuild.
+
+The current grey arc at a large deficit is explained by the old outer ring dividing by `today_available`: once that value is negative, progress clamps to zero and the arc has no visible length. The fixed-range ring currently uses the signed cumulative `bank_balance` directly.
+
+### Proposed lookback window — 2026-10-03
+
+The owner has suggested that the outer ring represent a recent rolling balance rather than all time since `bank_start_date`, tentatively the last 30 completed days, with the lookback length adjustable per user. Recommendation: make this a separate **display metric for the ring**; do not change the cumulative bank or the calculation of today's available allowance. The Banked/Deficit tile should continue to show the exact cumulative balance, while the ring label states the selected period (for example, “Last 30 days”).
+
+This is not already implemented: the existing `GET /api/stats/bank?days=30` returns 30 dated snapshots, but each snapshot is cumulative from `bank_start_date`, not a rolling-window total. It also currently omits drink calories. Schedule a tested rolling calculation and food+drink consistency with Phase 14 Metrics, then make the lookback per-user and editable with the ring limits in Phase 15 Settings. The 30-day default and exact settings range remain to be confirmed during that design.
 
 1. ~~**Does it ever reset?**~~ **Answered (2026-10-02, decision 17): manual only.** No automatic reset; the existing `bank_start_date` setting in Settings is the "start fresh from today" control, and it resets the running balance without touching history.
 2. **Should exercise credit the bank?** Google Fit steps are already synced but have no effect on the maths. "Eat back your steps" is a real decision, and a common source of drift.
@@ -138,7 +152,7 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 
 | # | Date | Decision | Source |
 |---|---|---|---|
-| 1 | 2026-10-02 | Drink calories **count** towards the calorie bank (owner-confirmed; current food-only bank calculation is scheduled for correction with a Phase 12 regression test) | Owner |
+| 1 | 2026-10-02 | Drink calories **count** towards the calorie bank (implemented in Phase 12 with a regression test) | Owner |
 | 2 | 2026-10-02 | Alcohol calories use a **sensible median per drink type**, not a full ABV/beverage database | Owner |
 | 3 | 2026-10-02 | Water is a **special case with its own target**, not merely a drink | Owner |
 | 4 | 2026-10-02 | Local development uses a **`DEV_MODE` environment variable** plus a **copy of the data** in `appdata/cals-dev` | Owner |
@@ -184,3 +198,6 @@ highest-value open questions now are:
 | 24 | 2026-10-03 | Vary sheet: milk = **none / with milk**; sugar = **0 / 1 / 2 / sweetener**. Sensible UK medians, not a beverage database. | Owner |
 | 25 | 2026-10-03 | Catalog types (everyday four first, no scroll): **Coffee, Tea, Milk, Juice**, then Cappuccino, Latte, Hot chocolate, Squash, Soft drink, Beer, Wine. Nothing auto-inserted into `drinks` (decision 16 still holds). | Owner |
 | 26 | 2026-10-03 | Quick drinks render as an **equal-width 2×2**. More than four: vertical scroll-snap with haptic. | Owner |
+| 27 | 2026-10-03 | The calorie ring uses the **cumulative bank balance** on the outer ring, with fixed ±2,000 kcal visual limits until Phase 15; the inner ring remains today's calories against the daily goal. The exact bank value remains visible, and the gauge does not change bank maths. Phase 15 adds independent per-user limits. | Owner |
+
+Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain.

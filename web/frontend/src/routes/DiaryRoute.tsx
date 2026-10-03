@@ -103,7 +103,6 @@ export function DiaryRoute() {
     [drinks.data],
   )
   const consumed = Math.round(foodCalories + drinkCalories)
-  const available = bank.data?.today_available ?? 2000
   const bankBalance = bank.data?.bank_balance ?? 0
 
   const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
@@ -170,7 +169,7 @@ export function DiaryRoute() {
 
       {/* Ring + bank ---------------------------------------------------- */}
       <section className="rounded-2xl bg-card p-4 shadow-card flex flex-col sm:flex-row items-center gap-4">
-        <CalorieRing consumed={consumed} available={available} goal={bank.data?.daily_goal ?? 0} />
+        <CalorieRing consumed={consumed} bankBalance={bankBalance} goal={bank.data?.daily_goal ?? 0} />
         <div className="flex-1 w-full grid grid-cols-2 gap-3">
           <Tile label="Daily goal" value={formatNumber(bank.data?.daily_goal ?? 0)} unit="kcal" />
           <Tile
