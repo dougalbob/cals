@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** Two Phase 12 close-out PRs are open, both frontend-only: **#22** opposite bank-ring sweep directions (surplus clockwise, deficit anticlockwise) and **#23** the logged-quantity **Edit** action. Once they are merged, Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary as **both** users before Phase 13 |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 Diary/Today UI is on `cals-dev`; `v2.0.0-dev-rc7` (the fixed-range bank ring) is published and `dev-latest` points to it.** The Phase 12 close-out is open as a single frontend-only PR, **#22**, covering opposite bank-ring sweep directions (surplus clockwise, deficit anticlockwise) and the logged-quantity **Edit** action. Once it is merged, publish a `v2.0.0-dev-rc*` tag and Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary as **both** users before Phase 13 |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -183,7 +183,7 @@ dev container before moving on to Phase 13. See frontend-strategy.md for scope.
 
 ### Owner feedback — 2026-10-03
 
-**Done (2026-10-03, PR #23): the Diary quantity-edit gap is closed.** Phase 12 already promised edit, the React view only deleted, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provided the path. Every logged row now has an Edit action with a weight input and live calorie preview; saving rescales that entry's own saved nutrition and refreshes the diary and bank, and zero/negative weights are refused. No backend, schema or appdata change.
+**Done (2026-10-03, the Phase 12 close-out PR): the Diary quantity-edit gap is closed.** Phase 12 already promised edit, the React view only deleted, and the existing Go `PUT /api/diary/{id}` endpoint plus legacy edit behavior provided the path. Every logged row now has an Edit action with a weight input and live calorie preview; saving rescales that entry's own saved nutrition and refreshes the diary and bank, and zero/negative weights are refused. No backend, schema or appdata change.
 
 The owner approved the interim ring behavior: inner ring on today's goal, outer ring on a signed balance with fixed ±2,000 kcal limits until Phase 15, with the exact balance visible. The owner has since suggested a recent lookback for the outer ring (tentatively 30 completed days) rather than lifetime accumulation: Phase 14 should add a separate food-and-drink rolling metric without changing the cumulative bank, and Phase 15 should make the lookback and limits configurable per user. This is not yet implemented. See [`frontend-strategy.md`](./frontend-strategy.md#owner-requested-diary-and-bank-ring-follow-ups-2026-10-03) and [`vision-and-open-questions.md`](../product/vision-and-open-questions.md#proposed-lookback-window-2026-10-03).
 
