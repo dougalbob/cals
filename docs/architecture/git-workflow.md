@@ -162,6 +162,32 @@ gh pr create --base cals-dev --fill
   > 3. Open the PR against `cals-dev`, never `main`.
   > 4. Read `AGENTS.md` and `docs/README.md` first; update the relevant document under `docs/` as part of the work. (`ai_contextual_docs/context.txt` is legacy — do not rely on it or append to it.)
 
+### “Lets publish” — the owner's end-to-end delivery directive
+
+Owner decision 20 (2026-10-03): when the owner says **“Lets publish”** (or “Lets cut a release”), the
+session is authorized to run the whole GitHub delivery loop for the reviewed work **without asking
+again at each step**:
+
+1. Sync first: `git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev`.
+2. Make sure the work is committed on the session branch and the acceptance gate is satisfied — for UI
+   work the owner's preview review plus the PR description of the concrete UX improvement.
+3. Push the session branch, open the PR **against `cals-dev`**, and wait for its checks
+   (`.github/workflows/docker-validate.yml`, the build-only Docker check).
+4. Merge the PR with a merge commit (the topology in §2 — `main` is never involved).
+5. Fast-forward the local branch to the merge commit on `cals-dev`, then tag that exact commit:
+   `git tag -a v2.0.0-dev-rcN -m "<checkpoint summary>" <merge-sha>` and `git push origin v2.0.0-dev-rcN`.
+   The tag is the approval step; `publish-dev-image.yml` then builds, pushes the exact tag and
+   `dev-latest`, creates the GitHub prerelease and verifies an anonymous pull.
+6. Record the result: add the row to the [release log](./unraid-image-release.md#release-log) with the
+   run link and image digest, note what the checkpoint contains, and confirm no schema migration or
+   appdata operation happened (or say exactly what did).
+7. Tell the owner what to Force Update on Unraid and what to review.
+
+**What “Lets publish” does *not* authorize:** pushing or merging `main`, promoting to stable, changing
+live appdata, moving `latest`, or skipping checks. Publishing a development checkpoint does not update
+a running Unraid container; the owner's Force Update is what applies it. If a check fails, fix it and
+report — do not tag around it.
+
 ### Releases (`cals-dev` → `main`)
 
 1. Confirm the Unraid deployment has been running the `cals-dev` build cleanly.

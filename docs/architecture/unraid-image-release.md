@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc10` are published; `dev-latest` points to rc10 and is anonymously pullable (verified in CI). The owner can now Force Update `cals-dev-v2` to review the Phase 13 recipe metadata increment |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through `v2.0.0-dev-rc11` are published; `dev-latest` points to rc11 and is anonymously pullable (verified in CI). The owner can now Force Update `cals-dev-v2` to review the Phase 13 serving/portion increment |
 | **Updated** | 2026-10-03 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -188,6 +188,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc8` | 2026-10-03, [run 37110417233](https://github.com/dougalbob/cals/actions/runs/37110417233) | `f6a6675` on `cals-dev` (PR #22 Phase 12 close-out: opposite bank-ring sweep directions + Diary quantity edit) | `sha256:74a5094f079e558831b690f640536c9fc8af63d50b12bac930f3b1f6a95c72dc` | [v2.0.0-dev-rc8](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc8) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary at phone size as **both** identities; no schema migration or data copy |
 | `v2.0.0-dev-rc9` | 2026-10-03, [run 37114327989](https://github.com/dougalbob/cals/actions/runs/37114327989) | `0ae1b3c` on `cals-dev` (PR #24: Diary real-server correctness follow-ups + Phase 13 serving/portion decisions) | `sha256:fd58d5a1a89f695ff9f30e7a331a6984099a0d151daac555ee099c36d9e22f73` | [v2.0.0-dev-rc9](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc9) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review the Diary correctness fixes; no schema migration or data copy |
 | `v2.0.0-dev-rc10` | 2026-10-03, [run 37122503399](https://github.com/dougalbob/cals/actions/runs/37122503399) | `94c502b` on `cals-dev` (PR #26: shared recipe metadata, per-user favourites and catalogue filters) | `sha256:d0b1ef9e54cd1915a2bb1a07c75d0728af6ec2d5b95815de6b7d4b11f297ccbd` | [v2.0.0-dev-rc10](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc10) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review Phase 13 Recipes; additive schema migration runs on startup, no appdata copy |
+| `v2.0.0-dev-rc11` | 2026-10-03, [run 37125235067](https://github.com/dougalbob/cals/actions/runs/37125235067) | `6740af9` on `cals-dev` (PR #28: food serving choices and recipe-to-Diary portions) | `sha256:95ea95e40d09a2ae875eade049b907c6291ec7735bd196a9c35a7f34237e4d63` | [v2.0.0-dev-rc11](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc11) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review Phase 13 servings/portions; additive schema migration (`food_servings` household rows + `recipe_user_portions`) runs on startup, no appdata copy |
 
 ## Not implemented yet
 
@@ -265,3 +266,33 @@ known-Food key foods and optional total minutes; user-scoped favourites; the cat
 facet filters. Its SQLite changes are additive and run automatically when the new image starts. No
 appdata copy or manual data migration was performed. `dev-latest` now points to rc10; the owner can
 Force Update `cals-dev-v2` on `8151` to review. This session did not access Unraid or live appdata.
+
+### 2026-10-03 — rc11 Phase 13 servings and portions checkpoint
+
+Published **`v2.0.0-dev-rc11`**, source `6740af986808b2476f0f46bcbffe856d810ec9b5`
+(PR #28 merge on `cals-dev`). [Publish run 37125235067](https://github.com/dougalbob/cals/actions/runs/37125235067)
+passed the `cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease
+creation, and the anonymous-pull check. Image digest:
+`sha256:95ea95e40d09a2ae875eade049b907c6291ec7735bd196a9c35a7f34237e4d63`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc11).
+
+This checkpoint is the second Phase 13 increment, following owner decisions 29–32. Foods can carry
+several named gram-backed measures beside FatSecret's own (`fatsecret_serving_id IS NULL` marks the
+household rows, which are replaced on edit while FatSecret rows are preserved), and Add/Edit opens with
+an explicit serving/grams toggle that only offers serving mode when a real measure exists. Diary entry
+responses now carry the logged food's serving metadata so Edit offers the same choices, while the rows
+themselves still store grams plus their own nutrition snapshot. Recipe detail logs a portion: fractions
+of the whole cooked recipe, direct gram editing, and a per-user remembered usual backed by the new
+`recipe_user_portions` table — the first successful log becomes the usual, later amounts are one-off
+unless **“Make this my usual”** is ticked. `POST /api/diary` accepts `make_usual`.
+
+The SQLite changes are **additive** (`food_servings` household rows and `recipe_user_portions`) and run
+automatically when the new image starts. No appdata copy, template change or manual data migration was
+performed, and this session did not access Unraid or live appdata. Cooked-weight concentration maths and
+its unit tests are unchanged. `dev-latest` now points to rc11; the owner should Force Update
+`cals-dev-v2` on `8151` and review Foods (measures), Diary add/edit (serving/grams) and Recipes →
+Add to diary (fractions, grams, remembered usual) at phone size as both identities.
+
+The release was cut with the owner's **“Lets publish”** directive (owner decision 20, 2026-10-03); the
+sequence is now written down in [`git-workflow.md`](./git-workflow.md#lets-publish--the-owners-end-to-end-delivery-directive)
+so a later session does not have to rediscover it.
