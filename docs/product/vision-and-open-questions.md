@@ -628,6 +628,14 @@ Inspected on 2026-10-03:
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 
+**Status:** decisions 62–64 are **built, owner-accepted in-session and published as
+`v2.0.0-dev-rc17`** (PR #40 merged to `cals-dev` as `5d05f27`, [publish run
+37154091274](https://github.com/dougalbob/cals/actions/runs/37154091274)); the owner's phone-size
+review happens on the container after the Force Update. Decision 65's workflow is live and went green
+on its very first run. **One question is open:** whether today should be the last loggable day in the
+whole app, or whether pre-logging a planned meal stays (see “What 63 deliberately left alone” below, and
+`CURRENT_STATE.md` §3).
+
 **Four papercuts from the owner's road test, plus the CI hole that let one of them through.** All of
 it is frontend or workflow work: no API change, no migration, no movement in the bank maths.
 
