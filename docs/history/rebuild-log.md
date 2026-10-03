@@ -14,6 +14,18 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc14` (PR #34)
+
+Owner said **"Lets publish"** (decision 20) after reviewing recipe archive/restore in the Arena
+preview, so PR #34 (checks green) was merged to `cals-dev` as `29bd7bb` and tagged `v2.0.0-dev-rc14`.
+The tag-triggered workflow ([run 37137097231](https://github.com/dougalbob/cals/actions/runs/37137097231))
+passed the ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the
+anonymous-pull check; digest `sha256:be601ee04bb8f57182a525931570cc7eba703cbafc3e4fd25bf2f193254233f5`.
+Unlike rc12 and rc13 this checkpoint **changes the schema** (additive: `recipes.is_archived`,
+`archived_at`), so the owner should confirm the backup before Force Updating. No appdata, template or
+Unraid access by the session. Details in the
+[release log](../architecture/unraid-image-release.md#release-log).
+
 ## 2026-10-03 — Phase 13 slice 4: recipes can be archived and restored (decision 59)
 
 The owner left the choice of slice to the session. Archive/restore was picked because it closes the
@@ -29,8 +41,7 @@ deleting a logged one, the React **Show archived** toggle, **Restore** on archiv
 inline-confirmed **Archive recipe** on the detail page, and the legacy UI's Delete button replaced by
 Archive. Go and Vitest regression tests assert that diary rows, day totals, the bank and the recipe
 label are identical across archive and restore. Verified in the sandbox against the real handlers and
-a populated, re-migrated database. **Not merged or published** — it waits on the owner's preview review
-([`CURRENT_STATE.md`](../CURRENT_STATE.md) §3). Details and the two open choices are in the
+a populated, re-migrated database. The owner reviewed it in the preview and asked for one change — the filter checkboxes became heart **Favourites** and archive-box **Archived** toggle buttons on one row — and it was then published as rc14 (see the entry above). Details and the two open choices are in the
 [decision log](../product/vision-and-open-questions.md#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
 ## 2026-10-03 — Archive/restore and food corrections agreed (decisions 59–61)

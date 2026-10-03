@@ -576,7 +576,7 @@ label everywhere, including historical entries. Current implementation status li
 
 ### Status (2026-10-03)
 
-- **Decision 59 — built, awaiting preview review.** Schema: `recipes.is_archived INTEGER NOT NULL
+- **Decision 59 — built, owner-reviewed, merged (PR #34) and published as `v2.0.0-dev-rc14`.** Schema: `recipes.is_archived INTEGER NOT NULL
   DEFAULT 0` and `recipes.archived_at DATETIME` (additive; every existing recipe stays visible).
   API: `PUT /api/recipes/{id}/archive` with `{"is_archived": bool}` (idempotent; keeps the original
   `archived_at`; does not touch `updated_at`, favourites, usual portions or any Diary row);
@@ -588,7 +588,7 @@ label everywhere, including historical entries. Current implementation status li
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
-- **Two choices made while building it, for the owner to confirm in the preview:**
+- **Two choices made while building it** (the owner reviewed both in the preview and accepted them):
   1. The *Archived* toggle is **always visible but disabled at 0**, rather than hidden until something is
      archived, so the control is predictable.
   2. The default `GET /api/recipes` **excludes** archived recipes and the Recipes page opts in with

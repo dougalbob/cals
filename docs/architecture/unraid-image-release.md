@@ -154,7 +154,7 @@ The source repository was made public on 2026-10-02 as a prerequisite of this pu
 
 The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
 
-## Part 2 — publish the first V2 image (complete; rc13 is current)
+## Part 2 — publish the first V2 image (complete; rc14 is current)
 
 The owner-directed sequence is: **finish the Phase 11 foundation PR first (done — PR #5 is merged into `cals-dev`); make the first GHCR image the next focused task.** Do not bundle image publishing into feature PRs.
 
@@ -164,13 +164,13 @@ Before starting Part 2, confirm you are on the current `cals-dev` using the expl
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc13 published; `dev-latest` currently points at rc13. See the [release log](#release-log) |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — every checkpoint from [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) to [rc13](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc13) has a prerelease carrying its source commit and image digest |
+| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through rc14 published; `dev-latest` currently points at rc14. See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — every checkpoint from [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) to [rc14](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc14) has a prerelease carrying its source commit and image digest |
 | 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
-| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02. Owner action: Force Update the existing `cals-dev-v2` container to test each new candidate; rc13 is current and rc12 is the same application content (`rc11` and earlier were never Force Updated, so the container may still be on an older image — check the in-app footer) |
-| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 Source, tag, digest and CI build results are recorded through rc13; the owner should add the Unraid smoke-test result after Force Updating |
+| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02. Owner action: Force Update the existing `cals-dev-v2` container to test each new candidate; rc14 is current (it carries the recipe archive/restore slice and an additive migration); rc12 and rc13 are the same application content (`rc11` and earlier were never Force Updated, so the container may still be on an older image — check the in-app footer) |
+| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | 🟡 Source, tag, digest and CI build results are recorded through rc14; the owner should add the Unraid smoke-test result after Force Updating |
 
-The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have since passed for rc1–rc13. The remaining owner gate is to Force Update the Unraid container and record the smoke-test result.
+The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have since passed for rc1–rc14. The remaining owner gate is to Force Update the Unraid container and record the smoke-test result.
 
 This first image is a **development smoke-test image**, not a completed UI redesign or authorization to cut over V1. The `/next/` frontend is still a foundation; keep the UI improvement and owner-review gate for later user-facing phases.
 
@@ -191,6 +191,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc11` | 2026-10-03, [run 37125235067](https://github.com/dougalbob/cals/actions/runs/37125235067) | `6740af9` on `cals-dev` (PR #28: food serving choices and recipe-to-Diary portions) | `sha256:95ea95e40d09a2ae875eade049b907c6291ec7735bd196a9c35a7f34237e4d63` | [v2.0.0-dev-rc11](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc11) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` to review Phase 13 servings/portions; additive schema migration (`food_servings` household rows + `recipe_user_portions`) runs on startup, no appdata copy |
 | `v2.0.0-dev-rc12` | 2026-10-03, [run 37130651708](https://github.com/dougalbob/cals/actions/runs/37130651708) | `ead2bf9` on `cals-dev` (PR #30: tap-to-filter recipe tags, decisions 41–54, docs restructure) | `sha256:59631e659d11cfd32423fa87d50ba35b93a578fbc0847d6ac51550ac9e7da928` | [v2.0.0-dev-rc12](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc12) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`); **no schema migration, no data copy, no appdata change** |
 | `v2.0.0-dev-rc13` | 2026-10-03, [run 37132678548](https://github.com/dougalbob/cals/actions/runs/37132678548) | `9260e10` on `cals-dev` (PR #32: recipe-adaptation requirement and frozen history, decisions 55–58 — **documentation only**) | `sha256:d28a820975261cff158c6d7f89f652d4846cac7cc68bc707de3c13f1dbf48103` | [v2.0.0-dev-rc13](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc13) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` and review the Recipes tag filter at phone size (also `/next/` on `8152`); **documentation-only checkpoint: the image is functionally identical to rc12**; no schema migration, no data copy, no appdata change |
+| `v2.0.0-dev-rc14` | 2026-10-03, [run 37137097231](https://github.com/dougalbob/cals/actions/runs/37137097231) | `29bd7bb` on `cals-dev` (PR #34: recipe archive/restore, decision 59) | `sha256:be601ee04bb8f57182a525931570cc7eba703cbafc3e4fd25bf2f193254233f5` | [v2.0.0-dev-rc14](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc14) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review Recipes → Archive / Archived / Restore at phone size; **additive schema migration** (`recipes.is_archived`, `recipes.archived_at`) runs on first start — confirm the backup first; no data copy, no template change |
 
 ## Not implemented yet
 
@@ -356,3 +357,33 @@ account. `dev-latest` now points to rc13 so the moving tag tracks the current `c
 owner's outstanding action is unchanged: Force Update `cals-dev-v2` on `8151` (and `/next/` on the LAN
 container `8152`) and review the Phase 13 tag filter at phone size. No API, schema, migration, template
 or appdata change; the session did not access Unraid or live appdata.
+
+### 2026-10-03 — rc14 recipe archive/restore (decision 59)
+
+Published **`v2.0.0-dev-rc14`**, source `29bd7bb3bc605821c0e723c20ffab091d5f87fe8`
+(PR #34 merge on `cals-dev`). [Publish run 37137097231](https://github.com/dougalbob/cals/actions/runs/37137097231)
+passed the `cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease
+creation and the anonymous-pull check. Image digest:
+`sha256:be601ee04bb8f57182a525931570cc7eba703cbafc3e4fd25bf2f193254233f5`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc14). PR #34's build-only
+Docker check also passed before the merge.
+
+Phase 13's fourth slice, cut on the owner's **“Lets publish”** directive (decision 20) after he
+reviewed it in the Arena preview:
+
+- **Archive/restore** (decision 59): a recipe can be archived household-wide from its detail page and
+  restored from the Recipes page or its own page; archived recipes are hidden from the list and cannot
+  be logged until restored, and every recorded Diary row, day total, bank figure and recipe label is
+  unchanged. Heart **Favourites** and archive-box **Archived** toggles share one row in the filter card.
+- **API:** `PUT /api/recipes/{id}/archive`; `GET /api/recipes?include_archived=true`; `409` on logging
+  an archived recipe and on deleting a recipe the Diary references (previously an opaque `500`).
+- **Legacy UI:** its Delete button became Archive.
+
+**Schema: additive migration.** `recipes` gains `is_archived INTEGER NOT NULL DEFAULT 0` and
+`archived_at DATETIME`, applied automatically on first start of the new image; every existing recipe
+stays visible. It was tested against a populated, re-migrated database in the sandbox. No appdata copy,
+template change or manual data step was performed, and the session did not access Unraid or live
+appdata. Because it is the first checkpoint since rc11 to change the schema, the owner should confirm
+the backup (decision 54) before Force Updating `cals-dev-v2` on `8151`, then review Recipes at phone
+size. `dev-latest` now points to rc14. Decision 60 (recalculating recipes after a food correction) is
+not in this image.
