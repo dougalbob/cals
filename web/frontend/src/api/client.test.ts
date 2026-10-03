@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthExpiredError, apiGet } from './client'
+import { AuthExpiredError, apiGet, apiPut } from './client'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -18,6 +18,33 @@ describe('API response handling', () => {
     )
 
     await expect(apiGet<typeof body>('/api/example')).resolves.toEqual(body)
+  })
+
+  it('accepts valid JSON when a successful response has the wrong content type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('{"success":true}', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        }),
+      ),
+    )
+
+    await expect(apiPut<{ success: boolean }>('/api/diary/7', { quantity_grams: 25 })).resolves.toEqual({
+      success: true,
+    })
+  })
+
+  it('treats an empty successful response as success', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('', { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }),
+      ),
+    )
+
+    await expect(apiPut<void>('/api/diary/7', { quantity_grams: 25 })).resolves.toBeUndefined()
   })
 
   it('reloads once when Cloudflare Access returns an HTML login page', async () => {

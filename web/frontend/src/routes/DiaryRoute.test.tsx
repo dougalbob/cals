@@ -144,6 +144,35 @@ describe('DiaryRoute', () => {
     )
   })
 
+  it('adds a food with the full nutrition snapshot expected by the Go API', async () => {
+    renderDiary('/diary')
+
+    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
+    const breakfast = (await screen.findByText('Breakfast')).closest('section')
+    expect(breakfast).toBeTruthy()
+    fireEvent.click(within(breakfast as HTMLElement).getByRole('button', { name: '+ Add food' }))
+
+    fireEvent.change(screen.getByPlaceholderText('Search foods…'), { target: { value: 'Porridge' } })
+    const modal = screen.getByRole('dialog')
+    const porridge = await within(modal).findByRole('button', { name: /Porridge Oats/ })
+    const quantity = screen.getByLabelText('Quantity (grams)')
+    fireEvent.change(quantity, { target: { value: '50' } })
+    fireEvent.click(porridge)
+
+    await waitFor(() => {
+      const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
+      expect(added).toMatchObject({
+        food_id: 1,
+        quantity_grams: 50,
+        calories: 189.5,
+        protein: 6.6,
+        carbs: 33.85,
+        fat: 3.25,
+        fibre: 5.05,
+      })
+    })
+  })
+
   it('logs a drink in one tap and updates water, drink totals and the bank', async () => {
     renderDiary('/diary')
 

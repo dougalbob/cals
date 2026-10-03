@@ -28,9 +28,36 @@ export interface DiaryQuantityUpdate {
   fibre: number
 }
 
+/** Per-100 g nutrition values used to snapshot a newly logged food or recipe. */
+export interface NutritionPer100g {
+  calories_per_100g: number
+  protein_per_100g: number
+  carbs_per_100g: number
+  fat_per_100g: number
+  fibre_per_100g: number
+}
+
 /** A weight must be a real, positive number of grams. */
 export function isValidQuantity(grams: number): boolean {
   return Number.isFinite(grams) && grams > 0
+}
+
+/** Create a diary nutrition snapshot from a definition's per-100 g values. */
+export function nutritionForGrams(
+  source: NutritionPer100g,
+  grams: number,
+): DiaryQuantityUpdate | null {
+  if (!isValidQuantity(grams)) return null
+
+  const factor = grams / 100
+  return {
+    quantity_grams: grams,
+    calories: source.calories_per_100g * factor,
+    protein: source.protein_per_100g * factor,
+    carbs: source.carbs_per_100g * factor,
+    fat: source.fat_per_100g * factor,
+    fibre: source.fibre_per_100g * factor,
+  }
 }
 
 /**

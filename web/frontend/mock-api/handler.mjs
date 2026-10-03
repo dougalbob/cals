@@ -152,7 +152,7 @@ export function handle(method, url, body) {
     const q = (searchParams.get('q') ?? '').toLowerCase()
     if (q.length < 2) return json([])
     const results = foods
-      .filter((f) => f.name.toLowerCase().includes(q) || f.brand.toLowerCase().includes(q))
+      .filter((f) => f.name.toLowerCase().includes(q) || (f.brand ?? '').toLowerCase().includes(q))
       .slice(0, 20)
       .sort((a, b) => {
         const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1
@@ -253,7 +253,9 @@ export function handle(method, url, body) {
     const source = food ?? recipe
     if (!source) return err(400, 'unknown food_id or recipe_id')
 
-    const k = grams / 100
+    // The real Go handler stores the nutrition snapshot sent by the client;
+    // it does not re-read the current food/recipe definition. Keep the fixture
+    // honest so omitted values surface as zero, just as they do in production.
     const entry = {
       id: Math.max(0, ...seed.diaryEntries.map((e) => e.id)) + 1,
       user_id: 1,
@@ -262,11 +264,11 @@ export function handle(method, url, body) {
       food_id: food ? food.id : null,
       recipe_id: recipe ? recipe.id : null,
       quantity_grams: grams,
-      calories: num(source.calories_per_100g * k),
-      protein: num(source.protein_per_100g * k),
-      carbs: num(source.carbs_per_100g * k),
-      fat: num(source.fat_per_100g * k),
-      fibre: num(source.fibre_per_100g * k),
+      calories: Number(body?.calories ?? 0),
+      protein: Number(body?.protein ?? 0),
+      carbs: Number(body?.carbs ?? 0),
+      fat: Number(body?.fat ?? 0),
+      fibre: Number(body?.fibre ?? 0),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       ...(food ? { food_name: food.name } : { recipe_name: recipe.name }),

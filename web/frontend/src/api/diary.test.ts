@@ -49,13 +49,28 @@ describe('typed Diary API client', () => {
       meal: 'breakfast',
       food_id: 7,
       quantity_grams: 100,
+      calories: 250,
+      protein: 10,
+      carbs: 20,
+      fat: 8,
+      fibre: 3,
     })
     await deleteDiaryEntry(11)
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/diary')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ meal: 'breakfast', food_id: 7, quantity_grams: 100, date: '2026-10-02' }),
+      body: JSON.stringify({
+        meal: 'breakfast',
+        food_id: 7,
+        quantity_grams: 100,
+        calories: 250,
+        protein: 10,
+        carbs: 20,
+        fat: 8,
+        fibre: 3,
+        date: '2026-10-02',
+      }),
     })
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/diary/11')
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: 'DELETE' })

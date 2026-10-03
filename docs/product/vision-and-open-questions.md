@@ -113,9 +113,26 @@ This is where a rebuild earns its keep, so it is worth being specific about the 
 6. **What do you (or your wife) log most days that takes the most taps today?** A habitual breakfast, coffee, the same lunch?
 7. **Would "same as yesterday", favourites, or recently-logged shortcuts help?** Any of these would be a headline feature of the rebuild.
 8. **Are the four meal slots right** (breakfast, lunch, dinner, snacks)? Is there anything logged that fits none of them?
-9. **Do you ever log recipes by portion weight?** (Already supported — is it actually used?)
+9. **Recipe diary portions — answered 2026-10-03.** A user's usual amount is personal and may differ from another person's; offer a remembered usual weight per user and recipe (for example, 200 g), editable in grams, plus fractions of the whole cooked recipe for visually served dishes (for example, ¼ of a lasagne). All choices convert to grams; diary entries continue to store only grams and the nutrition snapshot. The per-user preference is separate from diary history. This resolves whether recipe logging should be weight-based or serving-based: support both, without assuming every user's portion is the recipe's `serves` value.
 10. **How often do you log away from home** — pub, restaurant, takeaway — where you're estimating rather than weighing? How is that handled today?
 11. **Barcode scanning** — genuinely useful, or is the food repertoire stable enough that it isn't?
+
+### Phase 13 input: serving-based food quantities (owner request, 2026-10-03)
+
+The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”** instead of translating every portion into grams first. Foods already support an optional primary `serving_name` / `serving_grams`, and FatSecret foods may have multiple gram-backed `food_servings`. Diary entries store grams and a nutrition snapshot; `GET /api/diary` does not yet return serving metadata for Edit.
+
+**Agreed Add/Edit interaction (2026-10-03):** show an explicit serving/grams mode toggle. Start in serving mode when the food has a reliable serving choice; otherwise start in grams mode. Always allow switching to grams, convert every choice through grams, and show the resulting grams and live kcal. Never invent a unit or conversion. Add optional serving metadata to the diary response so Edit can offer the same choices without changing the diary storage model.
+
+**Serving catalogue recommendation:** keep FatSecret's gram-backed options and support several additional named, gram-backed measures per food (for example, a household's regular “bag” or “slice”), rather than limiting users to one custom serving. Keep these measures attached to the food, not as ambiguous cross-food conversions such as a universal “mug”; this fits the existing shared food catalogue and lets the two household users select the same known measures. The existing `food_servings` table can represent multiple choices; `serving_name` / `serving_grams` can remain the preferred primary choice. Grams remain canonical. This expands the food editor/API, but should not require a diary-schema change.
+
+**Agreed recipe-to-Diary direction (2026-10-03):** support both a per-user, per-recipe usual quantity in grams and fractions of the entire cooked recipe (e.g. ¼, ½, ¾, all), with direct gram editing always available. Remembering a usual quantity requires a small user-scoped recipe preference; it must not be stored in the shared recipe's `serves` field or in diary rows. Keep the recipe's `serves` value as recipe-level yield information, not as an assumption about a particular user's plate. Recipe servings and ingredient selections still convert to grams and preserve the logged nutrition snapshot.
+
+**First-use and update behavior (owner choices, 2026-10-03):** if no usual amount is saved for a recipe, do not preselect a guessed quantity; let the user choose a whole-recipe fraction or enter grams. After the first successful log, remember that amount as their usual for this recipe. On later logs, prefill the saved usual; changing it for today's entry is one-off and must not overwrite the usual unless the user explicitly chooses **“Make this my usual.”** This supports occasional larger or smaller portions without losing the person's normal amount.
+
+**Still open for Phase 13 design**
+
+- If two people need different customary conversions for the same food, is a shared per-food list sufficient, or will genuinely personal per-user food measures be needed? Start with shared per-food choices; only add per-user overrides if testing exposes a real need.
+- Validate on phone that the serving/grams toggle, multiple serving choices, whole-recipe fractions, and editable grams remain clear without crowding the Add/Edit sheets.
 
 ## F. Nutrition targets
 
@@ -178,9 +195,10 @@ Decisions 1–3 and 6–11 guide feature behaviour and delivery. Decision 10 is 
 
 ## Where to go next
 
-Core identity, water units/target and the drink-template choices are settled (decisions 15–17); the
-Diary rebuild (Phase 12) is implemented and awaiting the owner's phone-size review. The
-highest-value open questions now are:
+Core identity, water units/target and the drink-template choices are settled (decisions 15–17).
+Phase 12 is implemented, with real-server Diary correctness follow-ups now verified. Phase 13's food
+serving and recipe-portion direction is recorded in decisions 29–32; implementation is next, while
+phone-size review and remaining product questions stay open. The highest-value open questions now are:
 
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
@@ -204,6 +222,15 @@ highest-value open questions now are:
 | 28 | 2026-10-03 | On the outer ring, a **surplus grows clockwise in green and a deficit grows anticlockwise in red, both starting at 12 o'clock** — the direction itself carries the sign, so colour is not the only signal. Implemented in the Phase 12 close-out PR; presentation only, no change to the bank figure, scale or maths. | Owner |
 
 Decision 27 replaces only the outer-ring behavior in decision 18; the Today landing page and inner-ring daily-goal countdown remain. Decision 28 refines decision 27's presentation (arc start and sweep direction) without touching its scale or limits, and applies equally to Phase 14's rolling metric and Phase 15's per-user limits.
+
+## Phase 13 quantity decisions — 2026-10-03
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 29 | 2026-10-03 | Food Add/Edit uses an explicit **serving / grams** mode. Start in serving mode when a reliable serving exists; otherwise start in grams. Grams remain available and canonical; never invent a conversion. | Owner |
+| 30 | 2026-10-03 | For flexibility, support multiple named gram-backed units per food alongside FatSecret's units. Reuse the existing per-food serving structures; keep custom choices attached to a food rather than creating universal household conversions (such as one generic “mug”). | Agent recommendation; owner delegated the unit-model choice |
+| 31 | 2026-10-03 | Recipe logging supports both a remembered **usual grams per user and recipe** and fractions of the whole cooked recipe, with direct gram editing. Keep `serves` as recipe yield information, not an assumption about an individual user's portion; diary rows remain gram/nutrition snapshots. | Owner |
+| 32 | 2026-10-03 | On first recipe log, do not guess or preselect a quantity. Let the user choose a fraction or grams; remember the first successful logged amount as their usual. Later quantity changes are one-off unless the user explicitly chooses **“Make this my usual.”** | Owner |
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own

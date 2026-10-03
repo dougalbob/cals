@@ -9,6 +9,7 @@ import {
   deleteDrinkEntry,
   updateDiaryEntry,
 } from '../api/diary'
+import type { CreateDiaryEntryInput } from '../api/diary'
 import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
@@ -16,7 +17,7 @@ import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } fro
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
-import { caloriesPer100g, scaleEntryToGrams } from '../lib/diary'
+import { caloriesPer100g, nutritionForGrams, scaleEntryToGrams } from '../lib/diary'
 
 const MEAL_ACCENT: Record<Meal, string> = {
   breakfast: 'border-l-meal-breakfast',
@@ -84,8 +85,7 @@ export function DiaryRoute() {
   })
 
   const addEntry = useMutation({
-    mutationFn: (payload: { meal: Meal; food_id: number; quantity_grams: number }) =>
-      createDiaryEntry(date, payload),
+    mutationFn: (payload: CreateDiaryEntryInput) => createDiaryEntry(date, payload),
     onSuccess: () => {
       setAddingTo(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
@@ -337,7 +337,11 @@ export function DiaryRoute() {
       <AddFoodModal
         meal={addingTo}
         onClose={() => setAddingTo(null)}
-        onAdd={(food, grams) => addEntry.mutate({ meal: addingTo as Meal, food_id: Number(food.id), quantity_grams: grams })}
+        onAdd={(food, grams) => {
+          const nutrition = nutritionForGrams(food, grams)
+          if (typeof food.id !== 'number' || !nutrition) return
+          addEntry.mutate({ meal: addingTo as Meal, food_id: food.id, ...nutrition })
+        }}
         saving={addEntry.isPending}
         error={addEntry.isError ? (addEntry.error as Error).message : null}
       />

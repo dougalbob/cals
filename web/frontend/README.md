@@ -1,9 +1,6 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation in progress (owner-authorized 2026-10-02).** The Diary/Metrics/Foods
-screens began as a spike and remain a work-in-progress; the existing vanilla UI is still the default.
-The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this
-phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 Foods + Recipes is in discovery/design.** The Diary/Metrics/Foods screens began as a spike and remain a work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
 [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 Background and the full proposal: [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
@@ -111,14 +108,15 @@ Seeded data is generated relative to *today*, so the diary always looks live: 21
 of drinks, ~120 days of weight with realistic noise, five measurement sets, and today deliberately
 part-filled (dinner not logged yet).
 
-**Mapped fixtures** (same JSON shapes as the Go handlers): `/api/version`, `/api/users/me`,
-`/api/foods/search`, `/api/foods/custom`, `/api/diary`, `/api/bank`, `/api/drinks`,
-`/api/drinks/entries`, `/api/weight`, `/api/measurements`, `/api/stats/calories`,
-`/api/stats/bank`, `/api/nutrition/settings`, `/api/nutrition/weekly`.
+**Mapped fixtures** (kept aligned with the Go handler contract): `/api/version`, `/api/users/me`,
+`/api/foods/search`, `/api/foods/custom`, `/api/diary` (GET/POST/PUT/DELETE), `/api/bank`,
+`/api/drinks` (GET/POST/PUT/DELETE), `/api/drinks/entries` (GET/POST/DELETE), `/api/water`,
+`/api/weight`, `/api/measurements`, `/api/stats/calories`, `/api/stats/bank`,
+`/api/nutrition/settings`, and `/api/nutrition/weekly`. Diary creation stores the nutrition snapshot
+sent by the client, matching Go; it deliberately does not calculate from the current food definition.
 
-**Stubbed**: everything else returns
-`501 {"error":"Fixture API: POST /api/recipes is not implemented in the spike"}` so it is obvious
-what is real. Add and delete of diary entries *are* implemented, so the modal is clickable.
+**Stubbed**: the Phase 13 operations not yet ported (food create/update/delete, recipe CRUD and image
+upload) return a clear `501` so the preview does not pretend those flows are implemented.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
@@ -133,8 +131,8 @@ npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
 npm run build:go      # production shell for the Go /next/ route → web/dist/
 ```
 
-The tests exercise typed API behavior, domain maths and render all three screens against the
-fixture API, so failures are caught rather than only noticed in the browser (20 tests total).
+The tests exercise typed API behavior, domain maths and render all three implemented screens against
+the fixture API, including add/edit/delete diary flows (65 tests total as of 2026-10-03).
 
 ## Phase 11 Go integration
 
