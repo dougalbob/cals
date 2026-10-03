@@ -14,6 +14,30 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Calendar read every day as 0 kcal: the SQLite `DATE` decltype trap
+
+The owner tested the new calendar on the Unraid container and every day — past days included —
+rendered `0 / 1,250 kcal` with `+133,184,631 kcal` in the bank line, while the same days were
+correct on Home and in the Diary.
+
+`mattn/go-sqlite3` inspects `sqlite3_column_decltype` and converts any column declared
+`DATE`/`DATETIME`/`TIMESTAMP` into a `time.Time`; `database/sql` then formats that as RFC3339 when
+the scan destination is a string. So `SELECT date FROM diary_entries` returns
+`"2026-09-07T00:00:00Z"`, not `"2026-09-07"`. `internal/handlers/calendar.go` keyed its pre-filled
+per-day map on the raw scanned value, so **no row ever matched a day** and every total stayed zero.
+The same conversion applies to `users.bank_start_date` (the legacy UI already works around it with
+`bank_start_date.split('T')[0]`), so `time.Parse("2006-01-02", …)` failed, left the zero
+`time.Time`, and `bt.Sub(a)` saturated at the maximum `time.Duration` (~292 years) — 106,752 days ×
+1,250 kcal − 255,369 kcal consumed is exactly the 133,184,631 the owner saw. `HandleGetBank` was
+unaffected because it already wraps both sides in `date(...)`.
+
+Fix: every calendar query now selects `date(date) AS day` (an expression has no declared type, so it
+comes back as text) and compares `date(date) >= date(?)`; scanned values and the bank start date go
+through a new `isoDate` helper; `daysBetweenInclusive` refuses a zero start instead of overflowing.
+Three Go regression tests cover per-day totals, dates stored with a time component, and the
+running-total seed. No schema change, no API-shape change, and the bug never reached a published
+image — it ships with rc15.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc14` (PR #34)
 
 Owner said **"Lets publish"** (decision 20) after reviewing recipe archive/restore in the Arena

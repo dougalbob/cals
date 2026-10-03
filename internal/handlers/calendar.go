@@ -80,7 +80,10 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	todayIso := time.Now().Format("2006-01-02")
 	goal := user.DailyCalorieGoal
 	waterGoal := user.DailyWaterGoalML
-	startDate := user.BankStartDate
+	// user.BankStartDate can arrive as "2026-04-15T00:00:00Z": columns declared
+	// DATE are converted to time.Time by the sqlite driver and then rendered as
+	// RFC3339 when scanned into a string (see isoDate).
+	startDate := isoDate(user.BankStartDate)
 
 	// Build a contiguous calendar series for the range and pre-fill every date
 	// so days with no entries still come back as zeros.
@@ -100,11 +103,19 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Food calories per day, broken down by meal.
+	//
+	// `date(date)` is deliberate, not cosmetic: selecting the bare column makes
+	// the sqlite driver hand back a time.Time (the column is declared DATE),
+	// which scans into a string as RFC3339 and would never match the
+	// YYYY-MM-DD keys in `idx`. date(...) is an expression, so it has no
+	// declared type and comes back as plain text. It also normalises any row
+	// that was written with a time component. Same reasoning for every query
+	// below — and it mirrors what HandleGetBank already does.
 	mealRows, err := database.DB.Query(`
-		SELECT date, meal, COALESCE(SUM(calories), 0)
+		SELECT date(date) AS day, meal, COALESCE(SUM(calories), 0)
 		FROM diary_entries
-		WHERE user_id = ? AND date >= ? AND date <= ?
-		GROUP BY date, meal
+		WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
+		GROUP BY day, meal
 	`, user.ID, fromStr, toStr)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -116,7 +127,7 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 		if err := mealRows.Scan(&datestr, &meal, &kcal); err != nil {
 			continue
 		}
-		if day, ok := idx[datestr]; ok {
+		if day, ok := idx[isoDate(datestr)]; ok {
 			day.Meals[meal] += int(kcal + 0.5)
 			day.FoodCalories += kcal
 		}
@@ -127,10 +138,10 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	// shows meal-calorie spend from food entries only, matching the existing
 	// Diary meal sections.
 	drinkRows, err := database.DB.Query(`
-		SELECT date, COALESCE(SUM(calories), 0)
+		SELECT date(date) AS day, COALESCE(SUM(calories), 0)
 		FROM drink_entries
-		WHERE user_id = ? AND date >= ? AND date <= ?
-		GROUP BY date
+		WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
+		GROUP BY day
 	`, user.ID, fromStr, toStr)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -142,7 +153,7 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 		if err := drinkRows.Scan(&datestr, &kcal); err != nil {
 			continue
 		}
-		if day, ok := idx[datestr]; ok {
+		if day, ok := idx[isoDate(datestr)]; ok {
 			day.DrinkCalories += kcal
 		}
 	}
@@ -150,11 +161,11 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 
 	// Hydration ml per day (drinks flagged counts_toward_water).
 	hydrationRows, err := database.DB.Query(`
-		SELECT de.date, COALESCE(SUM(de.volume_ml), 0)
+		SELECT date(de.date) AS day, COALESCE(SUM(de.volume_ml), 0)
 		FROM drink_entries de
 		JOIN drinks d ON d.id = de.drink_id
-		WHERE de.user_id = ? AND de.date >= ? AND de.date <= ? AND d.counts_toward_water = 1
-		GROUP BY de.date
+		WHERE de.user_id = ? AND date(de.date) >= date(?) AND date(de.date) <= date(?) AND d.counts_toward_water = 1
+		GROUP BY day
 	`, user.ID, fromStr, toStr)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -166,7 +177,7 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 		if err := hydrationRows.Scan(&datestr, &ml); err != nil {
 			continue
 		}
-		if day, ok := idx[datestr]; ok {
+		if day, ok := idx[isoDate(datestr)]; ok {
 			day.HydrationMl = ml
 		}
 	}
@@ -184,17 +195,16 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	//     completed_days_from_start_to_D * goal − total_consumed_in_that_window
 	// which is equivalent to GET /api/bank?date=D+1. For days before startDate
 	// the bank is 0 (no bank started yet).
-	if startDate != "" {
-		startT, _ := time.Parse("2006-01-02", startDate)
-
+	startT, startErr := time.Parse("2006-01-02", startDate)
+	if startDate != "" && startErr == nil {
 		// Per-day consumption totals (food + drink) from startDate to to.
 		daily := make(map[string]float64)
 
 		foodRows, err := database.DB.Query(`
-			SELECT date, COALESCE(SUM(calories), 0)
+			SELECT date(date) AS day, COALESCE(SUM(calories), 0)
 			FROM diary_entries
-			WHERE user_id = ? AND date >= ? AND date <= ?
-			GROUP BY date
+			WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
+			GROUP BY day
 		`, user.ID, startDate, toStr)
 		if err != nil {
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -206,15 +216,15 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 			if err := foodRows.Scan(&datestr, &kcal); err != nil {
 				continue
 			}
-			daily[datestr] += kcal
+			daily[isoDate(datestr)] += kcal
 		}
 		foodRows.Close()
 
 		drinkCRows, err := database.DB.Query(`
-			SELECT date, COALESCE(SUM(calories), 0)
+			SELECT date(date) AS day, COALESCE(SUM(calories), 0)
 			FROM drink_entries
-			WHERE user_id = ? AND date >= ? AND date <= ?
-			GROUP BY date
+			WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
+			GROUP BY day
 		`, user.ID, startDate, toStr)
 		if err != nil {
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -226,7 +236,7 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 			if err := drinkCRows.Scan(&datestr, &kcal); err != nil {
 				continue
 			}
-			daily[datestr] += kcal
+			daily[isoDate(datestr)] += kcal
 		}
 		drinkCRows.Close()
 
@@ -239,12 +249,12 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 			database.DB.QueryRow(`
 				SELECT COALESCE(SUM(calories), 0)
 				FROM diary_entries
-				WHERE user_id = ? AND date >= ? AND date <= ?
+				WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
 			`, user.ID, startDate, beforeFrom).Scan(&seedFood)
 			database.DB.QueryRow(`
 				SELECT COALESCE(SUM(calories), 0)
 				FROM drink_entries
-				WHERE user_id = ? AND date >= ? AND date <= ?
+				WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
 			`, user.ID, startDate, beforeFrom).Scan(&seedDrink)
 			running = seedFood + seedDrink
 		}
@@ -271,10 +281,33 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// isoDate normalises a date string to YYYY-MM-DD.
+//
+// Columns declared DATE/DATETIME are converted to time.Time by
+// mattn/go-sqlite3 (it reads the declared type via sqlite3_column_decltype),
+// and database/sql then renders that time.Time as RFC3339 when the
+// destination is a string. So a row holding "2026-09-07" scans back as
+// "2026-09-07T00:00:00Z". Anything keyed or parsed as a bare ISO date has to
+// cope with that — the legacy UI does the same thing with
+// `bank_start_date.split('T')[0]`.
+func isoDate(s string) string {
+	if len(s) >= 10 {
+		return s[:10]
+	}
+	return s
+}
+
 // daysBetweenInclusive returns the number of days from a to b, inclusive,
 // treating both as UTC dates. Same-day returns 1.
+//
+// Both ends are guarded: a zero `a` (a failed parse upstream) would otherwise
+// overflow time.Duration — Sub saturates at ~292 years — and produce an
+// absurd day count that then gets multiplied by the daily goal.
 func daysBetweenInclusive(a time.Time, bIso string) int {
-	bt, err := time.Parse("2006-01-02", bIso)
+	if a.IsZero() {
+		return 0
+	}
+	bt, err := time.Parse("2006-01-02", isoDate(bIso))
 	if err != nil {
 		return 0
 	}
