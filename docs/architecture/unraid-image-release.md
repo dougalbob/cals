@@ -59,11 +59,16 @@ The development template tracks the moving `dev-latest` tag and pins the exact r
 
 ## Publishing workflow (added 2026-10-02, Part 2 PR)
 
-Two GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows), added in PR #7, implement the publishing half of this document. Both build the checked-in `Dockerfile`, so the frontend lint/tests/production build and the CGO Go build run on every execution — a green run is the evidence that the image actually builds.
+Three GitHub Actions workflows in [`.github/workflows/`](../../.github/workflows) gate and implement
+the publishing half of this document. `Docker build (validation)` builds the checked-in `Dockerfile`,
+so the frontend lint/tests/production build and the CGO Go build run on every execution — a green run
+is the evidence that the image actually builds. `Go tests (validation)` (decision 65) is the only
+check that compiles and runs the Go test files; `go build` never touches `_test.go`.
 
 | Workflow | File | Trigger | What it does | Token permissions |
 |---|---|---|---|---|
 | **Docker build (validation)** | `docker-validate.yml` | every pull request targeting `cals-dev` or `main` (plus manual dispatch) | `docker build` with no registry login, no push; writes the image id/size to the run summary | `contents: read` |
+| **Go tests (validation)** | `go-validate.yml` | every pull request targeting `cals-dev` or `main`, every push to `cals-dev` (plus manual dispatch) | `go vet ./...` and `go test ./...` with `CGO_ENABLED=1` on the Go version from `go.mod` — the gate that catches a failing or non-compiling backend test | `contents: read` |
 | **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, creates the GitHub prerelease with the image digest in its notes, then logs out and verifies the image pulls **anonymously** (the test Unraid depends on) | `contents: write`, `packages: write` |
 
 Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.

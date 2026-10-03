@@ -8,11 +8,14 @@ import {
   WEEKDAY_HEADERS,
   addDays,
   addMonths,
-  calorieRatio,
+  calorieBarSplit,
+  clampMonthToToday,
+  clampWeekAnchorToToday,
   formatDayNumber,
   formatMonthLabel,
   formatWeekRangeLabel,
   hydrationRatio,
+  isFutureDay,
   monthForIso,
   monthGridRange,
   todayIso,
@@ -33,6 +36,11 @@ import { formatNumber } from '../lib/format'
  * The view rides in the URL (`/calendar/month/2026-10` or `/calendar/week/2026-10-05`,
  * where the week param is any day inside the target week) so reload and deep
  * links are stable. Tapping a day navigates to `/diary/:date`.
+ *
+ * **Today is the furthest the calendar goes forward.** The ‹ / › controls stop
+ * at the current month or week, a hand-typed future anchor is pulled back to
+ * today, and days that have not happened yet are not links — there is nothing
+ * to look at and nothing to correct (owner request, 2026-10-03).
  */
 export function CalendarRoute() {
   const params = useParams()
@@ -43,19 +51,22 @@ export function CalendarRoute() {
   const view: CalendarView = params.view === 'week' ? 'week' : 'month'
   // Anchor date: the segment after the view. Month uses YYYY-MM; week uses any
   // ISO date inside the target week.
-  const anchor =
+  const requested =
     typeof params.anchor === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(params.anchor)
       ? params.anchor
       : today
+  // Clamped before anything else reads it, so the URL cannot push the calendar
+  // into a month or week that has not arrived.
+  const anchor =
+    view === 'week'
+      ? clampWeekAnchorToToday(requested.length === 7 ? `${requested}-01` : requested, today)
+      : clampMonthToToday(requested.length === 7 ? requested : monthForIso(requested), today)
 
   // Normalise to a fetchable range.
-  const range = useMemo(() => {
-    if (view === 'week') return weekRange(anchor.length === 7 ? `${anchor}-01` : anchor)
-    return monthGridRange(anchor.length === 7 ? anchor : monthForIso(anchor))
-  }, [view, anchor])
+  const range = view === 'week' ? weekRange(anchor) : monthGridRange(anchor)
 
-  const monthKey = view === 'month' && anchor.length >= 7 ? anchor.slice(0, 7) : monthForIso(today)
-  const weekAnchorIso = view === 'week' && anchor.length === 10 ? anchor : today
+  const monthKey = view === 'month' ? anchor : monthForIso(today)
+  const weekAnchorIso = view === 'week' ? anchor : today
 
   const calendar = useQuery({
     queryKey: queryKeys.calendar(range.from, range.to),
@@ -69,13 +80,21 @@ export function CalendarRoute() {
     return map
   }, [calendar.data])
 
+  /** The period being viewed is the one containing today, so › has nowhere to go. */
+  const atLeadingPeriod =
+    view === 'month' ? monthKey >= monthForIso(today) : range.from >= weekRange(today).from
+
   const goMonth = (direction: -1 | 1) => {
-    const next = addMonths(monthKey, direction)
+    // `addMonths` answers with a date; the month route is keyed by `YYYY-MM`,
+    // so keep the URL in the shape the docs promise.
+    const next = clampMonthToToday(monthForIso(addMonths(monthKey, direction)), today)
+    if (next === monthKey) return
     navigate(`/calendar/month/${next}${searchParams.size ? `?${searchParams}` : ''}`)
   }
 
   const goWeek = (direction: -1 | 1) => {
-    const next = addDays(weekAnchorIso, direction * 7)
+    const next = clampWeekAnchorToToday(addDays(weekAnchorIso, direction * 7), today)
+    if (weekRange(next).from === range.from) return
     navigate(`/calendar/week/${next}${searchParams.size ? `?${searchParams}` : ''}`)
   }
 
@@ -128,7 +147,9 @@ export function CalendarRoute() {
         <button
           type="button"
           onClick={() => (view === 'month' ? goMonth(1) : goWeek(1))}
-          className="min-h-11 min-w-11 rounded-xl bg-card border border-line text-lg cursor-pointer"
+          disabled={atLeadingPeriod}
+          title={atLeadingPeriod ? 'Today is the furthest day you can look at yet' : undefined}
+          className="min-h-11 min-w-11 rounded-xl bg-card border border-line text-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label={view === 'month' ? 'Next month' : 'Next week'}
         >
           ›
@@ -143,10 +164,10 @@ export function CalendarRoute() {
       )}
 
       {calendar.data && view === 'month' && (
-        <MonthGrid days={buildGrid(range.from, range.to, dayByDate)} from={range.from} />
+        <MonthGrid days={buildGrid(range.from, range.to, dayByDate)} from={range.from} today={today} />
       )}
       {calendar.data && view === 'week' && (
-        <WeekList days={buildWeek(range.from, range.to, dayByDate)} />
+        <WeekList days={buildWeek(range.from, range.to, dayByDate)} today={today} />
       )}
     </div>
   )
@@ -199,7 +220,36 @@ function buildWeek(from: string, to: string, map: Map<string, CalendarDay>): Cal
   return buildGrid(from, to, map)
 }
 
-function MonthGrid({ days, from }: { days: CalendarDay[]; from: string }) {
+/**
+ * A day's calorie bar: green while the goal covers the day, and a red tail for
+ * the overspend. Under goal the bar simply fills towards the right, so a
+ * finished day and a blown-out day are still easy to tell apart at a glance.
+ */
+function CalorieBar({ day, trackClass }: { day: CalendarDay; trackClass: string }) {
+  const { greenPct, redPct } = calorieBarSplit(day.calories, day.goal)
+  return (
+    <div
+      data-calorie-bar
+      className={`flex w-full overflow-hidden rounded-full bg-line-light ${trackClass}`}
+      aria-hidden
+    >
+      <div data-segment="within-goal" className="h-full bg-success" style={{ width: `${greenPct}%` }} />
+      {redPct > 0 && (
+        <div data-segment="overspend" className="h-full bg-danger" style={{ width: `${redPct}%` }} />
+      )}
+    </div>
+  )
+}
+
+function MonthGrid({
+  days,
+  from,
+  today,
+}: {
+  days: CalendarDay[]
+  from: string
+  today: string
+}) {
   const monthOfFirst = from.slice(0, 7)
   return (
     <section className="rounded-2xl bg-card p-3 shadow-card">
@@ -210,7 +260,12 @@ function MonthGrid({ days, from }: { days: CalendarDay[]; from: string }) {
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((day) => (
-          <MonthCell key={day.date} day={day} inMonth={day.date.slice(0, 7) === monthOfFirst} />
+          <MonthCell
+            key={day.date}
+            day={day}
+            inMonth={day.date.slice(0, 7) === monthOfFirst}
+            future={isFutureDay(day.date, today)}
+          />
         ))}
       </div>
       <Legend />
@@ -218,23 +273,19 @@ function MonthGrid({ days, from }: { days: CalendarDay[]; from: string }) {
   )
 }
 
-function MonthCell({ day, inMonth }: { day: CalendarDay; inMonth: boolean }) {
-  const ratio = calorieRatio(day.calories, day.goal)
+function MonthCell({ day, inMonth, future }: { day: CalendarDay; inMonth: boolean; future: boolean }) {
   const hydr = hydrationRatio(day.hydration_ml, day.hydration_target_ml)
-  const over = day.calories > day.goal
-  // Compact bar: green under goal, red over goal.
-  const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)))
-  return (
-    <Link
-      to={`/diary/${day.date}`}
-      className={[
-        'relative min-h-[72px] rounded-lg border p-1.5 text-left no-underline text-ink transition-colors',
-        day.is_today ? 'border-primary ring-1 ring-primary/40' : 'border-line-light',
-        inMonth ? 'bg-surface' : 'bg-transparent opacity-40',
-        day.has_data ? 'cursor-pointer hover:border-primary' : 'cursor-pointer',
-      ].join(' ')}
-      aria-label={`${day.date}: ${formatNumber(Math.round(day.calories))} kcal of ${formatNumber(day.goal)}, bank ${day.bank_balance >= 0 ? '+' : ''}${formatNumber(day.bank_balance)} kcal`}
-    >
+  const classes = [
+    'relative min-h-[72px] rounded-lg border p-1.5 text-left text-ink transition-colors',
+    day.is_today ? 'border-primary ring-1 ring-primary/40' : 'border-line-light',
+    inMonth ? 'bg-surface' : 'bg-transparent opacity-40',
+    // A day that has not happened has no diary to open, so it is inert.
+    future ? 'opacity-40' : 'no-underline cursor-pointer hover:border-primary',
+  ].join(' ')
+  const label = `${day.date}: ${formatNumber(Math.round(day.calories))} kcal of ${formatNumber(day.goal)}, bank ${day.bank_balance >= 0 ? '+' : ''}${formatNumber(day.bank_balance)} kcal`
+
+  const content = (
+    <>
       <div className="flex items-start justify-between">
         <span
           className={`text-xs font-semibold tabular-nums ${
@@ -253,26 +304,33 @@ function MonthCell({ day, inMonth }: { day: CalendarDay; inMonth: boolean }) {
       </div>
       {day.has_data && (
         <>
-          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-line-light">
-            <div
-              className={`h-full rounded-full ${over ? 'bg-danger' : 'bg-success'}`}
-              style={{ width: `${pct}%` }}
-            />
+          <div className="mt-1">
+            <CalorieBar day={day} trackClass="h-1.5" />
           </div>
-          <p className="m-0 mt-1 text-[0.6rem] tabular-nums text-ink-light leading-tight">
+          <p className="m-0 mt-1 text-[0.6rem] tabular-nums leading-tight text-ink-light">
             {bankLabel(day.bank_balance)}
           </p>
         </>
       )}
+    </>
+  )
+
+  return future ? (
+    <div className={classes} aria-label={`${label} — not yet`}>
+      {content}
+    </div>
+  ) : (
+    <Link to={`/diary/${day.date}`} className={classes} aria-label={label}>
+      {content}
     </Link>
   )
 }
 
-function WeekList({ days }: { days: CalendarDay[] }) {
+function WeekList({ days, today }: { days: CalendarDay[]; today: string }) {
   return (
     <div className="flex flex-col gap-2">
       {days.map((day) => (
-        <WeekDayCard key={day.date} day={day} />
+        <WeekDayCard key={day.date} day={day} future={isFutureDay(day.date, today)} />
       ))}
       <Legend />
     </div>
@@ -293,7 +351,7 @@ const MEAL_ICON: Record<Meal, string> = {
   snacks: '🍿',
 }
 
-function WeekDayCard({ day }: { day: CalendarDay }) {
+function WeekDayCard({ day, future }: { day: CalendarDay; future: boolean }) {
   const dow = new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-GB', {
     weekday: 'long',
     timeZone: 'UTC',
@@ -303,30 +361,28 @@ function WeekDayCard({ day }: { day: CalendarDay }) {
     month: 'short',
     timeZone: 'UTC',
   })
-  const ratio = calorieRatio(day.calories, day.goal)
-  const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)))
   const over = day.calories > day.goal
   const hydr = hydrationRatio(day.hydration_ml, day.hydration_target_ml)
 
-  return (
-    <Link
-      to={`/diary/${day.date}`}
-      className={[
-        'block rounded-2xl bg-card p-3 shadow-card no-underline text-ink',
-        day.is_today ? 'ring-2 ring-primary/50' : '',
-      ].join(' ')}
-      aria-label={`Open diary for ${dow} ${domLabel}`}
-    >
+  const className = [
+    'block rounded-2xl bg-card p-3 shadow-card text-ink',
+    day.is_today ? 'ring-2 ring-primary/50' : '',
+    future ? 'opacity-55' : 'no-underline cursor-pointer',
+  ].join(' ')
+
+  const content = (
+    <>
       <header className="flex items-baseline justify-between gap-2">
         <div>
           <p className={`m-0 text-sm font-semibold ${day.is_today ? 'text-primary-dark' : ''}`}>
             {dow}
             {day.is_today && <span className="ml-1 text-[0.65rem] font-medium text-primary">Today</span>}
+            {future && <span className="ml-1 text-[0.65rem] font-medium text-ink-muted">Upcoming</span>}
           </p>
           <p className="m-0 text-xs text-ink-light">{domLabel}</p>
         </div>
         <div className="text-right">
-          <p className="m-0 text-sm font-semibold tabular-nums">
+          <p className={`m-0 text-sm font-semibold tabular-nums ${over ? 'text-danger' : ''}`}>
             {formatNumber(Math.round(day.calories))}
             <span className="text-xs font-normal text-ink-light"> / {formatNumber(day.goal)} kcal</span>
           </p>
@@ -340,11 +396,8 @@ function WeekDayCard({ day }: { day: CalendarDay }) {
         </div>
       </header>
 
-      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-line-light">
-        <div
-          className={`h-full rounded-full ${over ? 'bg-danger' : 'bg-success'}`}
-          style={{ width: `${pct}%` }}
-        />
+      <div className="mt-2">
+        <CalorieBar day={day} trackClass="h-2" />
       </div>
 
       <ul className="m-0 mt-2 grid grid-cols-2 gap-x-3 gap-y-1 p-0 text-xs text-ink-light">
@@ -372,9 +425,21 @@ function WeekDayCard({ day }: { day: CalendarDay }) {
         </li>
       </ul>
 
-      {!day.has_data && (
-        <p className="m-0 mt-2 text-xs text-ink-muted">Nothing logged yet — tap to open this day.</p>
+      {future ? (
+        <p className="m-0 mt-2 text-xs text-ink-muted">This day hasn’t happened yet.</p>
+      ) : (
+        !day.has_data && (
+          <p className="m-0 mt-2 text-xs text-ink-muted">Nothing logged yet — tap to open this day.</p>
+        )
       )}
+    </>
+  )
+
+  return future ? (
+    <div className={className}>{content}</div>
+  ) : (
+    <Link to={`/diary/${day.date}`} className={className} aria-label={`Open diary for ${dow} ${domLabel}`}>
+      {content}
     </Link>
   )
 }
@@ -387,11 +452,12 @@ function bankLabel(balance: number): string {
 function Legend() {
   return (
     <p className="m-0 mt-2 text-[0.65rem] text-ink-muted leading-relaxed">
-      <span className="inline-block h-1.5 w-4 align-middle rounded-full bg-success mr-1" /> at or under goal
+      <span className="inline-block h-1.5 w-4 align-middle rounded-full bg-success mr-1" /> within goal
       <span className="mx-1.5">·</span>
-      <span className="inline-block h-1.5 w-4 align-middle rounded-full bg-danger mr-1" /> over goal
+      <span className="inline-block h-1.5 w-1.5 align-middle rounded-full bg-danger mr-1" /> the red
+      tail is the overspend
       <span className="mx-1.5">·</span>
-      tap any day to open its diary.
+      tap any past day to open its diary
     </p>
   )
 }

@@ -14,6 +14,41 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Calendar day bars, a calendar that stops at today, the recipe pick moves to the recipe box, and CI learns `go test`
+
+The owner's next session of road-test notes, plus the loose end the previous session left behind.
+Decisions **62–65**; all frontend and workflow files — no endpoint, schema or bank-maths change.
+
+1. **Over-goal days split instead of shouting (decision 62).** The Calendar drew any day over goal as
+   a full-width red bar, which hid how much had been eaten and made every overspent day look the
+   same. `calorieBarSplit` (`src/lib/calendar.ts`) now breaks the bar where the goal was reached: the
+   green part is what the budget covered, the red tail is the overspend — 1,200 against 1,000 is
+   ≈83% / ≈17%. Under goal nothing changes. The owner's nine months of V1 data cap out at ~30% over
+   goal, so the tail stays a tail.
+2. **The Calendar cannot get to tomorrow (decision 63).** The › button disables on the month or week
+   containing today, a hand-typed future anchor is clamped back to today's period, and days after
+   today are rendered but are no longer links. Deliberately not changed: the Diary's own › and
+   `POST /api/diary` still accept a future date, so pre-logging a planned meal still works — recorded
+   as an open question rather than quietly clamped.
+3. **`🍽 Add recipe` goes to the Recipes tab (decision 40 → 64).** The modal picker decision 40 shipped
+   with duplicated a worse version of the recipe box. Tapping the meal-card button now opens
+   `/recipes?add-to=<meal>&on=<date>`; the intent is URL state like everything else here, so it
+   survives search, favourites, tag filters, a reload and a detour into the recipe's own page. In
+   pick mode each card gains **🍽 Add to Breakfast**, the portion sheet opens with that meal and date
+   already chosen, and *Done* lands on `/diary/:date#<meal>`. Archived recipes are still never offered
+   (decision 59), and `parseRecipePick` ignores a malformed slot instead of guessing one.
+4. **CI runs the Go tests (decision 65).** `.github/workflows/go-validate.yml`: `go vet ./...` and
+   `go test ./...` with CGO on `go.mod`'s Go version, on every PR into `cals-dev`/`main` and on
+   `cals-dev` itself. Nothing in CI had ever compiled a `_test.go` file — the Docker validation job
+   only builds `./cmd/server`.
+5. **The "no Go in the sandbox" claim was wrong.** The previous session's handoff said the Go tests
+   could not be run here. `scripts/verify-go-in-sandbox.sh` installs a working toolchain from the
+   PyPI `go-bin` wheel in about a minute; with it, `go build ./...`, `go vet ./...` and
+   `go test ./...` all pass, including the three `rc16` calendar regression tests. The tests had not
+   rotted — nothing had been checking them, which is what item 4 fixes. Frontend: **163** Vitest
+   tests (up from 135: `calorieBarSplit`, the clamps, the inert future cells, the intent round trip,
+   the pick-mode flows), lint and typecheck green.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc16` (PR #38)
 
 The owner said **"Lets publish"** (decision 20) after reviewing the four road-test fixes in the Arena

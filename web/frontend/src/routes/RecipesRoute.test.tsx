@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { addDays } from '../lib/format'
 import { handle } from '../../mock-api/handler.mjs'
 import { favouriteRecipeIds, recipes as seedRecipes, resetFixtures } from '../../mock-api/seed.mjs'
+import * as seed from '../../mock-api/seed.mjs'
 import { RecipeDetailRoute } from './RecipeDetailRoute'
 import { RecipesRoute } from './RecipesRoute'
 
@@ -16,25 +18,35 @@ function seedRecipeArchived(id: number) {
 /** Lets the tests assert that the tag filter really is in the URL. */
 function LocationProbe() {
   const location = useLocation()
-  return <span data-testid="location-search">{location.search}</span>
+  return (
+    <>
+      <span data-testid="location-search">{location.search}</span>
+      <span data-testid="location-href">
+        {`${location.pathname}${location.search}${location.hash}`}
+      </span>
+    </>
+  )
 }
 
-function renderRoute() {
+function renderRoute(path = '/recipes') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/recipes']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/recipes" element={<RecipesRoute />} />
           <Route path="/recipes/:id" element={<RecipeDetailRoute />} />
+          <Route path="/diary/:date" element={<p>diary for date</p>} />
         </Routes>
         <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   )
 }
+
+const href = () => screen.getByTestId('location-href').textContent ?? ''
 
 const search = () =>
   decodeURIComponent(screen.getByTestId('location-search').textContent ?? '')
@@ -378,5 +390,102 @@ describe('RecipesRoute', () => {
     })
     expect(screen.queryByRole('region', { name: /Archived recipes/ })).toBeNull()
     expect(screen.getByText('Porridge & Berries')).toBeTruthy()
+  })
+
+  describe('recipe-pick mode (started from a Diary meal card)', () => {
+    const armed = (meal: string, date: string) => renderRoute(`/recipes?add-to=${meal}&on=${date}`)
+
+    it('says which meal and day it is picking for, and keeps the search tools', async () => {
+      armed('breakfast', seed.TODAY)
+
+      const banner = await screen.findByRole('status', { name: 'Adding a recipe to the diary' })
+      expect(banner.textContent).toContain('Pick a recipe for Breakfast')
+      expect(banner.textContent).toContain('today')
+      // The recipe box is unchanged apart from the banner: search and favourites still work.
+      expect(screen.getByPlaceholderText('Search recipes…')).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Favourites' })).toBeTruthy()
+      // And leaving is one tap, back to the day and meal it started from.
+      expect(within(banner).getByRole('link', { name: '← Back to the diary' })).toBeTruthy()
+      expect(screen.getByRole('link', { name: 'Cancel' })).toBeTruthy()
+    })
+
+    it('logs the portion to the carried meal and date, then returns to that day', async () => {
+      const target = addDays(seed.TODAY, -3)
+      armed('breakfast', target)
+
+      const add = await screen.findByRole('button', {
+        name: `Add Chicken Curry to Breakfast on ${target}`,
+      })
+      fireEvent.click(add)
+
+      // The portion sheet is the same one as always, with the diary's answers in it.
+      const sheet = await screen.findByRole('dialog', { name: 'Add Chicken Curry to Breakfast' })
+      expect(within(sheet).getByText(/Going to Breakfast/)).toBeTruthy()
+      const breakfast = within(sheet)
+        .getAllByRole('button')
+        .find((button) => button.getAttribute('aria-pressed') === 'true' && button.textContent?.includes('Breakfast'))
+      expect(breakfast).toBeTruthy()
+      expect((within(sheet).getByLabelText('Day') as HTMLInputElement).value).toBe(target)
+
+      fireEvent.click(within(sheet).getByRole('button', { name: /½/ }))
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Add to diary' }))
+
+      await waitFor(() => {
+        const logged = seed.entriesFor(target).find((entry) => entry.recipe_id === 1)
+        expect(logged).toMatchObject({ meal: 'breakfast' })
+        expect(logged?.quantity_grams).toBeGreaterThan(0)
+      })
+      // No archived-recipe or history surprises: the entry is on the asked-for day.
+      expect(seed.entriesFor(seed.TODAY).some((entry) => entry.recipe_id === 1)).toBe(false)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Done' }))
+      await waitFor(() => expect(href()).toBe(`/diary/${target}#breakfast`))
+    })
+
+    it('keeps the intent through a detour into the recipe itself', async () => {
+      const target = addDays(seed.TODAY, -1)
+      armed('lunch', target)
+
+      fireEvent.click(await screen.findByRole('link', { name: 'View Chicken Curry' }))
+      await screen.findByRole('heading', { name: 'Chicken Curry' })
+
+      // The detail page is in the flow too: its add button names the meal, and
+      // the back link returns to the filtered, still-armed list.
+      const addButton = await screen.findByRole('button', { name: '🍽 Add to Lunch' })
+      fireEvent.click(addButton)
+      const sheet = await screen.findByRole('dialog', { name: 'Add Chicken Curry to Lunch' })
+      expect((within(sheet).getByLabelText('Day') as HTMLInputElement).value).toBe(target)
+      expect(screen.getByRole('link', { name: '← Back to recipes' }).getAttribute('href')).toBe(
+        `/recipes?add-to=lunch&on=${target}`,
+      )
+    })
+
+    it('adds nothing when the recipe box is not being used as a picker', async () => {
+      renderRoute()
+      await screen.findByRole('heading', { name: 'Recipes' })
+      expect(screen.queryByRole('button', { name: /Add Chicken Curry to (Breakfast|Lunch|Dinner|Snacks)/ })).toBeNull()
+      expect(screen.queryByRole('status', { name: 'Adding a recipe to the diary' })).toBeNull()
+    })
+
+    it('still refuses to log an archived recipe (decision 59)', async () => {
+      handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })
+      armed('snacks', seed.TODAY)
+
+      const add = await screen.findByRole('button', { name: /Add Chicken Curry to Breakfast|Add Chicken Curry to Snacks/ })
+      expect(add).toBeTruthy()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+      const archived = await screen.findByRole('article', { name: 'Salmon Traybake (archived)' })
+      // It can be restored, but it is never offered as the day's recipe.
+      expect(within(archived).getByRole('button', { name: 'Restore Salmon Traybake' })).toBeTruthy()
+      expect(within(archived).queryByRole('button', { name: /Add Salmon Traybake to/ })).toBeNull()
+    })
+
+    it('ignores a hand-edited or stale intent instead of guessing a meal', async () => {
+      renderRoute('/recipes?add-to=supper')
+      await screen.findByRole('heading', { name: 'Recipes' })
+      expect(screen.queryByRole('status', { name: 'Adding a recipe to the diary' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /Add Chicken Curry to (Breakfast|Lunch|Dinner|Snacks)/ })).toBeNull()
+    })
   })
 })

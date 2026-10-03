@@ -1,0 +1,66 @@
+# Go build, vet and test on every pull request into cals-dev (and main).
+#
+# WHY THIS EXISTS
+# The Dockerfile is the frontend's gate — its Node stage runs `npm run lint`,
+# `npm test` and the production build — and `Docker build (validation)` proves
+# the image compiles. But `go build ./cmd/server` never compiles `*_test.go`
+# files, so a Go test that does not build, or a regression test that fails,
+# reaches `cals-dev` silently. That is exactly how the `rc15` calendar defect
+# shipped (see `docs/CURRENT_STATE.md` §6): three regression tests were written
+# against it and had never been executed by anything, because nothing runs
+# `go test`. This workflow is that something.
+#
+# The Arena sandbox has no Go toolchain installed (only `scripts/verify-go-in-sandbox.sh`,
+# which fetches one from PyPI into /tmp), so an agent's "the tests compile and pass"
+# claim is not trustworthy on its own. CI makes it moot.
+#
+# CGO is required: `mattn/go-sqlite3` is a C library and the handler tests open a
+# real in-memory SQLite database. ubuntu-latest ships gcc, so nothing else is needed.
+
+name: Go tests (validation)
+
+on:
+  pull_request:
+    branches:
+      - cals-dev
+      - main
+  # Post-merge signal for the integration branch, so a `cals-dev` that has drifted
+  # is visible before the owner tags a release candidate from it.
+  push:
+    branches:
+      - cals-dev
+  workflow_dispatch:
+
+# Read-only: no registry credentials, no package writes.
+permissions:
+  contents: read
+
+concurrency:
+  group: go-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CGO_ENABLED: '1'
+
+jobs:
+  test:
+    name: go vet + go test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pull request merge commit
+        uses: actions/checkout@v7
+
+      # The version from go.mod, i.e. the same 1.22 the Dockerfile builds with.
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet ./...
+        run: go vet ./...
+
+      # ./... (not ./cmd/server) is the point of this job: it compiles and runs
+      # every test file in the repository, including the handler regression suite.
+      - name: go test ./...
+        run: go test ./...

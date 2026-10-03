@@ -85,6 +85,9 @@ ai_contextual_docs/       LEGACY historic build log — read-only, not a source 
 # Local run (needs CGO + gcc for SQLite; Go 1.22+)
 PORT=8150 DB_PATH=./cals.db CF_TEAM_DOMAIN=x CF_POLICY_AUD=y go run ./cmd/server
 
+# Backend checks (CGO needed for SQLite; in this sandbox use ./scripts/verify-go-in-sandbox.sh first)
+go build ./... && go vet ./... && go test ./...
+
 # Container image (local verification only — Compose is retired as an install method)
 docker build -t cals-dev-v2:local .
 docker run --rm -p 8150:8150 \
@@ -123,6 +126,15 @@ returns `401` on protected routes without a Cloudflare JWT). Caveats: nothing in
 between turns, the toolchain is Go 1.27 rather than the Dockerfile's 1.22, and **Docker itself
 cannot run in the sandbox**, so image builds must be verified on your own machine.
 
+**The same `/tmp` toolchain runs the Go tests — use it.** Once the script has run, `go vet ./...` and
+`go test ./internal/handlers/` work exactly as `go build` does (it exports `PATH`, `GOPATH`,
+`GOCACHE` and `GOPROXY=direct` for the scratch copy at `/tmp/calstest`). "There is no Go in this
+sandbox" has been written into handoffs more than once and is **not** true: `go.dev`,
+`dl.google.com` and `proxy.golang.org` are blocked, PyPI is not. Since decision 65 the
+`Go tests (validation)` workflow runs `go vet ./...` and `go test ./...` on every pull request, so a
+backend change with a test that does not compile now fails CI as well as the review — run them locally
+rather than finding out there.
+
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
 - Env vars: `PORT`, `BIND_ADDRESS`, `LOG_LEVEL`, `DB_PATH`, `DEV_MODE`, `DEV_USER_EMAIL`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.
@@ -155,7 +167,7 @@ Notes:
 ## 6. Definition of done
 
 - [ ] The change is committed on a topic/session branch — nothing pushed to `main`
-- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./...` for backend; for image-affecting changes the `Docker build (validation)` workflow runs `docker build` on the PR — Docker itself cannot run in the Arena sandbox)
+- [ ] Appropriate build/verification run (`npm run lint && npm run typecheck && npm test && npm run build:go` for frontend; `go build ./... && go vet ./... && go test ./...` for backend, via `scripts/verify-go-in-sandbox.sh` in this sandbox; for image-affecting changes the `Docker build (validation)` workflow runs `docker build` on the PR — Docker itself cannot run in the Arena sandbox — and the `Go tests (validation)` workflow runs the Go suite on every PR)
 - [ ] `docs/` updated (and `docs/product/vision-and-open-questions.md` if a question was answered or raised)
 - [ ] For UI work, PR describes the concrete user experience improvement and includes a preview/screenshots for owner review; do not cut over on parity alone
 - [ ] PR opened against **`cals-dev`** with a summary and any deployment notes

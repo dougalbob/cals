@@ -4,6 +4,7 @@ import { createDiaryEntry } from '../api/diary'
 import { queryKeys } from '../api/client'
 import { MEALS, type Meal, type RecipeDetail } from '../api/types'
 import { formatGrams, formatNumber, relativeDayLabel, todayIso } from '../lib/format'
+import { mealLabel } from '../lib/recipePick'
 import {
   WHOLE_RECIPE_FRACTIONS,
   canLogRecipePortion,
@@ -29,11 +30,18 @@ import { Modal } from './Modal'
 export function RecipePortionSheet({
   recipe,
   onClose,
+  onDone,
   initialMeal,
   initialDate,
 }: {
   recipe: RecipeDetail
   onClose: () => void
+  /**
+   * Called when the confirmation is dismissed instead of `onClose`. The
+   * recipe-box flow set it to take the user back to the diary day and meal the
+   * pick started from, so a trip out of the Diary ends where they left it.
+   */
+  onDone?: () => void
   /**
    * When opened from the Diary, the meal the action was started from is
    * preselected so the user does not have to pick it twice (decision 40).
@@ -62,6 +70,14 @@ export function RecipePortionSheet({
   const usual = recipe.usual_grams
   const differsFromUsual = valid && (usual === null || Math.abs(grams - usual) >= 0.5)
   const activeFraction = matchingFraction(recipe.total_weight_grams, valid ? grams : Number.NaN)
+  /** True when a diary meal opened the sheet, so meal and date were chosen for the user. */
+  const fromDiary = initialMeal !== undefined || initialDate !== undefined
+  // "today"/"yesterday" read naturally mid-sentence; a real date does not want
+  // its month lower-cased. Shared by the caption and the confirmation line.
+  const relativeLabel = relativeDayLabel(date, today)
+  const dayCaption = ['Today', 'Yesterday', 'Tomorrow'].includes(relativeLabel)
+    ? relativeLabel.toLowerCase()
+    : relativeLabel
 
   const log = useMutation({
     mutationFn: () =>
@@ -73,12 +89,8 @@ export function RecipePortionSheet({
       }),
     onSuccess: () => {
       const remembered = usual === null || makeUsual
-      const label = relativeDayLabel(date, today)
-      // "today"/"yesterday" read naturally mid-sentence; a real date does not
-      // want its month lower-cased.
-      const dayLabel = ['Today', 'Yesterday', 'Tomorrow'].includes(label) ? label.toLowerCase() : label
       setConfirmation(
-        `Logged ${formatGrams(grams)} to ${dayLabel}` +
+        `Logged ${formatGrams(grams)} to ${dayCaption}` +
           `${remembered ? ' — saved as your usual portion.' : '.'}`,
       )
       void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
@@ -97,7 +109,7 @@ export function RecipePortionSheet({
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={onClose}
+            onClick={onDone ?? onClose}
             className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-white"
           >
             Done
@@ -108,7 +120,11 @@ export function RecipePortionSheet({
   }
 
   return (
-    <Modal open title={`Add ${recipe.name}`} onClose={onClose}>
+    <Modal
+      open
+      title={fromDiary ? `Add ${recipe.name} to ${mealLabel(meal)}` : `Add ${recipe.name}`}
+      onClose={onClose}
+    >
       {!canLog ? (
         <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
           This recipe has no cooked weight yet, so a portion cannot be calculated. Add ingredients and a
@@ -120,6 +136,13 @@ export function RecipePortionSheet({
             {formatNumber(recipe.calories_per_100g)} kcal per 100 g cooked · {formatNumber(recipe.total_calories)} kcal
             total
           </p>
+
+          {fromDiary && (
+            <p className="m-0 rounded-xl bg-primary-light/15 px-3 py-2 text-xs leading-relaxed text-primary-dark">
+              <span className="font-semibold">{`Going to ${mealLabel(meal)} · ${dayCaption}`}</span>
+              <span>{' — carried over from your diary. Change either below if you meant somewhere else.'}</span>
+            </p>
+          )}
 
           <fieldset className="m-0 border-0 p-0">
             <legend className="mb-1 text-sm font-semibold">How much of the whole recipe?</legend>

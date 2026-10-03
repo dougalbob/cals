@@ -116,6 +116,67 @@ export function calorieRatio(calories: number, goal: number): number {
   return Math.max(-1, Math.min(2, ratio))
 }
 
+export interface CalorieBarSplit {
+  /** Green share of the bar, as a percentage of the track width (0–100). */
+  greenPct: number
+  /** Red share of the bar, as a percentage of the track width (0–100). */
+  redPct: number
+}
+
+/** One decimal place: enough to make 17.3% vs 17.4% honest, not enough to jitter. */
+function round1(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+/**
+ * Geometry for a day's calorie bar (owner request, 2026-10-03).
+ *
+ * A day over goal used to paint the whole bar red, which said "over" but hid
+ * everything else: every overspent day looked identical, and the amount eaten
+ * before the goal was reached was invisible. Instead the bar now splits at the
+ * moment the goal was reached:
+ *
+ * - **Under or at goal** — a green progress bar filling `calories / goal` of
+ *   the track, exactly as before.
+ * - **Over goal** — the track is full, split into the part covered by the goal
+ *   (green) and the overspend (red). A 1,200 kcal day against a 1,000 goal is
+ *   83.3% green and a 16.7% red tail, so the red segment *is* the overspend.
+ *
+ * The split is always weighted against the day's own total, which keeps the red
+ * share under a quarter of the bar for any realistic overshoot — the owner's
+ * nine months of data top out at about 30% over goal (30/130 ≈ 23%).
+ */
+export function calorieBarSplit(calories: number, goal: number): CalorieBarSplit {
+  if (!(goal > 0) || !(calories > 0)) return { greenPct: 0, redPct: 0 }
+  if (calories <= goal) {
+    return { greenPct: round1((calories / goal) * 100), redPct: 0 }
+  }
+  const redPct = round1(((calories - goal) / calories) * 100)
+  return { greenPct: round1(100 - redPct), redPct }
+}
+
+/**
+ * Clamp a month key (`YYYY-MM`) so the calendar can never be pushed into a
+ * future month: today's month is the furthest forward it will go.
+ */
+export function clampMonthToToday(yyyymm: string, today: string): string {
+  const current = monthForIso(today)
+  return yyyymm > current ? current : yyyymm
+}
+
+/**
+ * Clamp a week anchor so the calendar never shows a week that has not started
+ * yet. Any date past today falls back to today, which lands on today's week.
+ */
+export function clampWeekAnchorToToday(anchor: string, today: string): string {
+  return anchor > today ? today : anchor
+}
+
+/** Whether a grid date is still in the future, so it must not be tappable. */
+export function isFutureDay(iso: string, today: string): boolean {
+  return iso > today
+}
+
 export function hydrationRatio(ml: number, target: number): number {
   if (target <= 0) return 0
   return Math.max(0, Math.min(1, ml / target))

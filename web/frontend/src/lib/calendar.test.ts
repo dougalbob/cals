@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   addDays,
   addMonths,
+  calorieBarSplit,
   calorieRatio,
+  clampMonthToToday,
+  clampWeekAnchorToToday,
+  isFutureDay,
   formatMonthLabel,
   formatWeekRangeLabel,
   hydrationRatio,
@@ -79,5 +83,65 @@ describe('ratios', () => {
     expect(hydrationRatio(0, 2000)).toBe(0)
     expect(hydrationRatio(1000, 2000)).toBe(0.5)
     expect(hydrationRatio(2500, 2000)).toBe(1)
+  })
+})
+
+describe('calorieBarSplit', () => {
+  it('fills a green bar towards the goal while the day is under it', () => {
+    expect(calorieBarSplit(0, 1000)).toEqual({ greenPct: 0, redPct: 0 })
+    expect(calorieBarSplit(250, 1000)).toEqual({ greenPct: 25, redPct: 0 })
+    expect(calorieBarSplit(1000, 1000)).toEqual({ greenPct: 100, redPct: 0 })
+  })
+
+  it('splits an over-goal day at the goal instead of painting the whole bar red', () => {
+    // The owner's example: 1,200 against a 1,000 goal is a 20% overspend, so
+    // the red tail is the fifth of the bar past the goal, not the lot.
+    expect(calorieBarSplit(1200, 1000)).toEqual({ greenPct: 83.3, redPct: 16.7 })
+    // Half again as much as the budget: the red tail grows, the green shrinks.
+    expect(calorieBarSplit(1500, 1000)).toEqual({ greenPct: 66.7, redPct: 33.3 })
+    // The worst overspend in nine months of data (~30%) is still a minority of
+    // the bar, which is why this presentation is safe to adopt.
+    expect(calorieBarSplit(1300, 1000)).toEqual({ greenPct: 76.9, redPct: 23.1 })
+  })
+
+  it('stays inside the track for absurd totals and missing goals', () => {
+    const extreme = calorieBarSplit(100000, 1000)
+    expect(extreme.redPct).toBeCloseTo(99, 0)
+    expect(extreme.greenPct + extreme.redPct).toBeCloseTo(100, 1)
+    // A user with no goal set gets an empty track rather than a division by zero.
+    expect(calorieBarSplit(1200, 0)).toEqual({ greenPct: 0, redPct: 0 })
+    expect(calorieBarSplit(Number.NaN, 1000)).toEqual({ greenPct: 0, redPct: 0 })
+  })
+})
+
+describe('looking forward past today', () => {
+  const today = '2026-10-07'
+
+  it('clamps a future month key to the month containing today', () => {
+    expect(clampMonthToToday('2026-10', today)).toBe('2026-10')
+    expect(clampMonthToToday('2026-09', today)).toBe('2026-09')
+    expect(clampMonthToToday('2026-11', today)).toBe('2026-10')
+    expect(clampMonthToToday('2027-01', today)).toBe('2026-10')
+  })
+
+  it('clamps a future week anchor onto today, keeping its week', () => {
+    expect(clampWeekAnchorToToday('2026-10-05', today)).toBe('2026-10-05')
+    // A future day inside today's own week (Mon 5th – Sun 11th) lands on today,
+    // which is the same week: the grid still shows the days that have happened.
+    expect(clampWeekAnchorToToday('2026-10-09', today)).toBe(today)
+    expect(clampWeekAnchorToToday('2026-10-12', today)).toBe(today)
+    expect(clampWeekAnchorToToday('2026-12-25', today)).toBe(today)
+    // A clamped future anchor still resolves to today's own week.
+    expect(weekRange(clampWeekAnchorToToday('2026-10-12', today))).toEqual({
+      from: '2026-10-05',
+      to: '2026-10-11',
+    })
+  })
+
+  it('marks only days strictly after today as future', () => {
+    expect(isFutureDay('2026-10-06', today)).toBe(false)
+    expect(isFutureDay('2026-10-07', today)).toBe(false)
+    expect(isFutureDay('2026-10-08', today)).toBe(true)
+    expect(isFutureDay('2026-11-01', today)).toBe(true)
   })
 })

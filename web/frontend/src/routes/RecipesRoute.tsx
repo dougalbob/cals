@@ -1,16 +1,26 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipes, setRecipeArchived, setRecipeFavourite } from '../api/recipes'
+import { getRecipe, getRecipes, setRecipeArchived, setRecipeFavourite } from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
   type Recipe,
   type RecipeDishType,
   type RecipeMealOccasion,
+  type RecipeDetail,
 } from '../api/types'
+import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeTags } from '../components/RecipeTags'
+import { formatShortDate, todayIso } from '../lib/format'
+import {
+  diaryHrefForPick,
+  mealLabel,
+  parseRecipePick,
+  withRecipePick,
+  type RecipePickIntent,
+} from '../lib/recipePick'
 import {
   dishTagKey,
   foodTagKey,
@@ -34,11 +44,37 @@ interface FavouriteVariables {
 
 export function RecipesRoute() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [favouritesOnly, setFavouritesOnly] = useState(false)
   /** A view toggle, not a filter: archived recipes stay out of sight until asked for (decision 59). */
   const [showArchived, setShowArchived] = useState(false)
+
+  /**
+   * Logging from the Diary arrives here armed with the meal and date it started
+   * from (`?add-to=&on=`), so the whole recipe box — search, favourites, tags —
+   * is the picker, and the portion sheet opens already knowing where the entry
+   * belongs. Owner request, 2026-10-03; see `src/lib/recipePick.ts`.
+   */
+  const today = todayIso()
+  const pick = useMemo(() => parseRecipePick(searchParams, today), [searchParams, today])
+  const [recipeToLog, setRecipeToLog] = useState<RecipeDetail | null>(null)
+  const [loadingPickId, setLoadingPickId] = useState<number | null>(null)
+  const [pickError, setPickError] = useState<string | null>(null)
+
+  /** The list row carries the ids only, so a pick loads the full recipe first. */
+  const startLogging = async (recipe: Recipe) => {
+    setPickError(null)
+    setLoadingPickId(recipe.id)
+    try {
+      setRecipeToLog(await getRecipe(recipe.id))
+    } catch (error) {
+      setPickError((error as Error).message)
+    } finally {
+      setLoadingPickId(null)
+    }
+  }
 
   /**
    * The tag selection is the filter state, and it lives in the URL (`?tags=`)
@@ -184,10 +220,47 @@ export function RecipesRoute() {
           <p className="m-0 text-xs uppercase tracking-wide text-ink-light">Your recipe box</p>
           <h2 className="m-0 text-lg font-semibold">Recipes</h2>
         </div>
-        <Link to="/" className="text-sm font-medium text-primary-dark no-underline hover:underline">
-          Back to Today
-        </Link>
+        {pick ? (
+          <Link
+            to={diaryHrefForPick(pick)}
+            className="text-sm font-medium text-primary-dark no-underline hover:underline"
+          >
+            Cancel
+          </Link>
+        ) : (
+          <Link to="/" className="text-sm font-medium text-primary-dark no-underline hover:underline">
+            Back to Today
+          </Link>
+        )}
       </header>
+
+      {pick && (
+        <section
+          role="status"
+          aria-label="Adding a recipe to the diary"
+          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl border border-primary/40 bg-primary/10 px-3 py-2"
+        >
+          <p className="m-0 text-sm">
+            <span className="font-semibold">Pick a recipe for {mealLabel(pick.meal)}</span>
+            <span className="text-ink-light">
+              {' '}· {pick.date === today ? 'today' : formatShortDate(pick.date)}. Search, favourites and
+              tags all work as usual.
+            </span>
+          </p>
+          <Link
+            to={diaryHrefForPick(pick)}
+            className="min-h-9 shrink-0 rounded-xl border border-line bg-surface px-3 text-xs font-medium text-ink no-underline"
+          >
+            ← Back to the diary
+          </Link>
+        </section>
+      )}
+
+      {pickError && (
+        <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
+          Could not open that recipe: {pickError}
+        </p>
+      )}
 
       {recipesQuery.isError && (
         <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -371,6 +444,12 @@ export function RecipesRoute() {
                         onToggleFavourite={() =>
                           favouriteMutation.mutate({ id: recipe.id, isFavourite: !recipe.is_favourite })
                         }
+                        // While the Diary is waiting for a choice, each card can log
+                        // straight to it. `visibleRecipes` is never archived, so decision
+                        // 59's rule can only bite the archived section below.
+                        pickIntent={pick}
+                        logging={loadingPickId === recipe.id}
+                        onLog={pick === null ? undefined : () => void startLogging(recipe)}
                       />
                     </li>
                   ))}
@@ -409,6 +488,21 @@ export function RecipesRoute() {
           )}
         </>
       )}
+
+      {pick && recipeToLog && (
+        <RecipePortionSheet
+          recipe={recipeToLog}
+          initialMeal={pick.meal}
+          initialDate={pick.date}
+          onClose={() => setRecipeToLog(null)}
+          // Straight back to the meal the request came from, so the diary shows
+          // what was just logged without a hunt for it.
+          onDone={() => {
+            setRecipeToLog(null)
+            navigate(diaryHrefForPick(pick))
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -419,9 +513,12 @@ function RecipeCard({
   selectedTags,
   savingFavourite,
   restoring = false,
+  pickIntent = null,
+  logging = false,
   onTagClick,
   onToggleFavourite,
   onRestore,
+  onLog,
 }: {
   recipe: Recipe
   /** Carries the current filter to the detail page, so its back link returns to this list. */
@@ -429,12 +526,21 @@ function RecipeCard({
   selectedTags: readonly string[]
   savingFavourite: boolean
   restoring?: boolean
+  /** The diary meal + date this list is logging to, when it is acting as a picker. */
+  pickIntent?: RecipePickIntent | null
+  /** True while the recipe's own detail is being fetched for the portion sheet. */
+  logging?: boolean
   onTagClick: (tag: RecipeTagRef) => void
   onToggleFavourite: () => void
   /** Only archived cards offer Restore; it replaces the favourite heart. */
   onRestore?: () => void
+  /** Only offered in pick mode: log a portion of this recipe straight to the diary. */
+  onLog?: () => void
 }) {
-  const detailHref = `/recipes/${recipe.id}${detailTagSuffix}`
+  // The detail page is part of the same flow while a pick is in progress, so it
+  // inherits the intent: filters and "which meal, which date" both survive the
+  // detour, and its own "Add to diary" button arrives pre-filled.
+  const detailHref = withRecipePick(`/recipes/${recipe.id}${detailTagSuffix}`, pickIntent)
   const imageUrl = recipe.image_filename
     ? `/api/images/recipes/${recipe.id}/thumb${recipe.updated_at ? `?v=${encodeURIComponent(recipe.updated_at)}` : ''}`
     : null
@@ -509,6 +615,17 @@ function RecipeCard({
             className="mt-3 min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
           >
             {restoring ? 'Restoring…' : 'Restore'}
+          </button>
+        )}
+        {onLog && pickIntent && (
+          <button
+            type="button"
+            onClick={onLog}
+            disabled={logging}
+            aria-label={`Add ${recipe.name} to ${mealLabel(pickIntent.meal)} on ${pickIntent.date}`}
+            className="mt-3 min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {logging ? 'Opening…' : `🍽 Add to ${mealLabel(pickIntent.meal)}`}
           </button>
         )}
       </div>

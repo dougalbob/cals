@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
@@ -21,7 +21,18 @@ import { addDays, formatNumber, todayIso } from '../lib/format'
 import { orderQuickDrinks, quickDrinksForGrid } from '../components/QuickDrinks'
 import { pickWaterDrink } from '../components/FluidsCard'
 import { isWaterDrink } from '../lib/drinkCatalog'
+import { startRecipePickHref } from '../lib/recipePick'
 import type { Drink } from '../api/types'
+
+/** Where the router landed, so a hand-off to another tab can be asserted. */
+function LocationProbe() {
+  const location = useLocation()
+  return (
+    <span data-testid="location">
+      {`${location.pathname}${location.search}${location.hash}`}
+    </span>
+  )
+}
 
 function renderDiary(path: string) {
   const queryClient = new QueryClient({
@@ -34,11 +45,15 @@ function renderDiary(path: string) {
         <Routes>
           <Route path="/diary" element={<DiaryRoute />} />
           <Route path="/diary/:date" element={<DiaryRoute />} />
+          <Route path="/recipes" element={<p>recipe box</p>} />
         </Routes>
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   )
 }
+
+const locationHref = () => screen.getByTestId('location').textContent ?? ''
 
 beforeEach(() => {
   // The quick-add tests log real entries into the fixture; start each test from
@@ -368,72 +383,31 @@ describe('DiaryRoute', () => {
     expect(screen.queryAllByText('Nothing logged yet')).toHaveLength(0)
   })
 
-  it('offers + Add recipe on each meal and logs the portion with that meal preselected (decision 40)', async () => {
+  it('hands “Add recipe” over to the recipe box with the meal and date along (decision 40)', async () => {
     renderDiary('/diary')
     expect(await screen.findByText('Today')).toBeTruthy()
 
-    // Every meal card now has both actions
+    // Every meal card still has both actions.
     const dinner = (await screen.findByText('Dinner')).closest('section') as HTMLElement
     expect(dinner).toBeTruthy()
     expect(within(dinner).getByRole('button', { name: '+ Add food' })).toBeTruthy()
     expect(within(dinner).getByRole('button', { name: '🍽 Add recipe' })).toBeTruthy()
 
-    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
-    const before = seed.entriesFor(seed.TODAY).length
-
+    // Tapping it no longer opens a mini picker: it opens the Recipes tab, which
+    // has the search, favourites and tag filters, and tells it which meal this
+    // is for and which day it belongs on (owner request, 2026-10-03).
     fireEvent.click(within(dinner).getByRole('button', { name: '🍽 Add recipe' }))
-
-    // The picker opens pre-titled to the meal that launched it
-    const picker = await screen.findByRole('dialog', { name: 'Add recipe to Dinner' })
-    // It lists the seeded (non-archived) recipes once the query resolves.
-    expect(await within(picker).findByText('Chicken Curry')).toBeTruthy()
-
-    fireEvent.click(within(picker).getByRole('button', { name: /Chicken Curry/ }))
-
-    // The portion sheet opens with Dinner already pressed and today's date set.
-    const sheet = (await screen.findByRole('dialog', { name: 'Add Chicken Curry' }))
-    const allButtons = within(sheet).getAllByRole('button')
-    const dinnerButton = allButtons.find(
-      (button) => button.getAttribute('aria-pressed') === 'true' && button.textContent?.includes('Dinner'),
-    ) as HTMLElement
-    expect(dinnerButton).toBeTruthy()
-
-    // Pick half the recipe and log it.
-    fireEvent.click(within(sheet).getByRole('button', { name: /½/ }))
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to diary' }))
-
-    await waitFor(() => {
-      const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
-      expect(added).toMatchObject({
-        recipe_id: 1,
-        meal: 'dinner',
-      })
-      expect(added?.quantity_grams).toBeGreaterThan(0)
-    })
-    expect(seed.entriesFor(seed.TODAY).length).toBe(before + 1)
+    await waitFor(() =>
+      expect(locationHref()).toBe(startRecipePickHref('dinner', seed.TODAY)),
+    )
   })
 
-  it('searches the recipe picker and does not surface archived recipes', async () => {
-    // Archive the Salmon Traybake before rendering, to verify the picker hides it.
-    handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })
-    renderDiary('/diary')
+  it('carries the viewed date, not just the meal, when the diary is on a past day', async () => {
+    const past = addDays(seed.TODAY, -3)
+    renderDiary(`/diary/${past}`)
+    const breakfast = (await screen.findByText('Breakfast')).closest('section') as HTMLElement
 
-    const snacks = (await screen.findByText('Snacks')).closest('section') as HTMLElement
-    fireEvent.click(within(snacks).getByRole('button', { name: '🍽 Add recipe' }))
-    const picker = await screen.findByRole('dialog', { name: 'Add recipe to Snacks' })
-
-    // Chicken Curry is in the catalogue; Salmon Traybake is archived and must
-    // never be offered to a logging flow (decision 59).
-    expect(await within(picker).findByText('Chicken Curry')).toBeTruthy()
-    expect(within(picker).queryByText('Salmon Traybake')).toBeNull()
-
-    // Search narrows the list by name.
-    fireEvent.change(within(picker).getByPlaceholderText('Search recipes…'), {
-      target: { value: 'Pie' },
-    })
-    await waitFor(() => {
-      expect(within(picker).queryByText('Chicken Curry')).toBeNull()
-      expect(within(picker).getByText('Chicken & Mushroom Pie')).toBeTruthy()
-    })
+    fireEvent.click(within(breakfast).getByRole('button', { name: '🍽 Add recipe' }))
+    await waitFor(() => expect(locationHref()).toBe(startRecipePickHref('breakfast', past)))
   })
 })

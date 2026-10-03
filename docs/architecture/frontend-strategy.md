@@ -424,22 +424,34 @@ reproducible in the preview.
 
 **Decision 40 — `+ Add recipe` on each Diary meal card — implemented 2026-10-03 (rc15).** Each meal
 card now has **+ Add food** and **🍽 Add recipe** side by side (two-column grid). Tapping Add recipe
-opens a searchable recipe picker (non-archived recipes only; decision 59), and selecting one hands
-off to the existing `RecipePortionSheet` with the originating meal and Diary date already
-preselected, so the user does not have to pick the meal twice. The two-step flow mirrors Add food,
-decisions 29–32 behaviour is preserved (fractions, direct grams, no guessed quantity, remembered
-usual with first-log-becomes-usual), and no API/schema change was needed beyond the new calendar
-endpoint below. The picker carries day context so on a past date the portion sheet logs to that day.
+opens a searchable recipe picker, and selecting one hands off to the existing `RecipePortionSheet`
+with the originating meal and Diary date already preselected, so the user does not have to pick the
+meal twice. Decisions 29–32 behaviour is preserved (fractions, direct grams, no guessed quantity,
+remembered usual with first-log-becomes-usual), and no API/schema change was needed beyond the new
+calendar endpoint below. The picker carries day context so on a past date the portion sheet logs to
+that day.
+
+**Decision 64 — that picker is now the Recipes tab — implemented 2026-10-03 (owner review, pending).**
+The in-house picker duplicated a worse version of the recipe box (one search box, no favourites, no
+tag filters, no archived handling), so **🍽 Add recipe** now navigates to
+`/recipes?add-to=<meal>&on=<date>` instead. The intent is URL state (see `src/lib/recipePick.ts`), so
+it survives searching, filtering, reloading and a trip into the recipe's own detail page; in pick mode
+each card gains a single **🍽 Add to Breakfast**-style action that opens the same
+`RecipePortionSheet` with the meal and date already chosen, and *Done* returns to
+`/diary/:date#<meal>`. Archived recipes remain unavailable until restored (decision 59); an
+unrecognised meal slot in a hand-edited link is ignored rather than guessed.
 
 **Calendar for historic dates (decision 49 follow-up) — implemented 2026-10-03 (rc15).** A new
 `/calendar` route (bottom-nav tab 📅) offers Month and Week views toggled by a segmented control.
-Month is a compact 6×7 Monday–Sunday grid with a per-day calorie progress bar (green at/below goal,
-red over), a 💧 pip when the hydration target is met, a signed bank figure and a primary-blue ring
-on today. Week (the phone-friendly view the owner asked for) shows 7 stacked cards with weekday,
+Month is a compact 6×7 Monday–Sunday grid with a per-day calorie progress bar (green up to the
+goal, and once the goal is passed a proportional red tail for the overspend — decision 62), a 💧 pip
+when the hydration target is met, a signed bank figure and a primary-blue ring on today. Week (the phone-friendly view the owner asked for) shows 7 stacked cards with weekday,
 date, calories vs goal, a signed bank total, four meal rows with icons (`🌅 Breakfast 355 kcal`,
 etc.) and a 💧 Hydration `x / y ml` line. Tapping any day hard-links to `/diary/:date`. State rides
 in the URL (`/calendar/month/2026-10`, `/calendar/week/2026-10-05`) so reload and deep links work; a
-📅 button in the Diary date header opens the calendar on today or the viewed date.
+📅 button in the Diary date header opens the calendar on today or the viewed date. The calendar stops
+at today (decision 63): the forward arrow is disabled on the current month/week, a future URL is
+clamped back to it, and days that have not happened are drawn but are not links.
 
 The calendar is backed by a new additive read-only endpoint `GET /api/calendar?from=&to=` (max 400
 days) which returns per-day food + drink totals, meal breakdowns, hydration ml from water-counting
