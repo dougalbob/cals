@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
 import { getRecipe, updateRecipeMetadata } from '../api/recipes'
@@ -14,10 +14,18 @@ import {
 } from '../api/types'
 import { RecipeTags } from '../components/RecipeTags'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
+import { parseTagParam, recipesHref, toggleTag } from '../lib/recipeTags'
 
 export function RecipeDetailRoute() {
   const { id: idParam } = useParams()
+  const [searchParams] = useSearchParams()
   const [isLogging, setIsLogging] = useState(false)
+  /**
+   * The catalogue hands its tag filter down with the link (`?tags=`), so this
+   * page can (a) return to the filtered list and (b) let a tag here open the
+   * catalogue narrowed by it — or widened, when that tag is already active.
+   */
+  const carriedTags = useMemo(() => parseTagParam(searchParams.get('tags')), [searchParams])
   const recipeId = Number(idParam)
   const validId = Number.isInteger(recipeId) && recipeId > 0
   const queryClient = useQueryClient()
@@ -59,7 +67,10 @@ export function RecipeDetailRoute() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Link to="/recipes" className="min-h-11 self-start py-2 text-sm font-medium text-primary-dark no-underline hover:underline">
+      <Link
+        to={recipesHref(carriedTags)}
+        className="min-h-11 self-start py-2 text-sm font-medium text-primary-dark no-underline hover:underline"
+      >
         ← Back to recipes
       </Link>
 
@@ -74,7 +85,12 @@ export function RecipeDetailRoute() {
             </div>
           )}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/65 to-transparent" />
-          <RecipeTags recipe={recipe} className="absolute bottom-4 left-4 right-4 z-10" />
+          <RecipeTags
+            recipe={recipe}
+            selectedKeys={carriedTags}
+            tagHref={(tag) => recipesHref(toggleTag(carriedTags, tag.key))}
+            className="absolute bottom-4 left-4 right-4 z-10"
+          />
         </div>
 
         <div className="p-4 sm:p-5">
