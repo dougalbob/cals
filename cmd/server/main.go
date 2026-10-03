@@ -145,6 +145,9 @@ func main() {
 	mux.Handle("GET /api/stats/calories", withAuth(http.HandlerFunc(handlers.HandleGetCalorieStats)))
 	mux.Handle("GET /api/stats/bank", withAuth(http.HandlerFunc(handlers.HandleGetBankStats)))
 
+	// Calendar: per-day summaries for the month/week calendar views (decision 49).
+	mux.Handle("GET /api/calendar", withAuth(http.HandlerFunc(handlers.HandleGetCalendar)))
+
 	// Drinks routes
 	mux.Handle("GET /api/drinks", withAuth(http.HandlerFunc(handlers.HandleGetDrinks)))
 	mux.Handle("POST /api/drinks", withAuth(http.HandlerFunc(handlers.HandleCreateDrink)))

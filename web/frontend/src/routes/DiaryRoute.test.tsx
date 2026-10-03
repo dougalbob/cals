@@ -360,4 +360,73 @@ describe('DiaryRoute', () => {
     // Past days are complete: no empty meal sections
     expect(screen.queryAllByText('Nothing logged yet')).toHaveLength(0)
   })
+
+  it('offers + Add recipe on each meal and logs the portion with that meal preselected (decision 40)', async () => {
+    renderDiary('/diary')
+    expect(await screen.findByText('Today')).toBeTruthy()
+
+    // Every meal card now has both actions
+    const dinner = (await screen.findByText('Dinner')).closest('section') as HTMLElement
+    expect(dinner).toBeTruthy()
+    expect(within(dinner).getByRole('button', { name: '+ Add food' })).toBeTruthy()
+    expect(within(dinner).getByRole('button', { name: '🍽 Add recipe' })).toBeTruthy()
+
+    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
+    const before = seed.entriesFor(seed.TODAY).length
+
+    fireEvent.click(within(dinner).getByRole('button', { name: '🍽 Add recipe' }))
+
+    // The picker opens pre-titled to the meal that launched it
+    const picker = await screen.findByRole('dialog', { name: 'Add recipe to Dinner' })
+    // It lists the seeded (non-archived) recipes once the query resolves.
+    expect(await within(picker).findByText('Chicken Curry')).toBeTruthy()
+
+    fireEvent.click(within(picker).getByRole('button', { name: /Chicken Curry/ }))
+
+    // The portion sheet opens with Dinner already pressed and today's date set.
+    const sheet = (await screen.findByRole('dialog', { name: 'Add Chicken Curry' }))
+    const allButtons = within(sheet).getAllByRole('button')
+    const dinnerButton = allButtons.find(
+      (button) => button.getAttribute('aria-pressed') === 'true' && button.textContent?.includes('Dinner'),
+    ) as HTMLElement
+    expect(dinnerButton).toBeTruthy()
+
+    // Pick half the recipe and log it.
+    fireEvent.click(within(sheet).getByRole('button', { name: /½/ }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to diary' }))
+
+    await waitFor(() => {
+      const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
+      expect(added).toMatchObject({
+        recipe_id: 1,
+        meal: 'dinner',
+      })
+      expect(added?.quantity_grams).toBeGreaterThan(0)
+    })
+    expect(seed.entriesFor(seed.TODAY).length).toBe(before + 1)
+  })
+
+  it('searches the recipe picker and does not surface archived recipes', async () => {
+    // Archive the Salmon Traybake before rendering, to verify the picker hides it.
+    handle('PUT', new URL('/api/recipes/3/archive', 'http://localhost'), { is_archived: true })
+    renderDiary('/diary')
+
+    const snacks = (await screen.findByText('Snacks')).closest('section') as HTMLElement
+    fireEvent.click(within(snacks).getByRole('button', { name: '🍽 Add recipe' }))
+    const picker = await screen.findByRole('dialog', { name: 'Add recipe to Snacks' })
+
+    // Chicken Curry is in the catalogue; Salmon Traybake is archived and must
+    // never be offered to a logging flow (decision 59).
+    expect(await within(picker).findByText('Chicken Curry')).toBeTruthy()
+    expect(within(picker).queryByText('Salmon Traybake')).toBeNull()
+
+    // Search narrows the list by name.
+    fireEvent.change(within(picker).getByPlaceholderText('Search recipes…'), {
+      target: { value: 'Pie' },
+    })
+    await waitFor(() => {
+      expect(within(picker).queryByText('Chicken Curry')).toBeNull()
+      expect(within(picker).getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    })
+  })
 })

@@ -108,6 +108,8 @@ export const queryKeys = {
   foodSearchAll: ['foods', 'search'] as const,
   recipes: ['recipes'] as const,
   recipe: (id: number) => ['recipes', 'detail', id] as const,
+  /** Calendar range — keyed by (from, to). */
+  calendar: (from: string, to: string) => ['calendar', from, to] as const,
   weight: (days: number) => ['weight', days] as const,
   measurements: ['measurements'] as const,
   calorieStats: (days: number) => ['stats', 'calories', days] as const,

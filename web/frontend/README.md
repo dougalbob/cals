@@ -1,7 +1,9 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has three merged
-slices and a fourth (recipe archive/restore) published as `v2.0.0-dev-rc14`.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has four merged
+slices (recipe catalogue, portion logging, tap-to-filter tags, archive/restore — published through
+`v2.0.0-dev-rc14`) and a fifth — decision 40, `+ Add recipe` on each Diary meal card — implemented
+on the working branch and awaiting publication.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
@@ -25,7 +27,8 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Screen | Route | Notes |
 |---|---|---|
 | Today | `/` | Summary landing: calorie ring, four meal tiles, merged fluids card |
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search, 📅 button opening the calendar on this week, **+ Add recipe** that opens a recipe picker and the portion sheet with the current meal/date preselected (decision 40) |
+| Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (larger phone-friendly layout with per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back; tapping any day opens `/diary/:date` (decision 49 follow-up). The fluids card is now labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 
 The shared `CalorieRing` outer arc is anchored at 12 o'clock in both directions: a bank **surplus
 sweeps clockwise** in green, a **deficit sweeps anticlockwise** in red (owner decision 28,
@@ -144,11 +147,15 @@ becomes the usual, later amounts stay one-off. `GET /api/diary` entries carry th
 **Stubbed**: the Phase 13 operations not yet ported (core recipe create/update/delete and image
 upload) return a clear `501` so the preview does not pretend those flows are implemented.
 
-**Next planned slice (owner request, 2026-10-03):** give every Diary meal card a **+ Add recipe**
-action beside **+ Add food** on the same row, and open the portion sheet with the meal the action was
-started from already selected. Recipe logging otherwise keeps the decision 29–32 behaviour
-(fractions, direct grams, no guessed quantity, remembered usual). Mealie search/import is
-intentionally not implemented in this React frontend.
+**Implemented 2026-10-03 (decision 40):** every Diary meal card has a **🍽 Add recipe** button
+beside **+ Add food**. Tapping it opens a searchable recipe picker (non-archived recipes only, per
+decision 59); selecting a recipe opens the existing portion sheet with the originating meal and the
+Diary date already selected, so logging takes one fewer tap. Recipe logging otherwise keeps the
+decision 29–32 behaviour (fractions, direct grams, no guessed quantity, remembered usual). Mealie
+search/import is intentionally not implemented in this React frontend.
+
+**Next planned slice:** the calendar for historic dates (decision 49 follow-up) — a month view opened
+from the Diary date header with data-day markers, landing on `/diary/:date`.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
