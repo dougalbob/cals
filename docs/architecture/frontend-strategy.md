@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments: the shared-Recipes metadata slice is implemented and owner-reviewed in the Arena preview, and known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) are implemented and awaiting the owner's preview review. Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
+| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments. The shared-Recipes metadata slice was implemented and owner-reviewed in the Arena preview; known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) were owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`. The next slice — **+ Add recipe** on each Diary meal card, opening the portion sheet with that meal preselected (decision 40) — is queued for the following session. Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go`; Phase 13 allows narrow, additive food-serving/recipe-metadata API support and user-scoped preferences for recipe favourites and each user's usual recipe portion |
@@ -380,7 +380,7 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 **First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients.
 
-**Second increment implemented 2026-10-03, awaiting owner preview review:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Recipes still have no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed.
+**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. Recipes still have no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed.
 
 | Before | Now |
 |---|---|
@@ -389,6 +389,12 @@ This is a deliberately narrow exception to the current frontend-only migration b
 | Logging a recipe meant deciding the grams yourself, every time | Recipe detail logs a portion: whole-recipe fractions (¼, ½, ¾, all), direct gram editing, the date and meal, and a live “grams = kcal” line taken from the cooked-weight concentration maths |
 | Nothing remembered what a person actually eats, and a changed amount silently became the new habit | With no remembered amount nothing is preselected; the **first successful log becomes that user's usual**, later logs prefill it, and a different amount is one-off unless **“Make this my usual”** is ticked. The usual is per user and per recipe and never touches the shared recipe's `serves` |
 | Diary Edit only knew the logged grams | A logged food's response carries its serving metadata, so Edit offers the same named choices as Add without changing what the row stores: grams plus its own nutrition snapshot |
+
+**Next increment (owner request, 2026-10-03):** each Diary meal card gains **+ Add recipe** beside
+**+ Add food** on the same row, and the portion sheet opens with the meal the action was started from
+already selected (recorded as decision 40 in the [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03)).
+Not yet implemented: the Diary currently adds food only, and recipe logging starts from the recipe. Leave
+decisions 29–32 behaviour — fractions, direct grams, no guessed quantity, remembered usual — untouched.
 
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and

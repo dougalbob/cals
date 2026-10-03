@@ -5,8 +5,8 @@ slices.** The first — a photo-led Recipes catalogue with search, per-user favo
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
-implemented and awaiting the owner's preview review. Full recipe authoring (name, ingredients,
-method, image) remains later work. The legacy Mealie importer is
+implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. Full
+recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
@@ -137,7 +137,13 @@ becomes the usual, later amounts stay one-off. `GET /api/diary` entries carry th
 `food_serving_name`, `food_serving_grams` and `food_servings[]` so Edit offers the same choices.
 
 **Stubbed**: the Phase 13 operations not yet ported (core recipe create/update/delete and image
-upload) return a clear `501` so the preview does not pretend those flows are implemented. Mealie search/import is intentionally not implemented in this React frontend.
+upload) return a clear `501` so the preview does not pretend those flows are implemented.
+
+**Next planned slice (owner request, 2026-10-03):** give every Diary meal card a **+ Add recipe**
+action beside **+ Add food** on the same row, and open the portion sheet with the meal the action was
+started from already selected. Recipe logging otherwise keeps the decision 29–32 behaviour
+(fractions, direct grams, no guessed quantity, remembered usual). Mealie search/import is
+intentionally not implemented in this React frontend.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
