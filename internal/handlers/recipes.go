@@ -27,12 +27,28 @@ var supportedRecipeDishTypes = map[string]struct{}{
 	"dessert": {},
 }
 
+// writeJSONError answers with the documented `{"error": "..."}` shape.
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
 // HandleListRecipes returns the shared recipe catalogue with the current user's favourite state.
+//
+// Archived recipes (decision 59) are left out unless the caller asks for them
+// with `?include_archived=true`, so every picker and the legacy UI are safe by
+// default; only the Recipes page that offers "Show archived" opts in.
 func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	includeArchived := 0
+	if r.URL.Query().Get("include_archived") == "true" {
+		includeArchived = 1
 	}
 
 	rows, err := database.DB.Query(`
@@ -44,12 +60,13 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		           WHERE rf.recipe_id = r.id AND rf.user_id = ?
 		       ) AS is_favourite,
 		       r.updated_at, r.dish_type, r.total_time_minutes,
-		       p.grams AS usual_grams
+		       p.grams AS usual_grams, r.is_archived
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		LEFT JOIN recipe_user_portions p ON p.recipe_id = r.id AND p.user_id = ?
+		WHERE (? = 1 OR r.is_archived = 0)
 		ORDER BY r.name
-	`, user.ID, user.ID)
+	`, user.ID, user.ID, includeArchived)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -61,16 +78,18 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		var desc, img, dishType sql.NullString
 		var calcWeight, usualGrams sql.NullFloat64
 		var totalTime sql.NullInt64
-		var isFavourite int
+		var isFavourite, isArchived int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
 			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
-			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime, &usualGrams)
+			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime, &usualGrams,
+			&isArchived)
 		if err != nil {
 			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		recipe.IsFavourite = isFavourite != 0
+		recipe.IsArchived = isArchived != 0
 		if usualGrams.Valid {
 			grams := usualGrams.Float64
 			recipe.UsualGrams = &grams
@@ -319,14 +338,14 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 		       r.created_by_user_id, r.calculated_weight_grams, r.total_weight_grams, r.weight_is_manual,
 		       r.total_calories, r.total_protein, r.total_carbs, r.total_fat, r.total_fibre,
 		       r.created_at, r.updated_at, r.dish_type, r.total_time_minutes,
-		       COALESCE(u.name, u.email) as created_by_name
+		       COALESCE(u.name, u.email) as created_by_name, r.is_archived
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		WHERE r.id = ?
 	`, id).Scan(&r.ID, &r.Name, &desc, &instructions, &img, &r.Serves,
 		&r.CreatedByUserID, &calcWeight, &r.TotalWeightGrams, &r.WeightIsManual,
 		&r.TotalCalories, &r.TotalProtein, &r.TotalCarbs, &r.TotalFat, &r.TotalFibre,
-		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName)
+		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName, &r.IsArchived)
 	if err != nil {
 		return nil, err
 	}
@@ -656,6 +675,20 @@ func HandleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decision 59: a recipe that Diary history points at is never deleted.
+	// The foreign key would refuse anyway (with an opaque 500); answer with a
+	// clear conflict that tells the client what to do instead.
+	var diaryRefs int
+	if err := database.DB.QueryRow(`SELECT COUNT(*) FROM diary_entries WHERE recipe_id = ?`, id).Scan(&diaryRefs); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if diaryRefs > 0 {
+		writeJSONError(w, http.StatusConflict,
+			"This recipe appears in the Diary, so it can't be deleted. Archive it instead to hide it from the recipe list.")
+		return
+	}
+
 	_, err = database.DB.Exec(`DELETE FROM recipes WHERE id = ?`, id)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -663,6 +696,76 @@ func HandleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleSetRecipeArchived archives or restores a shared recipe (decision 59).
+//
+// Archiving only flips the flag: the recipe row, its ingredients and every
+// Diary reference stay exactly as they were, so recorded history (and the names
+// and links shown against it) cannot change. It is household-wide because
+// recipes are shared; favourites and usual portions are personal and untouched.
+// The call is idempotent — repeating it keeps the original archived_at.
+func HandleSetRecipeArchived(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid recipe ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		IsArchived *bool `json:"is_archived"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if input.IsArchived == nil {
+		http.Error(w, "is_archived is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var recipeID int64
+	if err := database.DB.QueryRow(`SELECT id FROM recipes WHERE id = ?`, id).Scan(&recipeID); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Recipe not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// updated_at is deliberately left alone: archiving is not a content edit,
+	// and the card image URL is cache-busted by it.
+	if *input.IsArchived {
+		_, err = database.DB.Exec(`
+			UPDATE recipes
+			SET is_archived = 1, archived_at = COALESCE(archived_at, CURRENT_TIMESTAMP)
+			WHERE id = ?
+		`, recipeID)
+	} else {
+		_, err = database.DB.Exec(`
+			UPDATE recipes SET is_archived = 0, archived_at = NULL WHERE id = ?
+		`, recipeID)
+	}
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recipe, err := getRecipeForUser(recipeID, user.ID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(recipe)
 }
 
 // HandleSetRecipeFavourite sets or clears the signed-in user's favourite for a shared recipe.

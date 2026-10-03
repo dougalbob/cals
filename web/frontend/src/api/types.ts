@@ -108,6 +108,11 @@ export interface Recipe {
   fibre_per_100g: number
   updated_at?: string
   is_favourite: boolean
+  /**
+   * Household-wide retirement flag (decision 59). An archived recipe is hidden from the
+   * catalogue by default, cannot be logged until restored, and keeps its Diary history.
+   */
+  is_archived: boolean
   /** The signed-in user's remembered portion in grams; null until they log it. */
   usual_grams: number | null
   meal_occasions: RecipeMealOccasion[]

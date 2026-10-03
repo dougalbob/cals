@@ -203,6 +203,7 @@ function buildRecipe({
     fibre_per_100g: per100(totals.fibre),
     created_at: `${iso(localNoon(40))}T18:20:00Z`,
     updated_at: `${iso(localNoon(12))}T19:05:00Z`,
+    is_archived: false,
     ingredients,
     text_ingredients: (text ?? []).map((description, i) => ({
       id: id * 100 + 90 + i,
@@ -667,6 +668,7 @@ const initialRecipeMetadata = new Map(recipes.map((recipe) => [
     key_foods: recipe.key_foods.map((keyFood) => ({ ...keyFood })),
     total_time_minutes: recipe.total_time_minutes,
     updated_at: recipe.updated_at,
+    is_archived: recipe.is_archived,
   },
 ]))
 const initialFavouriteRecipeIds = [...favouriteRecipeIds]
@@ -704,6 +706,7 @@ export function resetFixtures() {
     recipe.key_foods = initial.key_foods.map((keyFood) => ({ ...keyFood }))
     recipe.total_time_minutes = initial.total_time_minutes
     recipe.updated_at = initial.updated_at
+    recipe.is_archived = initial.is_archived
   }
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq

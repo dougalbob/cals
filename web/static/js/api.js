@@ -122,6 +122,12 @@ const API = {
         return this.request('DELETE', `/api/recipes/${id}`);
     },
 
+    // Decision 59: recipes are retired by archiving, which never touches Diary history.
+    // Archived recipes drop out of listRecipes(); restore them from the new Recipes page (/next/).
+    archiveRecipe(id) {
+        return this.request('PUT', `/api/recipes/${id}/archive`, { is_archived: true });
+    },
+
     searchMealieRecipes(query) {
         return this.request('GET', `/api/mealie/search?q=${encodeURIComponent(query)}`);
     },

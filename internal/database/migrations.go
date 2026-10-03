@@ -295,6 +295,12 @@ func RunMigrations() error {
 		`ALTER TABLE drinks ADD COLUMN usual_milk INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE drinks ADD COLUMN usual_sugar TEXT NOT NULL DEFAULT '0'`,
 		`ALTER TABLE drinks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+
+		// Decision 59: recipes are retired by archiving, never by deleting a row
+		// that Diary history points at. Additive: every existing recipe stays
+		// visible (is_archived = 0).
+		`ALTER TABLE recipes ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE recipes ADD COLUMN archived_at DATETIME`,
 	}
 
 	for _, migration := range migrations {

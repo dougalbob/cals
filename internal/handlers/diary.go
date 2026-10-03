@@ -232,6 +232,22 @@ func HandleCreateDiaryEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decision 59: an archived recipe is retired — it must be restored before
+	// it can be logged again. This is enforced here, not just by hiding it in
+	// the UI, so no client can log one by ID. Existing rows are never touched.
+	if input.RecipeID != nil {
+		var archived int
+		err := database.DB.QueryRow(`SELECT is_archived FROM recipes WHERE id = ?`, *input.RecipeID).Scan(&archived)
+		if err != nil && err != sql.ErrNoRows {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err == nil && archived != 0 {
+			writeJSONError(w, http.StatusConflict, "This recipe is archived. Restore it before adding it to the Diary.")
+			return
+		}
+	}
+
 	result, err := database.DB.Exec(`
 		INSERT INTO diary_entries (user_id, date, meal, food_id, recipe_id, quantity_grams, calories, protein, carbs, fat, fibre)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

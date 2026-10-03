@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipes, setRecipeFavourite } from '../api/recipes'
+import { getRecipes, setRecipeArchived, setRecipeFavourite } from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
@@ -37,6 +37,8 @@ export function RecipesRoute() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [favouritesOnly, setFavouritesOnly] = useState(false)
+  /** A view toggle, not a filter: archived recipes stay out of sight until asked for (decision 59). */
+  const [showArchived, setShowArchived] = useState(false)
 
   /**
    * The tag selection is the filter state, and it lives in the URL (`?tags=`)
@@ -65,7 +67,16 @@ export function RecipesRoute() {
 
   const recipesQuery = useQuery({
     queryKey: queryKeys.recipes,
-    queryFn: getRecipes,
+    // Ask for archived recipes too: the toggle below reveals them without another request.
+    queryFn: () => getRecipes({ includeArchived: true }),
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => setRecipeArchived(id, false),
+    onSuccess: (_restored, id) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recipe(id) })
+    },
   })
 
   const favouriteMutation = useMutation({
@@ -86,15 +97,22 @@ export function RecipesRoute() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.recipes }),
   })
 
+  const archivedCount = useMemo(
+    () => (recipesQuery.data ?? []).filter((recipe) => recipe.is_archived).length,
+    [recipesQuery.data],
+  )
+  const activeTotal = (recipesQuery.data?.length ?? 0) - archivedCount
+
   const keyFoodOptions = useMemo(() => {
     const foods = new Map<number, string>()
     for (const recipe of recipesQuery.data ?? []) {
+      if (recipe.is_archived && !showArchived) continue
       for (const food of recipe.key_foods) foods.set(food.food_id, food.food_name)
     }
     return [...foods.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [recipesQuery.data])
+  }, [recipesQuery.data, showArchived])
 
-  const visibleRecipes = useMemo(() => {
+  const matchingRecipes = useMemo(() => {
     const term = search.trim().toLocaleLowerCase()
     return (recipesQuery.data ?? []).filter((recipe) => {
       const searchableTags = [
@@ -115,6 +133,15 @@ export function RecipesRoute() {
     })
   }, [favouritesOnly, recipesQuery.data, search, selectedTags])
 
+  const visibleRecipes = useMemo(
+    () => matchingRecipes.filter((recipe) => !recipe.is_archived),
+    [matchingRecipes],
+  )
+  const visibleArchived = useMemo(
+    () => (showArchived ? matchingRecipes.filter((recipe) => recipe.is_archived) : []),
+    [matchingRecipes, showArchived],
+  )
+
   const occasionTags = selectedTagKeys(selectedTags, 'occasion')
   const dishTags = selectedTagKeys(selectedTags, 'dish')
   const foodTags = selectedTagKeys(selectedTags, 'food')
@@ -129,7 +156,7 @@ export function RecipesRoute() {
     setSelectedTags([])
   }
 
-  const totalRecipes = recipesQuery.data?.length ?? 0
+  const totalRecipes = activeTotal
   const resultSummary =
     totalRecipes === 0
       ? ''
@@ -138,6 +165,13 @@ export function RecipesRoute() {
         : `${visibleRecipes.length} of ${totalRecipes} recipes match`
 
   const detailTagSuffix = tagQuerySuffix(selectedTags)
+
+  const emptyMessage =
+    (recipesQuery.data?.length ?? 0) === 0
+      ? 'No recipes yet. Your recipes will appear here.'
+      : activeTotal === 0 && !showArchived
+        ? 'All your recipes are archived. Turn on “Show archived” to restore one.'
+        : 'No recipes match these filters.'
 
   if (recipesQuery.isPending) {
     return <p className="text-ink-light">Loading recipes…</p>
@@ -158,6 +192,11 @@ export function RecipesRoute() {
       {recipesQuery.isError && (
         <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
           Could not load recipes: {(recipesQuery.error as Error).message}
+        </p>
+      )}
+      {restoreMutation.isError && (
+        <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
+          Could not restore recipe: {(restoreMutation.error as Error).message}
         </p>
       )}
       {favouriteMutation.isError && (
@@ -184,6 +223,18 @@ export function RecipesRoute() {
             className="h-5 w-5 accent-red-600"
           />
           Show favourites only
+        </label>
+        <label className="flex min-h-11 items-center gap-2 self-start text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            disabled={archivedCount === 0}
+            onChange={(event) => setShowArchived(event.target.checked)}
+            className="h-5 w-5 accent-primary"
+          />
+          <span className={archivedCount === 0 ? 'text-ink-light' : undefined}>
+            Show archived ({archivedCount})
+          </span>
         </label>
         <details className="border-t border-line-light pt-3">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary-dark">
@@ -297,13 +348,9 @@ export function RecipesRoute() {
           <p role="status" className="m-0 text-xs font-medium text-ink-light">
             {resultSummary}
           </p>
-          {visibleRecipes.length === 0 ? (
+          {visibleRecipes.length === 0 && visibleArchived.length === 0 ? (
             <section className="flex flex-col items-center gap-3 rounded-2xl bg-card p-6 text-center shadow-card">
-              <p className="m-0 text-sm text-ink-light">
-                {recipesQuery.data?.length
-                  ? 'No recipes match these filters.'
-                  : 'No recipes yet. Your recipes will appear here.'}
-              </p>
+              <p className="m-0 text-sm text-ink-light">{emptyMessage}</p>
               {hasFilters && recipesQuery.data?.length ? (
                 <button
                   type="button"
@@ -315,22 +362,55 @@ export function RecipesRoute() {
               ) : null}
             </section>
           ) : (
-            <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
-              {visibleRecipes.map((recipe) => (
-                <li key={recipe.id}>
-                  <RecipeCard
-                    recipe={recipe}
-                    detailTagSuffix={detailTagSuffix}
-                    selectedTags={selectedTags}
-                    savingFavourite={favouriteMutation.isPending}
-                    onTagClick={toggleTagFilter}
-                    onToggleFavourite={() =>
-                      favouriteMutation.mutate({ id: recipe.id, isFavourite: !recipe.is_favourite })
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              {visibleRecipes.length > 0 && (
+                <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
+                  {visibleRecipes.map((recipe) => (
+                    <li key={recipe.id}>
+                      <RecipeCard
+                        recipe={recipe}
+                        detailTagSuffix={detailTagSuffix}
+                        selectedTags={selectedTags}
+                        savingFavourite={favouriteMutation.isPending}
+                        onTagClick={toggleTagFilter}
+                        onToggleFavourite={() =>
+                          favouriteMutation.mutate({ id: recipe.id, isFavourite: !recipe.is_favourite })
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {visibleArchived.length > 0 && (
+                <section aria-labelledby="archived-recipes-title" className="flex flex-col gap-3">
+                  <div>
+                    <h3 id="archived-recipes-title" className="m-0 text-base font-semibold">
+                      Archived recipes ({visibleArchived.length})
+                    </h3>
+                    <p className="mb-0 mt-1 text-xs text-ink-light">
+                      Hidden from the list and from logging. Past Diary entries keep these recipes
+                      exactly as they were. Restore one to use it again.
+                    </p>
+                  </div>
+                  <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
+                    {visibleArchived.map((recipe) => (
+                      <li key={recipe.id}>
+                        <RecipeCard
+                          recipe={recipe}
+                          detailTagSuffix={detailTagSuffix}
+                          selectedTags={selectedTags}
+                          savingFavourite={false}
+                          restoring={restoreMutation.isPending && restoreMutation.variables === recipe.id}
+                          onTagClick={toggleTagFilter}
+                          onToggleFavourite={() => undefined}
+                          onRestore={() => restoreMutation.mutate(recipe.id)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </>
           )}
         </>
       )}
@@ -343,16 +423,21 @@ function RecipeCard({
   detailTagSuffix,
   selectedTags,
   savingFavourite,
+  restoring = false,
   onTagClick,
   onToggleFavourite,
+  onRestore,
 }: {
   recipe: Recipe
   /** Carries the current filter to the detail page, so its back link returns to this list. */
   detailTagSuffix: string
   selectedTags: readonly string[]
   savingFavourite: boolean
+  restoring?: boolean
   onTagClick: (tag: RecipeTagRef) => void
   onToggleFavourite: () => void
+  /** Only archived cards offer Restore; it replaces the favourite heart. */
+  onRestore?: () => void
 }) {
   const detailHref = `/recipes/${recipe.id}${detailTagSuffix}`
   const imageUrl = recipe.image_filename
@@ -360,8 +445,13 @@ function RecipeCard({
     : null
 
   return (
-    <article className="h-full overflow-hidden rounded-2xl bg-card shadow-card">
-      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900">
+    <article
+      className="h-full overflow-hidden rounded-2xl bg-card shadow-card"
+      aria-label={recipe.is_archived ? `${recipe.name} (archived)` : undefined}
+    >
+      <div
+        className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900 ${recipe.is_archived ? 'opacity-70 saturate-50' : ''}`}
+      >
         <Link to={detailHref} aria-label={`View ${recipe.name}`} className="absolute inset-0 z-0 block">
           {imageUrl ? (
             <img src={imageUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
@@ -379,25 +469,32 @@ function RecipeCard({
           onTagClick={onTagClick}
           className="absolute bottom-3 left-3 right-16 z-10"
         />
-        <button
-          type="button"
-          onClick={onToggleFavourite}
-          disabled={savingFavourite}
-          aria-label={`${recipe.is_favourite ? 'Remove' : 'Add'} ${recipe.name} ${recipe.is_favourite ? 'from' : 'to'} favourites`}
-          aria-pressed={recipe.is_favourite}
-          className="absolute right-3 top-3 z-20 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/95 shadow-card disabled:opacity-60"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className={`h-6 w-6 ${recipe.is_favourite ? 'fill-red-600 stroke-red-600 drop-shadow-[0_1px_2px_rgba(127,29,29,0.55)]' : 'fill-none stroke-red-600'}`}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {recipe.is_archived && (
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+            Archived
+          </span>
+        )}
+        {!recipe.is_archived && (
+          <button
+            type="button"
+            onClick={onToggleFavourite}
+            disabled={savingFavourite}
+            aria-label={`${recipe.is_favourite ? 'Remove' : 'Add'} ${recipe.name} ${recipe.is_favourite ? 'from' : 'to'} favourites`}
+            aria-pressed={recipe.is_favourite}
+            className="absolute right-3 top-3 z-20 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/95 shadow-card disabled:opacity-60"
           >
-            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className={`h-6 w-6 ${recipe.is_favourite ? 'fill-red-600 stroke-red-600 drop-shadow-[0_1px_2px_rgba(127,29,29,0.55)]' : 'fill-none stroke-red-600'}`}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="p-4">
@@ -417,6 +514,17 @@ function RecipeCard({
           {recipe.total_weight_grams > 0 && <span>{Math.round(recipe.total_weight_grams)} g cooked</span>}
           {recipe.total_time_minutes !== null && <span>{recipe.total_time_minutes} min</span>}
         </div>
+        {recipe.is_archived && onRestore && (
+          <button
+            type="button"
+            onClick={onRestore}
+            disabled={restoring}
+            aria-label={`Restore ${recipe.name}`}
+            className="mt-3 min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {restoring ? 'Restoring…' : 'Restore'}
+          </button>
+        )}
       </div>
     </article>
   )

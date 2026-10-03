@@ -30,7 +30,7 @@ A personal calorie and nutrition tracking PWA.
 | Layer | Tech |
 |---|---|
 | Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
-| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and three Phase 13 slices (Recipes metadata; food servings and recipe-to-Diary portions; recipe tags that filter the catalogue when tapped), and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
+| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and four Phase 13 slices (Recipes metadata; food servings and recipe-to-Diary portions; recipe tags that filter the catalogue when tapped; recipe archive/restore), and is served only on a temporary `/next/` route — see `docs/architecture/frontend-strategy.md` |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (legacy recipe import; not pursued in React Phase 13), Google Fit (steps) |
 | Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
@@ -70,8 +70,9 @@ web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
 web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
 web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
 web/frontend/             React 19 + TS + Vite + Tailwind rebuild (Phase 11 foundation, Phase 12 screens,
-                          three Phase 13 slices — Recipes metadata, food servings plus
-                          recipe-to-Diary portions, and tap-to-filter recipe tags); production
+                          four Phase 13 slices — Recipes metadata, food servings plus
+                          recipe-to-Diary portions, tap-to-filter recipe tags, and recipe
+                          archive/restore); production
                           bundle served under temporary /next/ only — see its README
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth
@@ -139,7 +140,7 @@ Notes:
 - **UI improvement is a headline product requirement.** A new framework, a passing build, or functional parity alone is not success. User-facing phases must show a concrete improvement in the mobile-first daily experience and include a preview/screenshots for owner review before merge or cutover. Phase 11 may be foundation-only; it does not waive this later acceptance gate.
 - **Quick drinks:** the Diary must retain a familiar quick-add selector for Tea, Coffee and Water, using user-specific drink records rather than hard-coded nutrition values. Drink calories must count toward the bank; see the product decisions and Phase 12 plan.
 - **Domain maths is precious.** Bank/rolling balance, cooked-weight concentration, macro percentages, stones/lbs ↔ kg conversion and Google Fit step sync all have subtle, hard-won behaviour. Never change them incidentally; add tests if you touch them.
-- **Recipes are definitions; diary rows are records.** A diary entry keeps its own grams and nutrition snapshot and is what the bank and stats sum. **Editing a recipe (or a food) must never change recorded history** — no handler may re-read a definition to recompute or repair a saved diary entry, and nothing may cascade a diary row away because its recipe changed (decision 55). Recipe names are fixed at creation for the same reason (decision 58). Add a regression test whenever you touch this path.
+- **Recipes are definitions; diary rows are records.** A diary entry keeps its own grams and nutrition snapshot and is what the bank and stats sum. **Editing a recipe (or a food) must never change recorded history** — no handler may re-read a definition to recompute or repair a saved diary entry, and nothing may cascade a diary row away because its recipe changed (decision 55). Recipe names are fixed at creation for the same reason (decision 58). Add a regression test whenever you touch this path. **Recipes are retired by archiving, not deleting** (decision 59): `PUT /api/recipes/{id}/archive` flips a household-wide flag, archived recipes are hidden from `GET /api/recipes` unless `?include_archived=true`, and `POST /api/diary` refuses them with `409` until restored; `DELETE /api/recipes/{id}` returns `409` for any recipe the Diary references.
 
 ## 5. Documentation duties
 

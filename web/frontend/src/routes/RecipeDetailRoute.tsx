@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipe, updateRecipeMetadata } from '../api/recipes'
+import { getRecipe, setRecipeArchived, updateRecipeMetadata } from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
@@ -43,6 +43,14 @@ export function RecipeDetailRoute() {
     },
   })
 
+  const archiveMutation = useMutation({
+    mutationFn: (isArchived: boolean) => setRecipeArchived(recipeId, isArchived),
+    onSuccess: (updatedRecipe) => {
+      queryClient.setQueryData(queryKeys.recipe(recipeId), updatedRecipe)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
+    },
+  })
+
   if (!validId) {
     return <RecipeRouteMessage title="Recipe not found" message="That recipe link is not valid." />
   }
@@ -74,6 +82,34 @@ export function RecipeDetailRoute() {
         ← Back to recipes
       </Link>
 
+      {recipe.is_archived && (
+        <section
+          role="status"
+          aria-label="Archived recipe"
+          className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4"
+        >
+          <p className="m-0 text-sm font-semibold">This recipe is archived</p>
+          <p className="m-0 text-sm text-ink-light">
+            It is hidden from the recipe list and can’t be added to the Diary. Past Diary entries
+            keep it exactly as they were.
+          </p>
+          <button
+            type="button"
+            onClick={() => archiveMutation.mutate(false)}
+            disabled={archiveMutation.isPending}
+            className="min-h-11 self-start rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {archiveMutation.isPending ? 'Restoring…' : 'Restore recipe'}
+          </button>
+        </section>
+      )}
+      {archiveMutation.isError && (
+        <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
+          Could not {recipe.is_archived ? 'restore' : 'archive'} recipe:{' '}
+          {(archiveMutation.error as Error).message}
+        </p>
+      )}
+
       <article className="overflow-hidden rounded-2xl bg-card shadow-card">
         <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900">
           {imageUrl ? (
@@ -104,14 +140,16 @@ export function RecipeDetailRoute() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsLogging(true)}
-              className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
-            >
-              🍽 Add to diary
-            </button>
-            {recipe.usual_grams !== null ? (
+            {!recipe.is_archived && (
+              <button
+                type="button"
+                onClick={() => setIsLogging(true)}
+                className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+              >
+                🍽 Add to diary
+              </button>
+            )}
+            {recipe.is_archived ? null : recipe.usual_grams !== null ? (
               <span className="text-xs text-ink-light">
                 Your usual portion: {Math.round(recipe.usual_grams)} g
               </span>
@@ -164,11 +202,72 @@ export function RecipeDetailRoute() {
               </p>
             </section>
           )}
+
+          {!recipe.is_archived && (
+            <ArchiveRecipeSection
+              key={`archive-${recipe.id}`}
+              isArchiving={archiveMutation.isPending}
+              onArchive={() => archiveMutation.mutate(true)}
+            />
+          )}
         </div>
       </article>
 
-      {isLogging && <RecipePortionSheet recipe={recipe} onClose={() => setIsLogging(false)} />}
+      {isLogging && !recipe.is_archived && <RecipePortionSheet recipe={recipe} onClose={() => setIsLogging(false)} />}
     </div>
+  )
+}
+
+/**
+ * Archiving retires a recipe without touching history, so it is reversible and gets a
+ * light inline confirmation rather than a modal. There is deliberately no Delete here:
+ * a recipe that appears in the Diary can never be deleted (decision 59).
+ */
+function ArchiveRecipeSection({
+  isArchiving,
+  onArchive,
+}: {
+  isArchiving: boolean
+  onArchive: () => void
+}) {
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  return (
+    <section className="mt-4 border-t border-line-light pt-4" aria-labelledby="recipe-archive-title">
+      <h3 id="recipe-archive-title" className="m-0 text-base font-semibold">Retire this recipe</h3>
+      <p className="mb-0 mt-1 text-xs text-ink-light">
+        Archiving hides it for everyone who uses cals. Nothing already in the Diary changes, and you
+        can restore it later.
+      </p>
+      {isConfirming ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Confirm archive">
+          <button
+            type="button"
+            onClick={onArchive}
+            disabled={isArchiving}
+            className="min-h-11 rounded-xl bg-danger px-4 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {isArchiving ? 'Archiving…' : 'Yes, archive it'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsConfirming(false)}
+            disabled={isArchiving}
+            className="min-h-11 rounded-xl border border-line px-4 text-sm font-medium"
+          >
+            Keep it
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsConfirming(true)}
+          className="mt-3 min-h-11 rounded-xl border border-danger px-4 text-sm font-semibold text-danger hover:bg-danger/5"
+        >
+          Archive recipe
+        </button>
+      )}
+    </section>
   )
 }
 

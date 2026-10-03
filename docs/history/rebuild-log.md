@@ -14,6 +14,25 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Phase 13 slice 4: recipes can be archived and restored (decision 59)
+
+The owner left the choice of slice to the session. Archive/restore was picked because it closes the
+one real rough edge found in the recipe path — deleting a logged recipe failed with an opaque
+`500 FOREIGN KEY constraint failed` — it is small and self-contained, and it can be reviewed in the
+preview. The food-correction recalculation (decision 60) was left as its own slice because it touches
+recipe maths and has nothing to look at in a phone preview.
+
+Built end to end: an additive migration (`recipes.is_archived`, `archived_at`),
+`PUT /api/recipes/{id}/archive`, an opt-in `?include_archived=true` list (archived recipes are hidden
+by default so the legacy UI and any picker are safe), a `409` when logging an archived recipe or
+deleting a logged one, the React **Show archived** toggle, **Restore** on archived cards, an
+inline-confirmed **Archive recipe** on the detail page, and the legacy UI's Delete button replaced by
+Archive. Go and Vitest regression tests assert that diary rows, day totals, the bank and the recipe
+label are identical across archive and restore. Verified in the sandbox against the real handlers and
+a populated, re-migrated database. **Not merged or published** — it waits on the owner's preview review
+([`CURRENT_STATE.md`](../CURRENT_STATE.md) §3). Details and the two open choices are in the
+[decision log](../product/vision-and-open-questions.md#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
+
 ## 2026-10-03 — Archive/restore and food corrections agreed (decisions 59–61)
 
 The owner proposed retiring recipes by archiving rather than deleting them, with a **Show archived**
