@@ -18,7 +18,7 @@
 
 | Thing | Port | State |
 |---|---|---|
-| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc12`** (2026-10-03: tap-to-filter recipe tags, decisions 41–54, docs restructure — **frontend-only, no migration**), but the container only changes when the owner **Force Update**s in Unraid. Nothing past rc4 has been Force Updated, so the running image may be older than the newest checkpoint — check the in-app footer or `GET /api/version` rather than assuming |
+| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc13`** (2026-10-03: the recipe-adaptation requirement and decisions 55–58 — **documentation only, so the image is functionally identical to rc12**), but the container only changes when the owner **Force Update**s in Unraid. Nothing past rc4 has been Force Updated, so the running image may be older than the newest checkpoint — check the in-app footer or `GET /api/version` rather than assuming |
 | **V1 `cals-counter`** | 8150 | Legacy vanilla-JS app, still running but **stale**: it stopped receiving household entries when the Cloudflare route moved to 8151 |
 | **`cals-dev-identity`** (dev only) | 8152, LAN only | Disposable copy used for the `DEV_IDENTITY_SWITCH` (`/dev/identity`, or the template's WebUI shortcut — the bare LAN URL opens the normal app). **The only container allowed to lose data** |
 
@@ -33,7 +33,7 @@ or copy over an appdata directory without reading the warning document first.**
 ### How to tell which build you are looking at
 
 - `GET /api/version` (and the in-app footer) reports the application version — **`2.0.0`** on the V2 line since decision 12; `main` stays on `1.7.0` until promotion.
-- Docker image tags identify the checkpoint: `v2.0.0-dev-rcN` (next: **rc12** when this session's work is published). `dev-latest` follows the newest development tag; **`latest` is reserved for a future stable release and has never been published**.
+- Docker image tags identify the checkpoint: `v2.0.0-dev-rcN` (next: **rc14** when the next session's work is published). `dev-latest` follows the newest development tag; **`latest` is reserved for a future stable release and has never been published**.
 
 ---
 
@@ -45,7 +45,7 @@ Phases 11–16 are defined in [`frontend-strategy.md`](architecture/frontend-str
 |---|---|---|
 | **11 — Foundation** | ✅ Merged (PR #5) | React 19 + TS + Vite + Tailwind shell at `/next/`, typed API client, fixture API, lint/typecheck/tests |
 | **12 — Diary** | ✅ Implemented, merged (PR #22, `v2.0.0-dev-rc8`) | Water/quick drinks, one ledger for fluids, drink calories in the bank, quantity Edit, dual ring. **Owner phone-size review on the LAN dev container (both identities) is still outstanding** — it is an acceptance gate, not a blocker for Phase 13 |
-| **13 — Foods + Recipes** | 🟡 In progress — three slices merged | **Slice 1** (catalogue, per-user favourites, detail, structured tags, facet filters) owner-reviewed. **Slice 2** (named gram-backed food measures; recipe-to-Diary portions with the remembered usual; decisions 29–32) owner-reviewed, merged (PR #28). **Slice 3** (tap-to-filter recipe tags, decision 41 — plus the docs restructure and decisions 42–54) owner-reviewed in Arena, **merged as PR #30** and published as **rc12**; the phone-size review of it on Unraid is still outstanding |
+| **13 — Foods + Recipes** | 🟡 In progress — three slices merged | **Slice 1** (catalogue, per-user favourites, detail, structured tags, facet filters) owner-reviewed. **Slice 2** (named gram-backed food measures; recipe-to-Diary portions with the remembered usual; decisions 29–32) owner-reviewed, merged (PR #28). **Slice 3** (tap-to-filter recipe tags, decision 41 — plus the docs restructure and decisions 42–54) owner-reviewed in Arena, **merged as PR #30** and published as **rc12**; the phone-size review of it on Unraid is still outstanding. The recipe-adaptation plan (decisions 55–58) is recorded but not built — see §4 |
 | **14 — Metrics + Nutrition** | ⬜ Not started | Owns the rolling-window bank metric for the ring (food + drink), the tracked-nutrients settings work (decision 47) and the weekly report |
 | **15 — Settings + PWA** | ⬜ Not started | Per-user ring limits and lookback window, the admin "swap user" capability (decision 45), themes, PWA/offline behaviour |
 | **16 — Cutover** | ⬜ Not started | Delete the legacy UI, make React the single SPA. Owner-approved UI improvement is the gate |
@@ -60,7 +60,7 @@ summary.
 
 | # | What | Where |
 |---|---|---|
-| 1 | **Force Update `cals-dev-v2` to `rc12`** and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`). No migration or appdata work — this checkpoint is frontend-only | Unraid → `cals-dev-v2` → Force Update |
+| 1 | **Force Update `cals-dev-v2` to `rc13`** and review the Recipes tag filter at phone size (also `/next/` on the LAN dev container `8152`). rc13 is documentation-only — the app content is the same as rc12 — so either checkpoint shows the same Phase 13 tag-filter work. No migration or appdata work | Unraid → `cals-dev-v2` → Force Update |
 | 2 | **Phase 12 acceptance review** — Home and Diary, both identities, phone size (never completed) | `http://<unraid-lan-ip>:8152/next/` |
 | 3 | **Record the release-log smoke-test result** after the Force Update, so the log's last column is no longer ⬜ | `unraid-image-release.md` release log |
 
@@ -107,6 +107,8 @@ Full reasoning and every open sub-question:
 ---
 
 ## 6. Housekeeping done recently
+
+- **Published `v2.0.0-dev-rc13` (2026-10-03, PR #32):** the recipe-adaptation requirement and decisions 55–58, merged to `cals-dev` as `9260e10` and published by the tag-triggered workflow (run 37132678548; digest `sha256:d28a8209…`). **Documentation-only — the image is functionally identical to rc12** and there is no migration or appdata work.
 
 - **Recipe-adaptation requirement recorded (2026-10-03):** the owner raised the missing edit path for existing recipes and required that a recipe edit must never change historic diary calories. **Documentation only — no code changed.** Decisions 55–58 settle the shape (edit in place, any household user, names fixed at creation, frozen history) and the plan records the two findings verified against a real server: renaming a recipe relabels its historic diary rows (the name comes from a join), and `DELETE /api/recipes/{id}` fails with a foreign-key error for a recipe with history. See [`product/vision-and-open-questions.md`](product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
 

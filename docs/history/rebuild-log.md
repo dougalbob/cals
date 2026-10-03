@@ -14,6 +14,22 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Published `v2.0.0-dev-rc13` (PR #32)
+
+Owner said **"Lets publish"** (decision 20), so PR #32 — the recipe-adaptation requirement, decisions
+55–58 — was merged to `cals-dev` as `9260e10` and the merge commit tagged `v2.0.0-dev-rc13`. The
+tag-triggered workflow ([run 37132678548](https://github.com/dougalbob/cals/actions/runs/37132678548))
+passed the `cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease
+creation and the anonymous-pull check; digest
+`sha256:d28a820975261cff158c6d7f89f652d4846cac7cc68bc707de3c13f1dbf48103`.
+
+This is a **documentation-only** checkpoint — the runtime image copies only the Go binary and `web/`,
+so rc13 is functionally identical to rc12. It exists so `dev-latest` and the release log track the
+`cals-dev` state that now carries decisions 55–58. No API, schema, migration, template or appdata
+change, and the session did not access Unraid or live appdata. The next Phase 13 work is the recipe
+editor slice itself ([CURRENT_STATE.md](../CURRENT_STATE.md) §4), and the owner's outstanding
+phone-size review of the rc12 tag filter is unchanged by this checkpoint.
+
 ## 2026-10-03 — Adapting a recipe must not rewrite history (decisions 55–58)
 
 The owner raised the gap that Phase 13's React rebuild had not covered: **there is no way to adapt an
