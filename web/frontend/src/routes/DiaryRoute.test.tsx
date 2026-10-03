@@ -139,8 +139,9 @@ describe('DiaryRoute', () => {
 
     const expected = seed.waterFor(seed.TODAY)
     const card = await screen.findByLabelText('Fluids and drinks')
-    expect(within(card).getByText(formatNumber(expected.consumed_ml))).toBeTruthy()
-    expect(within(card).getByText(`/ ${formatNumber(expected.target_ml)} ml`)).toBeTruthy()
+    // The target is written across the glass; the separate "x / y ml" caption
+    // was dropped as redundant (owner request, 2026-10-03).
+    expect(within(card).getByText(`${formatNumber(expected.target_ml)} ml`)).toBeTruthy()
     expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
       String(expected.consumed_ml),
     )
@@ -209,14 +210,15 @@ describe('DiaryRoute', () => {
     renderDiary('/diary')
 
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
+    const target = seed.waterFor(seed.TODAY).target_ml
     const card = await screen.findByLabelText('Fluids and drinks')
 
     fireEvent.click(within(card).getByRole('button', { name: /Add a 250 ml glass of water/ }))
 
     await waitFor(() =>
-      expect(
-        within(card).getByText(formatNumber(waterBefore + 250)),
-      ).toBeTruthy(),
+      expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
+        String(Math.min(waterBefore + 250, target)),
+      ),
     )
   })
 
@@ -224,6 +226,7 @@ describe('DiaryRoute', () => {
     renderDiary('/diary')
 
     const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
+    const target = seed.waterFor(seed.TODAY).target_ml
     const card = await screen.findByLabelText('Fluids and drinks')
 
     fireEvent.click(within(card).getByRole('button', { name: '+ other amount' }))
@@ -232,7 +235,9 @@ describe('DiaryRoute', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Add' }))
 
     await waitFor(() =>
-      expect(within(card).getByText(formatNumber(waterBefore + 750))).toBeTruthy(),
+      expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
+        String(Math.min(waterBefore + 750, target)),
+      ),
     )
   })
 
@@ -245,9 +250,11 @@ describe('DiaryRoute', () => {
     // Bank maths includes drink calories, so the seeded household can be in
     // surplus or deficit; the tile and outer ring reflect that exact balance.
     expect(await screen.findByText(expected.bank_balance >= 0 ? 'Banked' : 'Deficit')).toBeTruthy()
-    expect(await screen.findByText(`of ${formatNumber(expected.daily_goal)} kcal`)).toBeTruthy()
+    // The wheel now carries its own labels instead of captions underneath.
+    expect(await screen.findByText('bank')).toBeTruthy()
+    expect(screen.getByText('daily')).toBeTruthy()
     const signed = `${expected.bank_balance > 0 ? '+' : ''}${formatNumber(expected.bank_balance)}`
-    expect(await screen.findByText(signed)).toBeTruthy()
+    expect((await screen.findAllByText(signed)).length).toBeGreaterThan(0)
     expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
       `Bank balance ${signed} kcal`,
     )

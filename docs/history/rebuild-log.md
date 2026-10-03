@@ -14,6 +14,32 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-03 — Road-test fixes: calorie wheel labels, inner-ring sweep, glass target, Android dots
+
+Four things the owner hit while road-testing, all frontend:
+
+1. **The calorie wheel labels itself.** The two captions underneath
+   (`Bank −394 kcal · 19.7% of ±2,000 kcal scale` and `177 kcal over today's allowance`) are gone.
+   The hub now reads `bank ±N` (the bank balance **plus** what is left of today — the owner's
+   definition of headroom in hand), the day's spend in large type, and `daily ±N` (today's own
+   remainder). Both small lines are colour-coded green/red by sign and use a true minus sign. The
+   `of 2,000 kcal` line was dropped at the owner's request: the goal is already in the tile beside
+   the wheel. All of the removed wording survives in the SVG `aria-label`.
+2. **The inner ring now follows the outer ring's convention.** Under the goal it still counts down
+   clockwise in green; once the day is overspent it grows **anticlockwise in red** from 12 o'clock,
+   scaled by how far the overspend has eaten into another whole day's goal and saturating at a full
+   circle. `bankArcTransform` was generalised to `arcTransform` (the old name is kept as an alias).
+3. **The hydration target is written across the glass** at 45°, drawn over the water with a white
+   halo so it stays legible at any level, which let the redundant `2,000 / 2,000 ml` caption go. The
+   glass is slightly larger (66×96) to carry the text.
+4. **The milk/sugar button is visible on Android.** It was three `·` glyphs in light grey on a
+   transparent background — crisp on a desktop monitor, near-invisible on a phone. It is now a
+   bordered 32 px circular chip containing an SVG three-dot icon in full ink, and the drink name is
+   padded clear of it.
+
+Vitest 135/135, lint and typecheck green. The deferred RFC3339-date issue on the fitness, weight and
+measurement endpoints was written up as a known issue for the metrics phase rather than fixed.
+
 ## 2026-10-03 — Calendar read every day as 0 kcal: the SQLite `DATE` decltype trap
 
 The owner tested the new calendar on the Unraid container and every day — past days included —

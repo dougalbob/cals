@@ -117,12 +117,9 @@ export function FluidsCard({
       <div className="flex flex-col md:flex-row items-stretch gap-4">
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="m-0 text-base font-semibold">💧 Hydration</h2>
-              <span className="text-xs tabular-nums text-ink-light">
-                <span className="font-semibold text-ink">{formatNumber(consumedMl)}</span> / {formatNumber(targetMl)} ml
-              </span>
-            </div>
+            {/* No "x / y ml" caption: the target is written across the glass
+                and what is left is the large figure beside it. */}
+            <h2 className="m-0 text-base font-semibold">💧 Hydration</h2>
 
             <div className="mt-3 flex items-center gap-3">
               {waterDrink ? (
@@ -155,9 +152,10 @@ export function FluidsCard({
                   >
                     <WaterGlass
                       level={level}
-                      width={58}
-                      height={84}
-                      label={`Water remaining: ${formatNumber(remaining)} ml`}
+                      width={66}
+                      height={96}
+                      targetLabel={targetMl > 0 ? `${formatNumber(targetMl)} ml` : undefined}
+                      label={`${formatNumber(consumedMl)} of ${formatNumber(targetMl)} ml; ${formatNumber(remaining)} ml remaining`}
                     />
                   </span>
                 </button>
@@ -173,8 +171,9 @@ export function FluidsCard({
                   >
                     <WaterGlass
                       level={1}
-                      width={58}
-                      height={84}
+                      width={66}
+                      height={96}
+                      targetLabel={targetMl > 0 ? `${formatNumber(targetMl)} ml` : undefined}
                       label="Set your glass size in My drinks"
                     />
                   </span>

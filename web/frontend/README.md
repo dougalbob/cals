@@ -30,11 +30,19 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search, 📅 button opening the calendar on this week, **+ Add recipe** that opens a recipe picker and the portion sheet with the current meal/date preselected (decision 40) |
 | Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (larger phone-friendly layout with per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back; tapping any day opens `/diary/:date` (decision 49 follow-up). The fluids card is now labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 
-The shared `CalorieRing` outer arc is anchored at 12 o'clock in both directions: a bank **surplus
-sweeps clockwise** in green, a **deficit sweeps anticlockwise** in red (owner decision 28,
-2026-10-03). It uses a reflected SVG transform rather than a negative `stroke-dashoffset` — the
-latter cannot render a full circle at the ±2,000 kcal limits — and both directions are pinned by
-`src/components/CalorieRing.test.tsx`.
+The shared `CalorieRing` anchors every arc at 12 o'clock and shows its sign by sweep direction
+(owner decision 28, 2026-10-03). The **outer** arc is the bank: a surplus sweeps clockwise in green,
+a deficit anticlockwise in red, saturating at ±2,000 kcal. The **inner** arc is today's allowance and
+follows the same convention (owner request, 2026-10-03): a green clockwise countdown while there is
+allowance left, then red anticlockwise growth once the day is overspent, scaled against another full
+day's goal. Both use a reflected SVG transform (`arcTransform`) rather than a negative
+`stroke-dashoffset` — the latter cannot render a full circle at the limits — and both directions are
+pinned by `src/components/CalorieRing.test.tsx`.
+
+The wheel carries its own labels and has no captions underneath: `bank ±N` (the bank balance **plus**
+what is left of today), the day's spend in large type, and `daily ±N`. The small lines are
+colour-coded by sign; the full wording lives in the SVG `aria-label`. The hydration glass writes the
+daily target across itself at 45°, over the water, so the fluids card needs no `x / y ml` caption.
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |

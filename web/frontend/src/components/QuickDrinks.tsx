@@ -193,6 +193,8 @@ export function QuickDrinks({
                           className={[
                             'relative w-full flex items-center gap-1.5 min-h-[3.35rem] rounded-xl border border-line bg-surface px-2.5 py-1.5 text-left cursor-pointer transition-all select-none',
                             'disabled:opacity-50 active:scale-[0.98]',
+                            // Keep the name clear of the milk/sugar button.
+                            canVary ? 'pr-9' : '',
                             isHolding ? 'scale-95 bg-danger/10 border-danger/40 ring-2 ring-danger/30' : '',
                           ].join(' ')}
                         >
@@ -228,9 +230,17 @@ export function QuickDrinks({
                             }}
                             disabled={pendingDrinkId !== null || deletingEntryId !== null}
                             aria-label={`Change milk or sugar for this ${drink.name}`}
-                            className="absolute top-0.5 right-0.5 min-h-7 min-w-7 rounded-lg border-0 bg-transparent text-ink-light text-base leading-none cursor-pointer hover:text-ink disabled:opacity-40"
+                            title="Milk and sugar"
+                            className="absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink shadow-sm cursor-pointer active:scale-90 transition-transform disabled:opacity-40"
                           >
-                            ···
+                            {/* Drawn, not typed: the old ··· glyphs rendered as three
+                                near-invisible specks on Android. An SVG is the same
+                                size and weight on every device. */}
+                            <svg width="16" height="4" viewBox="0 0 16 4" aria-hidden focusable="false">
+                              <circle cx="2" cy="2" r="1.75" fill="currentColor" />
+                              <circle cx="8" cy="2" r="1.75" fill="currentColor" />
+                              <circle cx="14" cy="2" r="1.75" fill="currentColor" />
+                            </svg>
                           </button>
                         )}
                       </div>
