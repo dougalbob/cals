@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED overall; Phases 11 and 12 are implemented and merged on `cals-dev` (Phase 12 close-out published as `v2.0.0-dev-rc8`, 2026-10-03).** Phase 12's real-server edit/add correctness follow-ups pass sandbox verification. Phase 13 has two increments. The shared-Recipes metadata slice was implemented and owner-reviewed in the Arena preview; known-Food serving choices plus recipe-to-Diary portion logging (decisions 29–32) were owner-reviewed in the Arena preview, merged (PR #28) and published as `v2.0.0-dev-rc11`. A third increment — **tags as filters**: tapping a tag on a recipe card narrows the catalogue, and each further tag narrows it again (decision 41) — is implemented on the session branch and awaiting the owner's preview review. Also queued is **+ Add recipe** on each Diary meal card, opening the portion sheet with that meal preselected (decision 40). Full recipe authoring (ingredients/method/image), phase-wide phone-size review and production cutover remain outstanding |
+| **Status** | 🟡 **PROPOSED overall — the phased plan below is the plan.** *Current* status (which phases are implemented, what is running, what is awaiting review) lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) and is deliberately not repeated here; the dated story is in [`../history/rebuild-log.md`](../history/rebuild-log.md) |
 | **Date raised** | 2026-10-02 |
 | **Decision owner** | @dougalbob |
 | **Scope** | `web/**` (presentation layer) plus the static-file serving block in `cmd/server/main.go`; Phase 13 allows narrow, additive food-serving/recipe-metadata API support and user-scoped preferences for recipe favourites and each user's usual recipe portion |
@@ -10,6 +10,15 @@
 | **Related** | [`git-workflow.md`](./git-workflow.md), [`local-development.md`](./local-development.md), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) |
 
 ---
+
+### How to read this document
+
+It has two halves. **The plan** — §§1–11: the stack, why it was chosen, the target architecture,
+the conventions, the phases and their exit criteria, the risks. **The phase records** — everything
+from *“Today dashboard checkpoint”* onwards: what each phase actually shipped, and the design notes
+that go with it (the ring scale, the sweep directions, the Phase 13 slices). Decisions are numbered
+in [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md), and current
+status is in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## 1. TL;DR
 

@@ -35,11 +35,17 @@ A personal calorie and nutrition tracking PWA.
 | Integrations | FatSecret (food search), Mealie (legacy recipe import; not pursued in React Phase 13), Google Fit (steps) |
 | Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
 
-**Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative:
+**Documentation starts at [`docs/README.md`](docs/README.md)** — that is the index, and it is authoritative.
+**Read [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) first**: status (what is deployed, which phase
+is in progress, what is waiting on the owner, what to do next) lives **only** there. If another
+document disagrees with it, that document is the bug — and if you change the state, update that page
+in the same PR. Dated history goes in [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md).
 
 | Read this | For |
 |---|---|
-| [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) | What cals should become; every open question |
+| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | **Where the project is right now** — deployments, phase status, next work, blockers |
+| [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md) | What happened, when — dated record, newest first |
+| [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) | What cals should become; every decision and every open question |
 | [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | The rebuild plan and its current status |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branches, releases, safety |
 | [`docs/architecture/local-development.md`](docs/architecture/local-development.md) | `DEV_MODE` and the safe `appdata/cals-dev` data copy |
@@ -137,8 +143,10 @@ Notes:
 ## 5. Documentation duties
 
 - **`docs/` is the source of truth for documentation** (see [`docs/README.md`](docs/README.md)). Update the relevant document — or add one, following the folder conventions — for any architectural, product or workflow change.
+- **Status has exactly one home:** [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md). Change it whenever the state changes (a merge, a deployment, a new gate), and link to it from everywhere else rather than repeating it. Prose that repeats status is how the "17 tables" and "five documents" drifts happened.
+- **Dated narrative goes to [`docs/history/rebuild-log.md`](docs/history/rebuild-log.md)**, newest first, with links to decisions and PRs — not into the documents an agent must read to work.
 - **Do not append to `ai_contextual_docs/context.txt`.** It is legacy and frozen; see the section above.
-- Update [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) when a question is answered or a new one appears — record the answer in its *Decisions so far* table with a date.
+- Update [`docs/product/vision-and-open-questions.md`](docs/product/vision-and-open-questions.md) when a question is answered or a new one appears — record the answer in a dated decision table.
 - Mark documents with a status header: 🟡 Proposed / Live discovery, 🟢 Adopted, 🔴 Legacy. Never describe unbuilt work as if it exists.
 - Where documentation and code disagree, the code wins and the documentation is the bug — fix it in the same PR.
 

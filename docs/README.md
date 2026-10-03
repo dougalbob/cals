@@ -1,9 +1,17 @@
 # cals documentation
 
-> ## 🚀 Starting the rebuild?
-> Read **[architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md)** first. It has the exact
-> first commands (including an explicit fetch of `cals-dev`, which may not be included by an Arena
-> clone's default remote refspec), how to start the preview, and what to build first.
+> ## 🚀 Starting a session? Read these three, in this order
+> 1. **[CURRENT_STATE.md](CURRENT_STATE.md)** — where the project is *right now*: what is deployed, which
+>    phase is in progress, what is waiting on the owner, and what to do next. **This is the only place
+>    status lives**; if another document disagrees with it, that document is the bug.
+> 2. **[architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md)** — the exact first commands
+>    (including an explicit fetch of `cals-dev`, which may not be included by an Arena clone's default
+>    remote refspec), how to start the preview, and the guardrails.
+> 3. **[architecture/frontend-strategy.md](architecture/frontend-strategy.md)** — the plan and the phases.
+>
+> Then, as needed: **[product/vision-and-open-questions.md](product/vision-and-open-questions.md)** for
+> every decision and open question, and **[history/rebuild-log.md](history/rebuild-log.md)** for what
+> happened, when.
 
 
 Project documentation for **cals**, a personal calorie and nutrition tracking application (Go + SQLite backend, PWA frontend, Cloudflare Zero Trust auth, Docker/Unraid deployment).
@@ -13,10 +21,12 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 | File | Status | What it is |
 |---|---|---|
 | [README.md](README.md) | — | This index, and the conventions below |
-| [product/vision-and-open-questions.md](product/vision-and-open-questions.md) | 🟡 Live discovery | The "grill me" document: what cals should become, and every question still open. **Start here.** |
+| [CURRENT_STATE.md](CURRENT_STATE.md) | 🟢 **Living — read first** | **Where the project is now**: deployments and ports, phase status, what is waiting on the owner, next work, and open questions that actually block it. Deliberately short and updated on every change |
+| [history/rebuild-log.md](history/rebuild-log.md) | 🟢 Adopted — append-only record | Dated history, newest first: what landed, with links to the decisions, PRs and checkpoints. Keeps narrative out of the documents agents must read to work |
+| [product/vision-and-open-questions.md](product/vision-and-open-questions.md) | 🟡 Live discovery | The "grill me" document: what cals should become, every answer recorded as a numbered, dated decision, and every question still open. **Start here for *why***; `CURRENT_STATE.md` is the *where* |
 | [architecture/frontend-strategy.md](architecture/frontend-strategy.md) | 🟡 Proposed overall; three Phase 13 slices implemented | Phased React 19 + TypeScript + Vite + Tailwind rebuild; Foods carry named gram-backed measures, recipe logging remembers each user's usual portion (published as `v2.0.0-dev-rc11`), and recipe tags now filter the catalogue in place (tap-to-filter, decision 41), while full authoring, UI/UX review and production cutover stay gated |
 | [architecture/git-workflow.md](architecture/git-workflow.md) | 🟢 Adopted (repo now public; protection available but not yet applied) | Branch topology (`main` → `cals-dev` → topic/session branches), protecting production, Arena session linkage, release and rollback |
-| [architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md) | 🟢 Active | **Start here for the rebuild** — first commands, first PR, guardrails, phase notes, the “Lets publish” delivery loop, and the current handoff |
+| [architecture/rebuild-kickoff.md](architecture/rebuild-kickoff.md) | 🟢 Active | **Start here for the rebuild** — the first commands, how to start the preview and the Go server, the phases, the guardrails and the definition of done. Deliberately contains no status |
 | [architecture/local-development.md](architecture/local-development.md) | 🟢 Adopted | `DEV_MODE` for local work without Cloudflare Access, guarded by safe bind/request checks and the `appdata/cals-dev` data-copy workflow |
 | [architecture/water-and-drinks.md](architecture/water-and-drinks.md) | 🟢 Adopted | Water and drinks share one ledger (`drink_entries`): the `counts_toward_water` flag, the derived target, drink-entry snapshots, the bank fix, and the additive migration that removes the dead `water_entries` table |
 | [architecture/drinks-builder.md](architecture/drinks-builder.md) | 🟡 Implemented, awaiting owner preview | My drinks page, catalog picker, 2×2 quick grid, tappable glass, vary-this-time milk/sugar — product decisions 21–26 |
@@ -30,8 +40,10 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 
 ## Conventions
 
-- One topic per document, grouped by folder: `product/` for *what and why*, `architecture/` for *how*.
+- One topic per document, grouped by folder: `product/` for *what and why*, `architecture/` for *how*, `history/` for *what happened when*.
 - Every document starts with a status header: **🟡 Proposed / Live discovery** (direction or remaining work is still being decided; a spike or authorized phase may exist), **🟢 Adopted** (current practice), **🔴 Legacy/Deprecated** (superseded, kept for history).
 - Proposals state the alternative options and why they were rejected, so future maintainers (and agents) do not relitigate them blindly.
 - Decisions get a date and an owner. Open questions are listed explicitly rather than left implied.
+- **Status lives in exactly one place** — [`CURRENT_STATE.md`](CURRENT_STATE.md). Do not copy phase status, "what is deployed" or "what is next" into other documents; link to it. When the state changes, update that page in the same PR.
+- **Dated narrative belongs in [`history/rebuild-log.md`](history/rebuild-log.md)**, newest first — what landed, why, and what it was called at the time. Documents that agents must read to *do work* should describe the present, not the journey.
 - **The code is the final source of truth**: `internal/models/models.go` for the API contract, `internal/database/migrations.go` for the schema, and the route table in `cmd/server/main.go` for endpoints. Documentation that disagrees with the code is a bug in the documentation — fix it in the same PR.
