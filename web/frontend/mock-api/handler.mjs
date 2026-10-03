@@ -275,15 +275,43 @@ export function handle(method, url, body) {
     return json(entry, 201)
   }
 
+  if (pathname === '/api/drinks' && method === 'POST') {
+    const created = buildDrink(body, seed.nextDrinkId())
+    if (created.error) return err(400, created.error)
+    seed.drinks.push(created.drink)
+    return json(created.drink, 201)
+  }
+
+  if (/^\/api\/drinks\/\d+$/.test(pathname) && method === 'PUT') {
+    const id = Number.parseInt(pathname.split('/').pop(), 10)
+    const existing = seed.findDrink(id)
+    if (!existing) return err(404, 'Drink not found')
+    const updated = buildDrink(body, id)
+    if (updated.error) return err(400, updated.error)
+    Object.assign(existing, updated.drink)
+    return json(existing)
+  }
+
+  if (/^\/api\/drinks\/\d+$/.test(pathname) && method === 'DELETE') {
+    const id = Number.parseInt(pathname.split('/').pop(), 10)
+    const index = seed.drinks.findIndex((d) => d.id === id)
+    if (index === -1) return err(404, 'Drink not found')
+    seed.drinks.splice(index, 1)
+    return { status: 204, body: '', contentType: 'application/json' }
+  }
+
   if (pathname === '/api/drinks/entries' && method === 'POST') {
     const date = body?.date ?? today
     const drink = seed.findDrink(body?.drink_id)
     if (!drink) return err(404, 'Drink not found')
     const volume = Number(body?.volume_ml) > 0 ? Number(body.volume_ml) : drink.volume_ml
-    const calories =
+    let calories =
       volume === drink.volume_ml
         ? drink.calories
         : Math.round((drink.calories * volume) / drink.volume_ml)
+    if (body?.calories != null && Number.isFinite(Number(body.calories))) {
+      calories = Math.max(0, Math.round(Number(body.calories)))
+    }
     const entry = {
       id: seed.nextDrinkEntryId(),
       drink_id: drink.id,
@@ -324,6 +352,30 @@ function clampDays(raw, fallback = 14) {
   const parsed = Number.parseInt(raw ?? '', 10)
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback
   return Math.min(parsed, 90)
+}
+
+function buildDrink(body, id) {
+  const name = String(body?.name ?? '').trim()
+  const volume = Number(body?.volume_ml)
+  if (!name) return { error: 'Drink name is required' }
+  if (!Number.isFinite(volume) || volume <= 0) return { error: 'Drink volume_ml must be greater than zero' }
+  const sugar = body?.usual_sugar
+  return {
+    drink: {
+      id,
+      user_id: 1,
+      name,
+      icon: String(body?.icon ?? '🥤'),
+      volume_ml: volume,
+      calories: Math.max(0, Math.round(Number(body?.calories ?? 0))),
+      counts_toward_water: Boolean(body?.counts_toward_water),
+      accepts_milk: Boolean(body?.accepts_milk),
+      accepts_sugar: Boolean(body?.accepts_sugar),
+      usual_milk: Boolean(body?.usual_milk),
+      usual_sugar: sugar === '1' || sugar === '2' || sugar === 'sweetener' ? sugar : '0',
+      sort_order: Number.isFinite(Number(body?.sort_order)) ? Number(body.sort_order) : 0,
+    },
+  }
 }
 
 const json = (body, status = 200) => ({ status, body, contentType: 'application/json' })

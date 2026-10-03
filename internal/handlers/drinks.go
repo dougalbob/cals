@@ -22,6 +22,44 @@ type Drink struct {
 	// CountsTowardWater marks the drinks that contribute to the daily water
 	// target. Water is logged as a drink — there is no second ledger.
 	CountsTowardWater bool `json:"counts_toward_water"`
+	// AcceptsMilk / AcceptsSugar control the vary-this-time sheet.
+	AcceptsMilk  bool   `json:"accepts_milk"`
+	AcceptsSugar bool   `json:"accepts_sugar"`
+	UsualMilk    bool   `json:"usual_milk"`
+	UsualSugar   string `json:"usual_sugar"`
+	SortOrder    int    `json:"sort_order"`
+}
+
+const drinkSelect = `id, user_id, name, icon, volume_ml, calories, counts_toward_water, accepts_milk, accepts_sugar, usual_milk, usual_sugar, sort_order`
+
+func normalizeSugar(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "1":
+		return "1"
+	case "2":
+		return "2"
+	case "sweetener":
+		return "sweetener"
+	default:
+		return "0"
+	}
+}
+
+func scanDrink(scanner interface{ Scan(dest ...any) error }) (Drink, error) {
+	var d Drink
+	var counts, acceptsMilk, acceptsSugar, usualMilk int
+	if err := scanner.Scan(
+		&d.ID, &d.UserID, &d.Name, &d.Icon, &d.VolumeML, &d.Calories,
+		&counts, &acceptsMilk, &acceptsSugar, &usualMilk, &d.UsualSugar, &d.SortOrder,
+	); err != nil {
+		return d, err
+	}
+	d.CountsTowardWater = counts != 0
+	d.AcceptsMilk = acceptsMilk != 0
+	d.AcceptsSugar = acceptsSugar != 0
+	d.UsualMilk = usualMilk != 0
+	d.UsualSugar = normalizeSugar(d.UsualSugar)
+	return d, nil
 }
 
 type DrinkEntry struct {
@@ -57,9 +95,9 @@ func HandleGetDrinks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, user_id, name, icon, volume_ml, calories, counts_toward_water
+		SELECT `+drinkSelect+`
 		FROM drinks WHERE user_id = ?
-		ORDER BY name ASC
+		ORDER BY sort_order ASC, name ASC
 	`, userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
@@ -69,8 +107,8 @@ func HandleGetDrinks(w http.ResponseWriter, r *http.Request) {
 
 	var drinks []Drink
 	for rows.Next() {
-		var d Drink
-		if err := rows.Scan(&d.ID, &d.UserID, &d.Name, &d.Icon, &d.VolumeML, &d.Calories, &d.CountsTowardWater); err != nil {
+		d, err := scanDrink(rows)
+		if err != nil {
 			continue
 		}
 		drinks = append(drinks, d)
@@ -109,11 +147,12 @@ func HandleCreateDrink(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Drink volume_ml must be greater than zero", http.StatusBadRequest)
 		return
 	}
+	drink.UsualSugar = normalizeSugar(drink.UsualSugar)
 
 	result, err := database.DB.Exec(`
-		INSERT INTO drinks (user_id, name, icon, volume_ml, calories, counts_toward_water)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, userID, drink.Name, drink.Icon, drink.VolumeML, drink.Calories, drink.CountsTowardWater)
+		INSERT INTO drinks (user_id, name, icon, volume_ml, calories, counts_toward_water, accepts_milk, accepts_sugar, usual_milk, usual_sugar, sort_order)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, userID, drink.Name, drink.Icon, drink.VolumeML, drink.Calories, drink.CountsTowardWater, drink.AcceptsMilk, drink.AcceptsSugar, drink.UsualMilk, drink.UsualSugar, drink.SortOrder)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -156,11 +195,15 @@ func HandleUpdateDrink(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Drink volume_ml must be greater than zero", http.StatusBadRequest)
 		return
 	}
+	drink.UsualSugar = normalizeSugar(drink.UsualSugar)
 
 	_, err = database.DB.Exec(`
-		UPDATE drinks SET name = ?, icon = ?, volume_ml = ?, calories = ?, counts_toward_water = ?
+		UPDATE drinks SET name = ?, icon = ?, volume_ml = ?, calories = ?, counts_toward_water = ?,
+			accepts_milk = ?, accepts_sugar = ?, usual_milk = ?, usual_sugar = ?, sort_order = ?
 		WHERE id = ? AND user_id = ?
-	`, drink.Name, drink.Icon, drink.VolumeML, drink.Calories, drink.CountsTowardWater, id, userID)
+	`, drink.Name, drink.Icon, drink.VolumeML, drink.Calories, drink.CountsTowardWater,
+		drink.AcceptsMilk, drink.AcceptsSugar, drink.UsualMilk, drink.UsualSugar, drink.SortOrder,
+		id, userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -257,8 +300,11 @@ func HandleAddDrinkEntry(w http.ResponseWriter, r *http.Request) {
 		Date    string `json:"date"`
 		// VolumeML optionally overrides the drink's typical volume (for
 		// example a 500 ml bottle instead of a 250 ml glass). Calories are
-		// scaled from the drink's per-millilitre value.
+		// scaled from the drink's per-millilitre value unless Calories is set.
 		VolumeML int `json:"volume_ml"`
+		// Calories, when present, snapshots a vary-this-time log (milk/sugar)
+		// instead of scaling from volume.
+		Calories *int `json:"calories"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -297,6 +343,13 @@ func HandleAddDrinkEntry(w http.ResponseWriter, r *http.Request) {
 	calories := drinkCalories
 	if volumeML != drinkVolume && drinkVolume > 0 {
 		calories = int(math.Round(float64(drinkCalories) * float64(volumeML) / float64(drinkVolume)))
+	}
+	if entry.Calories != nil {
+		if *entry.Calories < 0 {
+			http.Error(w, "calories must not be negative", http.StatusBadRequest)
+			return
+		}
+		calories = *entry.Calories
 	}
 
 	result, err := database.DB.Exec(`

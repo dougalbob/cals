@@ -82,6 +82,11 @@ export interface SeedDrink {
   volume_ml: number
   calories: number
   counts_toward_water: boolean
+  accepts_milk?: boolean
+  accepts_sugar?: boolean
+  usual_milk?: boolean
+  usual_sugar?: '0' | '1' | '2' | 'sweetener'
+  sort_order?: number
 }
 
 export interface SeedDrinkEntry {
@@ -174,6 +179,7 @@ export interface SeedWaterSummary {
 }
 export function waterFor(date: string): SeedWaterSummary
 export function nextDrinkEntryId(): number
+export function nextDrinkId(): number
 export function findDrink(id: number | string): SeedDrink | undefined
 /** Restores the seeded diary/drinks after a test has mutated them. */
 export function resetFixtures(): void

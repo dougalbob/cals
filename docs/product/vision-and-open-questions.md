@@ -169,7 +169,7 @@ highest-value open questions now are:
 1. **Cross-viewing** (section A) — should either of you see the other's day? It decides whether a "household" screen exists, and whether the unused `GET /api/users` endpoint stays.
 2. **Bank semantics** (section D, questions 1–4) — reset behaviour, exercise credit, and what an unlogged day counts as. Drink inclusion is settled; these remaining questions still affect the maths.
 3. **Logging friction** (section E, questions 6–8) — what actually takes the most taps for the primary user.
-4. **Quick-drink setup** — whether new users should get editable Tea/Coffee/Water starter templates, or create their own before those options appear in the selector.
+4. ~~**Quick-drink setup**~~ **Answered (2026-10-03, decisions 21–26):** a My drinks page with a short catalog picker (not auto-seeded rows). See [`drinks-builder.md`](../architecture/drinks-builder.md).
 
 ## Dashboard decisions — 2026-10-03
 
@@ -178,3 +178,9 @@ highest-value open questions now are:
 | 18 | 2026-10-03 | Prefer a Today summary landing page rather than immediately exposing itemised meals. Four meal tiles link to the corresponding Diary section; an inner ring counts down the daily allowance independently of the bank. Water glass starts full and drains. | Owner, preview reviewed |
 | 19 | 2026-10-03 | Merge water and quick drinks into one responsive card; remove duplicate standard-water add button, retain compact custom amount. Quick drink badges count daily entries; long press asks confirmation before removing the latest entry. | Owner |
 | 20 | 2026-10-03 | “Let's publish” authorizes the end-to-end GitHub delivery loop: PR/checks, merge to cals-dev, development tag, image publication and verification that Unraid can Force Update. Not promotion to main or changing live data. | Owner |
+| 21 | 2026-10-03 | Quick drinks: **one tap logs your usual**; a chevron on the tile opens milk/sugar for this log only. Long-press still deletes. Juice/beer/etc. have no chevron. | Owner |
+| 22 | 2026-10-03 | Drink setup lives on a **My drinks** page (a profile, not a Settings section and not a fifth bottom-nav tab). Linked from the fluids card and from Settings. | Owner |
+| 23 | 2026-10-03 | **The water glass is the unit tap.** Water is not duplicated in the 2×2. “+ other amount” stays. | Owner |
+| 24 | 2026-10-03 | Vary sheet: milk = **none / with milk**; sugar = **0 / 1 / 2 / sweetener**. Sensible UK medians, not a beverage database. | Owner |
+| 25 | 2026-10-03 | Catalog types (everyday four first, no scroll): **Coffee, Tea, Milk, Juice**, then Cappuccino, Latte, Hot chocolate, Squash, Soft drink, Beer, Wine. Nothing auto-inserted into `drinks` (decision 16 still holds). | Owner |
+| 26 | 2026-10-03 | Quick drinks render as an **equal-width 2×2**. More than four: vertical scroll-snap with haptic. | Owner |

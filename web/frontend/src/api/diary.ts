@@ -1,5 +1,14 @@
-import { apiDelete, apiGet, apiPost } from './client'
-import type { BankResponse, DiaryEntry, DiaryResponse, Drink, DrinkEntry, Meal, WaterResponse } from './types'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
+import type {
+  BankResponse,
+  DiaryEntry,
+  DiaryResponse,
+  Drink,
+  DrinkEntry,
+  DrinkInput,
+  Meal,
+  WaterResponse,
+} from './types'
 
 export interface CreateDiaryEntryInput {
   meal: Meal
@@ -34,13 +43,32 @@ export function getWater(date: string): Promise<WaterResponse> {
   return apiGet<WaterResponse>(`/api/water?date=${encodeURIComponent(date)}`)
 }
 
-/** Add a drink entry. `volumeMl` overrides the drink's typical volume. */
-export function addDrinkEntry(drinkId: number, date: string, volumeMl?: number): Promise<DrinkEntry> {
+/** Add a drink entry. `volumeMl` overrides typical volume; `calories` snapshots a vary-this-time log. */
+export function addDrinkEntry(
+  drinkId: number,
+  date: string,
+  opts?: { volumeMl?: number; calories?: number },
+): Promise<DrinkEntry> {
+  const volumeMl = opts?.volumeMl
+  const calories = opts?.calories
   return apiPost<DrinkEntry>('/api/drinks/entries', {
     drink_id: drinkId,
     date,
     ...(volumeMl && volumeMl > 0 ? { volume_ml: volumeMl } : {}),
+    ...(calories !== undefined && calories >= 0 ? { calories } : {}),
   })
+}
+
+export function createDrink(input: DrinkInput): Promise<Drink> {
+  return apiPost<Drink>('/api/drinks', input)
+}
+
+export function updateDrink(id: number, input: DrinkInput): Promise<Drink> {
+  return apiPut<Drink>(`/api/drinks/${id}`, input)
+}
+
+export function deleteDrink(id: number): Promise<void> {
+  return apiDelete<void>(`/api/drinks/${id}`)
 }
 
 export function deleteDrinkEntry(id: number): Promise<void> {

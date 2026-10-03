@@ -313,12 +313,48 @@ for (let back = 21; back >= 0; back--) {
 // Drinks
 // ---------------------------------------------------------------------------
 
+function drinkRow(row) {
+  return {
+    accepts_milk: false,
+    accepts_sugar: false,
+    usual_milk: false,
+    usual_sugar: '0',
+    sort_order: 0,
+    ...row,
+  }
+}
+
 export const drinks = [
-  { id: 1, user_id: 1, name: 'Tea', icon: '🫖', volume_ml: 250, calories: 14, counts_toward_water: true },
-  { id: 2, user_id: 1, name: 'Black Coffee', icon: '☕', volume_ml: 250, calories: 2, counts_toward_water: true },
-  { id: 3, user_id: 1, name: 'Water', icon: '💧', volume_ml: 250, calories: 0, counts_toward_water: true },
-  { id: 4, user_id: 1, name: 'Lager', icon: '🍺', volume_ml: 568, calories: 239, counts_toward_water: false },
-  { id: 5, user_id: 1, name: 'Milk', icon: '🥛', volume_ml: 200, calories: 94, counts_toward_water: false },
+  drinkRow({
+    id: 1, user_id: 1, name: 'Tea', icon: '🫖', volume_ml: 250, calories: 17,
+    counts_toward_water: true, accepts_milk: true, accepts_sugar: true,
+    usual_milk: true, usual_sugar: '0', sort_order: 1,
+  }),
+  drinkRow({
+    id: 2, user_id: 1, name: 'Coffee', icon: '☕', volume_ml: 250, calories: 2,
+    counts_toward_water: true, accepts_milk: true, accepts_sugar: true,
+    usual_milk: false, usual_sugar: '0', sort_order: 2,
+  }),
+  drinkRow({
+    id: 3, user_id: 1, name: 'Water', icon: '💧', volume_ml: 250, calories: 0,
+    counts_toward_water: true, sort_order: 0,
+  }),
+  drinkRow({
+    id: 4, user_id: 1, name: 'Beer', icon: '🍺', volume_ml: 330, calories: 140,
+    counts_toward_water: false, sort_order: 5,
+  }),
+  drinkRow({
+    id: 5, user_id: 1, name: 'Milk', icon: '🥛', volume_ml: 200, calories: 94,
+    counts_toward_water: false, sort_order: 3,
+  }),
+  drinkRow({
+    id: 6, user_id: 1, name: 'Juice', icon: '🧃', volume_ml: 200, calories: 90,
+    counts_toward_water: false, sort_order: 4,
+  }),
+  drinkRow({
+    id: 7, user_id: 1, name: 'Wine', icon: '🍷', volume_ml: 175, calories: 160,
+    counts_toward_water: false, sort_order: 6,
+  }),
 ]
 
 export const drinkEntries = []
@@ -331,6 +367,13 @@ export function nextDrinkEntryId() {
 
 export function findDrink(id) {
   return drinks.find((d) => String(d.id) === String(id))
+}
+
+let drinkIdSeq = Math.max(0, ...drinks.map((d) => d.id))
+
+export function nextDrinkId() {
+  drinkIdSeq += 1
+  return drinkIdSeq
 }
 
 function addDrink(date, drinkId, count, at = '08:00', volumeOverride) {
@@ -497,10 +540,17 @@ export function dateOffset(daysAgo) {
 // ---------------------------------------------------------------------------
 const initialDiaryEntries = diaryEntries.slice()
 const initialDrinkEntries = drinkEntries.map((e) => ({ ...e }))
+const initialDrinks = drinks.map((d) => ({ ...d }))
+const initialDrinkEntryId = drinkEntryId
+const initialDrinkIdSeq = drinkIdSeq
 
 export function resetFixtures() {
   diaryEntries.length = 0
   diaryEntries.push(...initialDiaryEntries)
   drinkEntries.length = 0
   drinkEntries.push(...initialDrinkEntries.map((e) => ({ ...e })))
+  drinks.length = 0
+  drinks.push(...initialDrinks.map((d) => ({ ...d })))
+  drinkEntryId = initialDrinkEntryId
+  drinkIdSeq = initialDrinkIdSeq
 }

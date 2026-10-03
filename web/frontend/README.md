@@ -14,7 +14,9 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 
 | Screen | Route | Notes |
 |---|---|---|
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search. A familiar quick-add selector for Tea/Coffee/Water is required in Phase 12. |
+| Today | `/` | Summary landing: calorie ring, four meal tiles, merged fluids card |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with delete, drinks summary, add-food modal with debounced search |
+| My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`) |
 
