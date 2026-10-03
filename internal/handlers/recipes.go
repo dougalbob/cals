@@ -5,63 +5,204 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"cals/internal/auth"
 	"cals/internal/database"
 	"cals/internal/models"
 )
 
-// HandleListRecipes returns all recipes
+var supportedRecipeMealOccasions = map[string]struct{}{
+	"breakfast": {},
+	"lunch":     {},
+	"dinner":    {},
+	"snack":     {},
+}
+
+var supportedRecipeDishTypes = map[string]struct{}{
+	"main":    {},
+	"side":    {},
+	"soup":    {},
+	"salad":   {},
+	"dessert": {},
+}
+
+// HandleListRecipes returns the shared recipe catalogue with the current user's favourite state.
 func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
-	rows, err := database.DB.Query(`
-		SELECT r.id, r.name, r.description, r.image_filename, r.serves,
-		       r.calculated_weight_grams, r.total_weight_grams, r.total_calories, 
-		       r.created_by_user_id, COALESCE(u.name, u.email) as created_by_name
-		FROM recipes r
-		LEFT JOIN users u ON r.created_by_user_id = u.id
-		ORDER BY r.name
-	`)
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+
+	rows, err := database.DB.Query(`
+		SELECT r.id, r.name, r.description, r.image_filename, r.serves,
+		       r.calculated_weight_grams, r.total_weight_grams, r.total_calories,
+		       r.created_by_user_id, COALESCE(u.name, u.email) as created_by_name,
+		       EXISTS (
+		           SELECT 1 FROM recipe_favourites rf
+		           WHERE rf.recipe_id = r.id AND rf.user_id = ?
+		       ) AS is_favourite,
+		       r.updated_at, r.dish_type, r.total_time_minutes
+		FROM recipes r
+		LEFT JOIN users u ON r.created_by_user_id = u.id
+		ORDER BY r.name
+	`, user.ID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var recipes []models.Recipe
 	for rows.Next() {
-		var r models.Recipe
-		var desc, img sql.NullString
+		var recipe models.Recipe
+		var desc, img, dishType sql.NullString
 		var calcWeight sql.NullFloat64
-		err := rows.Scan(&r.ID, &r.Name, &desc, &img, &r.Serves,
-			&calcWeight, &r.TotalWeightGrams, &r.TotalCalories, &r.CreatedByUserID, &r.CreatedByName)
+		var totalTime sql.NullInt64
+		var isFavourite int
+		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
+			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
+			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime)
 		if err != nil {
+			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		recipe.IsFavourite = isFavourite != 0
+		if dishType.Valid {
+			recipe.DishType = dishType.String
+		}
+		if totalTime.Valid {
+			minutes := int(totalTime.Int64)
+			recipe.TotalTimeMinutes = &minutes
+		}
 		if desc.Valid {
-			r.Description = desc.String
+			recipe.Description = desc.String
 		}
 		if img.Valid {
-			r.ImageFilename = img.String
+			recipe.ImageFilename = img.String
 		}
 		if calcWeight.Valid {
-			r.CalculatedWeightGrams = calcWeight.Float64
+			recipe.CalculatedWeightGrams = calcWeight.Float64
 		}
-		
-		// Calculate per-100g based on final cooked weight
-		if r.TotalWeightGrams > 0 {
-			r.CaloriesPer100g = (r.TotalCalories / r.TotalWeightGrams) * 100
+
+		// Calculate per-100g based on final cooked weight.
+		if recipe.TotalWeightGrams > 0 {
+			recipe.CaloriesPer100g = (recipe.TotalCalories / recipe.TotalWeightGrams) * 100
 		}
-		
-		recipes = append(recipes, r)
+
+		recipes = append(recipes, recipe)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := rows.Close(); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if recipes == nil {
 		recipes = []models.Recipe{}
 	}
+	recipePointers := make([]*models.Recipe, len(recipes))
+	for i := range recipes {
+		recipePointers[i] = &recipes[i]
+	}
+	if err := loadRecipeMetadata(recipePointers); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipes)
+}
+
+func loadRecipeMetadata(recipes []*models.Recipe) error {
+	if len(recipes) == 0 {
+		return nil
+	}
+
+	const batchSize = 500
+	recipesByID := make(map[int64]*models.Recipe, len(recipes))
+	for _, recipe := range recipes {
+		recipe.MealOccasions = []string{}
+		recipe.KeyFoods = []models.RecipeKeyFood{}
+		recipesByID[recipe.ID] = recipe
+	}
+
+	for start := 0; start < len(recipes); start += batchSize {
+		end := start + batchSize
+		if end > len(recipes) {
+			end = len(recipes)
+		}
+		batch := recipes[start:end]
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		args := make([]interface{}, len(batch))
+		for i, recipe := range batch {
+			args[i] = recipe.ID
+		}
+
+		rows, err := database.DB.Query(`
+			SELECT recipe_id, occasion FROM recipe_meal_occasions
+			WHERE recipe_id IN (`+placeholders+`)
+			ORDER BY recipe_id,
+			         CASE occasion WHEN 'breakfast' THEN 0 WHEN 'lunch' THEN 1
+			                       WHEN 'dinner' THEN 2 ELSE 3 END
+		`, args...)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var recipeID int64
+			var occasion string
+			if err := rows.Scan(&recipeID, &occasion); err != nil {
+				rows.Close()
+				return err
+			}
+			if recipe := recipesByID[recipeID]; recipe != nil {
+				recipe.MealOccasions = append(recipe.MealOccasions, occasion)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+
+		rows, err = database.DB.Query(`
+			SELECT recipe_id, food_id, name FROM recipe_key_foods
+			JOIN foods ON foods.id = recipe_key_foods.food_id
+			WHERE recipe_id IN (`+placeholders+`)
+			ORDER BY recipe_id, sort_order, food_id
+		`, args...)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var recipeID int64
+			var keyFood models.RecipeKeyFood
+			if err := rows.Scan(&recipeID, &keyFood.FoodID, &keyFood.FoodName); err != nil {
+				rows.Close()
+				return err
+			}
+			if recipe := recipesByID[recipeID]; recipe != nil {
+				recipe.KeyFoods = append(recipe.KeyFoods, keyFood)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // HandleGetRecipe returns a single recipe with all details
@@ -73,7 +214,13 @@ func HandleGetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipe, err := getRecipeByID(id)
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recipe, err := getRecipeForUser(id, user.ID)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
@@ -87,29 +234,55 @@ func HandleGetRecipe(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(recipe)
 }
 
+func getRecipeForUser(id, userID int64) (*models.Recipe, error) {
+	recipe, err := getRecipeByID(id)
+	if err != nil {
+		return nil, err
+	}
+	var isFavourite int
+	if err := database.DB.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM recipe_favourites WHERE user_id = ? AND recipe_id = ?
+		)
+	`, userID, id).Scan(&isFavourite); err != nil {
+		return nil, err
+	}
+	recipe.IsFavourite = isFavourite != 0
+	return recipe, nil
+}
+
 func getRecipeByID(id int64) (*models.Recipe, error) {
 	var r models.Recipe
-	var desc, instructions, img sql.NullString
+	var desc, instructions, img, dishType sql.NullString
 	var calcWeight sql.NullFloat64
+	var totalTime sql.NullInt64
 
 	err := database.DB.QueryRow(`
 		SELECT r.id, r.name, r.description, r.instructions, r.image_filename, r.serves,
 		       r.created_by_user_id, r.calculated_weight_grams, r.total_weight_grams, r.weight_is_manual,
 		       r.total_calories, r.total_protein, r.total_carbs, r.total_fat, r.total_fibre,
-		       r.created_at, r.updated_at, COALESCE(u.name, u.email) as created_by_name
+		       r.created_at, r.updated_at, r.dish_type, r.total_time_minutes,
+		       COALESCE(u.name, u.email) as created_by_name
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		WHERE r.id = ?
 	`, id).Scan(&r.ID, &r.Name, &desc, &instructions, &img, &r.Serves,
 		&r.CreatedByUserID, &calcWeight, &r.TotalWeightGrams, &r.WeightIsManual,
 		&r.TotalCalories, &r.TotalProtein, &r.TotalCarbs, &r.TotalFat, &r.TotalFibre,
-		&r.CreatedAt, &r.UpdatedAt, &r.CreatedByName)
+		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName)
 	if err != nil {
 		return nil, err
 	}
 
 	if desc.Valid {
 		r.Description = desc.String
+	}
+	if dishType.Valid {
+		r.DishType = dishType.String
+	}
+	if totalTime.Valid {
+		minutes := int(totalTime.Int64)
+		r.TotalTimeMinutes = &minutes
 	}
 	if instructions.Valid {
 		r.Instructions = instructions.String
@@ -129,6 +302,9 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 		r.FatPer100g = (r.TotalFat / r.TotalWeightGrams) * 100
 		r.FibrePer100g = (r.TotalFibre / r.TotalWeightGrams) * 100
 	}
+
+	r.Ingredients = []models.RecipeIngredient{}
+	r.TextIngredients = []models.RecipeTextIngredient{}
 
 	// Get food ingredients
 	rows, err := database.DB.Query(`
@@ -153,6 +329,12 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 		}
 		r.Ingredients = append(r.Ingredients, ing)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
 
 	// Get text ingredients
 	textRows, err := database.DB.Query(`
@@ -173,6 +355,15 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 			return nil, err
 		}
 		r.TextIngredients = append(r.TextIngredients, ti)
+	}
+	if err := textRows.Err(); err != nil {
+		return nil, err
+	}
+	if err := textRows.Close(); err != nil {
+		return nil, err
+	}
+	if err := loadRecipeMetadata([]*models.Recipe{&r}); err != nil {
+		return nil, err
 	}
 
 	return &r, nil
@@ -252,7 +443,7 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		                     total_calories, total_protein, total_carbs, total_fat, total_fibre)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID,
-		calculatedWeight, finalWeight, input.WeightIsManual, 
+		calculatedWeight, finalWeight, input.WeightIsManual,
 		totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -277,7 +468,7 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		`, recipeID, ti.Description, ti.SortOrder)
 	}
 
-	recipe, _ := getRecipeByID(recipeID)
+	recipe, _ := getRecipeForUser(recipeID, user.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -290,6 +481,12 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid recipe ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -353,7 +550,7 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 		       updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, input.Name, input.Description, input.Instructions, input.Serves,
-		calculatedWeight, finalWeight, input.WeightIsManual, 
+		calculatedWeight, finalWeight, input.WeightIsManual,
 		totalCals, totalProtein, totalCarbs, totalFat, totalFibre, id)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -377,8 +574,17 @@ func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 			VALUES (?, ?, ?)
 		`, id, ti.Description, ti.SortOrder)
 	}
+	if _, err := database.DB.Exec(`
+		DELETE FROM recipe_key_foods
+		WHERE recipe_id = ? AND food_id NOT IN (
+			SELECT food_id FROM recipe_ingredients WHERE recipe_id = ?
+		)
+	`, id, id); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	recipe, _ := getRecipeByID(id)
+	recipe, _ := getRecipeForUser(id, user.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipe)
@@ -400,4 +606,213 @@ func HandleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleSetRecipeFavourite sets or clears the signed-in user's favourite for a shared recipe.
+func HandleSetRecipeFavourite(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid recipe ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		IsFavourite *bool `json:"is_favourite"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if input.IsFavourite == nil {
+		http.Error(w, "is_favourite is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var recipeID int64
+	if err := database.DB.QueryRow(`SELECT id FROM recipes WHERE id = ?`, id).Scan(&recipeID); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Recipe not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if *input.IsFavourite {
+		_, err = database.DB.Exec(`
+			INSERT OR IGNORE INTO recipe_favourites (user_id, recipe_id) VALUES (?, ?)
+		`, user.ID, recipeID)
+	} else {
+		_, err = database.DB.Exec(`
+			DELETE FROM recipe_favourites WHERE user_id = ? AND recipe_id = ?
+		`, user.ID, recipeID)
+	}
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"is_favourite": *input.IsFavourite})
+}
+
+type recipeMetadataInput struct {
+	MealOccasions    []string `json:"meal_occasions"`
+	DishType         string   `json:"dish_type"`
+	KeyFoodIDs       []int64  `json:"key_food_ids"`
+	TotalTimeMinutes *int     `json:"total_time_minutes"`
+}
+
+// HandleUpdateRecipeMetadata replaces the shared, structured metadata for one recipe.
+func HandleUpdateRecipeMetadata(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid recipe ID", http.StatusBadRequest)
+		return
+	}
+
+	var input recipeMetadataInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if message := validateRecipeMetadata(input); message != "" {
+		http.Error(w, message, http.StatusBadRequest)
+		return
+	}
+
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tx, err := database.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	var recipeID int64
+	if err := tx.QueryRow(`SELECT id FROM recipes WHERE id = ?`, id).Scan(&recipeID); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Recipe not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(input.KeyFoodIDs) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(input.KeyFoodIDs)), ",")
+		args := make([]interface{}, 0, len(input.KeyFoodIDs)+1)
+		args = append(args, recipeID)
+		for _, foodID := range input.KeyFoodIDs {
+			args = append(args, foodID)
+		}
+		var matchingIngredients int
+		query := `SELECT COUNT(DISTINCT food_id) FROM recipe_ingredients
+		          WHERE recipe_id = ? AND food_id IN (` + placeholders + `)`
+		if err := tx.QueryRow(query, args...).Scan(&matchingIngredients); err != nil {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if matchingIngredients != len(input.KeyFoodIDs) {
+			http.Error(w, "Key foods must be known foods already used in this recipe", http.StatusBadRequest)
+			return
+		}
+	}
+
+	var dishType interface{}
+	if input.DishType != "" {
+		dishType = input.DishType
+	}
+	var totalTime interface{}
+	if input.TotalTimeMinutes != nil {
+		totalTime = *input.TotalTimeMinutes
+	}
+	if _, err := tx.Exec(`
+		UPDATE recipes
+		SET dish_type = ?, total_time_minutes = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, dishType, totalTime, recipeID); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.Exec(`DELETE FROM recipe_meal_occasions WHERE recipe_id = ?`, recipeID); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, occasion := range input.MealOccasions {
+		if _, err := tx.Exec(`INSERT INTO recipe_meal_occasions (recipe_id, occasion) VALUES (?, ?)`, recipeID, occasion); err != nil {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if _, err := tx.Exec(`DELETE FROM recipe_key_foods WHERE recipe_id = ?`, recipeID); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for order, foodID := range input.KeyFoodIDs {
+		if _, err := tx.Exec(`
+			INSERT INTO recipe_key_foods (recipe_id, food_id, sort_order) VALUES (?, ?, ?)
+		`, recipeID, foodID, order); err != nil {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recipe, err := getRecipeForUser(recipeID, user.ID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(recipe)
+}
+
+func validateRecipeMetadata(input recipeMetadataInput) string {
+	seenOccasions := make(map[string]struct{}, len(input.MealOccasions))
+	for _, occasion := range input.MealOccasions {
+		if _, ok := supportedRecipeMealOccasions[occasion]; !ok {
+			return "Unsupported meal occasion: " + occasion
+		}
+		if _, duplicate := seenOccasions[occasion]; duplicate {
+			return "Meal occasions must not contain duplicates"
+		}
+		seenOccasions[occasion] = struct{}{}
+	}
+	if input.DishType != "" {
+		if _, ok := supportedRecipeDishTypes[input.DishType]; !ok {
+			return "Unsupported dish type: " + input.DishType
+		}
+	}
+	if len(input.KeyFoodIDs) > 2 {
+		return "A recipe can have at most two key foods"
+	}
+	seenFoods := make(map[int64]struct{}, len(input.KeyFoodIDs))
+	for _, foodID := range input.KeyFoodIDs {
+		if foodID <= 0 {
+			return "Key food IDs must be positive"
+		}
+		if _, duplicate := seenFoods[foodID]; duplicate {
+			return "Key food IDs must not contain duplicates"
+		}
+		seenFoods[foodID] = struct{}{}
+	}
+	if input.TotalTimeMinutes != nil && *input.TotalTimeMinutes <= 0 {
+		return "Total time must be a positive number of minutes"
+	}
+	return ""
 }

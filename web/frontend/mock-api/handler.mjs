@@ -6,11 +6,12 @@
  * same ordering, same nullability. This is what makes the spike honest: the UI
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
- * Mapped:  /api/version, /api/users/me, /api/foods/search, /api/foods/custom,
- *          /api/diary (+ POST/PUT/DELETE), /api/bank, /api/drinks, /api/weight, /api/measurements,
+ * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata PUT),
+ *          /api/foods/search, /api/foods/custom, /api/diary (+ POST/PUT/DELETE),
+ *          /api/bank, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
- * Stubbed: mutations (POST/PUT/DELETE) — the diary add/edit/delete is real enough
- *          to click; everything else returns 501 with a clear message.
+ * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
+ *          demo flows and recipe favourite/metadata edits are implemented for the preview.
  */
 
 import * as seed from './seed.mjs'
@@ -148,6 +149,20 @@ export function handle(method, url, body) {
   // --- read endpoints ------------------------------------------------------
   if (pathname === '/api/users/me' && method === 'GET') return json(user)
 
+  if (pathname === '/api/recipes' && method === 'GET') {
+    return json(recipes.map((recipe) => ({
+      ...recipe,
+      is_favourite: seed.favouriteRecipeIds.has(recipe.id),
+    })))
+  }
+
+  const recipeDetailMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
+  if (recipeDetailMatch && method === 'GET') {
+    const recipe = recipes.find((item) => item.id === Number(recipeDetailMatch[1]))
+    if (!recipe) return err(404, 'Recipe not found')
+    return json({ ...recipe, is_favourite: seed.favouriteRecipeIds.has(recipe.id) })
+  }
+
   if (pathname === '/api/foods/search' && method === 'GET') {
     const q = (searchParams.get('q') ?? '').toLowerCase()
     if (q.length < 2) return json([])
@@ -245,6 +260,57 @@ export function handle(method, url, body) {
   }
 
   // --- a couple of mutations so the demo is clickable ----------------------
+  const metadataMatch = pathname.match(/^\/api\/recipes\/(\d+)\/metadata$/)
+  if (metadataMatch && method === 'PUT') {
+    const recipe = recipes.find((item) => item.id === Number(metadataMatch[1]))
+    if (!recipe) return err(404, 'Recipe not found')
+
+    const occasions = body?.meal_occasions ?? []
+    const dishType = body?.dish_type ?? ''
+    const keyFoodIds = body?.key_food_ids ?? []
+    const totalTime = body?.total_time_minutes ?? null
+    const allowedOccasions = new Set(['breakfast', 'lunch', 'dinner', 'snack'])
+    const allowedDishTypes = new Set(['main', 'side', 'soup', 'salad', 'dessert'])
+
+    if (!Array.isArray(occasions) || occasions.some((value) => !allowedOccasions.has(value))) {
+      return err(400, 'Unsupported meal occasion')
+    }
+    if (new Set(occasions).size !== occasions.length) return err(400, 'Duplicate meal occasion')
+    if (typeof dishType !== 'string' || (dishType !== '' && !allowedDishTypes.has(dishType))) {
+      return err(400, 'Unsupported dish type')
+    }
+    if (!Array.isArray(keyFoodIds) || keyFoodIds.length > 2) return err(400, 'Choose at most two key foods')
+    if (keyFoodIds.some((id) => !Number.isInteger(id) || id <= 0)) return err(400, 'Invalid key food ID')
+    if (new Set(keyFoodIds).size !== keyFoodIds.length) return err(400, 'Duplicate key food ID')
+    const ingredientIds = new Set(recipe.ingredients.map((ingredient) => ingredient.food_id))
+    if (keyFoodIds.some((id) => !ingredientIds.has(id))) {
+      return err(400, 'Key foods must be known foods already used in this recipe')
+    }
+    if (totalTime !== null && (!Number.isInteger(totalTime) || totalTime <= 0)) {
+      return err(400, 'Total time must be a positive number of minutes')
+    }
+
+    recipe.meal_occasions = [...occasions]
+    recipe.dish_type = dishType || undefined
+    recipe.key_foods = keyFoodIds.map((foodId) => {
+      const ingredient = recipe.ingredients.find((item) => item.food_id === foodId)
+      return { food_id: foodId, food_name: ingredient.food_name }
+    })
+    recipe.total_time_minutes = totalTime
+    recipe.updated_at = new Date().toISOString()
+    return json({ ...recipe, is_favourite: seed.favouriteRecipeIds.has(recipe.id) })
+  }
+
+  const favouriteMatch = pathname.match(/^\/api\/recipes\/(\d+)\/favourite$/)
+  if (favouriteMatch && method === 'PUT') {
+    const recipeId = Number(favouriteMatch[1])
+    if (!recipes.some((recipe) => recipe.id === recipeId)) return err(404, 'Recipe not found')
+    if (typeof body?.is_favourite !== 'boolean') return err(400, 'is_favourite must be a boolean')
+    if (body.is_favourite) seed.favouriteRecipeIds.add(recipeId)
+    else seed.favouriteRecipeIds.delete(recipeId)
+    return json({ is_favourite: body.is_favourite })
+  }
+
   if (pathname === '/api/diary' && method === 'POST') {
     const date = body?.date ?? today
     const grams = Number(body?.quantity_grams ?? 100)

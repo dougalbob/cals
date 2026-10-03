@@ -87,6 +87,35 @@ func RunMigrations() error {
 			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
 		)`,
 
+		// Phase 13: favourites are personal even though the recipe catalogue is shared.
+		`CREATE TABLE IF NOT EXISTS recipe_favourites (
+			user_id INTEGER NOT NULL,
+			recipe_id INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (user_id, recipe_id),
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+		)`,
+
+		// Phase 13: shared recipe classification and filtering metadata.
+		`ALTER TABLE recipes ADD COLUMN dish_type TEXT CHECK (dish_type IS NULL OR dish_type IN ('main', 'side', 'soup', 'salad', 'dessert'))`,
+		`ALTER TABLE recipes ADD COLUMN total_time_minutes INTEGER CHECK (total_time_minutes IS NULL OR total_time_minutes > 0)`,
+		`CREATE TABLE IF NOT EXISTS recipe_meal_occasions (
+			recipe_id INTEGER NOT NULL,
+			occasion TEXT NOT NULL CHECK (occasion IN ('breakfast', 'lunch', 'dinner', 'snack')),
+			PRIMARY KEY (recipe_id, occasion),
+			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+		)`,
+		`CREATE TABLE IF NOT EXISTS recipe_key_foods (
+			recipe_id INTEGER NOT NULL,
+			food_id INTEGER NOT NULL,
+			sort_order INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (recipe_id, food_id),
+			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+			FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE RESTRICT
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_recipe_key_foods_food_id ON recipe_key_foods(food_id)`,
+
 		`CREATE TABLE IF NOT EXISTS diary_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,

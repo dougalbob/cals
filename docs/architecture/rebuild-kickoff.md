@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 close-out is merged on `cals-dev` (PR #22, merge `f6a6675`) and published as `v2.0.0-dev-rc8`; `dev-latest` points to it.** Force Update `cals-dev-v2` on `8151` and `cals-dev-identity` on `8152`, then review Home/Diary at phone size as **both** users. That review is the last gate before **Phase 13 — Foods + Recipes** |
+| **Status** | 🟢 **ACTIVE HANDOFF — Phase 12 close-out is merged on `cals-dev` (PR #22, merge `f6a6675`) and published as `v2.0.0-dev-rc8`; `dev-latest` points to it.** The first Phase 13 shared-Recipes metadata slice is implemented and owner-reviewed in the Arena preview. Next planned: known-Food servings and recipe-to-Diary portions (decisions 29–32). Review Home/Diary and the completed Phase 13 flows at phone size before any production cutover |
 | **Written** | 2026-10-02 |
 | **Purpose** | Tell the next agent (or the owner) exactly what to do first, without re-reading everything |
 | **Related** | [`frontend-strategy.md`](./frontend-strategy.md) (the plan), [`local-development.md`](./local-development.md) (DEV_MODE), [`unraid-image-release.md`](./unraid-image-release.md) (Part 2 — publishing and install), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions) |
@@ -43,9 +43,10 @@
 - **Phase 12 is merged and published** as `v2.0.0-dev-rc8`: the logged-quantity **Edit** action
   and the opposite bank-ring sweep directions are both on `cals-dev` (PR #22). The remaining work
   is review, not code — Force Update and look at Home and Diary at phone size on the LAN-only dev
-  container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities. **Phase 13 (Foods +
-  Recipes) follows that review**; the owner-authorized ring behavior is described in
-  [`frontend-strategy.md`](./frontend-strategy.md).
+  container (`http://<unraid-lan-ip>:8152/next/`) as **both** identities. This Phase 12 review
+  remains part of its UI acceptance gate, but Phase 13 implementation has since started: the first
+  Recipes metadata increment is owner-reviewed in Arena, with servings and recipe-to-Diary portions
+  planned next. The owner-authorized ring behavior is described in [`frontend-strategy.md`](./frontend-strategy.md).
 - **Checkpoint `v2.0.0-dev-rc4` is published** (2026-10-02, [run 37066221932](https://github.com/dougalbob/cals/actions/runs/37066221932); digest `sha256:ea5e97aad9551a3e86188bba6296bdbf0fe5b31d01b74fd323ab72fee3919d25`; anonymous pull verified). The LAN dev container (`cals-dev-identity`) tracks `dev-latest`; the owner can Force Update it on `8152` now without changing its template variables or appdata. The new app-header **Switch user** link is included; `/dev/identity` remains available directly. The Cloudflare-routed `cals-dev-v2` container is not automatically updated. Recorded in the [release log](./unraid-image-release.md#release-log).
 
 ## 0. Before anything else: get the work
@@ -178,8 +179,9 @@ Owner reviewed Today dashboard improvements in Arena and authorized the end-to-e
 GitHub publication loop. The checkpoint adds the Today landing screen, dual ring,
 four meal tiles and shared water/quick drinks with counters and confirmed long-press
 delete. Legacy root is still the default; open `/next/` on Unraid to see this work.
-No appdata copy or schema migration is required. Review both identities on the LAN
-dev container before moving on to Phase 13. See frontend-strategy.md for scope.
+No appdata copy or schema migration is required. Review both identities on the LAN dev container
+as part of the Phase 12 UI acceptance gate; it no longer blocks the now-started Phase 13 development.
+See frontend-strategy.md for the current Phase 13 handoff.
 
 ### Owner feedback — 2026-10-03
 

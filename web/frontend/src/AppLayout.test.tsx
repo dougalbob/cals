@@ -53,6 +53,7 @@ describe('AppLayout development identity link', () => {
     const { unmount } = renderApp(true)
     const link = await screen.findByRole('link', { name: 'Switch user' })
     expect(link.getAttribute('href')).toBe('/dev/identity')
+    expect(screen.getByRole('link', { name: 'Recipes' })).toBeTruthy()
 
     unmount()
     cleanup()

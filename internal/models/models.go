@@ -72,8 +72,19 @@ type Recipe struct {
 	FibrePer100g          float64                `json:"fibre_per_100g"`
 	CreatedAt             time.Time              `json:"created_at"`
 	UpdatedAt             time.Time              `json:"updated_at"`
+	IsFavourite           bool                   `json:"is_favourite"`
+	MealOccasions         []string               `json:"meal_occasions"`
+	DishType              string                 `json:"dish_type,omitempty"`
+	KeyFoods              []RecipeKeyFood        `json:"key_foods"`
+	TotalTimeMinutes      *int                   `json:"total_time_minutes"`
 	Ingredients           []RecipeIngredient     `json:"ingredients,omitempty"`
 	TextIngredients       []RecipeTextIngredient `json:"text_ingredients,omitempty"`
+}
+
+// RecipeKeyFood is a known cals Food selected as a recipe's key ingredient.
+type RecipeKeyFood struct {
+	FoodID   int64  `json:"food_id"`
+	FoodName string `json:"food_name"`
 }
 
 // RecipeIngredient represents a food ingredient in a recipe
