@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
 import { getRecipe, setRecipeArchived, updateRecipeMetadata } from '../api/recipes'
@@ -15,11 +15,21 @@ import {
 import { RecipeTags } from '../components/RecipeTags'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { parseTagParam, recipesHref, toggleTag } from '../lib/recipeTags'
+import { diaryHrefForPick, mealLabel, parseRecipePick, withRecipePick } from '../lib/recipePick'
+import { todayIso } from '../lib/format'
 
 export function RecipeDetailRoute() {
   const { id: idParam } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [isLogging, setIsLogging] = useState(false)
+  /**
+   * The catalogue reached this page mid-pick (started from a Diary meal card),
+   * which it signals by keeping `?add-to=&on=` on the link. Logging from here is
+   * therefore the same flow with the same destination, not a fresh one.
+   */
+  const today = todayIso()
+  const pick = useMemo(() => parseRecipePick(searchParams, today), [searchParams, today])
   /**
    * The catalogue hands its tag filter down with the link (`?tags=`), so this
    * page can (a) return to the filtered list and (b) let a tag here open the
@@ -76,7 +86,7 @@ export function RecipeDetailRoute() {
   return (
     <div className="flex flex-col gap-4">
       <Link
-        to={recipesHref(carriedTags)}
+        to={withRecipePick(recipesHref(carriedTags), pick)}
         className="min-h-11 self-start py-2 text-sm font-medium text-primary-dark no-underline hover:underline"
       >
         ← Back to recipes
@@ -124,7 +134,7 @@ export function RecipeDetailRoute() {
           <RecipeTags
             recipe={recipe}
             selectedKeys={carriedTags}
-            tagHref={(tag) => recipesHref(toggleTag(carriedTags, tag.key))}
+            tagHref={(tag) => withRecipePick(recipesHref(toggleTag(carriedTags, tag.key)), pick)}
             className="absolute bottom-4 left-4 right-4 z-10"
           />
         </div>
@@ -146,7 +156,7 @@ export function RecipeDetailRoute() {
                 onClick={() => setIsLogging(true)}
                 className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
               >
-                🍽 Add to diary
+                {pick ? `🍽 Add to ${mealLabel(pick.meal)}` : '🍽 Add to diary'}
               </button>
             )}
             {recipe.is_archived ? null : recipe.usual_grams !== null ? (
@@ -213,7 +223,18 @@ export function RecipeDetailRoute() {
         </div>
       </article>
 
-      {isLogging && !recipe.is_archived && <RecipePortionSheet recipe={recipe} onClose={() => setIsLogging(false)} />}
+      {isLogging && !recipe.is_archived && (
+        <RecipePortionSheet
+          recipe={recipe}
+          initialMeal={pick?.meal}
+          initialDate={pick?.date}
+          onClose={() => setIsLogging(false)}
+          onDone={() => {
+            setIsLogging(false)
+            if (pick) navigate(diaryHrefForPick(pick))
+          }}
+        />
+      )}
     </div>
   )
 }

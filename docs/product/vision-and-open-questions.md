@@ -626,6 +626,64 @@ Inspected on 2026-10-03:
   stored Diary rows, day totals, bank figures and statistics stay unchanged. Corrected food labels
   following their joins are explicitly permitted by decision 61.
 
+## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
+
+**Four papercuts from the owner's road test, plus the CI hole that let one of them through.** All of
+it is frontend or workflow work: no API change, no migration, no movement in the bank maths.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 62 | 2026-10-03 | **An overspent day in the Calendar is a green bar with a proportional red tail, not a solid red bar.** The bar splits where the goal was reached: green is the part the budget covered, red is the overspend (`1,200` against a `1,000` goal is ≈83% green, ≈17% red). Under or at goal the bar stays a plain green progress bar. The red segment can therefore never swallow the cell, because the household's worst day in nine months of V1 is about 30% over goal (a 23% tail). | Owner |
+| 63 | 2026-10-03 | **The Calendar never advances past Today.** The forward arrow stops on the month or week containing today, a hand-typed or bookmarked future URL is pulled back to today's period, and days that have not happened are shown but inert — they are not links, because there is nothing logged to look at and nothing to correct. Going *back* is unchanged: the Calendar exists to reach historic days. | Owner |
+| 64 | 2026-10-03 | **🍽 Add recipe on a Diary meal card opens the Recipes tab, not a modal picker**, and carries the meal and the diary date with it as URL state (`/recipes?add-to=dinner&on=2026-10-01`). The recipe box's search, favourites, archived toggle and tag filters become the picker; every card in pick mode gains one **🍽 Add to Dinner** action that opens the existing portion sheet with the meal and date already filled in, and *Done* returns to that date's diary scrolled to that meal. Decision 40's promise stands — the meal is chosen once, portions keep decisions 29–32 behaviour — but its throwaway one-line picker is replaced. Archived recipes are still never offered (decision 59). | Owner |
+| 65 | 2026-10-03 | **CI runs the Go tests.** A `Go tests (validation)` workflow (`go vet ./...` and `go test ./...` with CGO, on `go.mod`'s Go version) gates every pull request into `cals-dev` or `main`, and re-checks `cals-dev` after each merge. Before this, no CI job ever compiled a `_test.go` file: `Docker build (validation)` runs only `go build ./cmd/server`, so a Go test that did not build, or a failing regression test, could not be caught. | Agent finding; owner asked for the gap to be closed |
+
+### Why 62 mattered more than it looked
+
+A full-width red line said "over" about every overspent day identically, and destroyed the one thing
+a calendar grid is for: comparing days at a glance. The bar was simultaneously the goal meter and the
+alarm, and the alarm won. Splitting it at the goal restores both readings — how much was eaten, and
+how far past the line it went — with no new colour, no new number and no scale to learn. The
+presentation is deliberately conservative about the ceiling: the owner's data tops out at ~30% over
+goal, so the red tail stays a tail (decision 62 records that as the design constraint, not as a
+validation rule — the maths is proportional at any value, and a 10× blowout simply reads as a
+nearly-red bar).
+
+### What 63 deliberately left alone
+
+Two neighbours of the Calendar still accept tomorrow, and were left working as they are:
+
+- The **Diary's own › arrow** still steps onto tomorrow, and `POST /api/diary` still takes a future
+  date, so a planned meal can be logged ahead of time. Clamping the Calendar while leaving these open
+  is consistent with what the owner asked for ("the calendar should not be permitted to advance beyond
+  Today") but it is not a complete guarantee. **Open question:** should the whole app treat today as
+  the last loggable day, or is pre-logging worth keeping?
+- `GET /api/calendar?from=&to=` is a generic range endpoint and still answers for future days (as
+  empty ones) — that is what lets the month grid draw a full six rows, including the days after today
+  that it now shows inert.
+
+### Decision 64: where the intent lives, and why
+
+The intent is two query params rather than a store or a route, for the same reason the diary date and
+the recipe tags are: it survives a reload, browser Back, changing filters, and a detour into a recipe
+detail page — all of which the old modal destroyed by keeping everything in component state. It is
+validated on the way in (`parseRecipePick` ignores an unknown meal slot rather than guessing one), and
+it can only ever preselect an answer the user can still change in the sheet. The recipe detail page
+inherits it too, so its **🍽 Add to Dinner** button and its "back to the filtered, still-armed list"
+link behave as one flow rather than two.
+
+### On the verification claim that started this
+
+The previous session's handoff recorded that "the Go tests in `calendar_test.go` have never been
+executed" because "there's no Go toolchain in this sandbox and the Go download hosts are blocked". The
+second half is true of `go.dev`/`dl.google.com`/`proxy.golang.org`; the conclusion is not.
+`scripts/verify-go-in-sandbox.sh` fetches a working toolchain from the PyPI `go-bin` wheel and builds
+the server with CGO in about a minute, and **it runs the tests too**: `go build ./...`,
+`go vet ./...` and `go test ./...` all pass on the current tree, including the three calendar
+regression tests. Nothing had rotted in `_test.go` — but nothing had been checking that either, which
+is what decision 65 fixes. Agents: "the sandbox has no Go" is not a reason to leave a backend change
+unverified, and `AGENTS.md` §3 says so.
+
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 
 **Not a bug the household can see today. Pick this up at the start of the metrics phase.**

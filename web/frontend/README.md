@@ -2,8 +2,10 @@
 
 **Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has four merged
 slices (recipe catalogue, portion logging, tap-to-filter tags, archive/restore — published through
-`v2.0.0-dev-rc14`) and a fifth — decision 40, `+ Add recipe` on each Diary meal card — implemented
-on the working branch and awaiting publication.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
+`v2.0.0-dev-rc14`), a fifth — decision 40, `+ Add recipe` on each Diary meal card — published in
+`v2.0.0-dev-rc15/16`, and a sixth — the owner's road-test follow-ups: calendar day bars, a calendar
+that stops at Today, and the meal-card `Add recipe` handing over to this tab (decisions 62–64) —
+implemented on the working branch and awaiting review.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
@@ -27,8 +29,8 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Screen | Route | Notes |
 |---|---|---|
 | Today | `/` | Summary landing: calorie ring, four meal tiles, merged fluids card |
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search, 📅 button opening the calendar on this week, **+ Add recipe** that opens a recipe picker and the portion sheet with the current meal/date preselected (decision 40) |
-| Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (larger phone-friendly layout with per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back; tapping any day opens `/diary/:date` (decision 49 follow-up). The fluids card is now labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64) |
+| Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards. A day over goal draws a green bar split at the goal with a proportional red tail for the overspend (decision 62); the calendar stops at Today — the forward arrow is disabled on the current month/week, a future URL is clamped back, and days that have not happened are not links (decision 63) (larger phone-friendly layout with per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back; tapping any day opens `/diary/:date` (decision 49 follow-up). The fluids card is now labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 
 The shared `CalorieRing` anchors every arc at 12 o'clock and shows its sign by sweep direction
 (owner decision 28, 2026-10-03). The **outer** arc is the bank: a surplus sweeps clockwise in green,
@@ -46,7 +48,7 @@ daily target across itself at 45°, over the water, so the fluids card needs no 
 | My drinks | `/drinks` | Catalog picker, glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
 
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing
@@ -155,10 +157,14 @@ becomes the usual, later amounts stay one-off. `GET /api/diary` entries carry th
 **Stubbed**: the Phase 13 operations not yet ported (core recipe create/update/delete and image
 upload) return a clear `501` so the preview does not pretend those flows are implemented.
 
-**Implemented 2026-10-03 (decision 40):** every Diary meal card has a **🍽 Add recipe** button
-beside **+ Add food**. Tapping it opens a searchable recipe picker (non-archived recipes only, per
-decision 59); selecting a recipe opens the existing portion sheet with the originating meal and the
-Diary date already selected, so logging takes one fewer tap. Recipe logging otherwise keeps the
+**Implemented 2026-10-03 (decision 40, superseded in shape by decision 64):** every Diary meal card
+has a **🍽 Add recipe** button beside **+ Add food**. It first opened a searchable recipe picker inside
+a modal; the owner asked for the recipe box instead, because it already has the search, favourites,
+archived handling and tag filters a picker would duplicate. Tapping it now navigates to
+`/recipes?add-to=<meal>&on=<date>` — the intent is URL state, so it survives filters, reload, back and
+a trip into the recipe's own page — and each card gains **🍽 Add to Breakfast**-style action that opens
+the existing portion sheet with the originating meal and Diary date already selected. *Done* returns to
+`/diary/:date#<meal>`. Non-archived recipes only (decision 59). Recipe logging otherwise keeps the
 decision 29–32 behaviour (fractions, direct grams, no guessed quantity, remembered usual). Mealie
 search/import is intentionally not implemented in this React frontend.
 
@@ -180,7 +186,7 @@ npm run build:go      # production shell for the Go /next/ route → web/dist/
 
 The tests exercise typed API behavior, domain maths and render the implemented screens against the
 fixture API, including add/edit/delete diary flows, serving/grams mode and recipe portion logging
-(93 tests total as of 2026-10-03).
+(163 tests total as of 2026-10-03).
 
 ## Phase 11 Go integration
 
