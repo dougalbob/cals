@@ -6,7 +6,15 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
 import { CalendarRoute } from './CalendarRoute'
-import { addDays, formatMonthLabel, monthForIso, todayIso, weekRange } from '../lib/calendar'
+import {
+  addDays,
+  addMonths,
+  formatMonthLabel,
+  monthForIso,
+  monthGridRange,
+  todayIso,
+  weekRange,
+} from '../lib/calendar'
 import type { CalendarDay } from '../api/types'
 
 /** Records where the router ended up, so navigation can be asserted without a full app. */
@@ -101,6 +109,26 @@ describe('CalendarRoute', () => {
     expect(links.some((link) => link.getAttribute('href') === `/diary/${today}`)).toBe(true)
   })
 
+  it('keeps days in the selected month fully visible when the grid starts in the previous month', async () => {
+    const currentMonth = monthForIso(todayIso())
+    let selectedMonth = monthForIso(addMonths(`${currentMonth}-01`, -1))
+    for (let attempt = 0; attempt < 12; attempt++) {
+      if (monthGridRange(selectedMonth).from.slice(0, 7) !== selectedMonth) break
+      selectedMonth = monthForIso(addMonths(`${selectedMonth}-01`, -1))
+    }
+
+    expect(monthGridRange(selectedMonth).from.slice(0, 7)).not.toBe(selectedMonth)
+    renderCalendar(`/calendar/month/${selectedMonth}`)
+    expect(await screen.findByText('Mon')).toBeTruthy()
+
+    const dateInsideMonth = screen.getByLabelText(new RegExp(`^${selectedMonth}-15:`))
+    const dateBeforeMonth = screen.getByLabelText(
+      new RegExp(`^${addDays(`${selectedMonth}-01`, -1)}:`),
+    )
+    expect(dateInsideMonth.classList.contains('opacity-40')).toBe(false)
+    expect(dateBeforeMonth.classList.contains('opacity-40')).toBe(true)
+  })
+
   it('renders the week view with per-meal calorie breakdowns and hydration', async () => {
     vi.stubGlobal(
       'fetch',
@@ -179,6 +207,7 @@ describe('CalendarRoute', () => {
     const links = screen.getAllByRole('link').map((link) => link.getAttribute('href'))
     expect(links).toContain(`/diary/${today}`)
     expect(links).not.toContain(`/diary/${tomorrow}`)
+    expect(screen.getByLabelText(new RegExp(`^${tomorrow}:`)).classList.contains('opacity-40')).toBe(true)
   })
 
   it('shows an overspent day as a green bar with a proportional red tail', async () => {

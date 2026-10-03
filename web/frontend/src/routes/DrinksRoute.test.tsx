@@ -47,6 +47,7 @@ describe('DrinksRoute', () => {
   it('shows the catalog with the everyday four first and the current glass size', async () => {
     renderDrinks()
     expect(await screen.findByText('My drinks')).toBeTruthy()
+    expect(screen.getByText(/separate daily target/)).toBeTruthy()
     expect(screen.getByLabelText('Decrease glass size')).toBeTruthy()
     expect(screen.getByRole('button', { pressed: true, name: '250' })).toBeTruthy()
 

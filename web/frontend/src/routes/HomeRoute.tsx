@@ -85,6 +85,10 @@ export function HomeRoute() {
   const bankBalance = bank.data?.bank_balance ?? 0
 
   const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
+  // The water summary carries the daily target; the profile is a useful early
+  // fallback while that query loads, so a custom goal never flashes as 2,000 ml.
+  const dailyWaterTarget =
+    water.data?.target_ml ?? user.data?.daily_water_goal_ml ?? 2000
 
   const mealSummaries = useMemo(
     () =>
@@ -98,6 +102,7 @@ export function HomeRoute() {
       }),
     [entries],
   )
+  const totalMealCalories = mealSummaries.reduce((total, meal) => total + meal.calories, 0)
 
   if (diary.isPending || bank.isPending) {
     return <p className="text-ink-light">Loading today…</p>
@@ -145,38 +150,50 @@ export function HomeRoute() {
       {/* Meals today: 4 square buttons in a row --------------------------- */}
       <section className="rounded-2xl bg-card p-3 shadow-card" aria-label="Meals today">
         <div className="grid grid-cols-4 gap-2">
-          {mealSummaries.map((meal) => (
-            <Link
-              key={meal.id}
-              to={`/diary/${date}#${meal.id}`}
-              className="flex flex-col items-center justify-between p-2 rounded-xl border border-line bg-surface hover:border-primary-light active:scale-95 transition-all no-underline text-ink min-h-[5.5rem]"
-              aria-label={`${meal.label}: ${meal.calories} kcal, ${meal.count} items`}
-            >
-              <span className="text-xs font-semibold tabular-nums text-primary-dark">
-                {meal.calories} <span className="text-[0.65rem] font-normal text-ink-light">kcal</span>
-              </span>
-
-              <span aria-hidden className="text-2xl my-0.5 leading-none">
-                {meal.icon}
-              </span>
-
-              <span className="flex flex-col items-center leading-tight">
-                <span className="text-[0.68rem] font-medium text-ink truncate w-full text-center">
-                  {meal.label}
+          {mealSummaries.map((meal) => {
+            const fillPercent =
+              totalMealCalories > 0
+                ? Math.max(0, Math.min(100, (meal.calories / totalMealCalories) * 100))
+                : 0
+            return (
+              <Link
+                key={meal.id}
+                to={`/diary/${date}#${meal.id}`}
+                className="relative isolate flex flex-col items-center justify-between overflow-hidden p-2 rounded-xl border border-line bg-surface hover:border-primary-light active:scale-95 transition-all no-underline text-ink min-h-[5.5rem]"
+                aria-label={`${meal.label}: ${meal.calories} kcal, ${meal.count} items`}
+              >
+                <span
+                  data-calorie-fill
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-xl bg-primary-light/50 transition-[width] duration-300"
+                  style={{ width: `${fillPercent}%` }}
+                />
+                <span className="relative z-10 text-xs font-semibold tabular-nums text-primary-dark">
+                  {meal.calories} <span className="text-[0.65rem] font-normal text-ink-light">kcal</span>
                 </span>
-                <span className="text-[0.62rem] text-ink-light tabular-nums">
-                  {meal.count} {meal.count === 1 ? 'item' : 'items'}
+
+                <span aria-hidden className="relative z-10 text-2xl my-0.5 leading-none">
+                  {meal.icon}
                 </span>
-              </span>
-            </Link>
-          ))}
+
+                <span className="relative z-10 flex flex-col items-center leading-tight">
+                  <span className="text-[0.68rem] font-medium text-ink truncate w-full text-center">
+                    {meal.label}
+                  </span>
+                  <span className="text-[0.62rem] text-ink-light tabular-nums">
+                    {meal.count} {meal.count === 1 ? 'item' : 'items'}
+                  </span>
+                </span>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
       {/* Merged Fluids Card: Water glass + Quick Drinks in one card ------- */}
       <FluidsCard
         consumedMl={water.data?.consumed_ml ?? 0}
-        targetMl={water.data?.target_ml ?? 2000}
+        targetMl={dailyWaterTarget}
         waterDrink={waterDrink}
         drinks={drinkDefinitions.data ?? []}
         entries={drinks.data ?? []}

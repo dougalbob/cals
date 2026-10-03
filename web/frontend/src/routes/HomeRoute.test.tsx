@@ -13,8 +13,11 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
+import type { SeedDiaryEntry } from '../../mock-api/seed.mjs'
 import { HomeRoute } from './HomeRoute'
 import { formatNumber } from '../lib/format'
+
+const DEFAULT_DAILY_WATER_GOAL_ML = seed.user.daily_water_goal_ml
 
 function renderHome() {
   const queryClient = new QueryClient({
@@ -49,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  seed.user.daily_water_goal_ml = DEFAULT_DAILY_WATER_GOAL_ML
   vi.unstubAllGlobals()
 })
 
@@ -88,6 +92,45 @@ describe('HomeRoute', () => {
     expect(screen.queryByText(breakfastEntry!.food_name ?? '')).toBeNull()
   })
 
+  it('fills each meal card in proportion to its share of today’s meal calories', async () => {
+    const otherDays = seed.diaryEntries.filter((entry) => entry.date !== seed.TODAY)
+    const mealEntries: SeedDiaryEntry[] = [
+      ['breakfast', 300],
+      ['lunch', 200],
+      ['dinner', 400],
+      ['snacks', 100],
+    ].map(([meal, calories], index) => ({
+      id: 9001 + index,
+      user_id: 1,
+      date: seed.TODAY,
+      meal: meal as SeedDiaryEntry['meal'],
+      food_id: null,
+      recipe_id: null,
+      quantity_grams: 100,
+      calories: Number(calories),
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fibre: 0,
+      created_at: `${seed.TODAY}T08:00:00Z`,
+      updated_at: `${seed.TODAY}T08:00:00Z`,
+    }))
+    seed.diaryEntries.splice(0, seed.diaryEntries.length, ...otherDays, ...mealEntries)
+
+    renderHome()
+
+    const meals = await screen.findByLabelText('Meals today')
+    const fills = Array.from(meals.querySelectorAll<HTMLElement>('[data-calorie-fill]'))
+    expect(fills.map((fill) => fill.style.width)).toEqual(['30%', '20%', '40%', '10%'])
+
+    const dinner = within(meals).getByRole('link', { name: /Dinner: 400 kcal/ })
+    const dinnerFill = dinner.querySelector<HTMLElement>('[data-calorie-fill]')
+    expect(dinnerFill?.className).toContain('bg-primary-light/50')
+    expect(dinnerFill?.getAttribute('aria-hidden')).toBe('true')
+    expect(dinner.children[0]).toBe(dinnerFill)
+    expect(dinner.querySelector('.relative.z-10')).toBeTruthy()
+  })
+
   it('counts the daily allowance down in the inner ring', async () => {
     renderHome()
 
@@ -110,6 +153,22 @@ describe('HomeRoute', () => {
     const rings = document.querySelectorAll('svg circle')
     expect(rings.length).toBeGreaterThanOrEqual(4)
     expect(consumed).toBeGreaterThan(0)
+  })
+
+  it('shows the updated daily target inside the glass and in the remaining amount', async () => {
+    seed.user.daily_water_goal_ml = 1000
+    seed.drinkEntries.splice(
+      0,
+      seed.drinkEntries.length,
+      ...seed.drinkEntries.filter((entry) => entry.date !== seed.TODAY),
+    )
+    renderHome()
+
+    const card = await screen.findByLabelText('Fluids and drinks')
+    expect(await within(card).findByText('1,000 ml')).toBeTruthy()
+    expect(within(card).getByText('1,000')).toBeTruthy()
+    expect(within(card).getByText('ml to go')).toBeTruthy()
+    expect(within(card).queryByText('2,000 ml')).toBeNull()
   })
 
   it('drains the water glass as water is logged, in one tap', async () => {
