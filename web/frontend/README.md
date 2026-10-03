@@ -5,8 +5,10 @@ slices (recipe catalogue, portion logging, tap-to-filter tags, archive/restore �
 `v2.0.0-dev-rc14`), a fifth — decision 40, `+ Add recipe` on each Diary meal card — published in
 `v2.0.0-dev-rc15/16`, and a sixth — the owner's road-test follow-ups: calendar day bars, a calendar
 that stops at Today, and the meal-card `Add recipe` handing over to this tab (decisions 62–64) —
-merged as PR #40 and **published as `v2.0.0-dev-rc17`**, with the owner's phone-size review still to
-come on the container.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
+merged as PR #40 and published as `v2.0.0-dev-rc17`; further owner-requested hydration, Today
+meal-card and Calendar month-cell refinements were merged as PR #42 and **published as
+`v2.0.0-dev-rc18`**. Phone-size review of the latest candidate remains outstanding on the
+container.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
 structured tags, known-Food key foods, facet filters and optional total time in minutes — was
 owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
 mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
