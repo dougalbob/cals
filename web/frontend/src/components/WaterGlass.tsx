@@ -22,7 +22,7 @@ export function WaterGlass({
   height?: number
   label?: string
   /**
-   * The daily target, written across the glass at 45° (e.g. "2,000 ml"). It is
+   * The daily target, written vertically across the glass at 90° (e.g. "2,000 ml"). It is
    * drawn over the water so it stays readable at any level, which lets the card
    * drop its separate "x / y ml" caption (owner request, 2026-10-03).
    */
@@ -87,14 +87,14 @@ export function WaterGlass({
         <rect x="17" y="16" width="5" height="66" rx="2.5" fill="#ffffff" opacity="0.25" />
       </g>
 
-      {/* The target, written across the glass at 45°. Drawn after the water so
+      {/* The target, written vertically across the glass at 90°. Drawn after the water so
           it stays legible as the level changes: a white halo (paint-order:
           stroke) keeps it readable against both the empty glass and the blue. */}
       {targetLabel && (
         <text
           x="32"
           y="56"
-          transform="rotate(45 32 56)"
+          transform="rotate(90 32 56)"
           textAnchor="middle"
           dominantBaseline="middle"
           fontSize="13"

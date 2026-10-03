@@ -152,7 +152,8 @@ export function DrinksRoute() {
       <section className="rounded-2xl bg-card p-4 shadow-card">
         <h3 className="m-0 text-base font-semibold">💧 Glass size</h3>
         <p className="m-0 mt-1 text-xs text-ink-light">
-          Tapping the glass on Today logs this amount. Water is not a tile in the 2×2.
+          One tap on Today logs this volume. The number inside the glass is your separate daily target.
+          Water is not a tile in the 2×2.
         </p>
         <GlassSize water={water} disabled={busy} onSave={saveGlass} />
       </section>

@@ -164,7 +164,7 @@ export function CalendarRoute() {
       )}
 
       {calendar.data && view === 'month' && (
-        <MonthGrid days={buildGrid(range.from, range.to, dayByDate)} from={range.from} today={today} />
+        <MonthGrid days={buildGrid(range.from, range.to, dayByDate)} month={monthKey} today={today} />
       )}
       {calendar.data && view === 'week' && (
         <WeekList days={buildWeek(range.from, range.to, dayByDate)} today={today} />
@@ -243,14 +243,14 @@ function CalorieBar({ day, trackClass }: { day: CalendarDay; trackClass: string 
 
 function MonthGrid({
   days,
-  from,
+  month,
   today,
 }: {
   days: CalendarDay[]
-  from: string
+  /** The requested month, not the month of the first padded grid date. */
+  month: string
   today: string
 }) {
-  const monthOfFirst = from.slice(0, 7)
   return (
     <section className="rounded-2xl bg-card p-3 shadow-card">
       <div className="grid grid-cols-7 gap-1 text-center text-[0.65rem] font-semibold uppercase text-ink-light pb-1">
@@ -263,7 +263,7 @@ function MonthGrid({
           <MonthCell
             key={day.date}
             day={day}
-            inMonth={day.date.slice(0, 7) === monthOfFirst}
+            inMonth={day.date.slice(0, 7) === month}
             future={isFutureDay(day.date, today)}
           />
         ))}

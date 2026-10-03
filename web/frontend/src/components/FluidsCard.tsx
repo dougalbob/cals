@@ -49,6 +49,7 @@ export function FluidsCard({
   const didLongPressRef = useRef(false)
 
   const remaining = Math.max(0, targetMl - consumedMl)
+  const overTargetMl = Math.max(0, consumedMl - targetMl)
   const done = targetMl > 0 && consumedMl >= targetMl
   const level = targetMl > 0 ? Math.max(0, Math.min(1, remaining / targetMl)) : 0
 
@@ -183,7 +184,9 @@ export function FluidsCard({
               <div className="min-w-0 flex-1">
                 <p className="m-0 text-sm">
                   {done ? (
-                    <span className="font-medium text-success">Target reached 🎉</span>
+                    <span className="font-medium text-success">
+                      Target{overTargetMl > 0 ? ` (+${formatNumber(overTargetMl)} ml)` : ''} reached 🎉
+                    </span>
                   ) : (
                     <>
                       <span className="text-lg font-semibold tabular-nums">{formatNumber(remaining)}</span>{' '}

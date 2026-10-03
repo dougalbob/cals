@@ -311,13 +311,36 @@ enough that a "no" decision costs a day, not a project.
 landing page is Today (the legacy root UI remains unchanged). Four meal tiles show
 calories, icon, name and item count, linking to dated Diary meal anchors. The inner
 calorie ring counts down the plain daily allowance; the outer ring retains existing
-available/bank behaviour. Water uses a draining glass. Water and quick drinks share
-one responsive card, with a compact custom amount action instead of duplicate water
-quick-add. Each drink shows its daily entry count; long press opens confirmation
-before deleting the latest matching entry, restoring its recorded ml/calories.
-The Diary uses the same fluids card. Phone layouts stack water/drinks; wider layouts
-use a vertical divider. No backend or schema changes, no data copy, no root cutover.
-Unraid review against both real identities remains outstanding before Phase 13.
+available/bank behaviour. The **Hydration** glass drains as water-counting drinks are
+logged. Hydration and quick drinks share one responsive card, with a compact custom
+amount action instead of duplicate water quick-add. Each drink shows its daily entry
+count; long press opens confirmation before deleting the latest matching entry,
+restoring its recorded ml/calories. The Diary uses the same fluids card. Phone layouts
+stack water/drinks; wider layouts use a vertical divider. No backend or schema changes,
+no data copy, no root cutover.
+
+**Keep glass size and target distinct:** one tap logs the configured volume of the
+user's Water drink — glass size is the per-tap amount, not the per-user daily hydration
+target. The separate daily target is printed vertically across the glass at 90°; the
+card reports how far over target the user is after they pass it. This presentation
+work does not change the existing target-setting roadmap.
+
+### Follow-up refinements — 2026-10-03
+
+- Today resolves the current daily hydration target instead of briefly showing the
+  default when a custom target is configured, and the four meal tiles now fill in
+  proportion to each meal's share of today's logged calories. The fill sits behind
+  the existing calorie, icon and label content.
+- Month-grid opacity is based on the selected month, not the first date in its
+  padded six-week range. In-month days remain fully visible even when the grid starts
+  in the previous month; padded dates outside the month and future dates remain muted,
+  and future dates remain non-clickable.
+- Regressions are covered by frontend tests; the suite is at 169 tests. These are
+  frontend-only refinements: no API or schema change, data copy, or template change.
+
+At the time of the original preview, the Unraid review against both real identities
+was still outstanding. See [`CURRENT_STATE.md`](../CURRENT_STATE.md) for the current
+owner-review and release status.
 
 ## Owner-requested Diary and bank-ring follow-ups (2026-10-03)
 
