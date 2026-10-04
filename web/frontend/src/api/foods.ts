@@ -9,7 +9,7 @@ export function getCustomFoods(): Promise<Food[]> {
   return apiGet<Food[]>('/api/foods/custom')
 }
 
-export function getFood(id: number): Promise<Food> {
+export function getFood(id: number | string): Promise<Food> {
   return apiGet<Food>(`/api/foods/${id}`)
 }
 

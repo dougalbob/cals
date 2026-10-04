@@ -29,6 +29,8 @@ export function FoodsRoute() {
   const invalidateFoods = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.customFoods })
     void queryClient.invalidateQueries({ queryKey: queryKeys.foodSearchAll })
+    // Correcting a food also refreshes every dependent recipe definition.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
   }
 
   const removeFood = useMutation({

@@ -3,10 +3,11 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipe, setRecipeArchived, updateRecipeMetadata } from '../api/recipes'
+import { getRecipe, setRecipeArchived, updateRecipe, updateRecipeMetadata } from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
+  type RecipeContentInput,
   type RecipeDetail,
   type RecipeDishType,
   type RecipeMealOccasion,
@@ -14,6 +15,7 @@ import {
 } from '../api/types'
 import { RecipeTags } from '../components/RecipeTags'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
+import { RecipeContentEditor } from '../components/RecipeContentEditor'
 import { parseTagParam, recipesHref, toggleTag } from '../lib/recipeTags'
 import { diaryHrefForPick, mealLabel, parseRecipePick, withRecipePick } from '../lib/recipePick'
 import { todayIso } from '../lib/format'
@@ -23,6 +25,8 @@ export function RecipeDetailRoute() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [isLogging, setIsLogging] = useState(false)
+  const [isEditingContent, setIsEditingContent] = useState(false)
+  const [contentRevision, setContentRevision] = useState(0)
   /**
    * The catalogue reached this page mid-pick (started from a Diary meal card),
    * which it signals by keeping `?add-to=&on=` on the link. Logging from here is
@@ -43,6 +47,15 @@ export function RecipeDetailRoute() {
     queryKey: queryKeys.recipe(recipeId),
     queryFn: () => getRecipe(recipeId),
     enabled: validId,
+  })
+
+  const contentMutation = useMutation({
+    mutationFn: (input: RecipeContentInput) => updateRecipe(recipeId, input),
+    onSuccess: (updatedRecipe) => {
+      queryClient.setQueryData(queryKeys.recipe(recipeId), updatedRecipe)
+      setContentRevision((revision) => revision + 1)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
+    },
   })
 
   const metadataMutation = useMutation({
@@ -159,6 +172,16 @@ export function RecipeDetailRoute() {
                 {pick ? `🍽 Add to ${mealLabel(pick.meal)}` : '🍽 Add to diary'}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                contentMutation.reset()
+                setIsEditingContent(true)
+              }}
+              className="min-h-11 rounded-xl border border-primary px-4 text-sm font-semibold text-primary-dark"
+            >
+              Edit recipe
+            </button>
             {recipe.is_archived ? null : recipe.usual_grams !== null ? (
               <span className="text-xs text-ink-light">
                 Your usual portion: {Math.round(recipe.usual_grams)} g
@@ -197,7 +220,7 @@ export function RecipeDetailRoute() {
           </section>
 
           <RecipeMetadataEditor
-            key={recipe.id}
+            key={`${recipe.id}-${contentRevision}`}
             recipe={recipe}
             isSaving={metadataMutation.isPending}
             error={metadataMutation.isError ? (metadataMutation.error as Error).message : null}
@@ -222,6 +245,17 @@ export function RecipeDetailRoute() {
           )}
         </div>
       </article>
+
+      {isEditingContent && (
+        <RecipeContentEditor
+          key={`content-${recipe.id}-${contentRevision}`}
+          recipe={recipe}
+          isSaving={contentMutation.isPending}
+          error={contentMutation.isError ? (contentMutation.error as Error).message : null}
+          onSave={(input) => contentMutation.mutateAsync(input)}
+          onClose={() => setIsEditingContent(false)}
+        />
+      )}
 
       {isLogging && !recipe.is_archived && (
         <RecipePortionSheet
