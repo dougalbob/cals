@@ -504,9 +504,9 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 request, 2026-10-03).
 
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
-preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc22 and
-in the later rc23 stabilisation checkpoint.**
-The Unraid Force Update/review of the latest checkpoint rc23 remains pending. The React Recipes detail route now edits existing shared content
+preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, included in rc22, rc23 and
+rc24.** The latest checkpoint rc24 also adds no-photo recipe creation; its Unraid Force Update/review
+is pending. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -568,5 +568,4 @@ a percent or two, are described in the [decision log](../product/vision-and-open
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
 merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
-`v2.0.0-dev-rc21` (PR #48) and is included in rc22 and rc23. Force Update/review of the latest rc23 remains
-pending on Unraid.
+`v2.0.0-dev-rc21` (PR #48) and is included in rc22, rc23 and rc24. Force Update/review of the latest rc24 remains pending on Unraid.

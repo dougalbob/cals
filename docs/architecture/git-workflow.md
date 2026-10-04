@@ -209,11 +209,7 @@ from. `main` is live production and read-only: it is never a PR base for this wo
 into. The only thing that ever touches `main` is a repository owner's deliberate promotion, which is
 not part of this loop and is not authorized by “Lets publish”.
 
-1. **Docs are in the same PR, not a follow-up.** `docs/CURRENT_STATE.md` (“Last reviewed”, §1
-   deployments, §2 phase status, §3 waiting-on-owner, §4 next work, §6 housekeeping),
-   [`docs/history/rebuild-log.md`](../history/rebuild-log.md) (a dated entry), `testing.md` if the
-   checks changed, `web/frontend/README.md` if the screens changed, and this loop's release-log row
-   *prepared* (filled with real links and a digest only after the run exists).
+1. **Implementation/status docs land in the feature PR; tag-generated evidence is recorded as soon as it exists.** `docs/CURRENT_STATE.md` (“Last reviewed”, §1 deployments, §2 phase status, §3 waiting-on-owner, §4 next work, §6 housekeeping), [`docs/history/rebuild-log.md`](../history/rebuild-log.md) (a dated entry), `testing.md` if the checks changed, and `web/frontend/README.md` if the screens changed belong in the feature PR. Prepare the release-log row there when practical; run IDs, digest and prerelease link are filled only after the tagged workflow completes, in a focused docs-only follow-up PR if they cannot be recorded before the feature PR merges (as with rc23's follow-up PR #53).
 2. **No stale claims.** Anything now merged or published must stop reading “unmerged”, “not yet” or
    “pending”; anything the PR does *not* change must keep saying so. Test totals, workflow names and
    image tags quoted in prose are checked against reality, and `node scripts/check-doc-links.mjs`

@@ -5,22 +5,15 @@ increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing re
 (decisions 55–58) and transactional food-correction refresh of dependent recipe definitions
 (decisions 60–61); rc21 shipped the Phase 13 polish slice (decisions 68, 72–78); and rc22 added the
 shared orange **Own creation** marker (decision 79), the mobile Diary Edit-sheet fix, the removal of
-hydration actions from Today and the 5% meal fills. The latest checkpoint, **`v2.0.0-dev-rc23`**
-(PR #52, published 2026-10-04), is the **stabilisation checkpoint**: a Playwright browser suite over
-the highest-value phone journeys (with the recipe area covered control by control), a CI step that
-starts the built image against a disposable database and smokes its routes, the **recipe portion
-sheet**'s Cancel / Add to diary kept in the modal footer so they stay on screen on a 360 px-wide
-phone, and the fix for **phone taps on tick-boxes** — labels are now tap targets rather than
-selectable text and interactive controls use `touch-action: manipulation`, so a slightly slow tap no
-longer becomes a text selection (Android's copy-text helper) or a double-tap zoom. It changes **no
-API or schema**. **Force Update/review of rc23 on Unraid is pending, and is where the tick-box taps,
-both sheets' footers and the accumulated rc19–rc22 changes get their first real-device confirmation.**
-See
-[`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The only schema change is additive:
-`recipes.is_own_creation` defaults false and is applied at startup; no appdata copy or reset. The current
-Arena branch adds `/recipes/new`, reuses this field, and creates recipe content together with shared
-classification. The owner approved the preview and authorized publication; see
-[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) for the PR/release status.
+hydration actions from Today and the 5% meal fills. The **rc23 stabilisation checkpoint** (PR #52,
+2026-10-04) added the milestone browser suite, disposable-database container smoke, portion-sheet
+footer fix and phone tick-box fix. The latest checkpoint, **`v2.0.0-dev-rc24`** (PR #54, published
+2026-10-04), adds no-photo recipe creation at `/recipes/new` and transactional `POST /api/recipes`;
+there is **no schema migration**. The owner approved the Arena preview before publication. **Force
+Update/review of rc24 on Unraid is pending**; the accumulated rc19–rc23 phone changes and recipe
+creation are covered in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) §3. See
+[`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The existing additive
+`recipes.is_own_creation` field defaults false and is applied at startup; no data copy or reset.
 Image upload/crop remains separately scoped. Earlier increments cover the photo-led catalogue, per-user favourites, shared
 structured tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with
 each user's remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18

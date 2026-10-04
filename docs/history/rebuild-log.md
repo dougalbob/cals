@@ -14,9 +14,9 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
-## 2026-10-04 — New recipe authoring implemented; preview approved, publication underway
+## 2026-10-04 — No-photo recipe authoring published in rc24 (PR #54)
 
-The next queued Phase 13 slice adds `/recipes/new` and a catalogue action. The full-page form creates a
+The queued Phase 13 slice added `/recipes/new` and a catalogue action. The full-page form creates a
 shared recipe with a fixed-at-creation name, description, matched cals Food ingredients and grams,
 optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition
 estimate, and the existing shared classification (meal occasions, dish type, up to two key foods,
@@ -36,10 +36,8 @@ fixed navigation at the end of the form. The preview has no horizontal overflow 
 
 Validation on the Arena branch: `npm run lint`, `npm run typecheck`, `npm test` (180 tests / 22 files),
 `npm run build`, `npm run build:go`; Go formatting, `go build ./...`, `go vet ./...`, `go test ./...`;
-and 53 Playwright tests passed across phone and desktop. Documentation links and `git diff --check`
-are clean. On 2026-10-04 the owner approved the Arena preview and authorized the development publish
-loop. The implementation is still unmerged and unpublished; PR/CI and the next development checkpoint
-are pending. The published baseline remains rc23.
+and 53 Playwright tests passed across phone and desktop. The owner approved the 360 × 640 px Arena
+preview and authorized publication. PR #54 passed [Docker/runtime validation](https://github.com/dougalbob/cals/actions/runs/37206287261), [Go validation](https://github.com/dougalbob/cals/actions/runs/37206287234) and the [PR browser suite](https://github.com/dougalbob/cals/actions/runs/37206287397), then merged to `cals-dev` as `c5828b6f56edb60124cf982396945ebf7da5b663`; the post-merge Go run [37206413850](https://github.com/dougalbob/cals/actions/runs/37206413850) also passed. [Publish run 37206446238](https://github.com/dougalbob/cals/actions/runs/37206446238) published `v2.0.0-dev-rc24`, digest `sha256:1d1f9c4047ea39624f60b460759f994ee39c3faac87c270bb42ca847fedd9e4`, created the [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc24), and passed the anonymous-pull check. The tag-triggered [milestone browser suite](https://github.com/dougalbob/cals/actions/runs/37206446239) passed 53 tests. No schema migration, data copy, appdata operation or template change; photo upload/crop remains separate. The owner has not yet Force Updated Unraid to rc24; no live appdata was accessed.
 
 ## 2026-10-04 — Published `v2.0.0-dev-rc23` (PR #52, stabilisation checkpoint)
 
@@ -63,9 +61,9 @@ area control by control including real touch taps); the container runtime smoke 
 portion sheet's Cancel / Add to diary moved into the modal footer; and the phone tick-box fix
 (`touch-action: manipulation` plus non-selectable labels) for the reported Own creation / Meal occasion
 taps. **No API, schema, migration, data copy, appdata operation or template change.** Force
-Update/review of rc23 on Unraid is pending, and is where the three phone checks get their first
-real-device confirmation. The publication record itself landed in the follow-up docs PR (#53), because
-a run's digest cannot be written before the run exists.
+The rc23 Force Update/review was superseded by rc24; the accumulated phone checks are now part of
+the rc24 review in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3. The publication record itself landed
+in the follow-up docs PR (#53), because a run's digest cannot be written before the run exists.
 
 ## 2026-10-04 — Phone tick-box taps: the recipe area gets a top-to-bottom browser pass
 
