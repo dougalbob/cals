@@ -4,8 +4,10 @@
 # Not on every pull request. The suite is heavier than the fast checks (it
 # builds the bundle and drives a real Chromium), so it is reserved for
 # milestones: every release-candidate tag, a manual dispatch, or a PR that
-# opts in with the `run-e2e` label. Ordinary PRs keep the frontend lint/
-# Vitest/typecheck/build, the Docker build + runtime smoke and the Go checks.
+# opts in with the `run-e2e` label (and keeps it for every later push to that
+# PR, since the label means "this change deserves the browser suite").
+# Ordinary PRs keep the frontend lint/Vitest/typecheck/build, the Docker build
+# + runtime smoke and the Go checks.
 #
 # WHAT IT TESTS
 # The React bundle served by `serve-preview.mjs` with the fixture API in
@@ -32,9 +34,10 @@ on:
     tags:
       - 'v*-dev*'
   workflow_dispatch:
-  # Escape hatch: add the `run-e2e` label to a risky pull request.
+  # Escape hatch: add the `run-e2e` label to a risky pull request. Once the
+  # label is on, later pushes to the PR run the suite again.
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize, reopened]
 
 permissions:
   contents: read
@@ -47,7 +50,7 @@ jobs:
   playwright:
     name: playwright (phone + desktop smoke)
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.label.name == 'run-e2e'
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
     defaults:
       run:
         working-directory: web/frontend
@@ -84,7 +87,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-${{ github.ref_name }}-${{ github.run_id }}
+          name: playwright-run-${{ github.run_id }}
           path: |
             web/frontend/test-results
             web/frontend/playwright-report
@@ -101,7 +104,7 @@ jobs:
             echo "|---|---|"
             echo "| Result | ${{ job.status }} |"
             echo "| Commit | $GITHUB_SHA |"
-            echo "| Artifacts | \`playwright-${{ github.ref_name }}-${{ github.run_id }}\` (traces, screenshots, video, HTML report) |"
+            echo "| Artifacts | \`playwright-run-${{ github.run_id }}\` (traces, screenshots, video, HTML report) |"
             echo ""
             echo "Ran against the built bundle + fixture API; see docs/architecture/testing.md."
           } >> "$GITHUB_STEP_SUMMARY"
