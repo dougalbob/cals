@@ -15,6 +15,7 @@ type User struct {
 	WeightUnit       string    `json:"weight_unit"`
 	BankStartDate    string    `json:"bank_start_date"`
 	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
+	IsAdmin          bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }

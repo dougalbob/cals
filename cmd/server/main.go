@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	var withAuth func(http.Handler) http.Handler
+	var authenticate func(http.Handler) http.Handler
 	devIdentitySwitch := false
 	if cfg.DevMode {
 		log.Println("⚠️  DEV_MODE ENABLED — Cloudflare Access is DISABLED for loopback/private requests")
@@ -31,21 +31,38 @@ func main() {
 		log.Printf("⚠️  Listen address: %s", cfg.ListenAddress())
 		if cfg.DevIdentitySwitch {
 			devIdentitySwitch = true
-			withAuth = auth.DevIdentityMiddleware(cfg.DevUserEmail, handlers.UserExistsByEmail)
+			authenticate = auth.DevIdentityMiddleware(cfg.DevUserEmail, handlers.UserExistsByEmail)
 			log.Println("⚠️  DEV_IDENTITY_SWITCH ENABLED — choose any existing user at /dev/identity (or append ?as=<email> to any URL)")
 			log.Printf("⚠️  Default identity: %s", cfg.DevUserEmail)
 		} else {
-			withAuth = auth.DevModeMiddleware(cfg.DevUserEmail)
+			authenticate = auth.DevModeMiddleware(cfg.DevUserEmail)
 		}
 	} else {
 		cfAuth := auth.NewCloudflareAuth(cfg.CFTeamDomain, cfg.CFPolicyAUD)
-		withAuth = cfAuth.Middleware
+		authenticate = cfAuth.Middleware
+	}
+
+	// Every authenticated request then passes through the Admin acting-user
+	// switch, which may replace *whose data* the request touches. It never
+	// replaces the authenticated identity, so role checks stay trustworthy.
+	withAuth := func(next http.Handler) http.Handler {
+		return authenticate(handlers.ActingUserMiddleware(next))
 	}
 
 	if err := database.Initialize(cfg.DBPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer database.Close()
+
+	// Roles are declared in /app/data/.env (ADMIN_EMAILS / STANDARD_EMAILS) and
+	// reconciled into users.is_admin here, so the running container always
+	// matches the configuration on disk. See internal/handlers/roles.go.
+	handlers.SetConfiguredRoles(cfg.AdminEmails, cfg.StandardEmails)
+	roles, err := handlers.ApplyConfiguredRoles()
+	if err != nil {
+		log.Fatalf("Failed to apply configured user roles: %v", err)
+	}
+	logConfiguredRoles(roles)
 
 	if cfg.FatSecretClientID != "" && cfg.FatSecretClientSecret != "" {
 		handlers.FatSecretClient = fatsecret.NewClient(cfg.FatSecretClientID, cfg.FatSecretClientSecret)
@@ -115,6 +132,12 @@ func main() {
 	mux.Handle("GET /api/users/me", withAuth(http.HandlerFunc(handlers.HandleGetCurrentUser)))
 	mux.Handle("PUT /api/users/me", withAuth(http.HandlerFunc(handlers.HandleUpdateCurrentUser)))
 	mux.Handle("GET /api/users", withAuth(http.HandlerFunc(handlers.HandleListUsers)))
+
+	// Session: who is signed in, whose data is on screen, and the Admin's
+	// acting-user switch (decisions 45 and 88).
+	mux.Handle("GET /api/session", withAuth(http.HandlerFunc(handlers.HandleGetSession)))
+	mux.Handle("POST /api/session/acting-user", withAuth(http.HandlerFunc(handlers.HandleSetActingUser)))
+	mux.Handle("DELETE /api/session/acting-user", withAuth(http.HandlerFunc(handlers.HandleClearActingUser)))
 
 	// Foods
 	mux.Handle("GET /api/foods/search", withAuth(http.HandlerFunc(handlers.HandleSearchFoods)))
@@ -208,6 +231,32 @@ func main() {
 	if err := http.ListenAndServe(cfg.ListenAddress(), mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
 		os.Exit(1)
+	}
+}
+
+// logConfiguredRoles prints the role reconciliation, because a misspelled
+// address or an account that has not signed in yet is otherwise invisible: the
+// app would simply behave as if the Admin were a Standard user.
+func logConfiguredRoles(applied handlers.RoleApplication) {
+	if !applied.Configured {
+		if len(applied.StandardEmails) > 0 {
+			log.Printf("Roles: STANDARD_EMAILS is set but ADMIN_EMAILS is not — every account stays Standard (no Standard list is applied without an Admin)")
+		}
+		return
+	}
+
+	log.Printf("Roles: Admin: %s", strings.Join(applied.AdminEmails, ", "))
+	if len(applied.StandardEmails) > 0 {
+		log.Printf("Roles: Standard: %s", strings.Join(applied.StandardEmails, ", "))
+	}
+	for _, email := range applied.Granted {
+		log.Printf("Roles: granted Admin to %s", email)
+	}
+	for _, email := range applied.Revoked {
+		log.Printf("Roles: revoked Admin from %s (no longer listed in ADMIN_EMAILS)", email)
+	}
+	for _, email := range applied.Missing {
+		log.Printf("Roles: %s is configured but has no account yet; the role applies on first sign-in", email)
 	}
 }
 

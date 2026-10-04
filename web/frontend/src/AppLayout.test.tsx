@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+/** Requests the layout made through the fixture stub, newest last. */
+let requests: { method: string; path: string; body: string | null }[] = []
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AppLayout } from './AppLayout'
@@ -11,19 +13,53 @@ afterEach(() => {
 })
 
 function renderApp(devIdentitySwitch: boolean, initialPath = '/') {
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+  return renderAppWithSession({ isAdmin: false, viewingAsOther: false }, devIdentitySwitch, initialPath)
+}
+
+/** One identity standing in for both, unless the test asks for a swap. */
+function renderAppWithSession(
+  options: { isAdmin?: boolean; viewingAsOther?: boolean; actingName?: string },
+  devIdentitySwitch = false,
+  initialPath = '/',
+) {
+  const owner = {
+    id: 1,
+    email: 'owner@example.com',
+    name: 'Owner',
+    daily_calorie_goal: 2000,
+    is_admin: options.isAdmin ?? false,
+  }
+  const other = {
+    id: 2,
+    email: 'sarah@example.com',
+    name: options.actingName ?? 'Sarah',
+    daily_calorie_goal: 1600,
+    is_admin: false,
+  }
+  const acting = options.viewingAsOther ? other : owner
+
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(input), 'http://localhost').pathname
-    const body = path === '/api/users/me'
-      ? {
-          id: 1,
-          email: 'dev@example.com',
-          name: 'Dev user',
-          daily_calorie_goal: 2000,
-        }
-      : {
-          version: '2.0.0',
-          ...(devIdentitySwitch ? { dev_identity_switch: true } : {}),
-        }
+    requests.push({
+      method: init?.method ?? 'GET',
+      path,
+      body: typeof init?.body === 'string' ? init.body : null,
+    })
+    const body = path === '/api/session' || path === '/api/users/me'
+      ? path === '/api/users/me'
+        ? acting
+        : {
+            authenticated_user: owner,
+            acting_user: acting,
+            is_admin: options.isAdmin ?? false,
+            viewing_as_other: options.viewingAsOther ?? false,
+          }
+      : path === '/api/users'
+        ? [owner, other]
+        : {
+            version: '2.0.0',
+            ...(devIdentitySwitch ? { dev_identity_switch: true } : {}),
+          }
 
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -128,5 +164,56 @@ describe('AppLayout primary navigation', () => {
     fireEvent.click(moreButton)
     expect(scroller.scrollLeft).toBe(200)
     expect(within(nav).getByRole('button', { name: 'Show earlier navigation destinations' })).toBeTruthy()
+  })
+})
+
+describe('AppLayout acting-user switch (decisions 45 and 88)', () => {
+  it('hides the swap control from a Standard user', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: false })
+    expect(await screen.findByText('Diary content')).toBeTruthy()
+    expect(screen.queryByTestId('swap-user-button')).toBeNull()
+    expect(screen.queryByTestId('viewing-as-banner')).toBeNull()
+  })
+
+  it('lets an Admin swap to another account, sending the chosen id to the server', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: true })
+
+    fireEvent.click(await screen.findByTestId('swap-user-button'))
+
+    const sheet = await screen.findByRole('dialog', { name: 'Swap user' })
+    expect(within(sheet).getByText(/Anything you log while swapped belongs to them/)).toBeTruthy()
+
+    // Both household accounts are offered, and the Admin's own is labelled.
+    expect(await within(sheet).findByText('Your own account')).toBeTruthy()
+    expect(within(sheet).getByText('sarah@example.com')).toBeTruthy()
+
+    fireEvent.click(within(sheet).getByRole('button', { name: /Sarah/ }))
+
+    await waitFor(() => {
+      const swap = requests.find((entry) => entry.path === '/api/session/acting-user')
+      expect(swap?.method).toBe('POST')
+      expect(JSON.parse(swap?.body ?? '{}')).toEqual({ user_id: 2 })
+    })
+  })
+
+  it('names the account being viewed and always offers a way back', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: true, viewingAsOther: true, actingName: 'Sarah' })
+
+    const banner = await screen.findByTestId('viewing-as-banner')
+    expect(banner.textContent).toContain('Viewing as Sarah')
+
+    // The Admin keeps the swap control while swapped, or the way back would be
+    // unreachable.
+    expect(screen.getByTestId('swap-user-button')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('return-to-own-account'))
+
+    await waitFor(() => {
+      const back = requests.find((entry) => entry.path === '/api/session/acting-user')
+      expect(back?.method).toBe('DELETE')
+    })
   })
 })

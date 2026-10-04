@@ -47,6 +47,8 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 | `DEV_USER_EMAIL` | *(required with `DEV_MODE=true`)* | User identity to use in local development; the default when the identity switch is on |
 | `DEV_IDENTITY_SWITCH` | `false` | Development only, requires `DEV_MODE=true`: pick any **existing** user from `/dev/identity` or `?as=<email>`. See [DEV Identity Switch](docs/architecture/dev-identity-switch.md) |
 | `BIND_ADDRESS` | *(all interfaces in production; `127.0.0.1` in dev mode)* | Listener IP; dev mode accepts only loopback/private IPs |
+| `ADMIN_EMAILS` | *(no Admin; every account is Standard)* | Comma-separated addresses holding the **Admin** role (allows acting as another household account once the Swap user control lands, and listing accounts today). A malformed address stops start-up. See [Admin roles](docs/architecture/admin-roles.md) |
+| `STANDARD_EMAILS` | *(unset)* | Comma-separated addresses documented as **Standard**. Optional documentation and typo check — Standard is the default for every account. Applied only when `ADMIN_EMAILS` is set |
 | `FATSECRET_CLIENT_ID` | *(disabled)* | FatSecret API client ID |
 | `FATSECRET_CLIENT_SECRET` | *(disabled)* | FatSecret API client secret |
 | `MEALIE_BASE_URL` | *(disabled)* | Base URL of your Mealie instance (legacy integration only; not part of the React Phase 13 work) |

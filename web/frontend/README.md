@@ -67,6 +67,16 @@ hydration target**. That separate target is written vertically across the glass 
 so the fluids card needs no `x / y ml` caption. When hydration goes over target, the card states the
 exact surplus (for example, `Target (+250 ml) reached`).
 
+**Admin roles and Swap user (decisions 45, 88–90).** The header shows the *acting* account and, for
+an Admin, a **Swap user** button. The sheet lists the household accounts, marks the one being viewed
+and labels the Admin's own account "Your own account". While acting as someone else, an amber
+**Viewing as …** banner sits under the header with **Return to \<you\>** beside it — a `role="status"`
+region, so it is announced and not carried by colour alone. Both the banner and the swap control stay
+visible while swapped, because the way back is part of the feature. Every cached query is
+account-scoped, so a switch clears the whole cache rather than invalidating a handful of keys. The
+role itself comes from the server (`GET /api/session`), never from a client-side claim; see
+[`docs/architecture/admin-roles.md`](../../docs/architecture/admin-roles.md).
+
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing
 `themes.css` palette ported into an `@theme` block, TypeScript strict.
@@ -216,7 +226,7 @@ The tests exercise typed API behavior, domain maths and render the implemented s
 fixture API, including add/edit/delete diary flows and delete confirmation, serving/grams mode, recipe
 portion logging, URL-backed recipe filters including Own creation, hydration-target feedback, separate
 Today/Diary meal-fill alpha, calendar month-cell states and new-recipe creation/validation plus
-recipe-photo upload/replacement flows (195 tests across 25 files as of 2026-10-04).
+recipe-photo upload/replacement flows (198 tests across 25 files as of 2026-10-04).
 
 The **browser suite** (`e2e/`) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, confirmation/cancel behaviour when deleting a meal entry,

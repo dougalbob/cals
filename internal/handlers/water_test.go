@@ -13,13 +13,17 @@ import (
 	"cals/internal/database"
 )
 
+// authedRequest builds a request the way the server sees one: both the
+// authenticated identity (what Cloudflare vouched for) and the acting user are
+// present, and they are the same person unless a test says otherwise.
 func authedRequest(t *testing.T, method, target, body, email string) *http.Request {
 	t.Helper()
 	req := httptest.NewRequest(method, target, strings.NewReader(body))
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return req.WithContext(context.WithValue(req.Context(), auth.UserEmailKey, email))
+	ctx := context.WithValue(req.Context(), auth.UserEmailKey, email)
+	return req.WithContext(auth.WithAuthenticatedEmail(ctx, email))
 }
 
 func insertDrink(t *testing.T, userID int64, name, icon string, volume, calories int, water bool) int64 {

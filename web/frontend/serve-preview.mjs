@@ -95,7 +95,7 @@ const server = createServer(async (req, res) => {
     }
 
     try {
-      const result = handle(method, url, body)
+      const result = handle(method, url, body, req.headers)
       if (!result) {
         res.statusCode = 404
         res.setHeader('Content-Type', MIME['.json'])
@@ -105,6 +105,7 @@ const server = createServer(async (req, res) => {
       res.statusCode = result.status
       res.setHeader('Content-Type', result.contentType ?? MIME['.json'])
       res.setHeader('Cache-Control', 'no-store')
+      for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value)
       res.end(typeof result.body === 'string' ? result.body : JSON.stringify(result.body))
       return
     } catch (error) {

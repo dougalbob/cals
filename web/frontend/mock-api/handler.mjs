@@ -21,8 +21,30 @@ import { buildNewRecipe, buildRecipeContentUpdate, recalculateRecipesUsingFood }
 
 const {
   foods, recipes, drinks, drinkEntries, weightEntries, measurements,
-  nutritionSettings, user, TODAY,
+  nutritionSettings, users, user, TODAY,
 } = seed
+
+// The acting account for the request in flight. The Admin acting-user switch
+// (decisions 45 and 88) stores the chosen account id in a cookie, exactly as
+// the Go server does; everything below reads this rather than assuming the
+// primary fixture identity.
+let actingUserId = 1
+
+const currentUser = () => users.find((candidate) => candidate.id === actingUserId) ?? user
+
+function readActingUserId(headers) {
+  const cookieHeader = headers?.cookie ?? headers?.Cookie
+  if (typeof cookieHeader !== 'string') return 1
+  const cookies = cookieHeader.split(';').map((part) => part.trim())
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.split('=')
+    if (name === 'cals_acting_user') {
+      const id = Number.parseInt(rest.join('='), 10)
+      if (Number.isFinite(id) && id > 0) return id
+    }
+  }
+  return 1
+}
 
 const round1 = (n) => Math.round(n * 10) / 10
 const num = (v) => (Number.isFinite(v) ? round1(v) : 0)
@@ -33,8 +55,8 @@ let recipeImageVersionSeq = 0
 // ---------------------------------------------------------------------------
 
 function bank(asOfDate) {
-  const dailyGoal = user.daily_calorie_goal
-  const startDate = user.bank_start_date
+  const dailyGoal = currentUser().daily_calorie_goal
+  const startDate = currentUser().bank_start_date
   const base = { daily_goal: dailyGoal, bank_balance: 0, today_available: dailyGoal, start_date: startDate, as_of_date: asOfDate }
 
   if (!startDate || asOfDate <= startDate) return base
@@ -43,7 +65,9 @@ function bank(asOfDate) {
   if (dayCount <= 0) return base
 
   // Drinks count towards the bank (mirrors internal/handlers/bank.go).
-  const consumed = seed.caloriesBetween(startDate, asOfDate) + seed.drinkCaloriesBetween(startDate, asOfDate)
+  const consumed =
+    seed.caloriesBetween(startDate, asOfDate, actingUserId) +
+    seed.drinkCaloriesBetween(startDate, asOfDate, actingUserId)
   const bankBalance = dayCount * dailyGoal - Math.trunc(consumed)
   return { ...base, bank_balance: bankBalance, today_available: dailyGoal + bankBalance }
 }
@@ -117,7 +141,9 @@ function nutritionAnalysis(days = 7) {
 }
 
 function currentWeightKg() {
-  const latest = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date))[0]
+  const latest = weightEntries
+    .filter((entry) => entry.user_id === actingUserId)
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
   return latest ? latest.weight_kg : 0
 }
 
@@ -142,9 +168,10 @@ function bandStatus(value, min, max) {
 // Routing
 // ---------------------------------------------------------------------------
 
-export function handle(method, url, body) {
+export function handle(method, url, body, headers = {}) {
   const { pathname, searchParams } = url
   const today = seed.TODAY
+  actingUserId = readActingUserId(headers)
 
   // --- unprotected ---------------------------------------------------------
   if (pathname === '/api/version') return json({ version: '1.7.0-spike' })
@@ -162,7 +189,67 @@ export function handle(method, url, body) {
   }
 
   // --- read endpoints ------------------------------------------------------
-  if (pathname === '/api/users/me' && method === 'GET') return json(user)
+  if (pathname === '/api/users/me' && method === 'GET') return json(currentUser())
+
+  // Session: who is signed in and whose data is on screen. Mirrors
+  // internal/handlers/actinguser.go, including the rule that the Admin flag
+  // belongs to the authenticated identity, not the acting one.
+  if (pathname === '/api/session' && method === 'GET') {
+    const authenticated = users[0] // the fixture always signs in as the Admin
+    const acting = currentUser()
+    return json({
+      authenticated_user: authenticated,
+      acting_user: acting,
+      is_admin: Boolean(authenticated.is_admin),
+      viewing_as_other: acting.id !== authenticated.id,
+    })
+  }
+
+  // Admin-only account list, exactly as the Go handler now gated it.
+  if (pathname === '/api/users' && method === 'GET') {
+    const authenticated = users[0]
+    if (!authenticated.is_admin) return err(403, 'Forbidden: the Admin role is required to list accounts')
+    return json(users)
+  }
+
+  if (pathname === '/api/session/acting-user' && method === 'POST') {
+    const authenticated = users[0]
+    if (!authenticated.is_admin) {
+      return err(403, 'Forbidden: the Admin role is required to act as another user')
+    }
+    const userId = Number.parseInt(String(body?.user_id ?? ''), 10)
+    if (!Number.isFinite(userId) || userId <= 0) return err(400, 'user_id is required')
+    const target = users.find((candidate) => candidate.id === userId)
+    if (!target) return err(404, 'No such user')
+
+    actingUserId = target.id === authenticated.id ? authenticated.id : target.id
+    const switching = actingUserId !== authenticated.id
+    return json(
+      {
+        authenticated_user: authenticated,
+        acting_user: currentUser(),
+        is_admin: true,
+        viewing_as_other: switching,
+      },
+      200,
+      switching ? actingUserCookie(target.id) : actingUserCookie(target.id, true),
+    )
+  }
+
+  if (pathname === '/api/session/acting-user' && method === 'DELETE') {
+    const authenticated = users[0]
+    actingUserId = authenticated.id
+    return json(
+      {
+        authenticated_user: authenticated,
+        acting_user: authenticated,
+        is_admin: Boolean(authenticated.is_admin),
+        viewing_as_other: false,
+      },
+      200,
+      actingUserCookie(authenticated.id, true),
+    )
+  }
 
   if (pathname === '/api/recipes' && method === 'GET') {
     // Decision 59: archived recipes are hidden unless the caller opts in, as in the Go handler.
@@ -249,7 +336,7 @@ export function handle(method, url, body) {
 
   if (pathname === '/api/diary' && method === 'GET') {
     const date = searchParams.get('date') ?? today
-    const entries = seed.entriesFor(date).map((entry) => {
+    const entries = seed.entriesFor(date, actingUserId).map((entry) => {
       const food = entry.food_id != null ? seed.findFood(entry.food_id) : null
       const recipe = entry.recipe_id != null ? recipes.find((item) => item.id === entry.recipe_id) : null
       return {
@@ -259,7 +346,7 @@ export function handle(method, url, body) {
         ...(entry.food_id != null ? seed.foodMeasuresFor(entry.food_id) : {}),
       }
     })
-    return json({ date, entries, totals: seed.totalsFor(date) })
+    return json({ date, entries, totals: seed.totalsFor(date, actingUserId) })
   }
 
   if (pathname === '/api/bank' && method === 'GET') {
@@ -268,17 +355,19 @@ export function handle(method, url, body) {
     return json(bank(date))
   }
 
-  if (pathname === '/api/drinks' && method === 'GET') return json(drinks)
+  if (pathname === '/api/drinks' && method === 'GET') {
+    return json(drinks.filter((drink) => drink.user_id === actingUserId))
+  }
 
   if (pathname === '/api/drinks/entries' && method === 'GET') {
     const date = searchParams.get('date') ?? today
-    return json(seed.drinkEntriesFor(date))
+    return json(seed.drinkEntriesFor(date, actingUserId))
   }
 
   // Water: one source of truth — drink entries for water-counting drinks.
   if (pathname === '/api/water' && method === 'GET') {
     const date = searchParams.get('date') ?? today
-    return json(seed.waterFor(date))
+    return json(seed.waterFor(date, actingUserId))
   }
 
   if (pathname === '/api/weight' && method === 'GET') {
@@ -286,7 +375,7 @@ export function handle(method, url, body) {
     const from = seed.dateOffset(days)
     return json(
       weightEntries
-        .filter((e) => e.date >= from)
+        .filter((e) => e.user_id === actingUserId && e.date >= from)
         .sort((a, b) => b.date.localeCompare(a.date)),
     )
   }
@@ -294,6 +383,7 @@ export function handle(method, url, body) {
   if (pathname === '/api/measurements' && method === 'GET') {
     return json(
       [...measurements]
+        .filter((m) => m.user_id === actingUserId)
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((m) => ({
           date: m.date,
@@ -313,7 +403,11 @@ export function handle(method, url, body) {
     const out = []
     for (let back = days - 1; back >= 0; back--) {
       const date = seed.dateOffset(back)
-      out.push({ date, calories: num(seed.totalsFor(date).calories), goal: user.daily_calorie_goal })
+      out.push({
+        date,
+        calories: num(seed.totalsFor(date, actingUserId).calories),
+        goal: currentUser().daily_calorie_goal,
+      })
     }
     return json(out)
   }
@@ -357,17 +451,17 @@ export function handle(method, url, body) {
     let runningConsumed = 0
     // Seed running total from bank_start_date up to day before `from` so balances
     // stay correct when the window starts mid-run.
-    const bankStart = user.bank_start_date
+    const bankStart = currentUser().bank_start_date
     if (bankStart && from > bankStart) {
       const dayBeforeFrom = addDays(from, -1)
       runningConsumed =
-        seed.caloriesBetween(bankStart, addDays(dayBeforeFrom, 1)) +
-        seed.drinkCaloriesBetween(bankStart, addDays(dayBeforeFrom, 1))
+        seed.caloriesBetween(bankStart, addDays(dayBeforeFrom, 1), actingUserId) +
+        seed.drinkCaloriesBetween(bankStart, addDays(dayBeforeFrom, 1), actingUserId)
     }
 
     for (let i = 0; i < dayCount; i++) {
       const date = isoFromMs(startMs + i * 24 * 60 * 60 * 1000)
-      const entries = seed.entriesFor(date)
+      const entries = seed.entriesFor(date, actingUserId)
       const meals = { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 }
       let foodCal = 0
       for (const e of entries) {
@@ -375,10 +469,10 @@ export function handle(method, url, body) {
         foodCal += e.calories
       }
       const drinkCal = seed
-        .drinkEntriesFor(date)
+        .drinkEntriesFor(date, actingUserId)
         .reduce((acc, e) => acc + e.calories, 0)
       const hydrationMl = seed
-        .drinkEntriesFor(date)
+        .drinkEntriesFor(date, actingUserId)
         .filter((e) => waterDrinkIds.has(e.drink_id))
         .reduce((acc, e) => acc + e.volume_ml, 0)
       const totalCal = foodCal + drinkCal
@@ -389,7 +483,7 @@ export function handle(method, url, body) {
       if (bankStart && date >= bankStart) {
         runningConsumed += totalCal
         const completed = seed.daysBetween(bankStart, addDays(date, 1))
-        bankBalance = completed * user.daily_calorie_goal - Math.trunc(runningConsumed)
+        bankBalance = completed * currentUser().daily_calorie_goal - Math.trunc(runningConsumed)
       }
 
       days.push({
@@ -397,9 +491,9 @@ export function handle(method, url, body) {
         food_calories: num(foodCal),
         drink_calories: num(drinkCal),
         calories: num(totalCal),
-        goal: user.daily_calorie_goal,
+        goal: currentUser().daily_calorie_goal,
         hydration_ml: hydrationMl,
-        hydration_target_ml: user.daily_water_goal_ml,
+        hydration_target_ml: currentUser().daily_water_goal_ml,
         bank_balance: bankBalance,
         meals,
         is_today: date === TODAY,
@@ -410,7 +504,7 @@ export function handle(method, url, body) {
     return json({
       from,
       to,
-      daily_goal: user.daily_calorie_goal,
+      daily_goal: currentUser().daily_calorie_goal,
       bank_start: bankStart,
       days,
     })
@@ -418,7 +512,7 @@ export function handle(method, url, body) {
 
   // --- mutations so the authoring and logging flows are clickable ----------
   if (pathname === '/api/recipes' && method === 'POST') {
-    const created = buildNewRecipe(body, foods, seed.nextRecipeId(), seed.user)
+    const created = buildNewRecipe(body, foods, seed.nextRecipeId(), currentUser())
     if (created.error) return err(400, created.error)
     recipes.push(created.recipe)
     return json(recipeResponse(created.recipe), 201)
@@ -587,7 +681,7 @@ export function handle(method, url, body) {
       volume_ml: volume,
       calories,
     }
-    seed.drinkEntries.push({ ...entry, user_id: 1, created_at: new Date().toISOString() })
+    seed.drinkEntries.push({ ...entry, user_id: actingUserId, created_at: new Date().toISOString() })
     return json(entry, 201)
   }
 
@@ -732,7 +826,7 @@ function recipeResponse(recipe) {
     ...recipe,
     is_favourite: seed.favouriteRecipeIds.has(recipe.id),
     times_logged: seed.diaryEntries.filter(
-      (entry) => entry.recipe_id === recipe.id && entry.user_id === seed.user.id,
+      (entry) => entry.recipe_id === recipe.id && entry.user_id === actingUserId,
     ).length,
     usual_grams: seed.usualGramsFor(recipe.id),
   }
@@ -808,7 +902,17 @@ function applyMeasures(food, servings) {
   }
 }
 
-const json = (body, status = 200) => ({ status, body, contentType: 'application/json' })
+const json = (body, status = 200, headers) => ({
+  status,
+  body,
+  contentType: 'application/json',
+  ...(headers ? { headers } : {}),
+})
 const err = (status, message) => json({ error: message }, status)
+
+function actingUserCookie(userId, clear = false) {
+  const value = `cals_acting_user=${userId}; Path=/; HttpOnly; SameSite=Lax${clear ? '; Max-Age=0' : ''}`
+  return { 'Set-Cookie': value }
+}
 
 export { TODAY, drinkEntries }

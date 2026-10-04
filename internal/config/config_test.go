@@ -142,3 +142,79 @@ func TestLoadRejectsInvalidIdentitySwitchValue(t *testing.T) {
 		t.Fatalf("Load() error = %v, want DEV_IDENTITY_SWITCH validation error", err)
 	}
 }
+
+func setRoleConfigEnv(t *testing.T, adminEmails, standardEmails string) {
+	t.Helper()
+	setDevConfigEnv(t, "", "", "")
+	t.Setenv("ADMIN_EMAILS", adminEmails)
+	t.Setenv("STANDARD_EMAILS", standardEmails)
+}
+
+func TestLoadParsesDeclaredRoleEmails(t *testing.T) {
+	setRoleConfigEnv(t, "  Owner@Example.COM , second@example.com, ", "wife@example.com")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	// Lower-cased and trimmed, because every identity the app sees (Cloudflare
+	// JWT, DEV_USER_EMAIL) is lower-cased before it is compared.
+	if got, want := cfg.AdminEmails, []string{"owner@example.com", "second@example.com"}; !equalEmails(got, want) {
+		t.Errorf("AdminEmails = %v, want %v", got, want)
+	}
+	if got, want := cfg.StandardEmails, []string{"wife@example.com"}; !equalEmails(got, want) {
+		t.Errorf("StandardEmails = %v, want %v", got, want)
+	}
+}
+
+func TestLoadLeavesRolesUndeclaredWhenUnset(t *testing.T) {
+	setRoleConfigEnv(t, "", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(cfg.AdminEmails) != 0 || len(cfg.StandardEmails) != 0 {
+		t.Errorf("roles = admin %v / standard %v, want both empty when unset", cfg.AdminEmails, cfg.StandardEmails)
+	}
+}
+
+func TestLoadRejectsMalformedRoleEmails(t *testing.T) {
+	tests := map[string]string{
+		"not an address":   "not-an-email",
+		"display name":     "Owner <owner@example.com>",
+		"trailing garbage": "owner@example.com, nope",
+	}
+	for name, value := range tests {
+		t.Run(name, func(t *testing.T) {
+			setRoleConfigEnv(t, value, "wife@example.com")
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), "ADMIN_EMAILS") {
+				t.Fatalf("Load() error = %v, want an ADMIN_EMAILS validation error", err)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsAnEmailDeclaredAsBothRoles(t *testing.T) {
+	setRoleConfigEnv(t, "owner@example.com", "owner@example.com, wife@example.com")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want a conflict error")
+	}
+	if !strings.Contains(err.Error(), "owner@example.com") || !strings.Contains(err.Error(), "both") {
+		t.Errorf("Load() error = %v, want it to name the conflicting address", err)
+	}
+}
+
+func equalEmails(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}

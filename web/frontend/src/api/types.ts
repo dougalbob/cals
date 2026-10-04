@@ -13,8 +13,22 @@ export interface User {
   weight_unit: string
   bank_start_date: string
   target_weight_kg?: number
+  /** Admin/Standard role (decisions 45, 89): declared in the server's .env and reconciled at start-up. */
+  is_admin: boolean
   created_at: string
   updated_at: string
+}
+
+/**
+ * Who is signed in and whose data is on screen (decisions 45 and 88).
+ * `is_admin` belongs to the authenticated identity, so it stays true while an
+ * Admin is acting as someone else — that is what keeps the way back reachable.
+ */
+export interface SessionResponse {
+  authenticated_user: User
+  acting_user: User
+  is_admin: boolean
+  viewing_as_other: boolean
 }
 
 export interface FoodServing {

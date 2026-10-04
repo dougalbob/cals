@@ -111,6 +111,7 @@ export const apiDelete = <T>(path: string) => request<T>('DELETE', path)
 export const queryKeys = {
   version: ['version'] as const,
   user: ['user'] as const,
+  session: ['session'] as const,
   diary: (date: string) => ['diary', date] as const,
   bank: (date: string) => ['bank', date] as const,
   drinks: (date: string) => ['drinks', date] as const,

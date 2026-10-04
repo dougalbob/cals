@@ -36,6 +36,7 @@ func DevModeMiddleware(userEmail string) func(http.Handler) http.Handler {
 			}
 
 			ctx := context.WithValue(r.Context(), UserEmailKey, userEmail)
+			ctx = WithAuthenticatedEmail(ctx, userEmail)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -106,6 +107,7 @@ func DevIdentityMiddleware(defaultEmail string, lookup DevUserLookup) func(http.
 			}
 
 			ctx := context.WithValue(r.Context(), UserEmailKey, identity)
+			ctx = WithAuthenticatedEmail(ctx, identity)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

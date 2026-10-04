@@ -383,12 +383,13 @@ separate application authorization that permits an explicit acting-user switch. 
 Cloudflare identity and no app switch, cals correctly shows the owner's own account, not his wife's
 history. The app's DEV identity picker is not a production substitute.
 
-- An additive `users.is_admin` flag (default `0`), so no existing row changes meaning.
+- An additive `users.is_admin` flag (default `0`), so no existing row changes meaning. **Implemented
+  2026-10-04.**
 - The owner has now confirmed the assignment: **he is Admin; his wife is Standard** (decision 88). The
-  admin identity must come from configuration rather than a hard-coded email in the public repository.
-  An `ADMIN_EMAILS` list applied at startup, carried in the Unraid template like other settings, remains
-  a candidate; alternatively use a documented one-off promotion step. The secure bootstrap mechanism is
-  still for the implementation session to decide, and no such configuration is implemented yet.
+  admin identity comes from configuration rather than a hard-coded email in the public repository:
+  `ADMIN_EMAILS` / `STANDARD_EMAILS` in the appdata `.env`, reconciled into `users.is_admin` at every
+  start-up (decision 89). See [`admin-roles.md`](../architecture/admin-roles.md) for the mechanism and
+  its operational rules.
 - A **Swap user** control using the existing `/dev/identity` pattern, but production-appropriate:
   authenticated, admin-only, **server-side** (a cookie or header the API validates on every request —
   never a client-side claim), loopback restriction **not** applied (it must work through Cloudflare),
@@ -397,6 +398,7 @@ history. The app's DEV identity picker is not a production substitute.
   as, exactly as if they had logged them. There is no second data model.
 - `GET /api/users` returns the user list **only to an admin**; for everyone else it stays
   unavailable. That removes the current "unused endpoint for viewing others' data" exposure.
+  **Done 2026-10-04**: it answers `403` for a Standard user.
 
 **Open for that design session**
 
@@ -780,7 +782,7 @@ The photo is an optional second request after `POST /api/recipes`, so it is not 
 
 Current implementation and verification status are in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
 
-### Cross-cutting UX, measurement cadence and access roles — decisions 86–88 (2026-10-04)
+### Cross-cutting UX, measurement cadence and access roles — decisions 86–89 (2026-10-04)
 
 The owner made three forward-looking requests. Decision 86 generalizes the light, inline two-step confirmation used for **Archive recipe** to destructive **Delete** or **Remove** actions where the layout has enough room; the ingredient Remove controls in the Edit recipe editor are one candidate. It is a confirmation pattern, not a request to add confirmations to every reversible toggle. Decision 87 sets an ideal body-measurement interval of 3–4 weeks and allows a future reminder after more than four weeks without a measurement. The reminder is not built, and its channel/repeat behavior are open. Decision 88 confirms the owner as Admin and his wife as Standard, and asks that the next session focus on the production role and in-app Swap user work before Phase 14 Metrics. Cloudflare Access remains authentication; both users stay allowed by its policy, and the Admin switch changes only cals' server-validated acting-user context. The detailed bootstrap/session mechanism remains for the implementation session.
 
@@ -789,6 +791,9 @@ The owner made three forward-looking requests. Decision 86 generalizes the light
 | 86 | 2026-10-04 | Where there is sufficient UI space, destructive **Delete** and **Remove** actions should use the Recipes page's low-friction inline two-step confirmation pattern: the first action reveals an explicit confirm and cancel choice; the destructive action happens only after confirmation, and cancel leaves the item unchanged. Apply this selectively where the layout allows; an Edit recipe ingredient **Remove** control is a candidate. | Owner observation |
 | 87 | 2026-10-04 | Body measurements should ideally be logged every **3–4 weeks**. Once more than four weeks have elapsed since the most recent measurement, a future reminders feature may prompt the user to update measurements. This is a narrow exception to decision 46's no-general-reminders direction; no reminder channel, recurrence, or push notification is authorized. | Owner request |
 | 88 | 2026-10-04 | **Next-session priority: move production roles and in-app user switching ahead of Phase 14 Metrics.** The owner is **Admin** and his wife is **Standard**. Keep Cloudflare Access as the authentication provider and allow both identities in its access policy; an authenticated Admin must be able to deliberately switch cals' acting user to an existing household account with decision 45's full read/write behavior, an unmistakable persistent “viewing as” indicator, and a way to return to the Admin's own account. Standard users cannot switch. `DEV_MODE`/`DEV_IDENTITY_SWITCH` remain development-only and are not the production feature. The next session should resolve secure role bootstrap, server-side switch/session behavior, affected API authorization (including making `GET /api/users` Admin-only), and tests as part of the work. This records priority and role assignment, not a settled implementation mechanism. | Owner request |
+| 90 | 2026-10-04 | **The acting-user switch is a plain server-side cookie, honoured only for an Admin, and authorization always reads the *authenticated* identity.** `cals_acting_user` (HttpOnly, SameSite=Lax, 12 h) holds the target account id; `ActingUserMiddleware` rewrites whose data a request touches and never who is signed in, so every handler keeps working unchanged. The cookie is deliberately **not** signed: it is only honoured when the Cloudflare-verified identity holds the Admin role, so a cookie forged by a Standard user is ignored and cleared — signing would protect against nothing the JWT does not already protect. Because role checks read the authenticated identity, an Admin who is acting as the other person can still list accounts and swap back. Switching clears the whole query cache (all of it is account-scoped), logs the switch in both directions, and shows a persistent "Viewing as …" banner with a way back. Full read/write while swapped: rows written belong to the account being acted as, with no second data model. | Implementation session | **Roles are declared in the appdata `.env`, as `ADMIN_EMAILS` and `STANDARD_EMAILS` (comma-separated), and reconciled into `users.is_admin` at every start-up.** Config is the authority, the column is the runtime copy handlers read: a declared Admin is granted on boot, everyone else is set to Standard, and a brand-new account takes its declared role at creation. A malformed address — or one listed as both Admin and Standard — fails start-up rather than granting nothing silently; a configured address with no account is logged, never invented. `STANDARD_EMAILS` is documentation and a typo check, not a grant. Unset `ADMIN_EMAILS` leaves the database untouched, so the capability is opted into. The owner chose this over the `ADMIN=` / `USER=` sketch because `USER` is a standard shell variable that would silently override a `.env` line, and over a namespaced `CALS_`-prefixed name for consistency with the repo's unprefixed settings. | Owner request; shape recommended by the agent and accepted |
+
+Decision 89 closes the bootstrap question decision 45 left open. The mechanism, the start-up log and the operational rule (edit `.env`, restart) are in [`admin-roles.md`](../architecture/admin-roles.md). The acting-user switch itself is still to build.
 
 The evidence and open design questions for body-measurement charts, indexed views, weight trends/ETA, and reminder semantics are maintained in [`metrics-evidence.md`](metrics-evidence.md).
 
