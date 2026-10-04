@@ -18,7 +18,7 @@
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
 | **Container runtime smoke** | part of `Docker build (validation)` | every PR | Starts the built image with a **disposable** database (no volume mounts), waits for `/health`, runs `scripts/smoke-app-routes.sh`, checks migrations created the expected tables, and checks a second container **without** `DEV_MODE` still answers `401` on protected routes |
-| **Playwright browser suite** | `cd web/frontend && npm run test:e2e` | milestones only (`Playwright browser suite (milestone)`): release-candidate tags, or a PR labelled `run-e2e`. (The workflow also declares `workflow_dispatch`, but GitHub only allows a manual dispatch once the file is on the **default branch** — that is `main`, which does not have it yet) | The built React bundle in a real Chromium at phone size — the journeys that live in layout and interaction rather than in jsdom |
+| **Playwright browser suite** | `cd web/frontend && npm run test:e2e` | milestones only (`Playwright browser suite (milestone)`): release-candidate tags, or a PR labelled `run-e2e`. (The workflow also declares `workflow_dispatch`, but GitHub only allows a manual dispatch once the file is on the **default branch**; that branch is `main`, which is production and read-only — so the label or the tag is the route, never a push to `main`) | The built React bundle in a real Chromium at phone size — the journeys that live in layout and interaction rather than in jsdom |
 
 The **Unraid install smoke test** is separate and owner-run; see
 [`unraid-image-release.md`](./unraid-image-release.md). Nothing automated here goes near live
@@ -128,8 +128,9 @@ thing that is ever rebuilt is the toolchain, never the tests.
 - The Playwright suite is reserved for milestones (`v*-dev*` tags) or a PR that opts in with the
   `run-e2e` label — the way to prove a risky UI change before it reaches a release candidate. The
   workflow also declares `workflow_dispatch`, but GitHub only allows a manual dispatch once the file
-  exists on the **default branch**; until `main` carries it, use the label (or the tag). Opting a PR in
-  also keeps the suite running on later pushes to that PR.
+  exists on the **default branch** — `main`, which is production and read-only, so that option is
+  simply unavailable to us and is not worth pursuing. Use the label (or the tag). Opting a PR in also
+  keeps the suite running on later pushes to that PR.
 - **A failing browser run explains itself without the raw Actions log.** The `Failure summary` step
   turns Playwright's JSON report into a short list — project, file, test title, the first line of the
   error and the artifact paths — in the job log and the run summary, and the full `test-results/` and

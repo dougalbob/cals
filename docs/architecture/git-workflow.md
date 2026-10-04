@@ -201,7 +201,13 @@ checkpoint.
 
 The owner asked (2026-10-04) that documentation be finished **before** the loop begins, so that
 “Lets publish” is mechanical and nothing has to be written up under time pressure. Run this checklist
-against the exact commit that will be tagged:
+against the exact commit that will be tagged.
+
+**The loop never touches `main`.** Every step — sync, push, PR, merge, tag — happens on the session
+branch or on **`cals-dev`**, which is the destination for the merge and the branch releases are cut
+from. `main` is live production and read-only: it is never a PR base for this work and is never merged
+into. The only thing that ever touches `main` is a repository owner's deliberate promotion, which is
+not part of this loop and is not authorized by “Lets publish”.
 
 1. **Docs are in the same PR, not a follow-up.** `docs/CURRENT_STATE.md` (“Last reviewed”, §1
    deployments, §2 phase status, §3 waiting-on-owner, §4 next work, §6 housekeeping),

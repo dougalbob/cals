@@ -73,9 +73,16 @@ check that compiles and runs the Go test files; `go build` never touches `_test.
 
 **Manual dispatch is not available yet.** All four workflows declare `workflow_dispatch`, but GitHub
 only offers the *Run workflow* button (and `gh workflow run`) for a workflow that exists on the
-repository's **default branch** — here `main`, which carries no `.github/` directory until the first
-stable promotion. Until then the triggers in the table above are the only ones that fire; use a pull
-request (with the `run-e2e` label for the browser suite) or a tag.
+repository's **default branch** — here `main`, which carries no `.github/` directory. Until then the
+triggers in the table above are the only ones that fire; use a pull request (with the `run-e2e` label
+for the browser suite) or a tag.
+
+This is a **workflow-registration detail, not a plan**: nothing here is a reason to put files on
+`main`. All development checkpoints — the PR that lands them and the tag that publishes them — happen
+on **`cals-dev`**, which is the destination for the merge and the branch releases are cut from. `main`
+is live production and read-only, is never a PR base for this work, and is never merged into; a
+promotion to `main` would be a separate, deliberate owner decision and is not authorized by
+“Lets publish”.
 
 Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.
 

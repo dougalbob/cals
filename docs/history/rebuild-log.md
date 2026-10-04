@@ -63,7 +63,8 @@ portion sheet on a 360×640 phone. The suite serves the pre-built bundle with th
 process — no Go server, no database, never household data — resets fixtures before each spec, and pins
 UTC in both the server and the browser. It runs at milestones (`v*-dev*` tags, or a PR
 labelled `run-e2e`), never on ordinary PRs — the workflow also declares a manual dispatch, which
-GitHub will not offer until the file is on the default branch (`main`).
+GitHub will not offer until the file is on the default branch (`main`, production and read-only: the
+label or the tag is how a run is asked for, and nothing here puts files on `main`).
 
 **The runtime gap closed as far as CI allows.** `docker-validate.yml` now starts the built image with a
 disposable database (no volume mounts), waits for `/health`, exercises the real routes with

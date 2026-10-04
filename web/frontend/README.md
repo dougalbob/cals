@@ -218,7 +218,7 @@ and — after a phone report about tick-boxes ignoring taps — the whole recipe
 rules, Edit recipe's validation, the Diary meal picker, and real touch taps on every tick-box) plus
 the bottom navigation's arrow and touch swipe. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
 server, no database and never household data — and, in CI, only for milestones (release tags, or a
-PR labelled `run-e2e`; GitHub's manual dispatch needs the workflow on `main` first). Layer-by-layer detail, including the sandbox's browser
+PR labelled `run-e2e`; manual dispatch would need the workflow on `main`, which is production and read-only, so a run is asked for with the label or a tag). Layer-by-layer detail, including the sandbox's browser
 workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).
 
 ## Phase 11 Go integration

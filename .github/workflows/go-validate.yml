@@ -1,5 +1,9 @@
 # Go build, vet and test on every pull request into cals-dev (and main).
 #
+# `main` is listed only for the owner's deliberate release PR (cals-dev -> main);
+# it is production and read-only, never the base of ordinary work. Session PRs
+# always target cals-dev.
+#
 # WHY THIS EXISTS
 # The Dockerfile is the frontend's gate — its Node stage runs `npm run lint`,
 # `npm test` and the production build — and `Docker build (validation)` proves
