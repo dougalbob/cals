@@ -15,6 +15,7 @@ import { RECIPE_DISH_TYPES, RECIPE_MEAL_OCCASIONS } from '../api/types'
 import { useDebounced } from '../hooks/useDebounced'
 import { formatNumber } from '../lib/format'
 import { Modal } from './Modal'
+import { RecipePhotoPicker } from './RecipePhotoPicker'
 
 interface FoodIngredientDraft {
   key: number
@@ -46,7 +47,7 @@ type AuthoringFieldsProps =
       mode: 'create'
       isSaving: boolean
       error: string | null
-      onCreate: (input: RecipeCreateInput) => Promise<RecipeDetail>
+      onCreate: (input: RecipeCreateInput, photoFile: File | null) => Promise<RecipeDetail>
       onClose: () => void
     }
 
@@ -85,7 +86,7 @@ export function RecipeContentEditor({
   )
 }
 
-/** Full-page recipe creation; image upload/crop remains a separate slice. */
+/** Full-page recipe creation with an optional direct image upload (no crop). */
 export function RecipeCreationForm({
   isSaving,
   error,
@@ -94,7 +95,7 @@ export function RecipeCreationForm({
 }: {
   isSaving: boolean
   error: string | null
-  onCreate: (input: RecipeCreateInput) => Promise<RecipeDetail>
+  onCreate: (input: RecipeCreateInput, photoFile: File | null) => Promise<RecipeDetail>
   onCancel: () => void
 }) {
   const cancel = () => {
@@ -157,6 +158,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
   const [isOwnCreation, setIsOwnCreation] = useState(false)
   const [keyFoodIds, setKeyFoodIds] = useState<number[]>([])
   const [timeMinutes, setTimeMinutes] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   const debouncedSearch = useDebounced(foodSearch, 250)
   const searchQuery = useQuery<Food[]>({
@@ -321,7 +323,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
           key_food_ids: keyFoodIds,
           is_own_creation: isOwnCreation,
           total_time_minutes: minutes,
-        })
+        }, photoFile)
       } else {
         await props.onSave(content)
         props.onClose()
@@ -395,6 +397,16 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
             />
           </label>
         </>
+      )}
+
+      {isCreating && (
+        <RecipePhotoPicker
+          variant="form"
+          recipeName={name || 'New recipe'}
+          currentImageUrl={null}
+          selectedFile={photoFile}
+          onFileChange={setPhotoFile}
+        />
       )}
 
       <section aria-labelledby={isCreating ? 'create-recipe-foods-title' : 'edit-recipe-foods-title'}>

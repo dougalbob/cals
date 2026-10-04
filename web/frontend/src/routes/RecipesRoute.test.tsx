@@ -170,6 +170,33 @@ describe('RecipesRoute', () => {
     expect(screen.queryByText('Chicken Curry')).toBeNull()
   })
 
+  it('filters by the Own creation checkbox and composes with the other recipe-detail tags', async () => {
+    renderRoute()
+
+    await screen.findByRole('heading', { name: 'Recipes' })
+    fireEvent.click(screen.getByText('Filter by recipe details'))
+    const ownCreation = screen.getByRole('checkbox', { name: 'Filter by Own creation' }) as HTMLInputElement
+    expect(ownCreation.checked).toBe(false)
+
+    fireEvent.click(ownCreation)
+    expect(ownCreation.checked).toBe(true)
+    expect(screen.getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    expect(screen.queryByText('Chicken Curry')).toBeNull()
+    expect(search()).toBe('?tags=origin:own')
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by dish type' }), {
+      target: { value: 'main' },
+    })
+    expect(screen.getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    expect(screen.queryByText('Salmon Traybake')).toBeNull()
+    expect(search()).toBe('?tags=origin:own,dish:main')
+
+    fireEvent.click(ownCreation)
+    expect(ownCreation.checked).toBe(false)
+    expect(screen.getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    expect(search()).toBe('?tags=dish:main')
+  })
+
   it('narrows the list when a tag is tapped, and narrows again with a second tag', async () => {
     renderRoute()
 

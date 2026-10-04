@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 180 tests over 22 files |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 195 tests over 25 files |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production `/next/` bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
@@ -29,23 +29,24 @@ against in-process fixtures.
 
 ```
 web/frontend/playwright.config.ts      phone project (Pixel 7) + @desktop smoke project
-web/frontend/e2e/diary.spec.ts         logging a food; the Edit sheet's fixed actions on a short
-                                       screen; rescaling one entry without touching the others;
-                                       Cancel writing nothing
+web/frontend/e2e/diary.spec.ts         logging a food; confirmation/cancel before deleting a populated
+                                       meal entry; the Edit sheet's fixed actions on a short screen;
+                                       rescaling one entry without touching the others; Cancel writing nothing
 web/frontend/e2e/hydration.spec.ts     Today has no water controls; Diary has the glass and quick
                                        drinks; a glass moves the ml target; long-press deletes the
                                        latest glass; logging on a past date lands on that date;
                                        drink calories reach tomorrow's bank
 web/frontend/e2e/recipes.spec.ts       the orange Own creation marker (catalogue + detail toggle),
-                                       tag/occasion filtering, and the portion sheet's actions on a
-                                       small phone
+                                       the URL-backed Own creation checkbox beside Dish type, tag/occasion
+                                       filtering, and the portion sheet's actions on a small phone
 web/frontend/e2e/recipes-catalogue.spec.ts  search, empty state, favourites, the archived view,
                                        restore
 web/frontend/e2e/recipes-create.spec.ts    recipe creation (matched Foods, cooked yield, shared
-                                       classification), unobstructed fields and actions on a short phone
+                                       classification), photo selection/upload and upload-failure
+                                       recovery, unobstructed fields and actions on a short phone
 web/frontend/e2e/recipes-detail.spec.ts facts, ingredients, method, the Add tag form (meal
-                                       occasions, the two-key-food limit, Cancel, total time) and
-                                       archive/restore
+                                       occasions, the two-key-food limit, Cancel, total time),
+                                       archive/restore and recipe-photo replacement
 web/frontend/e2e/recipes-portion-sheet.spec.ts  remembered usual, fractions, direct grams,
                                        one-off vs make-this-my-usual, meal choice, Cancel
 web/frontend/e2e/recipes-editor.spec.ts  Edit recipe: fixed name, measured vs calculated weight,
@@ -163,7 +164,11 @@ rest: docs finished in the same PR, no stale claims, and the checks green on the
   but is not part of CI.
 - **The Unraid install, template, `.env` loading and Cloudflare routing.** Owner-run, documented in
   [`unraid-image-release.md`](./unraid-image-release.md).
-- **Recipe photo upload/crop.** Not built yet; recipe creation without a photo is supported.
+- **Recipe-photo cropping.** Deliberately deferred by decision 82. The current branch implements
+  direct upload/replacement without cropping; the full 60-test Playwright suite includes create,
+  upload-failure and replacement journeys, the Own creation detail filter on a phone, and Diary
+  delete-confirmation flows. Playwright uses the fixture API; Go handler tests cover storage and
+  validation, and the route remains behind the existing auth middleware.
 - **Every combination of date, meal, unit and filter.** The unit tests carry that weight; the browser
   suite exists to catch what jsdom cannot see.
 - **Android's own selection/copy popup.** Headless Chromium does not reproduce it, so

@@ -14,6 +14,35 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Today, Recipes and Diary follow-ups (decisions 83–85)
+
+The owner folded three UI refinements into the same branch as recipe-photo upload. Today meal-card fills
+now use 25% color alpha while Diary meal-slot fills remain at 5% (decision 83). The recipe-details
+filter adds an Own creation checkbox beside Dish type, reduces the selector width, and keeps the
+existing `origin:own` URL/tag semantics (decision 84). Deleting a food or recipe from a populated Diary
+meal slot now requires explicit confirmation; Cancel leaves the entry untouched (decision 85).
+
+Regression coverage checks the two independent fill classes, URL-backed filter composition and
+360 × 640 layout/touch behaviour, plus Diary delete/cancel flows in unit and browser tests. The combined
+branch passed 195 frontend tests across 25 files, typecheck, lint, `build:go`, Go build/tests/vet and
+all 60 Playwright tests (58 phone, 2 desktop). These changes remain unpublished; no schema migration
+or live appdata operation was needed. See the [product decision log](../product/vision-and-open-questions.md) and [current status](../CURRENT_STATE.md).
+
+## 2026-10-04 — Recipe-photo upload and replacement added to Phase 13 (decision 82)
+
+The owner reports rc24 is installed on Unraid and recipe creation works well. Decision 82 adds optional,
+uncropped photo selection and preview during recipe creation, upload after the recipe is saved, and
+image replacement on existing recipe detail. Upload failure keeps the recipe and directs the user to
+retry from detail instead of resubmitting and creating a duplicate. Cropping is explicitly deferred;
+Unraid road testing has not shown an urgent need. No schema migration or live-appdata access.
+
+The current branch implements the shared React picker, image validation, Go upload handling, and
+fixture routes/tests. Go tests and vet, all 192 frontend tests, lint, typecheck and production build
+passed. The full Playwright suite passed all 56 phone and desktop tests, including creation/upload,
+failed-upload recovery and image replacement. This change is not yet published; the owner should
+review it on a phone after a future checkpoint is built. See [decision 82](../product/vision-and-open-questions.md#recipe-photo-upload-and-crop-deferral--decision-82-2026-10-04)
+and [current status](../CURRENT_STATE.md).
+
 ## 2026-10-04 — No-photo recipe authoring published in rc24 (PR #54)
 
 The queued Phase 13 slice added `/recipes/new` and a catalogue action. The full-page form creates a
@@ -21,8 +50,8 @@ shared recipe with a fixed-at-creation name, description, matched cals Food ingr
 optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition
 estimate, and the existing shared classification (meal occasions, dish type, up to two key foods,
 Own creation and total prep-to-plate minutes). The catalogue/Diary query context survives entering,
-cancelling and completing creation; success opens the new detail page. Photo upload/crop remains a
-separate feature.
+cancelling and completing creation; success opens the new detail page. At rc24 publication, photo
+upload/crop was a separate feature; decision 82 later extends Phase 13 to add upload while deferring crop.
 
 `POST /api/recipes` now validates the recipe and classification, calculates nutrition from persisted
 Foods, requires key foods to be among the recipe's Food ingredients, and commits recipe content,
@@ -37,7 +66,7 @@ fixed navigation at the end of the form. The preview has no horizontal overflow 
 Validation on the Arena branch: `npm run lint`, `npm run typecheck`, `npm test` (180 tests / 22 files),
 `npm run build`, `npm run build:go`; Go formatting, `go build ./...`, `go vet ./...`, `go test ./...`;
 and 53 Playwright tests passed across phone and desktop. The owner approved the 360 × 640 px Arena
-preview and authorized publication. PR #54 passed [Docker/runtime validation](https://github.com/dougalbob/cals/actions/runs/37206287261), [Go validation](https://github.com/dougalbob/cals/actions/runs/37206287234) and the [PR browser suite](https://github.com/dougalbob/cals/actions/runs/37206287397), then merged to `cals-dev` as `c5828b6f56edb60124cf982396945ebf7da5b663`; the post-merge Go run [37206413850](https://github.com/dougalbob/cals/actions/runs/37206413850) also passed. [Publish run 37206446238](https://github.com/dougalbob/cals/actions/runs/37206446238) published `v2.0.0-dev-rc24`, digest `sha256:1d1f9c4047ea39624f60b460759f994ee39c3faac87c270bb42ca847fedd9e4`, created the [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc24), and passed the anonymous-pull check. The tag-triggered [milestone browser suite](https://github.com/dougalbob/cals/actions/runs/37206446239) passed 53 tests. No schema migration, data copy, appdata operation or template change; photo upload/crop remains separate. The owner has not yet Force Updated Unraid to rc24; no live appdata was accessed.
+preview and authorized publication. PR #54 passed [Docker/runtime validation](https://github.com/dougalbob/cals/actions/runs/37206287261), [Go validation](https://github.com/dougalbob/cals/actions/runs/37206287234) and the [PR browser suite](https://github.com/dougalbob/cals/actions/runs/37206287397), then merged to `cals-dev` as `c5828b6f56edb60124cf982396945ebf7da5b663`; the post-merge Go run [37206413850](https://github.com/dougalbob/cals/actions/runs/37206413850) also passed. [Publish run 37206446238](https://github.com/dougalbob/cals/actions/runs/37206446238) published `v2.0.0-dev-rc24`, digest `sha256:1d1f9c4047ea39624f60b460759f994ee39c3faac87c270bb42ca847fedd9e4`, created the [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc24), and passed the anonymous-pull check. The tag-triggered [milestone browser suite](https://github.com/dougalbob/cals/actions/runs/37206446239) passed 53 tests. No schema migration, data copy, appdata operation or template change in rc24; photo upload/crop was separate at publication time. The owner later reported rc24 installed and new recipe creation working well; no live appdata was accessed.
 
 ## 2026-10-04 — Published `v2.0.0-dev-rc23` (PR #52, stabilisation checkpoint)
 
@@ -157,8 +186,10 @@ Edit sheet, removes hydration/Quick drinks controls from Today while keeping the
 calories remain included in Today totals. The additive `recipes.is_own_creation INTEGER NOT NULL
 DEFAULT 0` migration keeps existing recipes unmarked and applies at startup. Frontend lint, typecheck,
 177 Vitest tests, `build:go`, `build:preview`, PR Docker validation, and PR/post-merge Go validation
-passed. No data copy, appdata operation or Unraid template change. The owner signed off on the preview;
-Force Update/review on Unraid and the planned phone re-test of the Edit sheet remain pending.
+passed. No data copy, appdata operation or Unraid template change. The owner signed off on the preview
+and later reported rc24 installed with recipe creation working well. A complete phone re-test of rc22's
+Diary Edit sheet is not separately reported; it remains on the accumulated review checklist in
+[`CURRENT_STATE.md`](../CURRENT_STATE.md) §3.
 
 ## 2026-10-04 — Today hydration panel removed and meal fills set to 5% alpha
 
@@ -209,7 +240,7 @@ passed the ancestry guard, image build/push, prerelease creation and anonymous-p
 [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc21). The checkpoint contains
 the layering fix, proportional 25%-opacity Diary fills, per-user recipe count, more tappable/compact
 recipe badges and the five-slot bottom nav with the temporary Foods/Recipes arrow. **No schema
-migration, data copy, appdata operation or template change.** Force Update and Unraid review are pending.
+migration, data copy, appdata operation or template change.** The owner later reported rc24 installed; a complete Unraid phone review of the accumulated changes is not recorded (see [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3).
 
 ## 2026-10-04 — Larger Favourite hit area and compact recipe-image badges (decision 78)
 
@@ -301,9 +332,9 @@ Recipe content can now be edited in place without rewriting saved Diary snapshot
 corrections refresh every dependent recipe transactionally, including archived recipes, while
 preserving manual cooked weights and leaving Diary totals untouched. Go, frontend, fixture and rollback
 regressions passed; frontend typecheck, lint and production build passed. There is no schema migration,
-appdata operation or live-Unraid change. The rc19 feature set is included in rc21; Force Update/review
-of the latest checkpoint is pending on Unraid. Creating recipes from scratch and image upload/crop
-remain later work.
+appdata operation or live-Unraid change. At rc19 publication, creating recipes from scratch and
+image upload/crop remained later work; no-photo authoring followed in rc24, and decision 82 later
+added uncropped photo upload/replacement to Phase 13.
 
 ## 2026-10-03 — Published `v2.0.0-dev-rc18` (PR #42)
 

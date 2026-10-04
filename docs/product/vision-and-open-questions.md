@@ -290,9 +290,11 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > dependent recipe definition transactionally, including archived recipes. The implementation and
 > regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
 > `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in rc22, rc23 and
-> rc24. The Unraid Force Update/review of the latest checkpoint (rc24) remains pending. Current
-> recipe-authoring/review status is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md); image
-> upload/crop remains a separate feature. See
+> rc24. The owner reports rc24 installed and new recipe creation working well. Decision 82 adds
+> uncropped photo upload/replacement to Phase 13 on the current, unpublished branch; decisions 83–85
+> also set Today/Diary fill alpha to 25%/5%, add the Own creation recipe-details filter checkbox, and
+> require confirmation before Diary meal-entry deletion. Cropping is deferred. Current review status
+> is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
@@ -560,11 +562,11 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
-  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23 and rc24, whose Unraid Force Update/review remains pending.
-- **Separate authoring scope:** recipe creation without a photo was a distinct Phase 13 slice, separate
-  from the two authorized safety slices; it is now implemented and published in `v2.0.0-dev-rc24`
-  (PR #54). Image upload/crop remains separate. Current Unraid review status is in
-  [`CURRENT_STATE.md`](../CURRENT_STATE.md).
+  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23 and rc24; the owner later reported rc24 installed.
+- **Separate authoring scope (at rc24):** recipe creation without a photo was a distinct Phase 13
+  slice, separate from the two authorized safety slices; it is implemented and published in
+  `v2.0.0-dev-rc24` (PR #54). Decision 82 later expands Phase 13 to include uncropped photo upload
+  and replacement; cropping remains deferred. Current review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## Retiring recipes and correcting foods — decisions 59–61 (2026-10-03)
 
@@ -594,7 +596,7 @@ label everywhere, including historical entries. Current implementation status li
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
-- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in rc22, rc23 and rc24; the latest rc24 Force Update/review on Unraid remains pending.
+- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in rc22, rc23 and rc24; the owner later reported rc24 installed on Unraid.
   Food nutrition correction and every dependent recipe refresh share one transaction; archived
   definitions are included, manually measured cooked weights are retained, and saved Diary nutrition
   and totals remain unchanged. A corrected food name may change its joined historic label only.
@@ -622,7 +624,7 @@ corrected nutrition, and rollback when a dependent update fails. A separate reci
 proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck, lint and `build:go` pass. The owner exercised both slices
 in the Arena preview and signed off on them on 2026-10-04. PR #44 and the post-merge Go validation
 passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc24
-includes these changes; the owner has not yet Force Updated Unraid to rc24.
+includes these changes; the owner later reported rc24 installed on Unraid.
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 
@@ -749,6 +751,24 @@ The owner approved both changes in the Arena preview; they were merged in PR #50
 | 80 | 2026-10-04 | **Keep Today focused on calorie and meal summaries.** Remove its hydration and Quick drinks controls; keep them available on Diary. Drink calories still contribute to Today totals, the ring and the bank. | Owner request; preview approved and shipped in rc22 |
 | 81 | 2026-10-04 | **Set proportional meal-fill color alpha to 5% on both Today and Diary.** Retain each fill's proportional width and the existing meal colors on Diary. Tailwind's slash-alpha color utility applies alpha to the fill color, not to the whole card or its text; this supersedes decision 76's 25% Diary fill. | Owner request; preview approved and shipped in rc22 |
 
+### Recipe photo upload and crop deferral — decision 82 (2026-10-04)
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 82 | 2026-10-04 | **Include optional, uncropped recipe-photo upload in Phase 13.** Let the user choose and preview a photo during creation, then upload it for the newly saved recipe; provide an option to replace the photo on an existing recipe. If the separate photo request fails after recipe creation, keep the recipe, say clearly that it is already saved, and offer retry from its detail page rather than inviting duplicate recipe creation. **Defer cropping**: Unraid road testing has not shown an urgent need, so do not add crop controls or crop processing unless later testing demonstrates a need. | Owner request, 2026-10-04 |
+
+The photo is an optional second request after `POST /api/recipes`, so it is not part of the recipe-content transaction. The create flow must therefore recover gracefully from an upload failure. Current implementation and test status are in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
+
+### Follow-on UI refinements — decisions 83–85 (2026-10-04)
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 83 | 2026-10-04 | **Set the Today meal-card proportional fill to 25% color alpha. Keep Diary meal-slot fills at 5% alpha.** This supersedes decision 81 only for Today; the Diary styling remains at 5%. Change only the fill color alpha, not the opacity of the whole card or its text. | Owner request, 2026-10-04 |
+| 84 | 2026-10-04 | Add an **Own creation** checkbox to **Filter by recipe details**, on the same row as the Dish type selector. Reduce the Dish type selector width as needed to fit the checkbox. The checkbox toggles the existing `origin:own` tag filter, stays synchronized with active-tag chips and the URL, and combines with other selected details using the existing AND behavior. | Owner request, 2026-10-04 |
+| 85 | 2026-10-04 | Require explicit confirmation before deleting a food or recipe entry from a populated Diary meal slot. The delete icon opens a confirmation naming the entry and meal; Cancel leaves the entry untouched, and only the confirmation's Delete action removes it. | Owner request, 2026-10-04 |
+
+Current implementation and verification status are in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
+
 ### The windowed bank (decision 66)
 
 **What changes.** `GET /api/bank` stops accumulating from `bank_start_date` and instead sums the
@@ -832,15 +852,18 @@ larger than the visible dot — the same technique `RecipeTags` already uses.
 
 ### The Diary meal-card back fill (decision 68)
 
-Today's four meal tiles already fill in proportion to each meal's share of the day's logged calories
-(rc18, `data-calorie-fill` in `HomeRoute.tsx`, `bg-primary-light/50` behind the content). The Diary's
-four meal cards get the same idea, with the owner's two differences:
+Today's four meal tiles fill in proportion to each meal's share of the day's logged calories
+(`data-calorie-fill` in `HomeRoute.tsx`). They originally shipped at `bg-primary-light/50` in rc18;
+decision 81 later set both pages to 5%, and decision 83 sets **Today alone back to 25%** while the
+Diary remains at 5%. The Diary's four meal cards use the same proportional idea, with the owner's two
+differences:
 
-1. **The fill colour is the card's own meal accent at 5% alpha** (decision 81 supersedes decision
-   76's 25% opacity, which replaced decision 68's original 50%) — `--color-meal-breakfast`, `--color-meal-lunch`, `--color-meal-dinner`,
-   `--color-meal-snacks`, the same tokens that already drive each card's left border (`MEAL_ACCENT`
-   in `DiaryRoute.tsx`). The fill sits *behind* the entries, totals and buttons, exactly as it does on
-   Today.
+1. **The Diary fill colour is the card's own meal accent at 5% alpha** — decision 81 set both screens
+   to 5%, and decision 83 changes Today alone to 25%; Diary stays at 5%. Decision 81 superseded
+   decision 76's 25% opacity, which replaced decision 68's original 50%. Use `--color-meal-breakfast`,
+   `--color-meal-lunch`, `--color-meal-dinner`, `--color-meal-snacks`, the same tokens that already
+   drive each card's left border (`MEAL_ACCENT` in `DiaryRoute.tsx`). The fill sits *behind* the entries,
+   totals and buttons, exactly as it does on Today.
 2. **The percentage is printed at the upper-right extreme of the bar** — white text, padded, in the
    bar's top-right corner (e.g. `23%`).
 

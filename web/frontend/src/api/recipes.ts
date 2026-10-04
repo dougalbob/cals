@@ -1,5 +1,12 @@
-import { apiGet, apiPost, apiPut } from './client'
-import type { Recipe, RecipeContentInput, RecipeCreateInput, RecipeDetail, RecipeMetadataInput } from './types'
+import { apiGet, apiPost, apiPostForm, apiPut } from './client'
+import type {
+  Recipe,
+  RecipeContentInput,
+  RecipeCreateInput,
+  RecipeDetail,
+  RecipeImageUploadResponse,
+  RecipeMetadataInput,
+} from './types'
 
 /**
  * The catalogue omits archived recipes unless asked. The Recipes page asks, so its
@@ -17,6 +24,13 @@ export function getRecipe(id: number): Promise<RecipeDetail> {
 /** Create a shared recipe definition with its classification in one API write. */
 export function createRecipe(input: RecipeCreateInput): Promise<RecipeDetail> {
   return apiPost<RecipeDetail>('/api/recipes', input)
+}
+
+/** Upload or replace the shared recipe photo without setting a JSON Content-Type. */
+export function uploadRecipeImage(id: number, file: File): Promise<RecipeImageUploadResponse> {
+  const body = new FormData()
+  body.append('image', file, file.name)
+  return apiPostForm<RecipeImageUploadResponse>(`/api/recipes/${id}/image`, body)
 }
 
 /** Update shared recipe content in place; the server rejects any name change. */

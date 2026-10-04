@@ -134,7 +134,7 @@ const Recipes = {
             <div class="recipe-card" data-recipe-id="${recipe.id}">
                 <div class="recipe-card-image">
                     ${recipe.image_filename
-                        ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${this.escapeHtml(recipe.name)}">`
+                        ? `<img src="${API.getRecipeImageUrl(recipe.id, 'thumb', recipe.image_filename)}" alt="${this.escapeHtml(recipe.name)}">`
                         : '<div class="recipe-card-placeholder">🍽️</div>'
                     }
                 </div>
@@ -290,7 +290,7 @@ const Recipes = {
                 </div>
                 ${recipe.image_filename 
                     ? `<div class="recipe-header-thumb">
-                           <img src="${API.getRecipeImageUrl(recipe.image_filename, "thumb", recipe.updated_at)}" alt="${recipe.name}">
+                           <img src="${API.getRecipeImageUrl(recipe.id, "thumb", recipe.image_filename)}" alt="${recipe.name}">
                        </div>`
                     : ""
                 }
@@ -399,7 +399,7 @@ const Recipes = {
                 <div class="recipe-picker-item" data-recipe-id="${recipe.id}">
                     <div class="recipe-picker-image">
                         ${recipe.image_filename 
-                            ? `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="${recipe.name}">`
+                            ? `<img src="${API.getRecipeImageUrl(recipe.id, 'thumb', recipe.image_filename)}" alt="${recipe.name}">`
                             : '<div class="recipe-card-placeholder">🍽️</div>'
                         }
                     </div>
@@ -738,7 +738,7 @@ const Recipes = {
         if (this.pendingImage) {
             imageHtml = `<img src="${this.pendingImage}" alt="Preview">`;
         } else if (recipe?.image_filename) {
-            imageHtml = `<img src="${API.getRecipeImageUrl(recipe.image_filename, 'thumb', recipe.updated_at)}" alt="Recipe">`;
+            imageHtml = `<img src="${API.getRecipeImageUrl(recipe.id, 'thumb', recipe.image_filename)}" alt="Recipe">`;
         } else {
             imageHtml = '<span>No image</span>';
         }

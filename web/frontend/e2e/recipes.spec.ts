@@ -41,6 +41,33 @@ test.describe('Recipes: origin marker and catalogue filtering', () => {
     await expect(page.getByRole('link', { name: `View ${OWN_CREATION}` })).toBeVisible()
   })
 
+  test('Own creation checkbox shares the dish-type row on a phone and composes with tags', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 640 })
+    await page.getByText('Filter by recipe details').click()
+
+    const ownCreation = page.getByRole('checkbox', { name: 'Filter by Own creation' })
+    const dishType = page.getByRole('combobox', { name: 'Filter by dish type' })
+    await expect(ownCreation).toBeVisible()
+    const ownBox = await ownCreation.boundingBox()
+    const dishBox = await dishType.boundingBox()
+    expect(ownBox && dishBox).toBeTruthy()
+    expect(
+      Math.abs(
+        (ownBox?.y ?? 0) + (ownBox?.height ?? 0) / 2 - ((dishBox?.y ?? 0) + (dishBox?.height ?? 0) / 2),
+      ),
+    ).toBeLessThanOrEqual(2)
+    expect(dishBox?.width).toBeLessThan(await page.getByRole('combobox', { name: 'Filter by meal occasion' }).evaluate((element) => element.getBoundingClientRect().width))
+
+    await ownCreation.click()
+    await expect(ownCreation).toBeChecked()
+    await expect(page.getByRole('link', { name: `View ${OWN_CREATION}` })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'View Chicken Curry' })).toHaveCount(0)
+
+    await dishType.selectOption('main')
+    await expect(page.getByRole('link', { name: `View ${OWN_CREATION}` })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Remove Own creation filter' })).toBeVisible()
+  })
+
   test('the occasion filter narrows the catalogue and clears', async ({ page }) => {
     // The facet selects live behind a collapsed "Filter by recipe details".
     await page.getByText('Filter by recipe details').click()

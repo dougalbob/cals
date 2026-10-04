@@ -27,6 +27,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { handle } from './mock-api/handler.mjs'
+import { parseRequestBody } from './mock-api/request-body.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('./preview/', import.meta.url)))
 const PORT = Number(process.env.PORT ?? 5173)
@@ -47,19 +48,6 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
-}
-
-/** Read a request body (mutations in the fixture API need it). */
-async function readBody(req) {
-  const chunks = []
-  for await (const chunk of req) chunks.push(chunk)
-  const raw = Buffer.concat(chunks).toString('utf8')
-  if (!raw) return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return undefined // signals invalid JSON
-  }
 }
 
 async function sendFile(res, filePath, { method }) {
@@ -97,11 +85,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname.startsWith('/api/')) {
     let body = null
     if (method === 'POST' || method === 'PUT') {
-      body = await readBody(req)
+      body = await parseRequestBody(req)
       if (body === undefined) {
         res.statusCode = 400
         res.setHeader('Content-Type', MIME['.json'])
-        res.end(JSON.stringify({ error: 'invalid JSON body' }))
+        res.end(JSON.stringify({ error: 'invalid request body' }))
         return
       }
     }

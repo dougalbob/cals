@@ -36,11 +36,12 @@ beforeEach(() => {
   resetFixtures()
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
-    const result = handle(
-      init?.method ?? 'GET',
-      url,
-      init?.body ? JSON.parse(String(init.body)) : null,
-    )
+    const requestBody = typeof FormData !== 'undefined' && init?.body instanceof FormData
+      ? init.body
+      : init?.body
+        ? JSON.parse(String(init.body))
+        : null
+    const result = handle(init?.method ?? 'GET', url, requestBody)
     if (!result) return new Response('not found', { status: 404 })
     // A 204 must not carry a body — `new Response('', { status: 204 })` throws.
     const body = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
@@ -112,6 +113,23 @@ describe('RecipeDetailRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save tags and time' }))
     await waitFor(() => expect(seedRecipe(1).is_own_creation).toBe(false))
     expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).not.toContain('Own creation')
+  })
+})
+
+describe('RecipeDetailRoute photo upload', () => {
+  it('previews and replaces an existing recipe photo', async () => {
+    renderRoute(1)
+    expect(await screen.findByRole('heading', { name: 'Chicken Curry' })).toBeTruthy()
+
+    const photo = new File(['replacement image bytes'], 'new-photo.webp', { type: 'image/webp' })
+    fireEvent.change(screen.getByLabelText('Choose recipe photo'), { target: { files: [photo] } })
+    expect(screen.getByText(/(?:Selected|Previewing) new-photo\.webp/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Upload photo' }))
+
+    await waitFor(() => expect(seedRecipe(1).image_filename).toMatch(/^v_[a-f0-9]{32}$/))
+    const displayedImage = screen.getByRole('img', { name: 'Chicken Curry' }) as HTMLImageElement
+    expect(displayedImage.src).toContain(`v=${seedRecipe(1).image_filename}`)
+    expect(screen.queryByRole('button', { name: 'Upload photo' })).toBeNull()
   })
 })
 

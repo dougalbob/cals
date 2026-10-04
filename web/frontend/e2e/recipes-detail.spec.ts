@@ -30,6 +30,24 @@ test.describe('Recipe detail', () => {
     await expect(page.getByRole('region', { name: 'Method' })).toContainText('Fry the onion')
   })
 
+  test('replaces a recipe photo without cropping', async ({ page, request }) => {
+    await page.getByLabel('Recipe photo').setInputFiles({
+      name: 'replacement.webp',
+      mimeType: 'image/webp',
+      buffer: Buffer.from('fixture image bytes'),
+    })
+    await expect(page.getByText(/(?:Selected|Previewing) replacement\.webp/)).toBeVisible()
+    await page.getByRole('button', { name: 'Upload photo' }).click()
+
+    await expect.poll(async () => (await recipeAs(request, 1)).image_filename).toMatch(/^v_[a-f0-9]{32}$/)
+    const recipe = await recipeAs(request, 1)
+    await expect(page.getByRole('img', { name: 'Chicken Curry' })).toHaveAttribute(
+      'src',
+      new RegExp(`v=${recipe.image_filename}`),
+    )
+    await expect(page.getByRole('button', { name: 'Upload photo' })).toHaveCount(0)
+  })
+
   test('the Add tag form ticks meal occasions and saves them', async ({ page, request }) => {
     await page.getByRole('button', { name: 'Add tag' }).click()
 

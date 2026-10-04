@@ -38,11 +38,12 @@ beforeEach(() => {
   resetFixtures()
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
-    const result = handle(
-      init?.method ?? 'GET',
-      url,
-      init?.body ? JSON.parse(String(init.body)) : null,
-    )
+    const requestBody = typeof FormData !== 'undefined' && init?.body instanceof FormData
+      ? init.body
+      : init?.body
+        ? JSON.parse(String(init.body))
+        : null
+    const result = handle(init?.method ?? 'GET', url, requestBody)
     if (!result) return new Response('not found', { status: 404 })
     const body = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
     return new Response(result.status === 204 ? null : body, {
@@ -64,10 +65,6 @@ describe('RecipeCreateRoute', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'Create recipe' }))
     expect(await screen.findByRole('heading', { name: 'Create a recipe' })).toBeTruthy()
     expect(href()).toBe('/recipes/new?tags=origin%3Aown')
-    expect(screen.getByRole('complementary', { name: 'Recipe photo information' }).textContent).toContain(
-      'Photo upload and crop are a separate feature',
-    )
-
     const form = screen.getByRole('region', { name: 'New recipe details' })
     fireEvent.change(within(form).getByRole('textbox', { name: 'Recipe name' }), {
       target: { value: 'Weeknight chicken bowl' },
@@ -139,6 +136,58 @@ describe('RecipeCreateRoute', () => {
     expect(within(tags).getByRole('link', { name: 'Show recipes tagged Own creation' })).toBeTruthy()
     expect(within(tags).getByRole('link', { name: 'Show recipes tagged Dinner' })).toBeTruthy()
     expect(within(tags).getByRole('link', { name: 'Show recipes tagged Main' })).toBeTruthy()
+  })
+
+  it('uploads a selected photo after creating the recipe and displays its versioned image', async () => {
+    renderRoute()
+    const form = await screen.findByRole('region', { name: 'New recipe details' })
+
+    fireEvent.change(within(form).getByRole('textbox', { name: 'Recipe name' }), {
+      target: { value: 'Photo-only recipe' },
+    })
+    const photo = new File(['fixture image bytes'], 'photo.png', { type: 'image/png' })
+    fireEvent.change(within(form).getByLabelText('Choose recipe photo'), { target: { files: [photo] } })
+    expect(within(form).getByText(/(?:Selected|Previewing) photo\.png/)).toBeTruthy()
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Create recipe' }))
+
+    expect(await screen.findByRole('heading', { name: 'Photo-only recipe' })).toBeTruthy()
+    const created = recipes.find((recipe) => recipe.name === 'Photo-only recipe')
+    expect(created?.image_filename).toMatch(/^v_[a-f0-9]{32}$/)
+    expect(await screen.findByRole('img', { name: 'Photo-only recipe' })).toBeTruthy()
+  })
+
+  it('does not suggest duplicate creation when photo upload fails after the recipe is saved', async () => {
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname.endsWith('/image')) {
+        return new Response(JSON.stringify({ error: 'temporary upload failure' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return originalFetch(input, init)
+    })
+
+    renderRoute()
+    const form = await screen.findByRole('region', { name: 'New recipe details' })
+    fireEvent.change(within(form).getByRole('textbox', { name: 'Recipe name' }), {
+      target: { value: 'Saved without photo' },
+    })
+    const photo = new File(['fixture image bytes'], 'photo.png', { type: 'image/png' })
+    fireEvent.change(within(form).getByLabelText('Choose recipe photo'), { target: { files: [photo] } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Create recipe' }))
+
+    expect(await screen.findByRole('heading', { name: 'Saved without photo' })).toBeTruthy()
+    const created = recipes.find((recipe) => recipe.name === 'Saved without photo')
+    expect(created).toBeTruthy()
+    expect(created?.image_filename).toBe('')
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('Photo upload failed')
+    expect(alert.textContent).toContain('already saved')
+    expect(alert.textContent).toContain('don\'t create another recipe')
+    expect(screen.getByLabelText('Choose recipe photo')).toBeTruthy()
   })
 
   it('returns to the same filtered catalogue when creation is cancelled', async () => {

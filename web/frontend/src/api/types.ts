@@ -153,6 +153,12 @@ export interface RecipeDetail extends Recipe {
   text_ingredients?: RecipeTextIngredient[]
 }
 
+export interface RecipeImageUploadResponse {
+  /** Versioned image key stored in recipes.image_filename. */
+  filename: string
+  updated_at: string
+}
+
 export interface RecipeMetadataInput {
   meal_occasions: RecipeMealOccasion[]
   dish_type: RecipeDishType | ''

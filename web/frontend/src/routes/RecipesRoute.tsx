@@ -24,6 +24,7 @@ import {
 import {
   dishTagKey,
   foodTagKey,
+  OWN_CREATION_TAG_KEY,
   matchesTags,
   occasionTagKey,
   parseTagParam,
@@ -185,6 +186,7 @@ export function RecipesRoute() {
   const occasionFilter = occasionTags.length === 1 ? tagValue(occasionTags[0]) : ''
   const dishTypeFilter = dishTags.length === 1 ? tagValue(dishTags[0]) : ''
   const keyFoodFilter = foodTags.length === 1 ? tagValue(foodTags[0]) : ''
+  const ownCreationFilter = selectedTags.includes(OWN_CREATION_TAG_KEY)
 
   const hasFilters = Boolean(search || favouritesOnly || selectedTags.length > 0)
   const clearFilters = () => {
@@ -320,9 +322,9 @@ export function RecipesRoute() {
             Filter by recipe details
           </summary>
           <p className="mb-0 mt-1 text-xs text-ink-light">
-            Choose an occasion, dish type or key food below, or tap any tag on a recipe card — including the orange Own creation tag.
+            Choose an occasion, dish type, Own creation or key food below, or tap any tag on a recipe card.
           </p>
-          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
               Meal occasion
               <select
@@ -342,22 +344,34 @@ export function RecipesRoute() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
-              Dish type
-              <select
-                aria-label="Filter by dish type"
-                value={dishTypeFilter}
-                onChange={(event) =>
-                  setFacetTag(event.target.value ? dishTagKey(event.target.value as RecipeDishType) : '', 'dish')
-                }
-                className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink"
-              >
-                <option value="">{dishTags.length > 1 ? 'Multiple — see tags' : 'Any dish type'}</option>
-                {RECIPE_DISH_TYPES.map((dishType) => (
-                  <option key={dishType.value} value={dishType.value}>{dishType.label}</option>
-                ))}
-              </select>
-            </label>
+            <div className="flex min-w-0 items-end gap-2">
+              <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-medium text-ink-light">
+                Dish type
+                <select
+                  aria-label="Filter by dish type"
+                  value={dishTypeFilter}
+                  onChange={(event) =>
+                    setFacetTag(event.target.value ? dishTagKey(event.target.value as RecipeDishType) : '', 'dish')
+                  }
+                  className="min-h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-2 text-sm text-ink"
+                >
+                  <option value="">{dishTags.length > 1 ? 'Multiple — see tags' : 'Any dish type'}</option>
+                  {RECIPE_DISH_TYPES.map((dishType) => (
+                    <option key={dishType.value} value={dishType.value}>{dishType.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-1 pb-0 text-xs font-medium text-ink">
+                <input
+                  type="checkbox"
+                  aria-label="Filter by Own creation"
+                  checked={ownCreationFilter}
+                  onChange={() => setSelectedTags(toggleTag(selectedTags, OWN_CREATION_TAG_KEY))}
+                  className="h-5 w-5 accent-primary"
+                />
+                <span className="whitespace-nowrap">Own creation</span>
+              </label>
+            </div>
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
               Key food
               <select
@@ -553,7 +567,7 @@ function RecipeCard({
   // detour, and its own "Add to diary" button arrives pre-filled.
   const detailHref = withRecipePick(`/recipes/${recipe.id}${detailTagSuffix}`, pickIntent)
   const imageUrl = recipe.image_filename
-    ? `/api/images/recipes/${recipe.id}/thumb${recipe.updated_at ? `?v=${encodeURIComponent(recipe.updated_at)}` : ''}`
+    ? `/api/images/recipes/${recipe.id}/thumb?v=${encodeURIComponent(recipe.image_filename)}`
     : null
 
   return (

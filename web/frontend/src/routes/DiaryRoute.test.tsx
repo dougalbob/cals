@@ -332,6 +332,39 @@ describe('DiaryRoute', () => {
     )
   })
 
+  it('asks for confirmation before deleting a populated meal slot and Cancel keeps the entry', async () => {
+    renderDiary('/diary')
+
+    const entry = seed.entriesFor(seed.TODAY).find((candidate) => candidate.food_name === 'Porridge Oats')
+    expect(entry).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Porridge Oats' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete diary entry?' })
+    expect(dialog.textContent).toContain('Porridge Oats')
+    expect(dialog.textContent).toContain('Breakfast')
+    expect(dialog.textContent).toContain('This cannot be undone.')
+    expect(seed.entriesFor(seed.TODAY).some((candidate) => candidate.id === entry?.id)).toBe(true)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete diary entry?' })).toBeNull())
+    expect(seed.entriesFor(seed.TODAY).some((candidate) => candidate.id === entry?.id)).toBe(true)
+  })
+
+  it('deletes a populated meal slot only after the user confirms', async () => {
+    renderDiary('/diary')
+
+    const entry = seed.entriesFor(seed.TODAY).find((candidate) => candidate.food_name === 'Porridge Oats')
+    expect(entry).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Porridge Oats' }))
+    const dialog = screen.getByRole('dialog', { name: 'Delete diary entry?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(seed.entriesFor(seed.TODAY).some((candidate) => candidate.id === entry?.id)).toBe(false),
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete diary entry?' })).toBeNull())
+  })
+
   it('edits a logged quantity, rescaling the entry snapshot and refreshing the bank', async () => {
     renderDiary('/diary')
 

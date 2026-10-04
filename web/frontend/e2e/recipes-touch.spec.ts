@@ -77,6 +77,23 @@ test.describe('Recipe tick-boxes on a phone', () => {
     await expect(page.getByRole('group', { name: 'Chicken Curry tags' }).getByText('Breakfast')).toBeVisible()
   })
 
+  test('the recipe-details Own creation filter answers a touch tap on box and text', async ({ page }) => {
+    await page.goto('/recipes')
+    await page.getByText('Filter by recipe details').click()
+
+    const own = page.getByRole('checkbox', { name: 'Filter by Own creation' })
+    const ownLabel = page.locator('label').filter({ has: own })
+    await touchTap(own)
+    await expect(own).toBeChecked()
+    await touchTap(ownLabel.getByText('Own creation'))
+    await expect(own).not.toBeChecked()
+
+    const styles = await rowStyles(page, 'Filter by Own creation')
+    expect(styles?.inputTouchAction).toBe('manipulation')
+    expect(styles?.labelUserSelect).toBe('none')
+    expect(styles?.labelWebkitUserSelect).toBe('none')
+  })
+
   test('the portion sheet tick-box answers a touch tap', async ({ page }) => {
     await page.goto('/recipes/3')
     await page.getByRole('button', { name: '🍽 Add to diary' }).click()

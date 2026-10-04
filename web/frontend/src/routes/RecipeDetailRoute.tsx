@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipe, setRecipeArchived, updateRecipe, updateRecipeMetadata } from '../api/recipes'
+import { getRecipe, setRecipeArchived, updateRecipe, updateRecipeMetadata, uploadRecipeImage } from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
@@ -16,6 +16,7 @@ import {
 import { RecipeTags } from '../components/RecipeTags'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeContentEditor } from '../components/RecipeContentEditor'
+import { RecipePhotoPicker } from '../components/RecipePhotoPicker'
 import { parseTagParam, recipesHref, toggleTag } from '../lib/recipeTags'
 import { diaryHrefForPick, mealLabel, parseRecipePick, withRecipePick } from '../lib/recipePick'
 import { todayIso } from '../lib/format'
@@ -23,7 +24,13 @@ import { todayIso } from '../lib/format'
 export function RecipeDetailRoute() {
   const { id: idParam } = useParams()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const navigate = useNavigate()
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(() => {
+    const state = location.state as { recipePhotoUploadError?: unknown } | null
+    return typeof state?.recipePhotoUploadError === 'string' ? state.recipePhotoUploadError : null
+  })
   const [isLogging, setIsLogging] = useState(false)
   const [isEditingContent, setIsEditingContent] = useState(false)
   const [contentRevision, setContentRevision] = useState(0)
@@ -47,6 +54,18 @@ export function RecipeDetailRoute() {
     queryKey: queryKeys.recipe(recipeId),
     queryFn: () => getRecipe(recipeId),
     enabled: validId,
+  })
+
+  const photoMutation = useMutation({
+    mutationFn: (file: File) => uploadRecipeImage(recipeId, file),
+    onSuccess: (uploaded) => {
+      queryClient.setQueryData<RecipeDetail>(queryKeys.recipe(recipeId), (current) => current
+        ? { ...current, image_filename: uploaded.filename, updated_at: uploaded.updated_at }
+        : current)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
+      setPhotoFile(null)
+      setPhotoUploadNotice(null)
+    },
   })
 
   const contentMutation = useMutation({
@@ -93,7 +112,7 @@ export function RecipeDetailRoute() {
   const ingredients = recipe.ingredients ?? []
   const textIngredients = recipe.text_ingredients ?? []
   const imageUrl = recipe.image_filename
-    ? `/api/images/recipes/${recipe.id}/original${recipe.updated_at ? `?v=${encodeURIComponent(recipe.updated_at)}` : ''}`
+    ? `/api/images/recipes/${recipe.id}/original?v=${encodeURIComponent(recipe.image_filename)}`
     : null
 
   return (
@@ -134,23 +153,35 @@ export function RecipeDetailRoute() {
       )}
 
       <article className="overflow-hidden rounded-2xl bg-card shadow-card">
-        <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900">
-          {imageUrl ? (
-            <img src={imageUrl} alt={recipe.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-white">
-              <span aria-hidden="true" className="text-6xl drop-shadow">🍲</span>
-              <span className="text-xs font-medium tracking-wide text-white/90">NO PHOTO YET</span>
-            </div>
-          )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/65 to-transparent" />
+        <RecipePhotoPicker
+          variant="hero"
+          recipeName={recipe.name}
+          currentImageUrl={imageUrl}
+          selectedFile={photoFile}
+          onFileChange={(file) => {
+            setPhotoFile(file)
+            photoMutation.reset()
+            setPhotoUploadNotice(null)
+          }}
+          onUpload={() => {
+            if (photoFile) photoMutation.mutate(photoFile)
+          }}
+          onUploadErrorClear={() => {
+            photoMutation.reset()
+            setPhotoUploadNotice(null)
+          }}
+          isUploading={photoMutation.isPending}
+          uploadError={photoUploadNotice
+            ? `${photoUploadNotice}. The recipe is already saved—choose the photo again here to retry; don't create another recipe.`
+            : (photoMutation.error as Error | null)?.message ?? null}
+        >
           <RecipeTags
             recipe={recipe}
             selectedKeys={carriedTags}
             tagHref={(tag) => withRecipePick(recipesHref(toggleTag(carriedTags, tag.key)), pick)}
             className="absolute bottom-4 left-4 right-4 z-10"
           />
-        </div>
+        </RecipePhotoPicker>
 
         <div className="p-4 sm:p-5">
           <h2 className="m-0 text-xl font-semibold">{recipe.name}</h2>

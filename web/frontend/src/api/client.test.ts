@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthExpiredError, apiGet, apiPut } from './client'
+import { AuthExpiredError, apiGet, apiPostForm, apiPut } from './client'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -18,6 +18,23 @@ describe('API response handling', () => {
     )
 
     await expect(apiGet<typeof body>('/api/example')).resolves.toEqual(body)
+  })
+
+  it('sends multipart bodies without overriding the browser boundary header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ filename: 'v_abc', updated_at: '2026-10-04T10:00:00Z' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const body = new FormData()
+    body.append('image', new Blob(['photo bytes'], { type: 'image/png' }), 'meal.png')
+
+    await expect(apiPostForm('/api/recipes/7/image', body)).resolves.toMatchObject({ filename: 'v_abc' })
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect(init.body).toBe(body)
+    expect(init.headers).toBeUndefined()
   })
 
   it('accepts valid JSON when a successful response has the wrong content type', async () => {

@@ -8,6 +8,7 @@
  * when VITE_API_TARGET is set. It also means one process to manage.
  */
 import { handle } from './handler.mjs'
+import { parseRequestBody } from './request-body.mjs'
 
 function middleware() {
   return async (req, res, next) => {
@@ -17,18 +18,12 @@ function middleware() {
     // Read the request body for mutations.
     let body = null
     if (req.method === 'POST' || req.method === 'PUT') {
-      const chunks = []
-      for await (const chunk of req) chunks.push(chunk)
-      const raw = Buffer.concat(chunks).toString('utf8')
-      if (raw) {
-        try {
-          body = JSON.parse(raw)
-        } catch {
-          res.statusCode = 400
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: 'invalid JSON body' }))
-          return
-        }
+      body = await parseRequestBody(req)
+      if (body === undefined) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ error: 'invalid request body' }))
+        return
       }
     }
 
