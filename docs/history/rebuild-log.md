@@ -14,6 +14,19 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Published `v2.0.0-dev-rc21` (PR #48, decisions 68, 72–78)
+
+PR #48 passed [Docker build validation](https://github.com/dougalbob/cals/actions/runs/37189445342)
+and [Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37189445347), then merged to
+`cals-dev` as `7523f14c7c172bb9b01fb225202ef6a239401445`. The owner approved the Arena preview and
+said “Let’s publish.” [Publish run 37189572062](https://github.com/dougalbob/cals/actions/runs/37189572062)
+passed the ancestry guard, image build/push, prerelease creation and anonymous-pull check. Digest:
+`sha256:a42aa40a3e4c06b82cdcaafc373583db60d1b9c1ca5ae6f4d4246fdc0a659ce8`;
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc21). The checkpoint contains
+the layering fix, proportional 25%-opacity Diary fills, per-user recipe count, more tappable/compact
+recipe badges and the five-slot bottom nav with the temporary Foods/Recipes arrow. **No schema
+migration, data copy, appdata operation or template change.** Force Update and Unraid review are pending.
+
 ## 2026-10-04 — Larger Favourite hit area and compact recipe-image badges (decision 78)
 
 To make the Favourite easier to tap without hiding more of the photo, its visible circle shrinks from
@@ -104,8 +117,9 @@ Recipe content can now be edited in place without rewriting saved Diary snapshot
 corrections refresh every dependent recipe transactionally, including archived recipes, while
 preserving manual cooked weights and leaving Diary totals untouched. Go, frontend, fixture and rollback
 regressions passed; frontend typecheck, lint and production build passed. There is no schema migration,
-appdata operation or live-Unraid change. rc19 awaits the owner's Force Update/review on Unraid.
-Creating recipes from scratch and image upload/crop remain later work.
+appdata operation or live-Unraid change. The rc19 feature set is included in rc21; Force Update/review
+of the latest checkpoint is pending on Unraid. Creating recipes from scratch and image upload/crop
+remain later work.
 
 ## 2026-10-03 — Published `v2.0.0-dev-rc18` (PR #42)
 

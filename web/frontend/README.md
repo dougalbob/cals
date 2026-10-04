@@ -1,20 +1,19 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
 **Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six earlier
-increments run through `v2.0.0-dev-rc18`; rc19, published 2026-10-04, adds safe editing of existing
-recipe content (decisions 55–58) and transactional food-correction refresh of dependent recipe
-definitions (decisions 60–61). The owner exercised both in the Arena preview and signed off before
-publication; the rc19 Force Update/review on Unraid is still pending. Earlier increments cover the
-photo-led catalogue, per-user favourites, shared structured tags and filters, named gram-backed food
-measures, recipe-to-Diary portion logging with each user's remembered usual, archive/restore,
-Diary meal-card recipe hand-off and the Calendar/rc18 refinements. The Phase 13 polish slice (decisions
-68, 72–78) is implemented on the current session branch; owner-approved in the Arena preview, with Unraid Force Update/review pending.
-Creating a recipe from scratch and image upload/crop remain later work. The legacy Mealie importer is
-not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
-work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
-under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
-acceptance gate for the later screen phases; see
-[`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
+increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing recipe content
+(decisions 55–58) and transactional food-correction refresh of dependent recipe definitions
+(decisions 60–61). The latest checkpoint, `v2.0.0-dev-rc21`, also includes the Phase 13 polish slice
+(decisions 68, 72–78), published 2026-10-04 after the owner approved the Arena preview. **Force
+Update/review of rc21 on Unraid remains pending.** Earlier increments cover the photo-led catalogue,
+per-user favourites, shared structured tags and filters, named gram-backed food measures,
+recipe-to-Diary portion logging with each user's remembered usual, archive/restore, Diary meal-card
+recipe hand-off and the Calendar/rc18 refinements. Creating a recipe from scratch and image
+upload/crop remain later work. The legacy Mealie importer is not being pursued or ported to React. The
+Diary/Metrics/Foods screens began as a spike and remain a work-in-progress; the existing vanilla UI is
+still the default. The Go app serves the React shell only under the temporary `/next/` path. Nothing is
+cut over by this phase. UI/UX improvement is a headline acceptance gate for the later screen phases;
+see [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 Background and the full proposal: [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
