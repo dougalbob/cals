@@ -6,10 +6,12 @@ export interface FixtureResponse {
   status: number
   body: unknown
   contentType?: string
+  headers?: Record<string, string>
 }
 
 export function handle(
   method: string,
   url: URL,
   body: unknown,
+  headers?: Record<string, string | string[] | undefined>,
 ): FixtureResponse | null

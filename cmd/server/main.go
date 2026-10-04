@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	var withAuth func(http.Handler) http.Handler
+	var authenticate func(http.Handler) http.Handler
 	devIdentitySwitch := false
 	if cfg.DevMode {
 		log.Println("⚠️  DEV_MODE ENABLED — Cloudflare Access is DISABLED for loopback/private requests")
@@ -31,15 +31,22 @@ func main() {
 		log.Printf("⚠️  Listen address: %s", cfg.ListenAddress())
 		if cfg.DevIdentitySwitch {
 			devIdentitySwitch = true
-			withAuth = auth.DevIdentityMiddleware(cfg.DevUserEmail, handlers.UserExistsByEmail)
+			authenticate = auth.DevIdentityMiddleware(cfg.DevUserEmail, handlers.UserExistsByEmail)
 			log.Println("⚠️  DEV_IDENTITY_SWITCH ENABLED — choose any existing user at /dev/identity (or append ?as=<email> to any URL)")
 			log.Printf("⚠️  Default identity: %s", cfg.DevUserEmail)
 		} else {
-			withAuth = auth.DevModeMiddleware(cfg.DevUserEmail)
+			authenticate = auth.DevModeMiddleware(cfg.DevUserEmail)
 		}
 	} else {
 		cfAuth := auth.NewCloudflareAuth(cfg.CFTeamDomain, cfg.CFPolicyAUD)
-		withAuth = cfAuth.Middleware
+		authenticate = cfAuth.Middleware
+	}
+
+	// Every authenticated request then passes through the Admin acting-user
+	// switch, which may replace *whose data* the request touches. It never
+	// replaces the authenticated identity, so role checks stay trustworthy.
+	withAuth := func(next http.Handler) http.Handler {
+		return authenticate(handlers.ActingUserMiddleware(next))
 	}
 
 	if err := database.Initialize(cfg.DBPath); err != nil {
@@ -125,6 +132,12 @@ func main() {
 	mux.Handle("GET /api/users/me", withAuth(http.HandlerFunc(handlers.HandleGetCurrentUser)))
 	mux.Handle("PUT /api/users/me", withAuth(http.HandlerFunc(handlers.HandleUpdateCurrentUser)))
 	mux.Handle("GET /api/users", withAuth(http.HandlerFunc(handlers.HandleListUsers)))
+
+	// Session: who is signed in, whose data is on screen, and the Admin's
+	// acting-user switch (decisions 45 and 88).
+	mux.Handle("GET /api/session", withAuth(http.HandlerFunc(handlers.HandleGetSession)))
+	mux.Handle("POST /api/session/acting-user", withAuth(http.HandlerFunc(handlers.HandleSetActingUser)))
+	mux.Handle("DELETE /api/session/acting-user", withAuth(http.HandlerFunc(handlers.HandleClearActingUser)))
 
 	// Foods
 	mux.Handle("GET /api/foods/search", withAuth(http.HandlerFunc(handlers.HandleSearchFoods)))

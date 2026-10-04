@@ -80,14 +80,17 @@ Keep Cloudflare Access as the authentication layer and allow both users' email i
 
 The implementation session should resolve secure Admin bootstrapping, server-side validation and persistence of the selected user, and the security/test plan before or alongside coding. It must protect every affected API route, make `GET /api/users` Admin-only (it currently returns the user list to any authenticated user), reject forged or stale switches, and keep the Standard user unable to switch. The existing Admin role/swap design is in [decision 45](product/vision-and-open-questions.md#admin-role-and-swap-user-2026-10-03); decision 88 records the assignment and priority.
 
-**Increment 1 is built (2026-10-04, this branch, not yet published):** the roles are declared as
-`ADMIN_EMAILS` / `STANDARD_EMAILS` in `/app/data/.env` and reconciled into the additive
-`users.is_admin` column at every start-up (decision 89), and `GET /api/users` is now Admin-only
-(`403` for a Standard user). Verified against a real server: a declared Admin is granted on boot and
-on first sign-in, an address removed from `ADMIN_EMAILS` is revoked on the next start-up, a malformed
-address refuses to start the container, and an unset `ADMIN_EMAILS` leaves the database untouched.
-Mechanism and operational rules: [`admin-roles.md`](architecture/admin-roles.md). **The in-app Swap
-user control, the acting-user session and the “viewing as” indicator are still to build.**
+**Built (2026-10-04, this branch, not yet published):** the roles are declared as `ADMIN_EMAILS` /
+`STANDARD_EMAILS` in `/app/data/.env` and reconciled into the additive `users.is_admin` column at
+every start-up (decision 89); `GET /api/users` is Admin-only (`403` for a Standard user); and the
+acting-user switch is complete (decision 90) — `cals_acting_user` cookie honoured only for an Admin,
+`GET/POST/DELETE /api/session`, an amber **Viewing as …** banner with **Return to my account**, and a
+**Swap user** sheet. Verified against a real server and in the Arena preview: a declared Admin is
+granted on boot and on first sign-in, an address removed from `ADMIN_EMAILS` is revoked on the next
+start-up, a malformed address refuses to start the container, an unset `ADMIN_EMAILS` leaves the
+database untouched, a Standard user's forged cookie is ignored and cleared, and a diary row written
+while swapped is attributed to the account being acted as. Mechanism, threat model and operational
+rules: [`admin-roles.md`](architecture/admin-roles.md).
 
 The previously requested reliable server-local backup/restore of the database and all recipe images remains an outstanding deployment-safety requirement; this role-focused next-session request does not satisfy it. Phase 14 Metrics remains the next feature phase after the owner-directed role/switch work.
 

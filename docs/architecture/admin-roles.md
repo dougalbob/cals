@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **Partially implemented.** Role declaration, the `users.is_admin` column, start-up reconciliation and the Admin-only account list are built; the in-app **Swap user** control is not. Current status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **Implemented.** Role declaration, the `users.is_admin` column, start-up reconciliation, the Admin-only account list, the server-side acting-user switch and the "Viewing as …" banner are all built. Review and release status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Date raised** | 2026-10-03 (decision 45); mechanism settled 2026-10-04 (decision 89) |
 | **Decision owner** | @dougalbob |
-| **Scope** | `internal/config/` (role lists), `internal/handlers/roles.go` (reconciliation and authorization), `internal/database/migrations.go` (the `users.is_admin` column), `cmd/server/main.go` (start-up application and logging) |
+| **Scope** | `internal/config/` (role lists), `internal/handlers/roles.go` (reconciliation and authorization), `internal/handlers/actinguser.go` (the switch), `internal/auth/` (the two identity context keys), `internal/database/migrations.go` (the `users.is_admin` column), `cmd/server/main.go` (middleware order, routes, start-up logging), `web/frontend/src/components/SwapUserSheet.tsx` and `AppLayout.tsx` (the control and the banner) |
 | **Related** | [`dev-identity-switch.md`](./dev-identity-switch.md) (the *development* identity picker — a different feature), [`local-development.md`](./local-development.md) (`DEV_MODE`), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions 45, 88, 89) |
 
 ---
@@ -99,13 +99,69 @@ opted into, never drifted into.
 |---|---|---|
 | Own diary, goals, recipes, bank, settings | ✅ | ✅ |
 | `GET /api/users` (the account list) | ❌ `403` | ✅ |
-| Swap the acting user | ❌ | ✅ *(not built yet)* |
+| Swap the acting user | ❌ | ✅ |
 
 `GET /api/users` was previously answered for **any** authenticated request, which exposed both
 household email addresses for no product reason. It is now Admin-only. Nothing in either UI called it,
 so no screen changed.
 
-## 6. Security notes
+## 6. The acting-user switch
+
+| Piece | Detail |
+|---|---|
+| Storage | `cals_acting_user` cookie holding the target **account id**. `HttpOnly`, `SameSite=Lax`, `Path=/`, 12 hours |
+| Applied by | `handlers.ActingUserMiddleware`, registered after authentication and before every protected route in `cmd/server/main.go` |
+| Set / cleared by | `POST /api/session/acting-user` `{user_id}` and `DELETE /api/session/acting-user` |
+| Read by the UI | `GET /api/session` → `{authenticated_user, acting_user, is_admin, viewing_as_other}` |
+
+The middleware only ever rewrites `auth.UserEmailKey` (whose data this request touches). It never
+touches `auth.AuthenticatedEmailKey` (who is signed in), which is why role checks remain trustworthy
+while swapped.
+
+### Two identities, and why they must not be confused
+
+`internal/auth/context.go` defines both:
+
+- **`UserEmailKey`** — the acting user. Every handler, the bank maths and every diary row already
+  read this one, which is what makes the switch a single-middleware change rather than an edit to
+  ~55 endpoints.
+- **`AuthenticatedEmailKey`** — the identity Cloudflare verified. Set by the Cloudflare and
+  `DEV_MODE` middleware; never overwritten.
+
+**Authorization reads the second one.** An Admin who is viewing another account must still be able to
+list accounts and swap back; if `GET /api/users` keyed off the acting identity, the Admin would be
+locked out of the way back the moment they used the feature. A Standard user, meanwhile, cannot gain
+the capability by being swapped into.
+
+### Why the cookie is not signed
+
+The switch is honoured **only for an Admin**, and the Admin check reads the authenticated identity
+from the Cloudflare JWT — which a browser cannot forge. A cookie planted or hand-edited by a Standard
+user is therefore ignored on sight (and cleared, so the browser stops resending it). Signing it would
+protect against nothing the JWT does not already protect. A cookie naming a non-existent account, or
+the Admin's own account, is likewise ignored.
+
+The switch is logged (`acting-user switch: a@x is now acting as b@x`), which is decision 45's chosen
+audit trail for a two-person household — a log line plus honest diary timestamps, rather than an
+"entered by" column that would be a storage change.
+
+## 7. What the UI does
+
+- **Header** — shows the *acting* account, and a **Swap user** button for an Admin.
+- **Banner** — while `viewing_as_other`, an amber bar under the header reads "Viewing as Sarah —
+  anything you log belongs to them" with **Return to \<you\>** beside it. It is a `role="status"`
+  region, so it is announced rather than being colour-only.
+- **Sheet** — `SwapUserSheet` lists the accounts, marks the one being viewed, labels the Admin's own
+  account "Your own account", and offers Return for it.
+- **Cache** — every cached query is account-scoped, so a switch calls `queryClient.clear()` rather
+  than invalidating a handful of keys. Lingering previous-account data would be worse than a refetch.
+
+The fixture API (`web/frontend/mock-api/`) models both accounts, with the second holding her own
+diary, drinks, water target and weigh-in, so the Arena preview shows genuinely different data after a
+swap. Recipe favourites and remembered portions remain shared in the fixture; they are per-user in
+the real app.
+
+## 8. Security notes
 
 - The role is read from the database server-side on every request that needs it. The client cannot
   claim a role: `is_admin` is a response field, never an accepted input, and no endpoint accepts it.
@@ -116,16 +172,13 @@ so no screen changed.
   development-only, LAN-restricted conveniences — they are not the production feature and must never
   be enabled on the Cloudflare-routed container.
 - Audit trail: decision 45 leans on a **log line plus honest diary timestamps** for a two-person
-  household rather than an "entered by" column, which would be a storage change. The swap work will
-  log every switch.
+  household rather than an "entered by" column, which would be a storage change. Every switch is
+  logged, in both directions.
 
-## 7. Not built yet
+## 9. Not built / open
 
-- The **acting-user switch** itself: a server-side session cookie validated on every request, an
-  Admin-only endpoint to set and clear it, and the persistent "Viewing as …" indicator with a way
-  back to the Admin's own account.
-- Authorization for the switch must read the **authenticated** identity, not the acting one, so an
-  Admin who is viewing another account can still list accounts and swap back.
-- Whether the non-admin user is ever told that an Admin edited their data (leaning: no).
-
-`GET /api/users` is the list the switch UI will use, so it became Admin-only first.
+- Whether a Standard user is ever told that an Admin edited their data (decision 45 leans: no).
+- A Cloudflare Access application for the **PWA bypass** path, so the app can be installed on a
+  phone. Deferred by the owner; it is a Zero Trust configuration change, not cals code.
+- Role management in the UI. Roles come from `.env` only; there is no in-app promotion control, by
+  design — the off-switch lives in appdata, not behind the thing it switches off.

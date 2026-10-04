@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type UIEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
-import { apiGet, queryKeys } from './api/client'
-import type { User, VersionResponse } from './api/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiDelete, apiGet, queryKeys } from './api/client'
+import type { SessionResponse, VersionResponse } from './api/types'
+import { SwapUserSheet } from './components/SwapUserSheet'
 
 const NAV = [
   { to: '/', label: 'Today', icon: '🏠', end: true },
@@ -51,9 +52,23 @@ export function AppLayout() {
   const navPageRef = useRef(0)
   const [navOverflowVisible, setNavOverflowVisible] = useState(false)
 
-  const { data: user } = useQuery<User>({
-    queryKey: queryKeys.user,
-    queryFn: () => apiGet<User>('/api/users/me'),
+  const queryClient = useQueryClient()
+  const [swapOpen, setSwapOpen] = useState(false)
+
+  // One request carries both identities: whose data is on screen, and who is
+  // really signed in. The Admin flag belongs to the second one.
+  const { data: session } = useQuery<SessionResponse>({
+    queryKey: queryKeys.session,
+    queryFn: () => apiGet<SessionResponse>('/api/session'),
+  })
+  const user = session?.acting_user
+  const viewingAsOther = Boolean(session?.viewing_as_other)
+
+  // Every cached query is account-scoped: drop the lot rather than invalidate
+  // a handful of keys, or the previous account's data would linger on screen.
+  const returnToOwnAccount = useMutation<SessionResponse, Error, void>({
+    mutationFn: () => apiDelete<SessionResponse>('/api/session/acting-user'),
+    onSuccess: () => queryClient.clear(),
   })
 
   const { data: version } = useQuery<VersionResponse>({
@@ -136,6 +151,16 @@ export function AppLayout() {
                 {user.name || user.email} · {user.daily_calorie_goal.toLocaleString('en-GB')} kcal
               </span>
             )}
+            {session?.is_admin && (
+              <button
+                type="button"
+                data-testid="swap-user-button"
+                onClick={() => setSwapOpen(true)}
+                className="shrink-0 whitespace-nowrap rounded-full border border-white/60 px-2 py-1 text-xs text-white hover:bg-white/15"
+              >
+                {viewingAsOther ? 'Swap' : 'Swap user'}
+              </button>
+            )}
             {version?.dev_identity_switch && (
               <a
                 href="/dev/identity"
@@ -147,6 +172,36 @@ export function AppLayout() {
           </div>
         </div>
       </header>
+
+      {/* Unmistakable, always visible while acting as someone else, with the
+          way back to the Admin's own account beside it. */}
+      {viewingAsOther && session && (
+        <div
+          role="status"
+          data-testid="viewing-as-banner"
+          className="bg-amber-300 text-amber-950"
+        >
+          <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+            <p className="text-sm font-semibold">
+              Viewing as {session.acting_user.name || session.acting_user.email}
+              <span className="ml-1 font-normal">
+                — anything you log belongs to them
+              </span>
+            </p>
+            <button
+              type="button"
+              data-testid="return-to-own-account"
+              disabled={returnToOwnAccount.isPending}
+              onClick={() => returnToOwnAccount.mutate()}
+              className="min-h-11 shrink-0 rounded-full bg-amber-950 px-3 py-1 text-xs font-semibold text-amber-50 hover:bg-amber-900"
+            >
+              Return to {session.authenticated_user.name || 'my account'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {swapOpen && <SwapUserSheet onClose={() => setSwapOpen(false)} />}
 
       <main className="flex-1 mx-auto w-full max-w-2xl px-3 py-4 pb-24">
         <Outlet />

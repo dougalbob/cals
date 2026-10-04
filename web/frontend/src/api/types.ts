@@ -19,6 +19,18 @@ export interface User {
   updated_at: string
 }
 
+/**
+ * Who is signed in and whose data is on screen (decisions 45 and 88).
+ * `is_admin` belongs to the authenticated identity, so it stays true while an
+ * Admin is acting as someone else — that is what keeps the way back reachable.
+ */
+export interface SessionResponse {
+  authenticated_user: User
+  acting_user: User
+  is_admin: boolean
+  viewing_as_other: boolean
+}
+
 export interface FoodServing {
   id: number
   food_id?: number

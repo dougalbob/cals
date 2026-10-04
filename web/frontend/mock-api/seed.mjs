@@ -320,13 +320,13 @@ function jitter(date, at, salt = 0) {
   return 1 + (x - Math.floor(x) - 0.5) * 0.24
 }
 
-function makeEntry(date, meal, foodId, grams, at = '08:15', jitterSalt = 0) {
+function makeEntry(date, meal, foodId, grams, at = '08:15', jitterSalt = 0, userId = 1) {
   const f = foodById.get(foodId)
   grams = Math.max(5, Math.round((grams * jitter(date, at, jitterSalt + foodId)) / 5) * 5)
   const k = grams / 100
   return {
     id: entryId++,
-    user_id: 1,
+    user_id: userId,
     date,
     meal,
     food_id: foodId,
@@ -505,7 +505,7 @@ export function nextDrinkId() {
   return drinkIdSeq
 }
 
-function addDrink(date, drinkId, count, at = '08:00', volumeOverride) {
+function addDrink(date, drinkId, count, at = '08:00', volumeOverride, userId = 1) {
   const drink = drinks.find((d) => d.id === drinkId)
   for (let i = 0; i < count; i++) {
     const volume = volumeOverride ?? drink.volume_ml
@@ -515,7 +515,7 @@ function addDrink(date, drinkId, count, at = '08:00', volumeOverride) {
         : Math.round((drink.calories * volume) / drink.volume_ml)
     drinkEntries.push({
       id: drinkEntryId++,
-      user_id: 1,
+      user_id: userId,
       drink_id: drink.id,
       date,
       created_at: `${date}T${at}:00Z`,
@@ -581,38 +581,108 @@ export const nutritionSettings = {
   carb_max_percent: 65,
 }
 
-export const user = {
-  id: 1,
-  email: 'dougal@duncandoes.uk',
-  name: 'Dougal',
-  daily_calorie_goal: 2000,
-  daily_water_goal_ml: 2000,
-  weight_unit: 'stones',
-  // Matches the start of the seeded diary history, so the bank figure is
-  // meaningful rather than crediting days that have no logged food.
-  bank_start_date: iso(localNoon(20)),
-  target_weight_kg: 85,
-  // Decisions 45/89: the fixture represents the household Admin.
-  is_admin: true,
-  created_at: '2025-02-14T09:00:00Z',
-  updated_at: `${TODAY}T07:00:00Z`,
+// ---------------------------------------------------------------------------
+// Users — two household accounts, so the Admin acting-user switch (decisions
+// 45 and 88) has someone to switch to.
+// ---------------------------------------------------------------------------
+
+export const users = [
+  {
+    id: 1,
+    email: 'owner@example.com',
+    name: 'Dougal',
+    daily_calorie_goal: 2000,
+    daily_water_goal_ml: 2000,
+    weight_unit: 'stones',
+    // Matches the start of the seeded diary history, so the bank figure is
+    // meaningful rather than crediting days that have no logged food.
+    bank_start_date: iso(localNoon(20)),
+    target_weight_kg: 85,
+    // Decision 89: the Admin role is declared in the server's .env.
+    is_admin: true,
+    created_at: '2025-02-14T09:00:00Z',
+    updated_at: `${TODAY}T07:00:00Z`,
+  },
+  {
+    id: 2,
+    email: 'sarah@example.com',
+    name: 'Sarah',
+    daily_calorie_goal: 1600,
+    daily_water_goal_ml: 1800,
+    weight_unit: 'stones',
+    bank_start_date: iso(localNoon(20)),
+    target_weight_kg: 68,
+    is_admin: false,
+    created_at: '2025-02-14T09:00:00Z',
+    updated_at: `${TODAY}T07:00:00Z`,
+  },
+]
+
+/** The primary fixture identity; everything below is generated for it. */
+export const user = users[0]
+
+// The second account keeps a much shorter history — three days of her own
+// eating, her own drinks and a weigh-in — so switching shows clearly different
+// data instead of an empty day, without pretending to be a full diary.
+for (const back of [2, 1, 0]) {
+  const date = iso(localNoon(back))
+  diaryEntries.push(
+    makeEntry(date, 'breakfast', 3, 170, '07:40', 0, 2),
+    makeEntry(date, 'breakfast', 14, 118, '07:42', 0, 2),
+    makeEntry(date, 'lunch', 6, 88, '12:30', 0, 2),
+    makeEntry(date, 'lunch', 15, 30, '12:32', 0, 2),
+    makeEntry(date, 'snacks', 13, 20, '20:30', 0, 2),
+  )
+  if (back > 0) {
+    diaryEntries.push(
+      makeEntry(date, 'dinner', 11, 140, '18:50', 0, 2),
+      makeEntry(date, 'dinner', 10, 80, '18:52', 0, 2),
+    )
+  }
 }
+
+drinks.push(
+  drinkRow({
+    id: nextDrinkId(), user_id: 2, name: 'Tea', icon: '🫖', volume_ml: 250, calories: 17,
+    counts_toward_water: true, accepts_milk: true, accepts_sugar: false,
+    usual_milk: true, usual_sugar: '0', sort_order: 1,
+  }),
+  drinkRow({
+    id: nextDrinkId(), user_id: 2, name: 'Water', icon: '💧', volume_ml: 250, calories: 0,
+    counts_toward_water: true, sort_order: 2,
+  }),
+)
+const herTeaId = drinks[drinks.length - 2].id
+const herWaterId = drinks[drinks.length - 1].id
+for (const back of [2, 1, 0]) {
+  const date = iso(localNoon(back))
+  addDrink(date, herTeaId, 2, '08:10', undefined, 2)
+  addDrink(date, herWaterId, 3, '11:00', undefined, 2)
+}
+
+weightEntries.push({
+  id: weightEntries.length + 1,
+  user_id: 2,
+  date: iso(localNoon(2)),
+  weight_kg: 70.4,
+  created_at: `${iso(localNoon(2))}T07:05:00Z`,
+})
 
 // ---------------------------------------------------------------------------
 // Derived helpers used by the fixture API
 // ---------------------------------------------------------------------------
 
-export function entriesFor(date) {
+export function entriesFor(date, userId = 1) {
   return diaryEntries
-    .filter((e) => e.date === date)
+    .filter((e) => e.user_id === userId && e.date === date)
     .sort((a, b) => {
       const order = { breakfast: 1, lunch: 2, dinner: 3, snacks: 4 }
       return order[a.meal] - order[b.meal] || a.created_at.localeCompare(b.created_at)
     })
 }
 
-export function totalsFor(date) {
-  return entriesFor(date).reduce(
+export function totalsFor(date, userId = 1) {
+  return entriesFor(date, userId).reduce(
     (acc, e) => ({
       calories: acc.calories + e.calories,
       protein: acc.protein + e.protein,
@@ -624,33 +694,38 @@ export function totalsFor(date) {
   )
 }
 
-export function drinkEntriesFor(date) {
-  return drinkEntries.filter((e) => e.date === date)
+export function drinkEntriesFor(date, userId = 1) {
+  return drinkEntries.filter((e) => e.user_id === userId && e.date === date)
 }
 
-export function caloriesBetween(startDate, endDateExclusive) {
+export function caloriesBetween(startDate, endDateExclusive, userId = 1) {
   return round1(
     diaryEntries
-      .filter((e) => e.date >= startDate && e.date < endDateExclusive)
+      .filter((e) => e.user_id === userId && e.date >= startDate && e.date < endDateExclusive)
       .reduce((acc, e) => acc + e.calories, 0),
   )
 }
 
-export function drinkCaloriesBetween(startDate, endDateExclusive) {
+export function drinkCaloriesBetween(startDate, endDateExclusive, userId = 1) {
   return round1(
     drinkEntries
-      .filter((e) => e.date >= startDate && e.date < endDateExclusive)
+      .filter((e) => e.user_id === userId && e.date >= startDate && e.date < endDateExclusive)
       .reduce((acc, e) => acc + e.calories, 0),
   )
 }
 
-export function waterFor(date) {
-  const waterDrinkIds = new Set(drinks.filter((d) => d.counts_toward_water).map((d) => d.id))
-  const entries = drinkEntries.filter((e) => e.date === date && waterDrinkIds.has(e.drink_id))
+export function waterFor(date, userId = 1) {
+  const waterDrinkIds = new Set(
+    drinks.filter((d) => d.user_id === userId && d.counts_toward_water).map((d) => d.id),
+  )
+  const entries = drinkEntries.filter(
+    (e) => e.user_id === userId && e.date === date && waterDrinkIds.has(e.drink_id),
+  )
+  const account = users.find((u) => u.id === userId) ?? user
   return {
     date,
     consumed_ml: entries.reduce((acc, e) => acc + e.volume_ml, 0),
-    target_ml: user.daily_water_goal_ml,
+    target_ml: account.daily_water_goal_ml,
     entries,
   }
 }

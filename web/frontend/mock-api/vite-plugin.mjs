@@ -29,7 +29,7 @@ function middleware() {
 
     let result
     try {
-      result = handle(req.method ?? 'GET', url, body)
+      result = handle(req.method ?? 'GET', url, body, req.headers)
     } catch (error) {
       console.error('[fixture-api] handler error:', error)
       res.statusCode = 500
@@ -43,6 +43,7 @@ function middleware() {
     res.statusCode = result.status
     res.setHeader('Content-Type', result.contentType ?? 'application/json')
     res.setHeader('Cache-Control', 'no-store')
+    for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value)
     res.end(typeof result.body === 'string' ? result.body : JSON.stringify(result.body))
   }
 }

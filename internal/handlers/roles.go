@@ -222,21 +222,26 @@ func existingEmails(emails []string) (map[string]bool, error) {
 	return existing, rows.Err()
 }
 
-// currentUserIsAdmin reports whether the request's user holds the Admin role.
+// currentUserIsAdmin reports whether the request holds the Admin role.
 //
-// Note for the acting-user switch: this must keep reading the *authenticated*
-// identity, not the acting one, so that an Admin who is viewing another
-// account can still list accounts and swap back.
+// It reads the **authenticated** identity, never the acting one: an Admin who
+// is viewing another account must still be able to list accounts and swap
+// back, and a Standard user must not gain the capability by being swapped into.
 func currentUserIsAdmin(ctx context.Context) (bool, error) {
-	email := auth.GetUserEmail(ctx)
+	email := auth.GetAuthenticatedEmail(ctx)
 	if email == "" {
 		return false, nil
 	}
-	user, err := GetOrCreateUser(email)
+	isAdmin, err := emailHoldsAdminRole(email)
 	if err != nil {
 		return false, err
 	}
-	return user.IsAdmin, nil
+	// An Admin who has never signed in has no row yet; the declared
+	// configuration is still the answer for them.
+	if !isAdmin {
+		return IsConfiguredAdmin(email), nil
+	}
+	return true, nil
 }
 
 func normalizeRoleEmail(email string) string {
