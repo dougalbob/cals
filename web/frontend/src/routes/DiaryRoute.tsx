@@ -22,11 +22,11 @@ import { caloriesPer100g, nutritionForGrams, scaleEntryToGrams } from '../lib/di
 import { defaultServing, servingChoices } from '../lib/foodServings'
 import { startRecipePickHref } from '../lib/recipePick'
 
-const MEAL_ACCENT: Record<Meal, string> = {
-  breakfast: 'border-l-meal-breakfast',
-  lunch: 'border-l-meal-lunch',
-  dinner: 'border-l-meal-dinner',
-  snacks: 'border-l-meal-snacks',
+const MEAL_ACCENT: Record<Meal, { border: string; fill: string }> = {
+  breakfast: { border: 'border-l-meal-breakfast', fill: 'bg-meal-breakfast/25' },
+  lunch: { border: 'border-l-meal-lunch', fill: 'bg-meal-lunch/25' },
+  dinner: { border: 'border-l-meal-dinner', fill: 'bg-meal-dinner/25' },
+  snacks: { border: 'border-l-meal-snacks', fill: 'bg-meal-snacks/25' },
 }
 
 export function DiaryRoute() {
@@ -123,6 +123,7 @@ export function DiaryRoute() {
 
   const entries = diary.data?.entries ?? []
   const foodCalories = diary.data?.totals.calories ?? 0
+  const totalFoodCalories = entries.reduce((total, entry) => total + entry.calories, 0)
   const drinkCalories = useMemo(
     () => (drinks.data ?? []).reduce((acc, entry) => acc + entry.calories, 0),
     [drinks.data],
@@ -243,76 +244,103 @@ export function DiaryRoute() {
       {MEALS.map((meal) => {
         const mealEntries = entries.filter((entry) => entry.meal === meal.id)
         const mealCalories = mealEntries.reduce((acc, entry) => acc + entry.calories, 0)
+        const mealShare =
+          totalFoodCalories > 0
+            ? Math.max(0, Math.min(100, (mealCalories / totalFoodCalories) * 100))
+            : 0
         return (
           <section
             key={meal.id}
             id={meal.id}
-            className={`scroll-mt-4 rounded-2xl bg-card shadow-card border-l-4 ${MEAL_ACCENT[meal.id]}`}
+            className={`relative isolate scroll-mt-4 overflow-hidden rounded-2xl bg-card shadow-card border-l-4 ${MEAL_ACCENT[meal.id].border}`}
           >
-            <header className="flex items-center justify-between px-4 pt-3">
-              <h2 className="m-0 text-base font-semibold">
-                <span aria-hidden className="mr-1.5">
-                  {meal.icon}
-                </span>
-                {meal.label}
-              </h2>
-              <span className="text-sm text-ink-light tabular-nums">{formatNumber(mealCalories)} kcal</span>
-            </header>
+            {totalFoodCalories > 0 && (
+              <span
+                data-calorie-fill
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-y-0 left-1 z-0 rounded-l-xl ${MEAL_ACCENT[meal.id].fill} transition-[width] duration-300`}
+                style={{ width: `${mealShare}%` }}
+              />
+            )}
+            <div className="relative z-10">
+              <header className="flex items-start justify-between gap-3 px-4 pt-3">
+                <h2 className="m-0 text-base font-semibold">
+                  <span aria-hidden className="mr-1.5">
+                    {meal.icon}
+                  </span>
+                  {meal.label}
+                </h2>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {totalFoodCalories > 0 && (
+                    <span
+                      data-calorie-share
+                      aria-label={`${Math.round(mealShare)}% of logged food calories`}
+                      className="rounded-md bg-black/60 px-2 py-1 text-xs font-semibold tabular-nums text-white"
+                    >
+                      {Math.round(mealShare)}%
+                    </span>
+                  )}
+                  <span className="text-sm text-ink-light tabular-nums">
+                    {formatNumber(mealCalories)} kcal
+                  </span>
+                </div>
+              </header>
 
-            <ul className="list-none m-0 p-0 px-4 pb-1">
-              {mealEntries.map((entry) => (
-                <li key={entry.id} className="flex items-center gap-3 py-2 border-b border-line-light last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="m-0 truncate text-sm font-medium">{entry.food_name || entry.recipe_name}</p>
-                    <p className="m-0 text-xs text-ink-light">
-                      {formatGrams(entry.quantity_grams)} · {formatNumber(entry.calories)} kcal
-                      {entry.recipe_id ? ' · recipe' : ''}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditingEntry(entry)}
-                    className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer"
-                    aria-label={`Edit ${entry.food_name || entry.recipe_name}`}
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteEntry.mutate(entry.id)}
-                    disabled={deleteEntry.isPending}
-                    className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
-                    aria-label={`Delete ${entry.food_name || entry.recipe_name}`}
-                  >
-                    🗑
-                  </button>
-                </li>
-              ))}
-              {mealEntries.length === 0 && <li className="py-2 text-sm text-ink-muted">Nothing logged yet</li>}
-            </ul>
+              <ul className="list-none m-0 p-0 px-4 pb-1">
+                {mealEntries.map((entry) => (
+                  <li key={entry.id} className="flex items-center gap-3 py-2 border-b border-line-light last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="m-0 truncate text-sm font-medium">{entry.food_name || entry.recipe_name}</p>
+                      <p className="m-0 text-xs text-ink-light">
+                        {formatGrams(entry.quantity_grams)} · {formatNumber(entry.calories)} kcal
+                        {entry.recipe_id ? ' · recipe' : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingEntry(entry)}
+                      className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer"
+                      aria-label={`Edit ${entry.food_name || entry.recipe_name}`}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteEntry.mutate(entry.id)}
+                      disabled={deleteEntry.isPending}
+                      className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
+                      aria-label={`Delete ${entry.food_name || entry.recipe_name}`}
+                    >
+                      🗑
+                    </button>
+                  </li>
+                ))}
+                {mealEntries.length === 0 && <li className="py-2 text-sm text-ink-muted">Nothing logged yet</li>}
+              </ul>
 
-            {/* Two ways to fill a meal. Food is searched in place, because the
-                food a person wants is usually one keystroke away. A recipe is
-                *not*: the recipe box already has the search, favourites and tag
-                filters a picker would have to duplicate, so this hands over to
-                it and carries the meal and the viewed date along (decision 40,
-                owner's 2026-10-03 follow-up). */}
-            <div className="px-4 pb-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setAddingTo(meal.id)}
-                className="min-h-10 rounded-xl bg-primary-light/15 text-primary-dark font-medium border-0 cursor-pointer"
-              >
-                + Add food
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate(startRecipePickHref(meal.id, date))}
-                title="Choose from the recipe box — the meal and date come with you"
-                className="min-h-10 rounded-xl bg-surface border border-line text-ink font-medium cursor-pointer"
-              >
-                🍽 Add recipe
-              </button>
+              {/* Two ways to fill a meal. Food is searched in place, because the
+                  food a person wants is usually one keystroke away. A recipe is
+                  *not*: the recipe box already has the search, favourites and tag
+                  filters a picker would have to duplicate, so this hands over to
+                  it and carries the meal and the viewed date along (decision 40,
+                  owner's 2026-10-03 follow-up). */}
+              <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingTo(meal.id)}
+                  className="min-h-10 rounded-xl bg-primary-light/15 text-primary-dark font-medium border-0 cursor-pointer"
+                >
+                  + Add food
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(startRecipePickHref(meal.id, date))}
+                  title="Choose from the recipe box — the meal and date come with you"
+                  className="min-h-10 rounded-xl bg-surface border border-line text-ink font-medium cursor-pointer"
+                >
+                  🍽 Add recipe
+                </button>
+              </div>
             </div>
           </section>
         )

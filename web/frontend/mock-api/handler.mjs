@@ -676,6 +676,9 @@ function recipeResponse(recipe) {
   return {
     ...recipe,
     is_favourite: seed.favouriteRecipeIds.has(recipe.id),
+    times_logged: seed.diaryEntries.filter(
+      (entry) => entry.recipe_id === recipe.id && entry.user_id === seed.user.id,
+    ).length,
     usual_grams: seed.usualGramsFor(recipe.id),
   }
 }
