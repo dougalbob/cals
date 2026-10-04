@@ -14,6 +14,32 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — The owner's seven-item road-test list recorded as decisions 66–73 (documentation only)
+
+The owner sent a list of seven issues and ideas gathered while the Phase 13 slices were being built,
+with the explicit instruction **not** to implement them in this session but to schedule them. Four
+points were clarified with him before anything was written down, because they change the work rather
+than describing it:
+
+- the bank **window replaces the day-1 accumulation everywhere** — tile, `today_available` and ring —
+  which revises decision 44's "window drives the ring only" (now **decision 66**);
+- the window **defaults to 14 days**, with presets of 30 / 14 / 7 / All time plus a custom value;
+- the body outline's shape comes from a **new per-user setting**, because `users` has no gender
+  column today (**decision 67**);
+- and which measurement row the body map writes to stays an **open design point** for the session
+  that builds it, since `POST /api/measurements` deletes the whole row for a date and no update
+  endpoint exists.
+
+The remaining items: the Diary meal-card back fill with a percentage label (68), the rule that a
+windowed chart must pan (69), the 30-day weigh-in chart with a trend line (70), the daily-goal-vs-
+consumed chart with green/amber/red bands (71), the recipe log-count badge (72), and the Recipes
+layering bug (73). Three of them fit no existing phase, so they are grouped as the **Phase 13 polish
+slice**; the rest extend Phase 14 (Metrics) and Phase 15 (Settings). The layering bug's cause was
+verified in the code first — the fixed bottom nav sets no `z-index` while the recipe-card tags are
+`z-10`/`z-20`, so the tags paint over the menu.
+
+**No code, schema, API, image or appdata change** — documentation only, following the rc13 precedent.
+
 ## 2026-10-04 — Published `v2.0.0-dev-rc19` (PR #44)
 
 The owner exercised the two authorized Phase 13 safety slices in the Arena preview and signed off on
