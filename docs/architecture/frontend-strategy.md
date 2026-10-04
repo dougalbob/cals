@@ -504,8 +504,9 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 request, 2026-10-03).
 
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
-preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc22.**
-The Unraid Force Update/review of the latest checkpoint rc22 remains pending. The React Recipes detail route now edits existing shared content
+preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc22 and
+in the later rc23 stabilisation checkpoint.**
+The Unraid Force Update/review of the latest checkpoint rc23 remains pending. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -523,7 +524,7 @@ recipe-creation UI can reuse it. The broader create-from-scratch flow and image 
 separate queued work. This metadata-only change does not touch recipe content or Diary snapshots. The
 migration runs at startup and needs no data copy or appdata operation. Full recipe-edit guarantees
 remain in the [decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03);
-rc22 Unraid Force Update/review is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3.
+Its Unraid Force Update/review (via the later rc23 checkpoint) is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3.
 
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and
@@ -566,5 +567,5 @@ a percent or two, are described in the [decision log](../product/vision-and-open
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
 merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
-`v2.0.0-dev-rc21` (PR #48) and is included in rc22. Force Update/review of the latest rc22 remains
+`v2.0.0-dev-rc21` (PR #48) and is included in rc22 and rc23. Force Update/review of the latest rc23 remains
 pending on Unraid.

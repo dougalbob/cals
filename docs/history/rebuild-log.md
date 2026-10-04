@@ -14,6 +14,32 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Published `v2.0.0-dev-rc23` (PR #52, stabilisation checkpoint)
+
+The owner directed a test-and-housekeeping pass before Phase 14 — test the app as it stands, fix only
+confirmed problems, leave a record — and then said “Lets publish”. PR #52 merged to `cals-dev` as
+`54eae29342b03f7f6a78adce26d943cface915e4`. On the PR: [Docker validation](https://github.com/dougalbob/cals/actions/runs/37202741637)
+(including the new disposable-database runtime smoke), [Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37202741627)
+and the [milestone browser suite](https://github.com/dougalbob/cals/actions/runs/37202741609); the
+post-merge Go run [37202830447](https://github.com/dougalbob/cals/actions/runs/37202830447) passed.
+
+[Publish run 37202837131](https://github.com/dougalbob/cals/actions/runs/37202837131) passed the
+`cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the
+anonymous-pull check. Digest: `sha256:7dcc259c9c8e6d85c6be193d5446c10bcd1fb3cf7a168e92e0867b58c9d02444`;
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc23). **The tag also triggered
+the milestone browser run** ([37202837122](https://github.com/dougalbob/cals/actions/runs/37202837122),
+51 passed) — the first time a checkpoint's own commit was browser-tested at deploy time.
+
+The checkpoint contains: the Playwright browser suite (51 tests — Diary flows, the Today/Diary
+hydration split with drink-calorie accounting, the origin marker and catalogue filters, and the recipe
+area control by control including real touch taps); the container runtime smoke in CI; the recipe
+portion sheet's Cancel / Add to diary moved into the modal footer; and the phone tick-box fix
+(`touch-action: manipulation` plus non-selectable labels) for the reported Own creation / Meal occasion
+taps. **No API, schema, migration, data copy, appdata operation or template change.** Force
+Update/review of rc23 on Unraid is pending, and is where the three phone checks get their first
+real-device confirmation. The publication record itself landed in the follow-up docs PR (#53), because
+a run's digest cannot be written before the run exists.
+
 ## 2026-10-04 — Phone tick-box taps: the recipe area gets a top-to-bottom browser pass
 
 The owner reported that on the phone the **Own creation** tick-box sometimes ignored a tap, that the
