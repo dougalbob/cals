@@ -289,10 +289,10 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > in place with a fixed name and saved Diary snapshots; correcting food nutrition also refreshes every
 > dependent recipe definition transactionally, including archived recipes. The implementation and
 > regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
-> `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in rc22 and in the
-> later rc23 stabilisation checkpoint. The Unraid Force Update/review of the latest checkpoint (rc23)
-> remains pending. Current recipe-authoring/review status is tracked in
-> [`CURRENT_STATE.md`](../CURRENT_STATE.md); image upload/crop remains a separate feature. See
+> `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in rc22, rc23 and
+> rc24. The Unraid Force Update/review of the latest checkpoint (rc24) remains pending. Current
+> recipe-authoring/review status is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md); image
+> upload/crop remains a separate feature. See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
@@ -560,10 +560,11 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
-  `v2.0.0-dev-rc19`; the changes are included in rc22 and rc23, whose Unraid Force Update/review remains pending.
-- **Separate authoring scope:** recipe creation without a photo is a distinct Phase 13 slice, not part
-  of the two authorized safety slices; image upload/crop remains separate. Current implementation and
-  review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
+  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23 and rc24, whose Unraid Force Update/review remains pending.
+- **Separate authoring scope:** recipe creation without a photo was a distinct Phase 13 slice, separate
+  from the two authorized safety slices; it is now implemented and published in `v2.0.0-dev-rc24`
+  (PR #54). Image upload/crop remains separate. Current Unraid review status is in
+  [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## Retiring recipes and correcting foods — decisions 59–61 (2026-10-03)
 
@@ -593,7 +594,7 @@ label everywhere, including historical entries. Current implementation status li
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
-- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in rc22 and in the later rc23 checkpoint; rc23's Unraid Force Update/review remains pending.
+- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in rc22, rc23 and rc24; the latest rc24 Force Update/review on Unraid remains pending.
   Food nutrition correction and every dependent recipe refresh share one transaction; archived
   definitions are included, manually measured cooked weights are retained, and saved Diary nutrition
   and totals remain unchanged. A corrected food name may change its joined historic label only.
@@ -620,8 +621,8 @@ manual-weight concentration, both household users' history, daily totals, bank f
 corrected nutrition, and rollback when a dependent update fails. A separate recipe-editor regression
 proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck, lint and `build:go` pass. The owner exercised both slices
 in the Arena preview and signed off on them on 2026-10-04. PR #44 and the post-merge Go validation
-passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc23
-includes these changes; the owner has not yet Force Updated Unraid to rc23.
+passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc24
+includes these changes; the owner has not yet Force Updated Unraid to rc24.
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 

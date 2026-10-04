@@ -148,7 +148,8 @@ thing that is ever rebuilt is the toolchain, never the tests.
 Pushing a `v*-dev*` tag starts the publish workflow **and** the browser suite against the same commit,
 so every development checkpoint carries a record that the phone journeys were exercised on exactly the
 code being deployed. (First proven on `v2.0.0-dev-rc23`, 2026-10-04: `publish-dev-image.yml` run
-37202837131 and `web-e2e.yml` run 37202837122, 51 passed.) The browser run is evidence rather than a gate — the image is already in GHCR by
+37202837131 and `web-e2e.yml` run 37202837122, 51 passed; rc24's publish run 37206446238 and
+`web-e2e.yml` run 37206446239 passed with 53.) The browser run is evidence rather than a gate — the image is already in GHCR by
 the time it finishes, and a failure does not unpublish it (report it and fix forward instead). The
 pre-publish checklist in
 [`git-workflow.md`](./git-workflow.md#before-you-start-the-loop--the-pre-publish-checklist) covers the
