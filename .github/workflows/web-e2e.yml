@@ -1,0 +1,107 @@
+# Real-browser Playwright suite for the highest-value phone journeys.
+#
+# WHEN THIS RUNS
+# Not on every pull request. The suite is heavier than the fast checks (it
+# builds the bundle and drives a real Chromium), so it is reserved for
+# milestones: every release-candidate tag, a manual dispatch, or a PR that
+# opts in with the `run-e2e` label. Ordinary PRs keep the frontend lint/
+# Vitest/typecheck/build, the Docker build + runtime smoke and the Go checks.
+#
+# WHAT IT TESTS
+# The React bundle served by `serve-preview.mjs` with the fixture API in
+# process — hermetic, no Go server, no SQLite, and never any household data.
+# The journeys are the ones that live in layout and interaction rather than in
+# unit-testable logic: logging and editing on the Diary (including the mobile
+# Edit sheet's fixed Cancel/Save footer), the Today-vs-Diary hydration split and
+# drink-calorie accounting, and the recipe origin marker with catalogue filters.
+#
+# WHY ARTIFACTS AND A SUMMARY
+# A red browser job must be diagnosable without the raw Actions log: traces,
+# screenshots and video for each failure are uploaded even when the job fails,
+# and `e2e/summarise-results.mjs` prints a short failure list (test title, first
+# line of the error, artifact names) into the log and the run summary.
+#
+# Run it locally with: cd web/frontend && npm run test:e2e
+# See docs/architecture/testing.md.
+
+name: Playwright browser suite (milestone)
+
+on:
+  # A release candidate is the milestone gate.
+  push:
+    tags:
+      - 'v*-dev*'
+  workflow_dispatch:
+  # Escape hatch: add the `run-e2e` label to a risky pull request.
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: playwright (phone + desktop smoke)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.label.name == 'run-e2e'
+    defaults:
+      run:
+        working-directory: web/frontend
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      # ubuntu-latest has normal network access; --with-deps installs the
+      # Chromium build plus its system libraries.
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # `test:e2e` = `npm run build:preview && playwright test`, so the suite
+      # always runs against the bundle built from this commit.
+      - name: Run the browser suite
+        run: npm run test:e2e
+
+      - name: Failure summary
+        if: always()
+        run: node e2e/summarise-results.mjs test-results/results.json
+
+      # Traces, screenshots, video and both reports, even when the suite failed.
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-${{ github.ref_name }}-${{ github.run_id }}
+          path: |
+            web/frontend/test-results
+            web/frontend/playwright-report
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Playwright browser suite"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Result | ${{ job.status }} |"
+            echo "| Commit | $GITHUB_SHA |"
+            echo "| Artifacts | \`playwright-${{ github.ref_name }}-${{ github.run_id }}\` (traces, screenshots, video, HTML report) |"
+            echo ""
+            echo "Ran against the built bundle + fixture API; see docs/architecture/testing.md."
+          } >> "$GITHUB_STEP_SUMMARY"

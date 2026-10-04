@@ -147,6 +147,16 @@ export function handle(method, url, body) {
   if (pathname === '/api/version') return json({ version: '1.7.0-spike' })
   if (pathname === '/health') return { status: 200, body: 'OK', contentType: 'text/plain' }
 
+  // --- test-only fixture control ------------------------------------------
+  // The Playwright suite mutates this shared, in-process fixture state, so it
+  // needs a way back to the seeded baseline between specs. This route exists
+  // only in the fixture API (serve-preview.mjs and the Vite plugin) and has no
+  // equivalent in the Go server, which owns a real SQLite database instead.
+  if (pathname === '/api/_test/reset' && method === 'POST') {
+    seed.resetFixtures()
+    return json({ reset: true, today: seed.TODAY })
+  }
+
   // --- read endpoints ------------------------------------------------------
   if (pathname === '/api/users/me' && method === 'GET') return json(user)
 

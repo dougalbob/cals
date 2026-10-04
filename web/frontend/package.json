@@ -11,9 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "npm run build:preview && playwright test",
+    "test:e2e:phone": "npm run build:preview && playwright test --project=phone",
     "build:preview": "VITE_PREVIEW=1 vite build --outDir preview",
     "serve:preview": "node serve-preview.mjs",
-    "lint": "eslint --ext .ts,.tsx src vite.config.ts --max-warnings 0",
+    "lint": "eslint --ext .ts,.tsx src e2e playwright.config.ts vite.config.ts --max-warnings 0",
     "build:go": "npm run typecheck && vite build --mode go"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.4",
