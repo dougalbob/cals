@@ -290,11 +290,11 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > dependent recipe definition transactionally, including archived recipes. The implementation and
 > regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
 > `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in rc22, rc23 and
-> rc24. The owner reports rc24 installed and new recipe creation working well. Decision 82 adds
-> uncropped photo upload/replacement to Phase 13 on the current, unpublished branch; decisions 83–85
-> also set Today/Diary fill alpha to 25%/5%, add the Own creation recipe-details filter checkbox, and
-> require confirmation before Diary meal-entry deletion. Cropping is deferred. Current review status
-> is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
+> rc24. The owner reports rc24 installed and new recipe creation working well. Decision 82's optional,
+> uncropped photo upload/replacement and decisions 83–85 (Today/Diary fill alpha 25%/5%, Own creation
+> recipe-details filter checkbox, and Diary meal-entry delete confirmation) were published in
+> `v2.0.0-dev-rc25` (PR #56). The owner has not yet reported Force Updating or reviewing rc25 on
+> Unraid; cropping remains deferred. Current status is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
@@ -562,11 +562,12 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
-  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23 and rc24; the owner later reported rc24 installed.
+  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23, rc24 and rc25; the owner later reported rc24 installed.
 - **Separate authoring scope (at rc24):** recipe creation without a photo was a distinct Phase 13
   slice, separate from the two authorized safety slices; it is implemented and published in
   `v2.0.0-dev-rc24` (PR #54). Decision 82 later expands Phase 13 to include uncropped photo upload
-  and replacement; cropping remains deferred. Current review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
+  and replacement, published in `v2.0.0-dev-rc25` (PR #56); cropping remains deferred. Current
+  Unraid review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## Retiring recipes and correcting foods — decisions 59–61 (2026-10-03)
 
@@ -623,8 +624,8 @@ manual-weight concentration, both household users' history, daily totals, bank f
 corrected nutrition, and rollback when a dependent update fails. A separate recipe-editor regression
 proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck, lint and `build:go` pass. The owner exercised both slices
 in the Arena preview and signed off on them on 2026-10-04. PR #44 and the post-merge Go validation
-passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc24
-includes these changes; the owner later reported rc24 installed on Unraid.
+passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. These changes are included
+in rc24 and the latest checkpoint, rc25; the owner last reported rc24 installed on Unraid.
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 

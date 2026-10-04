@@ -14,6 +14,21 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Phase 13 photo upload and UI follow-ups published as rc25 (PR #56)
+
+The recipe-photo upload/replacement and decisions 83–85 completed the Phase 13 follow-up. PR #56
+merged to `cals-dev` at `1e38a777c1c234cccc1a711fdde5abbd8a9e36e5`; the annotated tag
+`v2.0.0-dev-rc25` points to that merge commit. [Docker/runtime](https://github.com/dougalbob/cals/actions/runs/37212805944),
+[Go](https://github.com/dougalbob/cals/actions/runs/37212805943) and [PR browser](https://github.com/dougalbob/cals/actions/runs/37212836489)
+checks passed. [Publish run 37212991108](https://github.com/dougalbob/cals/actions/runs/37212991108) built and pushed the exact tag and `dev-latest`, recorded digest
+`sha256:814484b008cb5c915e15687208e0c1ab712f60c2c58bf35e32c855b8b6a2fc0d`, created the
+[GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc25), and passed the
+anonymous-pull gate. The tagged [Playwright suite](https://github.com/dougalbob/cals/actions/runs/37212991110)
+passed all 60 tests. No schema migration, data copy, appdata operation or template change. The owner
+last reported rc24 installed; Force Update/review of rc25 on Unraid remains pending. Cropping remains
+deferred. See the [release log](../architecture/unraid-image-release.md#release-log) and
+[current status](../CURRENT_STATE.md).
+
 ## 2026-10-04 — Today, Recipes and Diary follow-ups (decisions 83–85)
 
 The owner folded three UI refinements into the same branch as recipe-photo upload. Today meal-card fills

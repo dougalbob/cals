@@ -432,7 +432,7 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 **First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients.
 
-**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. At that checkpoint, recipes still had no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed. Safe in-place content editing and dependent-food recalculation were later published in `v2.0.0-dev-rc19` (see below). Recipe creation without a photo was added in rc24. Decision 82 later adds uncropped photo upload and replacement to Phase 13; cropping remains deferred.
+**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. At that checkpoint, recipes still had no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed. Safe in-place content editing and dependent-food recalculation were later published in `v2.0.0-dev-rc19` (see below). Recipe creation without a photo was added in rc24. Decision 82 later added uncropped photo upload and replacement to Phase 13, published in rc25; cropping remains deferred.
 
 | Before | Now |
 |---|---|
@@ -506,9 +506,9 @@ request, 2026-10-03).
 
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
 preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, included in rc22, rc23 and
-rc24.** The owner reports rc24 is installed and new recipe creation works well. Decision 82 adds
-uncropped photo upload/replacement in the current branch, not yet published; cropping is deferred.
-The React Recipes detail route now edits existing shared content
+rc24.** The owner reports rc24 is installed and new recipe creation works well. Uncropped photo
+upload/replacement and decisions 83–85 were published in `v2.0.0-dev-rc25` (PR #56); Unraid phone
+review is pending (see [`CURRENT_STATE.md`](../CURRENT_STATE.md)). Cropping is deferred. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -529,7 +529,7 @@ current review and release status is tracked in [`CURRENT_STATE.md`](../CURRENT_
 
 **Recipe creation and direct photo upload (decision 82).** The `/recipes/new` route authors a new name, description, matched cals Food ingredients/grams, optional text ingredients, serves, manual or calculated cooked yield, and method. The form shows a live nutrition estimate from matched Foods; text-only ingredients are excluded. Meal occasions, dish type, up to two key foods already in the ingredient list, Own creation, and optional exact total minutes are saved with the recipe. `POST /api/recipes` validates the content and classification and writes them in one transaction; the route preserves catalogue/Diary context and opens the detail page after creation.
 
-A photo is optional: the create form accepts JPEG, PNG or WebP files up to 10 MiB, previews the selected original without cropping, then posts it as multipart data to the existing authenticated `POST /api/recipes/{id}/image` route after the recipe is saved. Existing recipe detail uses the same picker to replace its current photo. Because recipe creation and photo upload are separate requests, a failed photo upload must leave the recipe saved, navigate to that recipe, and clearly instruct the user to choose the photo again and retry—never ask them to submit the recipe again. The backend versions the files, maintains the original and thumbnail, and continues serving legacy numeric image filenames; no schema migration is needed. Crop UI and crop processing are explicitly deferred until road testing shows a need. Current branch/review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
+A photo is optional: the create form accepts JPEG, PNG or WebP files up to 10 MiB, previews the selected original without cropping, then posts it as multipart data to the existing authenticated `POST /api/recipes/{id}/image` route after the recipe is saved. Existing recipe detail uses the same picker to replace its current photo. Because recipe creation and photo upload are separate requests, a failed photo upload must leave the recipe saved, navigate to that recipe, and clearly instruct the user to choose the photo again and retry—never ask them to submit the recipe again. The backend versions the files, maintains the original and thumbnail, and continues serving legacy numeric image filenames; no schema migration is needed. Crop UI and crop processing are explicitly deferred until road testing shows a need. This flow shipped in rc25; the owner's Unraid update/review is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and
@@ -578,4 +578,4 @@ The slice needs the usual gates: preview at phone size, the concrete UX improvem
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
 merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
 `v2.0.0-dev-rc21` (PR #48) and is included in rc22, rc23 and rc24. The owner reports rc24 installed;
-the current branch's decision-82 image-upload work is not in a published build.
+decision-82 image upload/replacement shipped in rc25; the owner update and phone review are pending.
