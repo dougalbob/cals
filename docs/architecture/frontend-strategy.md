@@ -412,7 +412,7 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 **First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients.
 
-**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. At that checkpoint, recipes still had no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed. Safe in-place content editing has since been added to the current session branch (see below); creating recipes from scratch and image upload/crop remain later work.
+**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. At that checkpoint, recipes still had no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed. Safe in-place content editing and dependent-food recalculation are now published in `v2.0.0-dev-rc19` (see below); creating recipes from scratch and image upload/crop remain later work.
 
 | Before | Now |
 |---|---|
@@ -484,8 +484,9 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 **💧 Hydration** because tea/coffee/squash etc. all contribute to the daily ml target (owner
 request, 2026-10-03).
 
-**Safe recipe editing and food correction — implemented on the 2026-10-04 Arena session branch,
-owner-tested and signed off in the Arena preview; pending merge and release.** The React Recipes detail route now edits existing shared content
+**Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
+preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`.** The Unraid Force
+Update/review remains pending. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in

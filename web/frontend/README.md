@@ -1,14 +1,14 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six published
-increments run through `v2.0.0-dev-rc18`; the owner reports rc18 is running on Unraid and approves it
-(2026-10-04). This Arena session additionally implements two authorized slices on its working branch:
-editing existing recipe content safely (decisions 55–58) and transactional food-correction refresh of
-dependent recipe definitions (decisions 60–61). The owner exercised both slices in the Arena preview and signed off on them on 2026-10-04;
-they are pending merge and publication. Earlier increments cover the photo-led catalogue, per-user favourites, shared structured
-tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with each user's
-remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18 refinements.
-Creating a recipe from scratch and image upload/crop remain later work. The legacy Mealie importer is
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six earlier
+increments run through `v2.0.0-dev-rc18`; rc19, published 2026-10-04, adds safe editing of existing
+recipe content (decisions 55–58) and transactional food-correction refresh of dependent recipe
+definitions (decisions 60–61). The owner exercised both in the Arena preview and signed off before
+publication; the rc19 Force Update/review on Unraid is still pending. Earlier increments cover the
+photo-led catalogue, per-user favourites, shared structured tags and filters, named gram-backed food
+measures, recipe-to-Diary portion logging with each user's remembered usual, archive/restore,
+Diary meal-card recipe hand-off and the Calendar/rc18 refinements. Creating a recipe from scratch and
+image upload/crop remain later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
@@ -169,8 +169,8 @@ decision 29–32 behaviour (fractions, direct grams, no guessed quantity, rememb
 search/import is intentionally not implemented in this React frontend.
 
 **Later authoring work:** create a recipe from scratch, with image upload/crop. Existing recipe edits
-and food-correction recalculation are implemented on the current session branch; neither belongs to
-this later slice.
+and food-correction recalculation are published in `v2.0.0-dev-rc19`; neither belongs to this later
+slice.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).

@@ -271,9 +271,9 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > **Authorized Phase 13 safety slices (2026-10-04):** the React app now edits existing shared recipes
 > in place with a fixed name and saved Diary snapshots; correcting food nutrition also refreshes every
 > dependent recipe definition transactionally, including archived recipes. The implementation and
-> regression tests are on the current Arena session branch. The owner exercised both slices in the
-> Arena preview and signed off on them on 2026-10-04; publication is proceeding through the documented
-> GitHub loop. Recipe creation from scratch and image upload/crop remain later work. See [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
+> regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
+> `v2.0.0-dev-rc19` after PR #44 passed validation. The Unraid Force Update/review remains pending.
+> Recipe creation from scratch and image upload/crop remain later work. See [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
@@ -488,11 +488,11 @@ designed: water not tracked for days, weight not entered for weeks, a recipe wit
 ## Adapting an existing recipe — decisions 55–58 (2026-10-03)
 
 **The gap the owner raised.** Phase 13's React Recipes experience could list, filter, favourite and
-log a recipe, and edit its tags/occasion metadata — but could not **change a recipe itself**. The
-current Arena session now adds a React content editor and enforces the fixed-name rule at the API
-boundary. It also recalculates dependent recipe definitions when a food is corrected. These changes
-are implemented and tested on the active session branch. The owner exercised the changes in the Arena
-preview and signed off on them on 2026-10-04; they are pending merge and publication.
+log a recipe, and edit its tags/occasion metadata — but could not **change a recipe itself**. PR #44
+adds a React content editor and enforces the fixed-name rule at the API boundary. It also recalculates
+dependent recipe definitions when a food is corrected. These changes
+were implemented and tested, exercised and approved by the owner in the Arena preview on 2026-10-04,
+and published in `v2.0.0-dev-rc19` after PR #44 passed validation.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -503,7 +503,7 @@ preview and signed off on them on 2026-10-04; they are pending merge and publica
 
 ### Why the guarantee holds — and how the implementation defends it
 
-Verified on 2026-10-03 against the real handlers and extended in the current session branch:
+Verified on 2026-10-03 against the real handlers; the safeguards were implemented in the session branch, merged in PR #44 and published in `v2.0.0-dev-rc19`:
 
 - `POST /api/diary` stores the client's nutrition snapshot; it does not derive it from the recipe.
 - `PUT /api/diary/{id}` (the logged-quantity edit) writes exactly what it is sent; the client scales
@@ -536,9 +536,10 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Food nutrition correction:** dependent recipe definitions are recalculated transactionally,
   including archived definitions, with manual cooked weights preserved. Saved Diary nutrition and
   totals are never rewritten; the current joined food label may reflect a corrected name.
-- **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck and lint
-  pass in the session branch. The owner exercised both slices in the Arena preview and signed off on
-  them on 2026-10-04. They are pending merge and publication.
+- **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
+  `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
+  2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
+  `v2.0.0-dev-rc19`. Unraid Force Update/review remains pending.
 - **Later authoring work remains separate:** creating recipes from scratch and image upload/crop are
   not part of the two authorized slices.
 
@@ -570,7 +571,7 @@ label everywhere, including historical entries. Current implementation status li
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
-- **Decisions 60–61 — implemented on the active Arena session branch, owner-approved in the Arena preview (2026-10-04), and pending merge/release.**
+- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** Unraid Force Update/review remains pending.
   Food nutrition correction and every dependent recipe refresh share one transaction; archived
   definitions are included, manually measured cooked weights are retained, and saved Diary nutrition
   and totals remain unchanged. A corrected food name may change its joined historic label only.
@@ -595,9 +596,10 @@ mirrors recalculation and the current-label join while leaving its Diary snapsho
 Go regressions cover multiple dependent definitions, an archived recipe, an unrelated recipe,
 manual-weight concentration, both household users' history, daily totals, bank figures, new logs using
 corrected nutrition, and rollback when a dependent update fails. A separate recipe-editor regression
-proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck and lint pass on the current session branch. The owner
-exercised both slices in the Arena preview and signed off on them on 2026-10-04; publication is
-proceeding through the documented GitHub loop.
+proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck, lint and `build:go` pass. The owner exercised both slices
+in the Arena preview and signed off on them on 2026-10-04. PR #44 and the post-merge Go validation
+passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The owner has not yet
+Force Updated Unraid to rc19.
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 
