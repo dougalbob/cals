@@ -14,6 +14,23 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Published `v2.0.0-dev-rc20` (PR #46, documentation only)
+
+The owner said **"lets publish"**, so the delivery loop ran end to end. PR #46 passed both
+validation workflows — [Go vet + tests](https://github.com/dougalbob/cals/actions/runs/37165813876)
+(13 s) and [Docker build](https://github.com/dougalbob/cals/actions/runs/37165813898) (1 m 46 s) —
+and merged to `cals-dev` as `4c96fa3`. That exact merge commit was tagged `v2.0.0-dev-rc20`;
+[publish run 37165937734](https://github.com/dougalbob/cals/actions/runs/37165937734) passed the
+ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and the
+anonymous-pull check. Digest
+`sha256:67d79b90c27d4fbb446ca33e7abc3076dbf7cb0e4ab33d0cf56f04be4d01b202`;
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc20).
+
+**The image is functionally identical to rc19** — this checkpoint carries documentation only, so
+there is nothing new for the household to see and no Force Update is required on its own account.
+The outstanding owner review is still rc19's. No schema migration, data copy, appdata operation or
+template change.
+
 ## 2026-10-04 — The owner's seven-item road-test list recorded as decisions 66–73 (documentation only)
 
 The owner sent a list of seven issues and ideas gathered while the Phase 13 slices were being built,
