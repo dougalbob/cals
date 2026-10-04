@@ -4,6 +4,7 @@ import {
   dishTagKey,
   foodTagKey,
   matchesTags,
+  OWN_CREATION_TAG_KEY,
   occasionTagKey,
   parseTagParam,
   recipeTags,
@@ -16,11 +17,12 @@ import {
   toggleTag,
 } from './recipeTags'
 
-type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods'>
+type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods' | 'is_own_creation'>
 
 const chickenPie: TaggableRecipe = {
   meal_occasions: ['dinner'],
   dish_type: 'main',
+  is_own_creation: false,
   key_foods: [
     { food_id: 5, food_name: 'Chicken Breast, grilled' },
     { food_id: 25, food_name: 'Mushrooms, sliced' },
@@ -30,6 +32,7 @@ const chickenPie: TaggableRecipe = {
 const porridge: TaggableRecipe = {
   meal_occasions: ['breakfast'],
   dish_type: undefined,
+  is_own_creation: false,
   key_foods: [{ food_id: 1, food_name: 'Porridge Oats' }],
 }
 
@@ -43,21 +46,33 @@ describe('recipeTags', () => {
     ])
   })
 
+  it('adds the own-creation marker before key foods so it stays grouped with the tag row', () => {
+    expect(recipeTags({ ...chickenPie, is_own_creation: true })).toEqual([
+      { key: 'occasion:dinner', kind: 'occasion', label: 'Dinner' },
+      { key: 'dish:main', kind: 'dish', label: 'Main' },
+      { key: OWN_CREATION_TAG_KEY, kind: 'origin', label: 'Own creation' },
+      { key: 'food:5', kind: 'food', label: 'Chicken Breast, grilled', foodId: 5 },
+      { key: 'food:25', kind: 'food', label: 'Mushrooms, sliced', foodId: 25 },
+    ])
+  })
+
   it('matches every selected tag (AND), not any of them', () => {
     expect(matchesTags(chickenPie, [])).toBe(true)
     expect(matchesTags(chickenPie, ['food:5'])).toBe(true)
     expect(matchesTags(chickenPie, ['food:5', 'food:25'])).toBe(true)
     expect(matchesTags(chickenPie, ['food:5', 'food:1'])).toBe(false)
     expect(matchesTags(chickenPie, ['occasion:breakfast'])).toBe(false)
+    expect(matchesTags({ ...chickenPie, is_own_creation: true }, [OWN_CREATION_TAG_KEY])).toBe(true)
+    expect(matchesTags(chickenPie, [OWN_CREATION_TAG_KEY])).toBe(false)
     expect(matchesTags(porridge, ['occasion:breakfast', 'food:1'])).toBe(true)
   })
 })
 
 describe('tag keys and the ?tags= parameter', () => {
   it('round-trips a selection, dropping unknown and duplicate keys', () => {
-    const raw = 'food:5, occasion:dinner ,food:5,nonsense,food:abc,dish:main'
-    expect(parseTagParam(raw)).toEqual(['food:5', 'occasion:dinner', 'dish:main'])
-    expect(serialiseTagParam(parseTagParam(raw))).toBe('food:5,occasion:dinner,dish:main')
+    const raw = 'food:5, occasion:dinner ,food:5,nonsense,food:abc,dish:main,origin:own,origin:other'
+    expect(parseTagParam(raw)).toEqual(['food:5', 'occasion:dinner', 'dish:main', OWN_CREATION_TAG_KEY])
+    expect(serialiseTagParam(parseTagParam(raw))).toBe('food:5,occasion:dinner,dish:main,origin:own')
     expect(parseTagParam(null)).toEqual([])
     expect(parseTagParam('')).toEqual([])
   })
@@ -86,6 +101,7 @@ describe('tag keys and the ?tags= parameter', () => {
   it('labels a tag from the catalogue, with a fallback for a stale food key', () => {
     expect(tagLabel('occasion:lunch')).toBe('Lunch')
     expect(tagLabel('dish:soup')).toBe('Soup')
+    expect(tagLabel(OWN_CREATION_TAG_KEY)).toBe('Own creation')
     expect(tagLabel('food:25', [chickenPie, porridge])).toBe('Mushrooms, sliced')
     // A food that no loaded recipe marks as key cannot be named — but it stays
     // visible and removable rather than becoming an invisible filter.

@@ -69,6 +69,13 @@ describe('RecipeDetailRoute', () => {
     expect(tagGroup.textContent).toContain('Chicken Breast, grilled')
 
     fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    const ownCreation = screen.getByRole('checkbox', { name: 'Own creation' }) as HTMLInputElement
+    expect(ownCreation.checked).toBe(false)
+    const ownCreationBlock = ownCreation.closest('fieldset')
+    const keyFoodsBlock = screen.getByText('Key foods (choose up to two)').closest('fieldset')
+    if (!ownCreationBlock || !keyFoodsBlock) throw new Error('recipe-origin/key-food fieldsets not found')
+    expect(ownCreationBlock.compareDocumentPosition(keyFoodsBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(ownCreation)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Snack' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Dish type' }), {
       target: { value: 'side' },
@@ -90,9 +97,21 @@ describe('RecipeDetailRoute', () => {
       expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Snack')
       expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Side')
       expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Broccoli, steamed')
+      expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Own creation')
       expect(screen.queryByRole('button', { name: 'Save tags and time' })).toBeNull()
     })
+    expect(seedRecipe(1).is_own_creation).toBe(true)
+    const ownTag = within(screen.getByRole('group', { name: 'Chicken Curry tags' })).getByRole('link', {
+      name: 'Show recipes tagged Own creation',
+    })
+    expect(ownTag.className).toContain('bg-orange-200')
     expect(screen.getByText('75 min total')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Own creation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save tags and time' }))
+    await waitFor(() => expect(seedRecipe(1).is_own_creation).toBe(false))
+    expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).not.toContain('Own creation')
   })
 })
 

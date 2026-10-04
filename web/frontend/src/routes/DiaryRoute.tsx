@@ -23,10 +23,10 @@ import { defaultServing, servingChoices } from '../lib/foodServings'
 import { startRecipePickHref } from '../lib/recipePick'
 
 const MEAL_ACCENT: Record<Meal, { border: string; fill: string }> = {
-  breakfast: { border: 'border-l-meal-breakfast', fill: 'bg-meal-breakfast/25' },
-  lunch: { border: 'border-l-meal-lunch', fill: 'bg-meal-lunch/25' },
-  dinner: { border: 'border-l-meal-dinner', fill: 'bg-meal-dinner/25' },
-  snacks: { border: 'border-l-meal-snacks', fill: 'bg-meal-snacks/25' },
+  breakfast: { border: 'border-l-meal-breakfast', fill: 'bg-meal-breakfast/5' },
+  lunch: { border: 'border-l-meal-lunch', fill: 'bg-meal-lunch/5' },
+  dinner: { border: 'border-l-meal-dinner', fill: 'bg-meal-dinner/5' },
+  snacks: { border: 'border-l-meal-snacks', fill: 'bg-meal-snacks/5' },
 }
 
 export function DiaryRoute() {
@@ -504,7 +504,30 @@ function EditQuantityModal({
   const hasMeasures = servingChoices(foodMeasures).length > 0
 
   return (
-    <Modal open title={`Edit ${name}`} onClose={onClose}>
+    <Modal
+      open
+      title={`Edit ${name}`}
+      onClose={onClose}
+      footer={(
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 rounded-xl border border-line bg-surface px-3.5 text-sm text-ink cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!valid || !changed || saving}
+            onClick={() => onSave(grams)}
+            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-white border-0 cursor-pointer disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
+    >
       <p className="m-0 text-xs text-ink-light">
         Logged as {formatGrams(entry.quantity_grams)} · {formatNumber(entry.calories)} kcal
         {per100g !== null ? ` · ${formatNumber(per100g)} kcal per 100 g` : ''}
@@ -538,23 +561,6 @@ function EditQuantityModal({
         </p>
       )}
 
-      <div className="flex items-center justify-end gap-2 mt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-11 px-3.5 rounded-xl border border-line bg-surface text-ink text-sm cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={!valid || !changed || saving}
-          onClick={() => onSave(grams)}
-          className="min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-medium border-0 cursor-pointer disabled:opacity-50"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
     </Modal>
   )
 }

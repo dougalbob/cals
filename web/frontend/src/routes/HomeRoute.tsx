@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
-import { addDrinkEntry, deleteDrinkEntry } from '../api/diary'
-import { MEALS, type Drink, type User } from '../api/types'
+import { MEALS, type User } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
-import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
-import { Modal } from '../components/Modal'
-import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
+import { useBank, useDiary, useDrinkEntries } from '../hooks/useDiaryData'
 import { formatLongDate, formatNumber, todayIso } from '../lib/format'
 
 function greeting(hour: number): string {
@@ -19,20 +16,12 @@ function greeting(hour: number): string {
 /**
  * "Today" — the landing page for the current state of play.
  *
- * Designed around four primary interactions:
- * 1. At a glance calorie ring (outer cumulative bank vs inner daily-goal countdown).
- * 2. 4 square meal buttons in a row showing calories, meal icon, items count,
- *    linking directly to that meal in the diary.
- * 3. Merged FluidsCard with the draining water glass and quick drinks, counters,
- *    and long-press deletion with confirmation.
+ * The Today landing page is a concise summary: calorie balance, food/drink
+ * totals, and four meal cards that link to their itemised Diary sections.
+ * Hydration and quick-drink actions live on the Diary page.
  */
 export function HomeRoute() {
-  const queryClient = useQueryClient()
   const date = todayIso()
-
-  const [pendingDrink, setPendingDrink] = useState<number | null>(null)
-  const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ entryId: number; drinkName: string } | null>(null)
 
   const user = useQuery<User>({
     queryKey: queryKeys.user,
@@ -41,39 +30,6 @@ export function HomeRoute() {
   const diary = useDiary(date)
   const bank = useBank(date)
   const drinks = useDrinkEntries(date)
-  const drinkDefinitions = useDrinkDefinitions()
-  const water = useWater(date)
-
-  const refreshDrinkData = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.drinks(date) })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.water(date) })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
-  }
-
-  const addDrink = useMutation({
-    mutationFn: ({
-      drink,
-      volumeMl,
-      calories,
-    }: {
-      drink: Drink
-      volumeMl?: number
-      calories?: number
-    }) => addDrinkEntry(drink.id, date, { volumeMl, calories }),
-    onMutate: ({ drink }) => setPendingDrink(drink.id),
-    onSettled: () => setPendingDrink(null),
-    onSuccess: refreshDrinkData,
-  })
-
-  const removeDrink = useMutation({
-    mutationFn: deleteDrinkEntry,
-    onMutate: (id) => setDeletingEntryId(id),
-    onSettled: () => setDeletingEntryId(null),
-    onSuccess: () => {
-      setDeleteConfirm(null)
-      refreshDrinkData()
-    },
-  })
 
   const entries = useMemo(() => diary.data?.entries ?? [], [diary.data?.entries])
   const foodCalories = diary.data?.totals.calories ?? 0
@@ -83,12 +39,6 @@ export function HomeRoute() {
   )
   const consumed = Math.round(foodCalories + drinkCalories)
   const bankBalance = bank.data?.bank_balance ?? 0
-
-  const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
-  // The water summary carries the daily target; the profile is a useful early
-  // fallback while that query loads, so a custom goal never flashes as 2,000 ml.
-  const dailyWaterTarget =
-    water.data?.target_ml ?? user.data?.daily_water_goal_ml ?? 2000
 
   const mealSummaries = useMemo(
     () =>
@@ -165,7 +115,7 @@ export function HomeRoute() {
                 <span
                   data-calorie-fill
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-xl bg-primary-light/50 transition-[width] duration-300"
+                  className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-xl bg-primary-light/5 transition-[width] duration-300"
                   style={{ width: `${fillPercent}%` }}
                 />
                 <span className="relative z-10 text-xs font-semibold tabular-nums text-primary-dark">
@@ -190,62 +140,12 @@ export function HomeRoute() {
         </div>
       </section>
 
-      {/* Merged Fluids Card: Water glass + Quick Drinks in one card ------- */}
-      <FluidsCard
-        consumedMl={water.data?.consumed_ml ?? 0}
-        targetMl={dailyWaterTarget}
-        waterDrink={waterDrink}
-        drinks={drinkDefinitions.data ?? []}
-        entries={drinks.data ?? []}
-        onAddDrink={(drink, opts) => addDrink.mutate({ drink, ...opts })}
-        onDeleteDrinkEntry={(entryId, drinkName) => setDeleteConfirm({ entryId, drinkName })}
-        pendingDrinkId={pendingDrink}
-        deletingEntryId={deletingEntryId}
-        error={
-          (addDrink.isError ? (addDrink.error as Error).message : null) ||
-          (removeDrink.isError ? (removeDrink.error as Error).message : null) ||
-          (water.isError ? (water.error as Error).message : null)
-        }
-      />
-
       <Link
         to={`/diary/${date}`}
         className="mx-auto min-h-11 rounded-xl px-4 py-2 text-sm font-medium text-primary-dark no-underline hover:underline"
       >
         Open the full diary →
       </Link>
-
-      {/* Deletion confirmation modal for long-press ----------------------- */}
-      <Modal
-        open={deleteConfirm !== null}
-        title="Delete drink entry?"
-        onClose={() => setDeleteConfirm(null)}
-      >
-        {deleteConfirm && (
-          <div className="flex flex-col gap-3">
-            <p className="m-0 text-sm text-ink">
-              Remove the latest logged <span className="font-semibold">{deleteConfirm.drinkName}</span> from today?
-            </p>
-            <div className="flex items-center justify-end gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(null)}
-                className="min-h-10 px-3.5 rounded-xl border border-line bg-surface text-ink text-sm cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={removeDrink.isPending}
-                onClick={() => removeDrink.mutate(deleteConfirm.entryId)}
-                className="min-h-10 px-4 rounded-xl bg-danger text-white text-sm font-medium border-0 cursor-pointer disabled:opacity-50"
-              >
-                {removeDrink.isPending ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

@@ -166,7 +166,7 @@ func TestRecipeMetadataIsSharedAndUsesKnownRecipeFoods(t *testing.T) {
 
 	recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com",
 		`{"meal_occasions":["lunch","dinner"],"dish_type":"main","key_food_ids":[`+
-			strconv.FormatInt(chickenID, 10)+`, `+strconv.FormatInt(riceID, 10)+`],"total_time_minutes":45}`)
+			strconv.FormatInt(chickenID, 10)+`, `+strconv.FormatInt(riceID, 10)+`],"total_time_minutes":45,"is_own_creation":true}`)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("PUT metadata status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
@@ -175,8 +175,8 @@ func TestRecipeMetadataIsSharedAndUsesKnownRecipeFoods(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&updated); err != nil {
 		t.Fatalf("decoding metadata response: %v", err)
 	}
-	if updated.DishType != "main" || updated.TotalTimeMinutes == nil || *updated.TotalTimeMinutes != 45 {
-		t.Errorf("metadata response = %+v, want main / 45 minutes", updated)
+	if updated.DishType != "main" || updated.TotalTimeMinutes == nil || *updated.TotalTimeMinutes != 45 || !updated.IsOwnCreation {
+		t.Errorf("metadata response = %+v, want main / 45 minutes / own creation", updated)
 	}
 	if len(updated.MealOccasions) != 2 || updated.MealOccasions[0] != "lunch" || updated.MealOccasions[1] != "dinner" {
 		t.Errorf("meal occasions = %v, want [lunch dinner]", updated.MealOccasions)
@@ -187,7 +187,7 @@ func TestRecipeMetadataIsSharedAndUsesKnownRecipeFoods(t *testing.T) {
 
 	for _, email := range []string{"wife@example.com", "husband@example.com"} {
 		listed := findRecipe(t, listRecipesForTest(t, email), recipeID)
-		if listed.DishType != "main" || listed.TotalTimeMinutes == nil || *listed.TotalTimeMinutes != 45 {
+		if listed.DishType != "main" || listed.TotalTimeMinutes == nil || *listed.TotalTimeMinutes != 45 || !listed.IsOwnCreation {
 			t.Errorf("shared metadata for %s = %+v", email, listed)
 		}
 		if len(listed.MealOccasions) != 2 || len(listed.KeyFoods) != 2 {
@@ -208,13 +208,39 @@ func TestRecipeMetadataIsSharedAndUsesKnownRecipeFoods(t *testing.T) {
 		t.Errorf("shared metadata differs across users: wife=%+v husband=%+v", wifeRecipe, husbandRecipe)
 	}
 
+	// Clients predating this field may still replace the old metadata shape;
+	// omitting the additive marker must not clear a value saved by a newer client.
+	legacyBody := `{"meal_occasions":[],"dish_type":"","key_food_ids":[],"total_time_minutes":null}`
+	if recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com", legacyBody); recorder.Code != http.StatusOK {
+		t.Fatalf("legacy metadata update status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !getRecipeForTest(t, recipeID, "wife@example.com").IsOwnCreation {
+		t.Error("legacy metadata update without is_own_creation should preserve the shared marker")
+	}
+
 	if recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com",
-		`{"meal_occasions":[],"dish_type":"","key_food_ids":[],"total_time_minutes":null}`); recorder.Code != http.StatusOK {
+		`{"meal_occasions":[],"dish_type":"","key_food_ids":[],"total_time_minutes":null,"is_own_creation":false}`); recorder.Code != http.StatusOK {
 		t.Fatalf("clearing recipe metadata status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 	cleared := getRecipeForTest(t, recipeID, "wife@example.com")
-	if len(cleared.MealOccasions) != 0 || len(cleared.KeyFoods) != 0 || cleared.DishType != "" || cleared.TotalTimeMinutes != nil {
+	if len(cleared.MealOccasions) != 0 || len(cleared.KeyFoods) != 0 || cleared.DishType != "" || cleared.TotalTimeMinutes != nil || cleared.IsOwnCreation {
 		t.Errorf("metadata did not clear: %+v", cleared)
+	}
+}
+
+func TestCreateRecipeCanSetOwnCreationMarker(t *testing.T) {
+	setupHandlerDB(t)
+	createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	foodID := createNutritionFoodForTest(t, "Tomatoes", 18, 0.9, 3.9, 0.2, 1.2)
+	input := recipeInput("Tomato Soup", foodID, 300, 0, false)
+	input["is_own_creation"] = true
+
+	created := createRecipeThroughAPIForTest(t, "wife@example.com", input)
+	if !created.IsOwnCreation {
+		t.Fatal("created recipe response did not keep is_own_creation=true")
+	}
+	if listed := findRecipe(t, listRecipesForTest(t, "wife@example.com"), created.ID); !listed.IsOwnCreation {
+		t.Error("created recipe marker was not returned in the catalogue")
 	}
 }
 
@@ -254,6 +280,7 @@ func TestRecipeMetadataRejectsInvalidFacetAndKeyFoodValues(t *testing.T) {
 		{"food not in recipe", `{"key_food_ids":[` + strconv.FormatInt(otherFoodID, 10) + `]}`},
 		{"zero minutes", `{"total_time_minutes":0}`},
 		{"fractional minutes", `{"total_time_minutes":1.5}`},
+		{"non-boolean own creation marker", `{"is_own_creation":"true"}`},
 	}
 	for _, test := range invalidBodies {
 		t.Run(test.name, func(t *testing.T) {

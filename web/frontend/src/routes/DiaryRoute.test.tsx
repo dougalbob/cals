@@ -183,12 +183,12 @@ describe('DiaryRoute', () => {
 
     const breakfastFill = breakfast?.querySelector<HTMLElement>('[data-calorie-fill]')
     expect(breakfastFill?.style.width).toBe('30%')
-    expect(breakfastFill?.className).toContain('bg-meal-breakfast/25')
+    expect(breakfastFill?.className).toContain('bg-meal-breakfast/5')
     expect(within(breakfast as HTMLElement).getByLabelText('30% of logged food calories')).toBeTruthy()
 
     const dinnerFill = dinner?.querySelector<HTMLElement>('[data-calorie-fill]')
     expect(dinnerFill?.style.width).toBe('50%')
-    expect(dinnerFill?.className).toContain('bg-meal-dinner/25')
+    expect(dinnerFill?.className).toContain('bg-meal-dinner/5')
     expect(within(dinner as HTMLElement).getByLabelText('50% of logged food calories')).toBeTruthy()
 
     const snacks = screen.getByRole('heading', { name: /Snacks/ }).closest('section')
@@ -348,6 +348,16 @@ describe('DiaryRoute', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
 
+    const dialog = screen.getByRole('dialog')
+    const scrollArea = dialog.querySelector('[data-modal-scroll]')
+    const actionFooter = dialog.querySelector('[data-modal-footer]')
+    expect(scrollArea?.className).toContain('overflow-y-auto')
+    expect(actionFooter).toBeTruthy()
+    expect(within(actionFooter as HTMLElement).getByRole('button', { name: 'Cancel' })).toBeTruthy()
+    expect(within(actionFooter as HTMLElement).getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(scrollArea?.contains(screen.getByRole('button', { name: 'Cancel' }))).toBe(false)
+    expect(document.documentElement.style.overflow).toBe('hidden')
+
     // The food has named measures, so the sheet offers them first; the logged
     // weight is still what the gram input starts from.
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Grams' }))
@@ -373,8 +383,10 @@ describe('DiaryRoute', () => {
     expect(after?.protein).toBeCloseTo(originalProtein * 2, 6)
     expect(after?.fat).toBeCloseTo(originalFat * 2, 6)
 
-    // …the sheet closes, and the row shows the corrected weight.
+    // …the sheet closes, restores page scrolling, and the row shows the corrected weight.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.documentElement.style.overflow).toBe('')
+    expect(document.body.style.overflow).toBe('')
     expect(await screen.findByText(new RegExp(`^${formatNumber(originalGrams * 2)} g`))).toBeTruthy()
   })
 

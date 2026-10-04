@@ -144,6 +144,7 @@ function buildRecipe({
   dishType = '',
   keyFoodIds = [],
   totalTimeMinutes = null,
+  isOwnCreation = false,
 }) {
   const ingredients = items.map(([foodId, grams], i) => {
     const f = foodById.get(foodId)
@@ -204,6 +205,7 @@ function buildRecipe({
     created_at: `${iso(localNoon(40))}T18:20:00Z`,
     updated_at: `${iso(localNoon(12))}T19:05:00Z`,
     is_archived: false,
+    is_own_creation: isOwnCreation,
     ingredients,
     text_ingredients: (text ?? []).map((description, i) => ({
       id: id * 100 + 90 + i,
@@ -267,6 +269,7 @@ export const recipes = [
     dishType: 'main',
     keyFoodIds: [5, 25],
     totalTimeMinutes: 75,
+    isOwnCreation: true,
   }),
 ]
 

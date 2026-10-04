@@ -331,7 +331,7 @@ And the small details that make it hold together:
 - **Nothing dead-ends.** If a combination matches nothing, the empty state says so and offers **Clear filters**; the filter row is still there to unpick one tag at a time.
 - **The dropdowns did not go away.** Meal occasion, dish type and key food remain available for browsing, and they read the same selection the chips do — choosing a facet replaces that facet's tags, and tapped tags set the matching dropdown. The dropdown labels itself **“Multiple — see tags”** when a facet has more than one tapped value, so the two controls never silently disagree.
 - **The filter is in the URL** (`/recipes?tags=food:5,food:25`). A reload, the phone's back gesture and a tap into a recipe all keep it, and the recipe page's **← Back to recipes** returns to the same filtered list. On the detail page the tags are tappable too: tapping **Mushroom** there opens the catalogue narrowed by it.
-- **The vocabulary is unchanged.** Only the existing structured tags became filters — meal occasion, dish type and up to two known-Food key foods (decisions 34–35). No free-text tags were introduced.
+- **The vocabulary stays controlled.** The original structured tags are meal occasion, dish type and up to two known-Food key foods (decisions 34–35); decision 79 adds one controlled shared **Own creation** origin marker. No free-text tags were introduced.
 
 **Still open / for the owner's review**
 
@@ -693,8 +693,8 @@ layering bug) do not belong to any phase that exists, so they form a **Phase 13 
 rest extend **Phase 14 (Metrics + Nutrition)** and **Phase 15 (Settings)**. Follow-up presentation and
 navigation requirements were added as decisions 74–78; decision 76 supersedes the original fill opacity,
 decision 77 adds a temporary Arena-preview arrow workaround, and decision 78 improves recipe-card badge
-hit targets and image visibility. Current implementation status and work
-order: [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+hit targets and image visibility. Decision 79 records the recipe-origin marker requested in the current
+session. Current implementation status and work order: [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -718,6 +718,19 @@ The owner added badge and navigation requirements to the Phase 13 polish slice, 
 | 76 | 2026-10-04 | **Reduce the Diary meal-card fill opacity from 50% to 25%.** Keep each card's own meal-accent colour and retain the proportional fill and percentage label. This supersedes the opacity in decision 68. | Owner |
 | 77 | 2026-10-04 | **Add a temporary Arena-preview arrow for navigation overflow.** The preview cannot reliably swipe the bottom menu, so replace the fifth visible slot (formerly Foods) with an arrow button. Pressing it scrolls the menu to reveal both Foods and Recipes; the arrow changes to a back control to return. Keep swipe and supported-device haptics, and do not add future Settings or Exercise pages. This is a development-only workaround, not a permanent product requirement. | Owner |
 | 78 | 2026-10-04 | **Improve recipe-card tap targets and show more of the image.** Keep the visible Favourite badge, but reduce its circle and heart icon by 25%; place it in a transparent 66 × 66 px button hit area (twice the new 33 px badge diameter), above the recipe-image link. Reduce the recipe log-count circle from 48 px to 36 px and its numerals from 16 px to 12 px (25% each), while retaining legibility for three digits. | Owner |
+
+### Recipe origin marker — decision 79 (2026-10-04)
+
+The owner requested an orange option in the existing Edit recipe interface so a recipe can be marked
+as **Own creation**, placed above **Key foods (choose up to two)** and grouped with its other tags.
+This implementation follows the existing shared recipe-classification model: the marker is a
+**shared recipe-level boolean**, not per-user authorship. Either household user may set or clear it;
+Favourites and usual portions remain personal. The orange card tag also filters the catalogue. This
+shared interpretation is an implementation choice for owner review in the Arena preview.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 79 | 2026-10-04 | Add a shared orange **Own creation** origin marker to recipe metadata. Support it in the existing Edit recipe flow now and reuse the same field in the future create-from-scratch UI; do not pull the broader recipe-creation or image upload/crop work into this slice. | Owner request; shared scope follows existing tag model (confirm in preview) |
 
 ### The windowed bank (decision 66)
 

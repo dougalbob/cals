@@ -2,7 +2,8 @@
  * Recipe tag identity, matching and URL state.
  *
  * A recipe's "tags" are its structured classification — meal occasions, dish
- * type and known-Food key foods (product decisions 34–35). They are rendered on
+ * type, an optional household-origin marker, and known-Food key foods (product
+ * decisions 34–35 and 79). They are rendered on
  * the recipe photo and, since the tap-to-filter increment, they are also the
  * filter controls: tapping a tag narrows the catalogue, tapping a second tag
  * narrows it further (every selected tag must be present, i.e. AND).
@@ -23,10 +24,13 @@ import {
   type RecipeMealOccasion,
 } from '../api/types'
 
-export type RecipeTagKind = 'occasion' | 'dish' | 'food'
+export type RecipeTagKind = 'occasion' | 'dish' | 'origin' | 'food'
+
+/** Stable URL key for the household-shared own-creation marker. */
+export const OWN_CREATION_TAG_KEY = 'origin:own'
 
 export interface RecipeTagRef {
-  /** Stable identity used in `?tags=` and in comparisons: `occasion:lunch`, `dish:main`, `food:11`. */
+  /** Stable identity used in `?tags=` and in comparisons: `occasion:lunch`, `dish:main`, `origin:own`, `food:11`. */
   key: string
   kind: RecipeTagKind
   /** What the chip shows. For key foods this is the Food's own name, never a hand-typed label. */
@@ -36,10 +40,11 @@ export interface RecipeTagRef {
 }
 
 /** The recipe fields tags are derived from. */
-type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods'>
+type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods' | 'is_own_creation'>
 
 const OCCASION_PREFIX = 'occasion:'
 const DISH_PREFIX = 'dish:'
+const ORIGIN_PREFIX = 'origin:'
 const FOOD_PREFIX = 'food:'
 
 export function occasionTagKey(occasion: RecipeMealOccasion): string {
@@ -62,7 +67,7 @@ export function dishLabel(dishType: RecipeDishType): string {
   return RECIPE_DISH_TYPES.find((item) => item.value === dishType)?.label ?? dishType
 }
 
-/** A recipe's tags, in the order they are displayed: occasions, dish type, key foods. */
+/** A recipe's tags, in display order: occasions, dish type, origin marker, key foods. */
 export function recipeTags(recipe: TaggableRecipe): RecipeTagRef[] {
   const tags: RecipeTagRef[] = recipe.meal_occasions.map((occasion) => ({
     key: occasionTagKey(occasion),
@@ -74,6 +79,13 @@ export function recipeTags(recipe: TaggableRecipe): RecipeTagRef[] {
       key: dishTagKey(recipe.dish_type),
       kind: 'dish',
       label: dishLabel(recipe.dish_type),
+    })
+  }
+  if (recipe.is_own_creation) {
+    tags.push({
+      key: OWN_CREATION_TAG_KEY,
+      kind: 'origin',
+      label: 'Own creation',
     })
   }
   for (const food of recipe.key_foods) {
@@ -107,6 +119,9 @@ function isKnownTagKey(key: string): boolean {
   if (key.startsWith(DISH_PREFIX)) {
     const value = key.slice(DISH_PREFIX.length)
     return RECIPE_DISH_TYPES.some((item) => item.value === value)
+  }
+  if (key.startsWith(ORIGIN_PREFIX)) {
+    return key === OWN_CREATION_TAG_KEY
   }
   if (key.startsWith(FOOD_PREFIX)) {
     return /^\d+$/.test(key.slice(FOOD_PREFIX.length))
@@ -144,7 +159,7 @@ export function selectedTagKeys(selectedKeys: readonly string[], kind: RecipeTag
   return selectedKeys.filter((key) => key.startsWith(`${kind}:`))
 }
 
-/** The facet value inside a tag key: `dish:main` → `main`, `food:11` → `11`. */
+/** The facet value inside a tag key: `dish:main` → `main`, `origin:own` → `own`, `food:11` → `11`. */
 export function tagValue(key: string): string {
   const separator = key.indexOf(':')
   return separator === -1 ? key : key.slice(separator + 1)
@@ -164,6 +179,7 @@ export function tagLabel(key: string, catalogue: readonly TaggableRecipe[] = [])
     const value = key.slice(DISH_PREFIX.length)
     return RECIPE_DISH_TYPES.find((item) => item.value === value)?.label ?? value
   }
+  if (key === OWN_CREATION_TAG_KEY) return 'Own creation'
   if (key.startsWith(FOOD_PREFIX)) {
     const foodId = key.slice(FOOD_PREFIX.length)
     for (const recipe of catalogue) {

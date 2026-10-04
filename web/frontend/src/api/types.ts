@@ -121,6 +121,8 @@ export interface Recipe {
    * catalogue by default, cannot be logged until restored, and keeps its Diary history.
    */
   is_archived: boolean
+  /** Shared recipe-origin marker; independent of who created the database row. */
+  is_own_creation: boolean
   /** The signed-in user's remembered portion in grams; null until they log it. */
   usual_grams: number | null
   meal_occasions: RecipeMealOccasion[]
@@ -155,6 +157,8 @@ export interface RecipeMetadataInput {
   meal_occasions: RecipeMealOccasion[]
   dish_type: RecipeDishType | ''
   key_food_ids: number[]
+  /** Shared recipe-origin marker; optional so older metadata clients can omit it without clearing it. */
+  is_own_creation?: boolean
   total_time_minutes: number | null
 }
 

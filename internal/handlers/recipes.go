@@ -62,7 +62,7 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		       ) AS is_favourite,
 		       COALESCE(log_counts.times_logged, 0) AS times_logged,
 		       r.updated_at, r.dish_type, r.total_time_minutes,
-		       p.grams AS usual_grams, r.is_archived
+		       p.grams AS usual_grams, r.is_archived, r.is_own_creation
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		LEFT JOIN recipe_user_portions p ON p.recipe_id = r.id AND p.user_id = ?
@@ -86,11 +86,11 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		var desc, img, dishType sql.NullString
 		var calcWeight, usualGrams sql.NullFloat64
 		var totalTime sql.NullInt64
-		var isFavourite, isArchived int
+		var isFavourite, isArchived, isOwnCreation int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
 			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
 			&recipe.CreatedByName, &isFavourite, &recipe.TimesLogged, &recipe.UpdatedAt, &dishType,
-			&totalTime, &usualGrams, &isArchived)
+			&totalTime, &usualGrams, &isArchived, &isOwnCreation)
 		if err != nil {
 			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -98,6 +98,7 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		}
 		recipe.IsFavourite = isFavourite != 0
 		recipe.IsArchived = isArchived != 0
+		recipe.IsOwnCreation = isOwnCreation != 0
 		if usualGrams.Valid {
 			grams := usualGrams.Float64
 			recipe.UsualGrams = &grams
@@ -346,23 +347,26 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 	var desc, instructions, img, dishType sql.NullString
 	var calcWeight sql.NullFloat64
 	var totalTime sql.NullInt64
+	var isArchived, isOwnCreation int
 
 	err := database.DB.QueryRow(`
 		SELECT r.id, r.name, r.description, r.instructions, r.image_filename, r.serves,
 		       r.created_by_user_id, r.calculated_weight_grams, r.total_weight_grams, r.weight_is_manual,
 		       r.total_calories, r.total_protein, r.total_carbs, r.total_fat, r.total_fibre,
 		       r.created_at, r.updated_at, r.dish_type, r.total_time_minutes,
-		       COALESCE(u.name, u.email) as created_by_name, r.is_archived
+		       COALESCE(u.name, u.email) as created_by_name, r.is_archived, r.is_own_creation
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		WHERE r.id = ?
 	`, id).Scan(&r.ID, &r.Name, &desc, &instructions, &img, &r.Serves,
 		&r.CreatedByUserID, &calcWeight, &r.TotalWeightGrams, &r.WeightIsManual,
 		&r.TotalCalories, &r.TotalProtein, &r.TotalCarbs, &r.TotalFat, &r.TotalFibre,
-		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName, &r.IsArchived)
+		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName, &isArchived, &isOwnCreation)
 	if err != nil {
 		return nil, err
 	}
+	r.IsArchived = isArchived != 0
+	r.IsOwnCreation = isOwnCreation != 0
 
 	if desc.Valid {
 		r.Description = desc.String
@@ -473,6 +477,7 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		Description      string  `json:"description"`
 		Instructions     string  `json:"instructions"`
 		Serves           int     `json:"serves"`
+		IsOwnCreation    bool    `json:"is_own_creation"`
 		TotalWeightGrams float64 `json:"total_weight_grams"`
 		WeightIsManual   bool    `json:"weight_is_manual"`
 		Ingredients      []struct {
@@ -529,10 +534,10 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	// Insert recipe
 	result, err := database.DB.Exec(`
 		INSERT INTO recipes (name, description, instructions, serves, created_by_user_id,
-		                     calculated_weight_grams, total_weight_grams, weight_is_manual, 
+		                     is_own_creation, calculated_weight_grams, total_weight_grams, weight_is_manual,
 		                     total_calories, total_protein, total_carbs, total_fat, total_fibre)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID, input.IsOwnCreation,
 		calculatedWeight, finalWeight, input.WeightIsManual,
 		totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
 	if err != nil {
@@ -878,6 +883,7 @@ type recipeMetadataInput struct {
 	MealOccasions    []string `json:"meal_occasions"`
 	DishType         string   `json:"dish_type"`
 	KeyFoodIDs       []int64  `json:"key_food_ids"`
+	IsOwnCreation    *bool    `json:"is_own_creation"`
 	TotalTimeMinutes *int     `json:"total_time_minutes"`
 }
 
@@ -950,11 +956,16 @@ func HandleUpdateRecipeMetadata(w http.ResponseWriter, r *http.Request) {
 	if input.TotalTimeMinutes != nil {
 		totalTime = *input.TotalTimeMinutes
 	}
+	var ownCreation interface{}
+	if input.IsOwnCreation != nil {
+		ownCreation = *input.IsOwnCreation
+	}
 	if _, err := tx.Exec(`
 		UPDATE recipes
-		SET dish_type = ?, total_time_minutes = ?, updated_at = CURRENT_TIMESTAMP
+		SET dish_type = ?, total_time_minutes = ?,
+		    is_own_creation = COALESCE(?, is_own_creation), updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, dishType, totalTime, recipeID); err != nil {
+	`, dishType, totalTime, ownCreation, recipeID); err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

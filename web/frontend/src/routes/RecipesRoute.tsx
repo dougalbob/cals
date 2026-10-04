@@ -154,6 +154,7 @@ export function RecipesRoute() {
       const searchableTags = [
         ...recipe.meal_occasions,
         recipe.dish_type ?? '',
+        ...(recipe.is_own_creation ? ['Own creation'] : []),
         ...recipe.key_foods.map((food) => food.food_name),
       ]
         .join(' ')
@@ -306,10 +307,10 @@ export function RecipesRoute() {
         </div>
         <details className="border-t border-line-light pt-3">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary-dark">
-            Filter by occasion, dish type or key food
+            Filter by recipe details
           </summary>
           <p className="mb-0 mt-1 text-xs text-ink-light">
-            Or just tap a tag on a recipe card to filter the list.
+            Choose an occasion, dish type or key food below, or tap any tag on a recipe card — including the orange Own creation tag.
           </p>
           <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">

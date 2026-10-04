@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 )
@@ -150,5 +151,92 @@ func TestRecipeArchiveColumnsAreAdditiveAndDefaultToVisible(t *testing.T) {
 	}
 	if isArchived != 0 || archivedAt != nil {
 		t.Errorf("existing recipe should stay visible: is_archived=%d archived_at=%v", isArchived, archivedAt)
+	}
+}
+
+// Decision 79: the household-shared own-creation marker is additive, defaults
+// existing recipes to false, and remains safe when migrations run again.
+func TestRecipeOwnCreationMarkerIsAdditiveAndDefaultsFalse(t *testing.T) {
+	Close()
+	dbPath := filepath.Join(t.TempDir(), "old-recipes.db")
+	legacyDB, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on")
+	if err != nil {
+		t.Fatalf("opening legacy database: %v", err)
+	}
+	if _, err := legacyDB.Exec(`
+		CREATE TABLE users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL DEFAULT '',
+			daily_calorie_goal INTEGER NOT NULL DEFAULT 2000,
+			daily_water_goal_ml INTEGER NOT NULL DEFAULT 2000,
+			weight_unit TEXT NOT NULL DEFAULT 'stones',
+			bank_start_date DATE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE TABLE recipes (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			description TEXT,
+			instructions TEXT,
+			image_filename TEXT,
+			serves INTEGER DEFAULT 1,
+			created_by_user_id INTEGER NOT NULL,
+			calculated_weight_grams REAL NOT NULL DEFAULT 0,
+			total_weight_grams REAL NOT NULL DEFAULT 0,
+			weight_is_manual BOOLEAN NOT NULL DEFAULT 0,
+			total_calories REAL NOT NULL DEFAULT 0,
+			total_protein REAL NOT NULL DEFAULT 0,
+			total_carbs REAL NOT NULL DEFAULT 0,
+			total_fat REAL NOT NULL DEFAULT 0,
+			total_fibre REAL NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+		);
+		INSERT INTO users (email) VALUES ('wife@example.com');
+		INSERT INTO recipes (name, created_by_user_id) VALUES ('Existing recipe', 1);
+	`); err != nil {
+		legacyDB.Close()
+		t.Fatalf("creating legacy schema: %v", err)
+	}
+	if err := legacyDB.Close(); err != nil {
+		t.Fatalf("closing legacy database: %v", err)
+	}
+
+	if err := Initialize(dbPath); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	var marker int
+	if err := DB.QueryRow(`SELECT is_own_creation FROM recipes WHERE name = 'Existing recipe'`).Scan(&marker); err != nil {
+		t.Fatalf("reading migrated marker: %v", err)
+	}
+	if marker != 0 {
+		t.Errorf("existing recipe marker = %d, want false (0)", marker)
+	}
+	if _, err := DB.Exec(`UPDATE recipes SET is_own_creation = 1 WHERE name = 'Existing recipe'`); err != nil {
+		t.Fatalf("setting marker: %v", err)
+	}
+	Close()
+
+	if err := Initialize(dbPath); err != nil {
+		t.Fatalf("second Initialize() error = %v", err)
+	}
+	t.Cleanup(Close)
+	if err := DB.QueryRow(`SELECT is_own_creation FROM recipes WHERE name = 'Existing recipe'`).Scan(&marker); err != nil {
+		t.Fatalf("reading marker after repeated migrations: %v", err)
+	}
+	if marker != 1 {
+		t.Errorf("marker after repeated migrations = %d, want 1", marker)
+	}
+	if _, err := DB.Exec(`INSERT INTO recipes (name, created_by_user_id) VALUES ('New recipe', 1)`); err != nil {
+		t.Fatalf("inserting new recipe: %v", err)
+	}
+	if err := DB.QueryRow(`SELECT is_own_creation FROM recipes WHERE name = 'New recipe'`).Scan(&marker); err != nil {
+		t.Fatalf("reading new recipe marker: %v", err)
+	}
+	if marker != 0 {
+		t.Errorf("new recipe default marker = %d, want false (0)", marker)
 	}
 }
