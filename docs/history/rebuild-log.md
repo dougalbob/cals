@@ -14,6 +14,24 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Published `v2.0.0-dev-rc22` (PR #50, decisions 79–81)
+
+The owner approved the Arena preview before publication. PR #50 passed Docker and Go validation,
+merged to `cals-dev` as `c022f059ec46b26be5b5672b7c1096bbff44cd67`, and passed post-merge Go tests.
+[Publish run 37194090053](https://github.com/dougalbob/cals/actions/runs/37194090053) passed the
+ancestry guard, image build/push, prerelease creation and anonymous-pull check. Digest:
+`sha256:08a9f465e3d6c7b01d830bd95d68a2bbc629af26150e2ab16d1c79db71c09a12`;
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc22).
+
+The checkpoint adds the shared orange **Own creation** marker (decision 79), fixes the mobile Diary
+Edit sheet, removes hydration/Quick drinks controls from Today while keeping them on Diary (decision
+80), and sets the proportional meal-fill color alpha to 5% on both pages (decision 81). Drink-entry
+calories remain included in Today totals. The additive `recipes.is_own_creation INTEGER NOT NULL
+DEFAULT 0` migration keeps existing recipes unmarked and applies at startup. Frontend lint, typecheck,
+177 Vitest tests, `build:go`, `build:preview`, PR Docker validation, and PR/post-merge Go validation
+passed. No data copy, appdata operation or Unraid template change. The owner signed off on the preview;
+Force Update/review on Unraid and the planned phone re-test of the Edit sheet remain pending.
+
 ## 2026-10-04 — Today hydration panel removed and meal fills set to 5% alpha
 
 The Today page no longer renders the hydration/Quick drinks panel or carries its add/delete state,
