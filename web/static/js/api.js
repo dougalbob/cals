@@ -153,8 +153,8 @@ const API = {
         return response.json();
     },
 
-    getRecipeImageUrl(recipeId, type = 'thumb', updatedAt = null) {
-        const cacheBuster = updatedAt ? new Date(updatedAt).getTime() : Date.now();
+    getRecipeImageUrl(recipeId, type = 'thumb', version = null) {
+        const cacheBuster = version ? encodeURIComponent(version) : Date.now();
         return `/api/images/recipes/${recipeId}/${type}?v=${cacheBuster}`;
     },
 

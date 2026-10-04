@@ -122,7 +122,7 @@ describe('HomeRoute', () => {
 
     const dinner = within(meals).getByRole('link', { name: /Dinner: 400 kcal/ })
     const dinnerFill = dinner.querySelector<HTMLElement>('[data-calorie-fill]')
-    expect(dinnerFill?.className).toContain('bg-primary-light/5')
+    expect(dinnerFill?.className).toContain('bg-primary-light/25')
     expect(dinnerFill?.getAttribute('aria-hidden')).toBe('true')
     expect(dinner.children[0]).toBe(dinnerFill)
     expect(dinner.querySelector('.relative.z-10')).toBeTruthy()

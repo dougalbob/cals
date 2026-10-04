@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { boxWithinViewport, recipeAs, resetFixtures } from './support'
 
-/** Create from scratch (without the separately queued image upload/crop flow). */
+/** Create recipe content and optionally upload a direct, uncropped photo. */
 test.describe('Create recipe', () => {
   test.beforeEach(async ({ page, request }) => {
     await resetFixtures(request)
@@ -61,6 +61,46 @@ test.describe('Create recipe', () => {
 
     await page.getByRole('link', { name: /Back to recipes/ }).click()
     await expect(page.getByRole('link', { name: 'View Weeknight chicken bowl' })).toBeVisible()
+  })
+
+  test('uploads a selected photo after creation', async ({ page, request }) => {
+    await page.getByLabel('Recipe name').fill('Photo upload recipe')
+    await page.getByLabel('Choose recipe photo').setInputFiles({
+      name: 'recipe.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fixture image bytes'),
+    })
+    await page.getByRole('button', { name: 'Create recipe' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Photo upload recipe' })).toBeVisible()
+    const created = await recipeAs(request, 5)
+    expect(created.image_filename).toMatch(/^v_[a-f0-9]{32}$/)
+    await expect(page.getByRole('img', { name: 'Photo upload recipe' })).toHaveAttribute(
+      'src',
+      new RegExp(`v=${created.image_filename}`),
+    )
+  })
+
+  test('explains that a saved recipe can be retried when its first photo upload fails', async ({ page, request }) => {
+    await page.route('**/api/recipes/*/image', (route) => route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'temporary upload failure' }),
+    }))
+    await page.getByLabel('Recipe name').fill('Recipe saved before photo')
+    await page.getByLabel('Choose recipe photo').setInputFiles({
+      name: 'recipe.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fixture image bytes'),
+    })
+    await page.getByRole('button', { name: 'Create recipe' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Recipe saved before photo' })).toBeVisible()
+    await expect(page.getByRole('alert')).toContainText('Photo upload failed')
+    await expect(page.getByRole('alert')).toContainText('already saved')
+    await expect(page.getByRole('alert')).toContainText('don\'t create another recipe')
+    await expect(page.getByLabel('Choose recipe photo')).toBeVisible()
+    expect((await recipeAs(request, 5)).image_filename).toBe('')
   })
 
   test('the form stays clear and its actions remain above fixed navigation on a short phone', async ({ page }) => {

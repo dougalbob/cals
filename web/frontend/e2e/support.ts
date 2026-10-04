@@ -89,6 +89,7 @@ export type RecipeFixture = {
   name: string
   description: string
   instructions: string
+  image_filename: string
   serves: number
   total_weight_grams: number
   total_calories: number

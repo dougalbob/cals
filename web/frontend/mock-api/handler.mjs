@@ -7,12 +7,13 @@
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
  * Mapped:  /api/version, /api/users/me, /api/recipes (GET/POST/detail, content + favourite + metadata + archive PUT),
+ *          /api/recipes/{id}/image (POST), /api/images/recipes/{id}/{type} (GET),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/calendar, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Supported mutations include Diary/drink demos, recipe create/content/favourite/metadata/archive
- * edits and dependent nutrition refreshes. Unsupported mutations (including photo upload/crop) return
- * 501 with a clear message.
+ * edits, uncropped photo upload/replacement, and dependent nutrition refreshes. Unsupported
+ * mutations (including photo cropping) return 501 with a clear message.
  */
 
 import * as seed from './seed.mjs'
@@ -25,6 +26,7 @@ const {
 
 const round1 = (n) => Math.round(n * 10) / 10
 const num = (v) => (Number.isFinite(v) ? round1(v) : 0)
+let recipeImageVersionSeq = 0
 
 // ---------------------------------------------------------------------------
 // Bank maths — copied from internal/handlers/bank.go so the numbers agree
@@ -155,6 +157,7 @@ export function handle(method, url, body) {
   // equivalent in the Go server, which owns a real SQLite database instead.
   if (pathname === '/api/_test/reset' && method === 'POST') {
     seed.resetFixtures()
+    recipeImageVersionSeq = 0
     return json({ reset: true, today: seed.TODAY })
   }
 
@@ -176,6 +179,35 @@ export function handle(method, url, body) {
     const recipe = recipes.find((item) => item.id === Number(recipeDetailMatch[1]))
     if (!recipe) return err(404, 'Recipe not found')
     return json(recipeResponse(recipe))
+  }
+
+  const recipeImageReadMatch = pathname.match(/^\/api\/images\/recipes\/(\d+)\/(?:thumb|original)$/)
+  if (recipeImageReadMatch && method === 'GET') {
+    const recipe = recipes.find((item) => item.id === Number(recipeImageReadMatch[1]))
+    if (!recipe || !recipe.image_filename) return err(404, 'Image not found')
+    return {
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400"><defs><linearGradient id="g"><stop stop-color="#276749"/><stop offset="1" stop-color="#68d391"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><circle cx="320" cy="175" r="78" fill="#ffffff" fill-opacity=".25"/><path d="M260 205h120M280 150c10-28 70-28 80 0" stroke="#fff" stroke-width="10" stroke-linecap="round"/><text x="320" y="320" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="22">Fixture recipe photo</text></svg>',
+    }
+  }
+
+  const recipeImageUploadMatch = pathname.match(/^\/api\/recipes\/(\d+)\/image$/)
+  if (recipeImageUploadMatch && method === 'POST') {
+    const recipe = recipes.find((item) => item.id === Number(recipeImageUploadMatch[1]))
+    if (!recipe) return err(404, 'Recipe not found')
+    const file = typeof body?.get === 'function' ? body.get('image') : body?.image
+    if (!file || typeof file.size !== 'number') return err(400, 'Choose an image to upload')
+    if (file.size <= 0) return err(400, 'The selected image is empty')
+    if (file.size > 10 * 1024 * 1024) return err(413, 'Image too large (max 10 MB)')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      return err(400, 'Choose a valid JPEG, PNG or WebP image')
+    }
+    recipeImageVersionSeq += 1
+    const filename = `v_${recipeImageVersionSeq.toString(16).padStart(32, '0')}`
+    recipe.image_filename = filename
+    recipe.updated_at = new Date().toISOString()
+    return json({ filename, updated_at: recipe.updated_at })
   }
 
   if (pathname === '/api/foods/search' && method === 'GET') {

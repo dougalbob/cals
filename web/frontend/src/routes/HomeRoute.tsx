@@ -115,7 +115,7 @@ export function HomeRoute() {
                 <span
                   data-calorie-fill
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-xl bg-primary-light/5 transition-[width] duration-300"
+                  className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-xl bg-primary-light/25 transition-[width] duration-300"
                   style={{ width: `${fillPercent}%` }}
                 />
                 <span className="relative z-10 text-xs font-semibold tabular-nums text-primary-dark">

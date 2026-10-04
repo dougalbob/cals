@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { queryKeys } from '../api/client'
-import { createRecipe } from '../api/recipes'
+import { createRecipe, uploadRecipeImage } from '../api/recipes'
 import type { RecipeCreateInput } from '../api/types'
 import { RecipeCreationForm } from '../components/RecipeContentEditor'
 
@@ -15,11 +15,28 @@ export function RecipeCreateRoute() {
   const returnToRecipes = `/recipes${location.search}`
 
   const createMutation = useMutation({
-    mutationFn: (input: RecipeCreateInput) => createRecipe(input),
-    onSuccess: (recipe) => {
+    mutationFn: async ({ input, photoFile }: { input: RecipeCreateInput; photoFile: File | null }) => {
+      const recipe = await createRecipe(input)
+      if (!photoFile) return { recipe, photoUploadError: null as string | null }
+
+      try {
+        const uploaded = await uploadRecipeImage(recipe.id, photoFile)
+        return {
+          recipe: { ...recipe, image_filename: uploaded.filename, updated_at: uploaded.updated_at },
+          photoUploadError: null,
+        }
+      } catch (caught) {
+        // Recipe creation is already committed. Navigate to it and let the
+        // detail page offer a safe retry rather than encouraging a duplicate.
+        return { recipe, photoUploadError: (caught as Error).message }
+      }
+    },
+    onSuccess: ({ recipe, photoUploadError }) => {
       queryClient.setQueryData(queryKeys.recipe(recipe.id), recipe)
       void queryClient.invalidateQueries({ queryKey: queryKeys.recipes })
-      navigate(`/recipes/${recipe.id}${location.search}`)
+      navigate(`/recipes/${recipe.id}${location.search}`, {
+        state: photoUploadError ? { recipePhotoUploadError: photoUploadError } : null,
+      })
     },
   })
 
@@ -41,18 +58,11 @@ export function RecipeCreateRoute() {
         </div>
       </header>
 
-      <aside className="flex items-start gap-3 rounded-2xl border border-line bg-surface p-3" aria-label="Recipe photo information">
-        <span aria-hidden="true" className="text-xl">📷</span>
-        <p className="m-0 text-sm text-ink-light">
-          Photo upload and crop are a separate feature. You can create and use this recipe without a photo.
-        </p>
-      </aside>
-
       <section className="rounded-2xl bg-card p-4 shadow-card sm:p-5" aria-label="New recipe details">
         <RecipeCreationForm
           isSaving={createMutation.isPending}
           error={createMutation.isError ? (createMutation.error as Error).message : null}
-          onCreate={(input) => createMutation.mutateAsync(input)}
+          onCreate={(input, photoFile) => createMutation.mutateAsync({ input, photoFile }).then((result) => result.recipe)}
           onCancel={() => navigate(returnToRecipes)}
         />
       </section>

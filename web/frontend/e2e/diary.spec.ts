@@ -47,6 +47,40 @@ test.describe('Diary: logging and the Edit sheet', () => {
     expect(added?.calories).toBeCloseTo(89, 1)
   })
 
+  test('the meal-slot delete icon asks for confirmation and Cancel preserves the entry', async ({ page, request }) => {
+    const today = isoDate(0)
+    const entry = (await diaryFor(request, today)).find((item) => item.food_name === 'Porridge Oats')
+    expect(entry, 'seeded breakfast entry').toBeTruthy()
+
+    await page.getByRole('button', { name: `Delete ${entry?.food_name}` }).click()
+    const dialog = page.getByRole('dialog', { name: 'Delete diary entry?' })
+    await expect(dialog).toContainText('Porridge Oats')
+    await expect(dialog).toContainText('Breakfast')
+    await expect(dialog).toContainText('This cannot be undone.')
+    await expect(dialog.getByRole('button', { name: 'Delete' })).toBeVisible()
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.locator('#breakfast').getByText('Porridge Oats')).toBeVisible()
+    expect((await diaryFor(request, today)).some((item) => item.id === entry?.id)).toBe(true)
+  })
+
+  test('deleting a meal-slot entry requires explicit confirmation', async ({ page, request }) => {
+    const today = isoDate(0)
+    const entry = (await diaryFor(request, today)).find((item) => item.food_name === 'Porridge Oats')
+    expect(entry, 'seeded breakfast entry').toBeTruthy()
+
+    await page.getByRole('button', { name: `Delete ${entry?.food_name}` }).click()
+    const dialog = page.getByRole('dialog', { name: 'Delete diary entry?' })
+    await expect(dialog).toBeVisible()
+    expect((await diaryFor(request, today)).some((item) => item.id === entry?.id)).toBe(true)
+
+    await dialog.getByRole('button', { name: 'Delete' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.locator('#breakfast').getByText('Porridge Oats')).toHaveCount(0)
+    expect((await diaryFor(request, today)).some((item) => item.id === entry?.id)).toBe(false)
+  })
+
   test('the Edit sheet keeps its actions on screen at phone size', async ({ page, request }) => {
     const entry = (await diaryFor(request, isoDate(0))).find((e) => e.food_name === 'Porridge Oats')
     expect(entry, 'seeded breakfast entry').toBeTruthy()

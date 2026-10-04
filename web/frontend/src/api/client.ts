@@ -34,11 +34,24 @@ function reloadForAuthentication() {
   window.location.reload()
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  bodyFormat: 'json' | 'form' = 'json',
+): Promise<T> {
   const response = await fetch(path, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || bodyFormat === 'form'
+      ? undefined
+      : { 'Content-Type': 'application/json' },
+    // The browser must set multipart/form-data's boundary itself. JSON writes
+    // continue to use one consistent Content-Type through this client.
+    body: body === undefined
+      ? undefined
+      : bodyFormat === 'form'
+        ? body as BodyInit
+        : JSON.stringify(body),
   })
 
   if (response.status === 204) return undefined as T
@@ -90,6 +103,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const apiGet = <T>(path: string) => request<T>('GET', path)
 export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', path, body)
+export const apiPostForm = <T>(path: string, body: FormData) => request<T>('POST', path, body, 'form')
 export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)
 export const apiDelete = <T>(path: string) => request<T>('DELETE', path)
 

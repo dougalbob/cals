@@ -42,6 +42,7 @@ export function DiaryRoute() {
   const [pendingDrink, setPendingDrink] = useState<number | null>(null)
   const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ entryId: number; drinkName: string } | null>(null)
+  const [deleteEntryConfirm, setDeleteEntryConfirm] = useState<DiaryEntry | null>(null)
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null)
 
   const diary = useDiary(date)
@@ -68,6 +69,7 @@ export function DiaryRoute() {
   const deleteEntry = useMutation({
     mutationFn: deleteDiaryEntry,
     onSuccess: () => {
+      setDeleteEntryConfirm(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.diary(date) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.bank(date) })
     },
@@ -306,7 +308,10 @@ export function DiaryRoute() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteEntry.mutate(entry.id)}
+                      onClick={() => {
+                        deleteEntry.reset()
+                        setDeleteEntryConfirm(entry)
+                      }}
                       disabled={deleteEntry.isPending}
                       className="min-h-11 min-w-11 rounded-lg bg-transparent border border-line text-ink-light cursor-pointer disabled:opacity-40"
                       aria-label={`Delete ${entry.food_name || entry.recipe_name}`}
@@ -412,6 +417,52 @@ export function DiaryRoute() {
           error={updateEntry.isError ? (updateEntry.error as Error).message : null}
         />
       )}
+
+      {/* A populated meal slot takes a second, explicit tap to delete. */}
+      <Modal
+        open={deleteEntryConfirm !== null}
+        title="Delete diary entry?"
+        onClose={() => {
+          if (!deleteEntry.isPending) setDeleteEntryConfirm(null)
+        }}
+        footer={deleteEntryConfirm && (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDeleteEntryConfirm(null)}
+              disabled={deleteEntry.isPending}
+              className="min-h-10 rounded-xl border border-line bg-surface px-3.5 text-sm text-ink disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteEntry.mutate(deleteEntryConfirm.id)}
+              disabled={deleteEntry.isPending}
+              className="min-h-10 rounded-xl border-0 bg-danger px-4 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {deleteEntry.isPending ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        )}
+      >
+        {deleteEntryConfirm && (
+          <div className="flex flex-col gap-3">
+            <p className="m-0 text-sm text-ink">
+              Delete <span className="font-semibold">{deleteEntryConfirm.food_name || deleteEntryConfirm.recipe_name || 'this item'}</span>
+              {' '}from <span className="font-semibold">
+                {MEALS.find((meal) => meal.id === deleteEntryConfirm.meal)?.label ?? deleteEntryConfirm.meal}
+              </span> {date === today ? 'today' : date}?
+            </p>
+            <p className="m-0 text-xs text-ink-light">This cannot be undone.</p>
+            {deleteEntry.isError && (
+              <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
+                Could not delete this entry: {(deleteEntry.error as Error).message}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Deletion confirmation modal for long-press ----------------------- */}
       <Modal
