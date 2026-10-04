@@ -6,16 +6,17 @@
  * same ordering, same nullability. This is what makes the spike honest: the UI
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
- * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, content + favourite + metadata + archive PUT),
+ * Mapped:  /api/version, /api/users/me, /api/recipes (GET/POST/detail, content + favourite + metadata + archive PUT),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/calendar, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
- * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
- *          demo flows, recipe content/favourite/metadata/archive edits and dependent nutrition refreshes are implemented for the preview.
+ * Supported mutations include Diary/drink demos, recipe create/content/favourite/metadata/archive
+ * edits and dependent nutrition refreshes. Unsupported mutations (including photo upload/crop) return
+ * 501 with a clear message.
  */
 
 import * as seed from './seed.mjs'
-import { buildRecipeContentUpdate, recalculateRecipesUsingFood } from './recipe-content.mjs'
+import { buildNewRecipe, buildRecipeContentUpdate, recalculateRecipesUsingFood } from './recipe-content.mjs'
 
 const {
   foods, recipes, drinks, drinkEntries, weightEntries, measurements,
@@ -383,7 +384,14 @@ export function handle(method, url, body) {
     })
   }
 
-  // --- a couple of mutations so the demo is clickable ----------------------
+  // --- mutations so the authoring and logging flows are clickable ----------
+  if (pathname === '/api/recipes' && method === 'POST') {
+    const created = buildNewRecipe(body, foods, seed.nextRecipeId(), seed.user)
+    if (created.error) return err(400, created.error)
+    recipes.push(created.recipe)
+    return json(recipeResponse(created.recipe), 201)
+  }
+
   const recipeContentMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
   if (recipeContentMatch && method === 'PUT') {
     const recipe = recipes.find((item) => item.id === Number(recipeContentMatch[1]))

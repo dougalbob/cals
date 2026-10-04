@@ -185,6 +185,15 @@ export interface RecipeContentInput {
   text_ingredients: RecipeTextIngredientInput[]
 }
 
+/** Full recipe definition plus its shared classification, accepted by POST /api/recipes. */
+export interface RecipeCreateInput extends RecipeContentInput {
+  meal_occasions: RecipeMealOccasion[]
+  dish_type: RecipeDishType | ''
+  key_food_ids: number[]
+  is_own_creation: boolean
+  total_time_minutes: number | null
+}
+
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
 
 export const MEALS: { id: Meal; label: string; icon: string }[] = [

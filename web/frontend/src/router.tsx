@@ -6,6 +6,7 @@ import { DrinksRoute } from './routes/DrinksRoute'
 import { HomeRoute } from './routes/HomeRoute'
 import { MetricsRoute } from './routes/MetricsRoute'
 import { RecipesRoute } from './routes/RecipesRoute'
+import { RecipeCreateRoute } from './routes/RecipeCreateRoute'
 import { RecipeDetailRoute } from './routes/RecipeDetailRoute'
 import { CalendarRoute } from './routes/CalendarRoute'
 
@@ -31,6 +32,7 @@ export const router = createBrowserRouter(
         { path: 'calendar/:view/:anchor', element: <CalendarRoute /> },
         { path: 'foods', element: <FoodsRoute /> },
         { path: 'recipes', element: <RecipesRoute /> },
+        { path: 'recipes/new', element: <RecipeCreateRoute /> },
         { path: 'recipes/:id', element: <RecipeDetailRoute /> },
         { path: 'metrics', element: <MetricsRoute /> },
         { path: 'drinks', element: <DrinksRoute /> },

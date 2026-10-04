@@ -273,6 +273,13 @@ export const recipes = [
   }),
 ]
 
+let recipeIdSeq = Math.max(0, ...recipes.map((recipe) => recipe.id))
+
+export function nextRecipeId() {
+  recipeIdSeq += 1
+  return recipeIdSeq
+}
+
 // In-memory, signed-in-user favourite state for the fixture API.
 export const favouriteRecipeIds = new Set()
 
@@ -678,6 +685,8 @@ const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 const initialFoodIdSeq = foodIdSeq
 const initialFoodServingIdSeq = foodServingIdSeq
+const initialRecipeIdSeq = recipeIdSeq
+const initialRecipeIds = new Set(initialRecipeContent.keys())
 
 export function resetFixtures() {
   diaryEntries.length = 0
@@ -695,10 +704,14 @@ export function resetFixtures() {
     ...food,
     servings: food.servings.map((serving) => ({ ...serving })),
   })))
+  for (let index = recipes.length - 1; index >= 0; index--) {
+    if (!initialRecipeIds.has(recipes[index].id)) recipes.splice(index, 1)
+  }
   for (const recipe of recipes) {
     const initial = initialRecipeContent.get(recipe.id)
     Object.assign(recipe, JSON.parse(JSON.stringify(initial)))
   }
+  recipeIdSeq = initialRecipeIdSeq
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq
   foodIdSeq = initialFoodIdSeq

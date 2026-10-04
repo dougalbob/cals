@@ -1,5 +1,5 @@
-import { apiGet, apiPut } from './client'
-import type { Recipe, RecipeContentInput, RecipeDetail, RecipeMetadataInput } from './types'
+import { apiGet, apiPost, apiPut } from './client'
+import type { Recipe, RecipeContentInput, RecipeCreateInput, RecipeDetail, RecipeMetadataInput } from './types'
 
 /**
  * The catalogue omits archived recipes unless asked. The Recipes page asks, so its
@@ -12,6 +12,11 @@ export function getRecipes(options: { includeArchived?: boolean } = {}): Promise
 
 export function getRecipe(id: number): Promise<RecipeDetail> {
   return apiGet<RecipeDetail>(`/api/recipes/${id}`)
+}
+
+/** Create a shared recipe definition with its classification in one API write. */
+export function createRecipe(input: RecipeCreateInput): Promise<RecipeDetail> {
+  return apiPost<RecipeDetail>('/api/recipes', input)
 }
 
 /** Update shared recipe content in place; the server rejects any name change. */

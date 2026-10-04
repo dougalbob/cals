@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — New recipe authoring implemented; preview approved, publication underway
+
+The next queued Phase 13 slice adds `/recipes/new` and a catalogue action. The full-page form creates a
+shared recipe with a fixed-at-creation name, description, matched cals Food ingredients and grams,
+optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition
+estimate, and the existing shared classification (meal occasions, dish type, up to two key foods,
+Own creation and total prep-to-plate minutes). The catalogue/Diary query context survives entering,
+cancelling and completing creation; success opens the new detail page. Photo upload/crop remains a
+separate feature.
+
+`POST /api/recipes` now validates the recipe and classification, calculates nutrition from persisted
+Foods, requires key foods to be among the recipe's Food ingredients, and commits recipe content,
+ingredients and shared classification in one transaction. The fixture API mirrors creation and reset
+removes created fixtures. No schema migration or live appdata operation was needed.
+
+The 360 × 640 px phone review caught a real overlap: the sticky create-actions row covered the
+Description field near the top of the long form. The creation actions now stay in normal form flow;
+the browser test verifies fields are unobstructed initially and Cancel/Create remain visible above the
+fixed navigation at the end of the form. The preview has no horizontal overflow at 360 px.
+
+Validation on the Arena branch: `npm run lint`, `npm run typecheck`, `npm test` (180 tests / 22 files),
+`npm run build`, `npm run build:go`; Go formatting, `go build ./...`, `go vet ./...`, `go test ./...`;
+and 53 Playwright tests passed across phone and desktop. Documentation links and `git diff --check`
+are clean. On 2026-10-04 the owner approved the Arena preview and authorized the development publish
+loop. The implementation is still unmerged and unpublished; PR/CI and the next development checkpoint
+are pending. The published baseline remains rc23.
+
 ## 2026-10-04 — Published `v2.0.0-dev-rc23` (PR #52, stabilisation checkpoint)
 
 The owner directed a test-and-housekeeping pass before Phase 14 — test the app as it stands, fix only
