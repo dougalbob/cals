@@ -71,6 +71,13 @@ check that compiles and runs the Go test files; `go build` never touches `_test.
 | **Go tests (validation)** | `go-validate.yml` | every pull request targeting `cals-dev` or `main`, every push to `cals-dev` | `go vet ./...` and `go test ./...` with `CGO_ENABLED=1` on the Go version from `go.mod` — the gate that catches a failing or non-compiling backend test | `contents: read` |
 | **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, creates the GitHub prerelease with the image digest in its notes, then logs out and verifies the image pulls **anonymously** (the test Unraid depends on) | `contents: write`, `packages: write` |
 
+**Why `main` appears in two of those triggers (kept deliberately, owner decision 2026-10-04).** The
+`main` entry in `docker-validate.yml` and `go-validate.yml` exists so that a *deliberate* release PR
+(`cals-dev` → `main`) would still be checked. It is not an invitation: `main` is production and
+read-only, session work always targets `cals-dev`, and nothing in these workflows can merge or push
+anything. The owner chose to keep the entries rather than strip them, so this is intentional and
+should not be "tidied up" as if it were a mistake.
+
 **Manual dispatch is not available yet.** All four workflows declare `workflow_dispatch`, but GitHub
 only offers the *Run workflow* button (and `gh workflow run`) for a workflow that exists on the
 repository's **default branch** — here `main`, which carries no `.github/` directory. Until then the
