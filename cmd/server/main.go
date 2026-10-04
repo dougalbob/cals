@@ -47,6 +47,16 @@ func main() {
 	}
 	defer database.Close()
 
+	// Roles are declared in /app/data/.env (ADMIN_EMAILS / STANDARD_EMAILS) and
+	// reconciled into users.is_admin here, so the running container always
+	// matches the configuration on disk. See internal/handlers/roles.go.
+	handlers.SetConfiguredRoles(cfg.AdminEmails, cfg.StandardEmails)
+	roles, err := handlers.ApplyConfiguredRoles()
+	if err != nil {
+		log.Fatalf("Failed to apply configured user roles: %v", err)
+	}
+	logConfiguredRoles(roles)
+
 	if cfg.FatSecretClientID != "" && cfg.FatSecretClientSecret != "" {
 		handlers.FatSecretClient = fatsecret.NewClient(cfg.FatSecretClientID, cfg.FatSecretClientSecret)
 		log.Println("FatSecret client initialized")
@@ -208,6 +218,32 @@ func main() {
 	if err := http.ListenAndServe(cfg.ListenAddress(), mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
 		os.Exit(1)
+	}
+}
+
+// logConfiguredRoles prints the role reconciliation, because a misspelled
+// address or an account that has not signed in yet is otherwise invisible: the
+// app would simply behave as if the Admin were a Standard user.
+func logConfiguredRoles(applied handlers.RoleApplication) {
+	if !applied.Configured {
+		if len(applied.StandardEmails) > 0 {
+			log.Printf("Roles: STANDARD_EMAILS is set but ADMIN_EMAILS is not — every account stays Standard (no Standard list is applied without an Admin)")
+		}
+		return
+	}
+
+	log.Printf("Roles: Admin: %s", strings.Join(applied.AdminEmails, ", "))
+	if len(applied.StandardEmails) > 0 {
+		log.Printf("Roles: Standard: %s", strings.Join(applied.StandardEmails, ", "))
+	}
+	for _, email := range applied.Granted {
+		log.Printf("Roles: granted Admin to %s", email)
+	}
+	for _, email := range applied.Revoked {
+		log.Printf("Roles: revoked Admin from %s (no longer listed in ADMIN_EMAILS)", email)
+	}
+	for _, email := range applied.Missing {
+		log.Printf("Roles: %s is configured but has no account yet; the role applies on first sign-in", email)
 	}
 }
 

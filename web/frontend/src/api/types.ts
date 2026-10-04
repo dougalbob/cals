@@ -13,6 +13,8 @@ export interface User {
   weight_unit: string
   bank_start_date: string
   target_weight_kg?: number
+  /** Admin/Standard role (decisions 45, 89): declared in the server's .env and reconciled at start-up. */
+  is_admin: boolean
   created_at: string
   updated_at: string
 }

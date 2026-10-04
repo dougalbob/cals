@@ -592,6 +592,8 @@ export const user = {
   // meaningful rather than crediting days that have no logged food.
   bank_start_date: iso(localNoon(20)),
   target_weight_kg: 85,
+  // Decisions 45/89: the fixture represents the household Admin.
+  is_admin: true,
   created_at: '2025-02-14T09:00:00Z',
   updated_at: `${TODAY}T07:00:00Z`,
 }

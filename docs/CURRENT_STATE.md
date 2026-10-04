@@ -78,7 +78,16 @@ Before returning to Phase 14 Metrics, the next session should focus on the desig
 
 Keep Cloudflare Access as the authentication layer and allow both users' email identities in its policy. With the production Cloudflare hostname, the app selects the account matching the authenticated email; using the owner's identity alone still shows his own sparse account until the Admin switch exists. Direct LAN access to the production origin has no Cloudflare token, so protected API calls return 401; use the Cloudflare hostname from the LAN. `DEV_MODE` and `DEV_IDENTITY_SWITCH` remain development-only and must not be used to impersonate on the live container.
 
-The implementation session should resolve secure Admin bootstrapping, server-side validation and persistence of the selected user, and the security/test plan before or alongside coding. It must protect every affected API route, make `GET /api/users` Admin-only (it currently returns the user list to any authenticated user), reject forged or stale switches, and keep the Standard user unable to switch. The existing Admin role/swap design is in [decision 45](product/vision-and-open-questions.md#admin-role-and-swap-user-2026-10-03); decision 88 records the assignment and priority. **No role or production swap code exists yet.**
+The implementation session should resolve secure Admin bootstrapping, server-side validation and persistence of the selected user, and the security/test plan before or alongside coding. It must protect every affected API route, make `GET /api/users` Admin-only (it currently returns the user list to any authenticated user), reject forged or stale switches, and keep the Standard user unable to switch. The existing Admin role/swap design is in [decision 45](product/vision-and-open-questions.md#admin-role-and-swap-user-2026-10-03); decision 88 records the assignment and priority.
+
+**Increment 1 is built (2026-10-04, this branch, not yet published):** the roles are declared as
+`ADMIN_EMAILS` / `STANDARD_EMAILS` in `/app/data/.env` and reconciled into the additive
+`users.is_admin` column at every start-up (decision 89), and `GET /api/users` is now Admin-only
+(`403` for a Standard user). Verified against a real server: a declared Admin is granted on boot and
+on first sign-in, an address removed from `ADMIN_EMAILS` is revoked on the next start-up, a malformed
+address refuses to start the container, and an unset `ADMIN_EMAILS` leaves the database untouched.
+Mechanism and operational rules: [`admin-roles.md`](architecture/admin-roles.md). **The in-app Swap
+user control, the acting-user session and the “viewing as” indicator are still to build.**
 
 The previously requested reliable server-local backup/restore of the database and all recipe images remains an outstanding deployment-safety requirement; this role-focused next-session request does not satisfy it. Phase 14 Metrics remains the next feature phase after the owner-directed role/switch work.
 
@@ -125,6 +134,17 @@ Full reasoning and every open sub-question:
 ---
 
 ## 6. Housekeeping done recently
+
+- **Admin role declaration built (2026-10-04, this branch; unpublished).** `ADMIN_EMAILS` and
+  `STANDARD_EMAILS` in the appdata `.env` are validated at start-up (a malformed address, or one
+  listed as both roles, fails loudly) and reconciled into the additive `users.is_admin` column, which
+  every request reads: declared Admins are granted, everyone else is set to Standard, and a brand-new
+  account takes its declared role at creation. A configured address with no account is logged, never
+  created. `GET /api/users` now answers `403` for a Standard user instead of listing the household's
+  accounts. Go vet, `go test ./...` (including eight new role tests) and a manual run of the real
+  server are green; one additive migration, no data copy, no appdata operation, and no change to
+  either UI. Decision 89 records the mechanism; [`admin-roles.md`](architecture/admin-roles.md)
+  documents it.
 
 - **Published `v2.0.0-dev-rc25` — recipe-photo upload and UI refinements (2026-10-04, PR #56).** PR #56 merged to `cals-dev` as `1e38a777c1c234cccc1a711fdde5abbd8a9e36e5`; [Docker/runtime](https://github.com/dougalbob/cals/actions/runs/37212805944), [Go](https://github.com/dougalbob/cals/actions/runs/37212805943) and [PR Playwright](https://github.com/dougalbob/cals/actions/runs/37212836489) checks passed. Tag `v2.0.0-dev-rc25` published by [run 37212991108](https://github.com/dougalbob/cals/actions/runs/37212991108), digest `sha256:814484b008cb5c915e15687208e0c1ab712f60c2c58bf35e32c855b8b6a2fc0d`; [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc25). The tagged [milestone browser suite](https://github.com/dougalbob/cals/actions/runs/37212991110) passed 60 tests. Includes optional uncropped recipe-photo upload/replacement and decisions 83–85. No schema migration, data copy, appdata operation or template change. At publication, the last reported installation was rc24; the owner later signed off all published RC candidates through rc25 on 2026-10-04, while an rc25 Force Update remains unconfirmed (§3).
 - **Published `v2.0.0-dev-rc24` — no-photo recipe authoring (2026-10-04, PR #54).** PR #54 merged to `cals-dev` as `c5828b6f56edb60124cf982396945ebf7da5b663`. [Docker/runtime validation](https://github.com/dougalbob/cals/actions/runs/37206287261), [PR Go validation](https://github.com/dougalbob/cals/actions/runs/37206287234) and [PR browser suite](https://github.com/dougalbob/cals/actions/runs/37206287397) passed; the post-merge Go run [37206413850](https://github.com/dougalbob/cals/actions/runs/37206413850) passed. [Publish run 37206446238](https://github.com/dougalbob/cals/actions/runs/37206446238) passed the `cals-dev` ancestry guard, image build/push, prerelease creation and anonymous-pull check; digest `sha256:1d1f9c4047ea39624f60b460759f994ee39c3faac87c270bb42ca847fedd9e4`; [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc24). The tag's [milestone browser run](https://github.com/dougalbob/cals/actions/runs/37206446239) passed 53 tests. The owner approved the Arena preview and later reported rc24 installed with recipe creation working well (§3). No schema migration, data copy, appdata operation or template change in rc24; PR #56 subsequently adds photo upload and the decisions 83–85 UI refinements in rc25 (see the preceding bullet).

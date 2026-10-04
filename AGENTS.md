@@ -17,7 +17,7 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
    that trap. If the integration branch is genuinely absent on GitHub, stop and ask the owner rather
    than creating another branch. If `ls docs/architecture/` does not show `rebuild-kickoff.md`, you
    have not synced.
-5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`). No credentials in code, docs, tests or commit messages.
+5. **Never commit secrets.** `.env` files are git-ignored (`/app/data/.env` holds `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `FATSECRET_*`, `MEALIE_*`, and the `ADMIN_EMAILS` / `STANDARD_EMAILS` role lists — which are personal email addresses). No credentials or real email addresses in code, docs, tests or commit messages.
 6. **Never delete the repository root or `.git`.** No history rewrites.
 7. **Never touch live appdata.** V2 (`/mnt/user/appdata/cals-dev-v2`) is the household's live data since 2026-10-02 even though it began as a copy; the V1 directory (`/mnt/user/appdata/cals`) is stale, and neither may be used as a development data directory. The only disposable data is the `cals-dev-identity` copy. See `docs/architecture/data-copy-warning.md`.
 

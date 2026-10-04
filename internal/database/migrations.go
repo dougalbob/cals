@@ -305,6 +305,12 @@ func RunMigrations() error {
 		// Phase 13: an optional shared marker for recipes created by the household.
 		// Existing recipes are not marked by default.
 		`ALTER TABLE recipes ADD COLUMN is_own_creation INTEGER NOT NULL DEFAULT 0`,
+
+		// Decisions 45 and 88: the Admin/Standard role. Additive, so every
+		// existing account stays Standard (0). The declared source of truth is
+		// ADMIN_EMAILS / STANDARD_EMAILS in /app/data/.env, reconciled into this
+		// column at start-up; see internal/handlers/roles.go.
+		`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`,
 	}
 
 	for _, migration := range migrations {

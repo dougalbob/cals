@@ -25,6 +25,13 @@ type Config struct {
 	DevUserEmail          string
 	DevIdentitySwitch     bool
 	BindAddress           string
+	// AdminEmails and StandardEmails are the declared Admin/Standard roles for
+	// this installation (decisions 45 and 88). They come from the environment
+	// — normally /app/data/.env — so no personal email address is hard-coded
+	// in the public repository. They are reconciled into users.is_admin at
+	// start-up; see internal/handlers/roles.go.
+	AdminEmails    []string
+	StandardEmails []string
 }
 
 func Load() (*Config, error) {
@@ -52,6 +59,21 @@ func Load() (*Config, error) {
 	}
 	if devIdentitySwitch && !devMode {
 		return nil, fmt.Errorf("DEV_IDENTITY_SWITCH=true requires DEV_MODE=true: the identity switch is a development-only feature and must never be enabled on a Cloudflare-routed deployment")
+	}
+
+	adminEmails, err := parseEmailList(getEnv("ADMIN_EMAILS", ""))
+	if err != nil {
+		return nil, fmt.Errorf("invalid ADMIN_EMAILS: %w", err)
+	}
+	standardEmails, err := parseEmailList(getEnv("STANDARD_EMAILS", ""))
+	if err != nil {
+		return nil, fmt.Errorf("invalid STANDARD_EMAILS: %w", err)
+	}
+	if both := emailsInBoth(adminEmails, standardEmails); len(both) > 0 {
+		return nil, fmt.Errorf(
+			"these emails are listed as both Admin and Standard: %s (an account can only hold one role)",
+			strings.Join(both, ", "),
+		)
 	}
 
 	devUserEmail := strings.ToLower(strings.TrimSpace(getEnv("DEV_USER_EMAIL", "")))
@@ -84,6 +106,8 @@ func Load() (*Config, error) {
 		DevUserEmail:          devUserEmail,
 		DevIdentitySwitch:     devIdentitySwitch,
 		BindAddress:           bindAddress,
+		AdminEmails:           adminEmails,
+		StandardEmails:        standardEmails,
 	}, nil
 }
 
@@ -94,6 +118,53 @@ func (c *Config) ListenAddress() string {
 		return ":" + c.Port
 	}
 	return net.JoinHostPort(c.BindAddress, c.Port)
+}
+
+// parseEmailList reads a comma-separated list of email addresses from one
+// configuration value. Blank entries are skipped so a trailing comma — or an
+// unset value, meaning "no role declared" — is not an error. Addresses are
+// lower-cased and de-duplicated because the app lower-cases every identity it
+// sees (the Cloudflare JWT email and DEV_USER_EMAIL alike), and a
+// differently-cased duplicate would silently fail to match later.
+func parseEmailList(value string) ([]string, error) {
+	var emails []string
+	seen := make(map[string]bool)
+
+	for _, entry := range strings.Split(value, ",") {
+		email := strings.ToLower(strings.TrimSpace(entry))
+		if email == "" {
+			continue
+		}
+		address, err := mail.ParseAddress(email)
+		if err != nil || address.Address != email {
+			return nil, fmt.Errorf("%q is not a valid email address", strings.TrimSpace(entry))
+		}
+		if seen[email] {
+			continue
+		}
+		seen[email] = true
+		emails = append(emails, email)
+	}
+
+	return emails, nil
+}
+
+// emailsInBoth returns the emails that appear in both lists, preserving the
+// order of the first. An address can only hold one role, so the overlap is a
+// configuration error rather than something to resolve silently.
+func emailsInBoth(first, second []string) []string {
+	inSecond := make(map[string]bool, len(second))
+	for _, email := range second {
+		inSecond[email] = true
+	}
+
+	var overlap []string
+	for _, email := range first {
+		if inSecond[email] {
+			overlap = append(overlap, email)
+		}
+	}
+	return overlap
 }
 
 func validateDevUserEmail(email string) error {
