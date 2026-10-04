@@ -60,14 +60,21 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		           SELECT 1 FROM recipe_favourites rf
 		           WHERE rf.recipe_id = r.id AND rf.user_id = ?
 		       ) AS is_favourite,
+		       COALESCE(log_counts.times_logged, 0) AS times_logged,
 		       r.updated_at, r.dish_type, r.total_time_minutes,
 		       p.grams AS usual_grams, r.is_archived
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		LEFT JOIN recipe_user_portions p ON p.recipe_id = r.id AND p.user_id = ?
+		LEFT JOIN (
+		    SELECT de.recipe_id, COUNT(*) AS times_logged
+		    FROM diary_entries de
+		    WHERE de.user_id = ? AND de.recipe_id IS NOT NULL
+		    GROUP BY de.recipe_id
+		) log_counts ON log_counts.recipe_id = r.id
 		WHERE (? = 1 OR r.is_archived = 0)
 		ORDER BY r.name
-	`, user.ID, user.ID, includeArchived)
+	`, user.ID, user.ID, user.ID, includeArchived)
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -82,8 +89,8 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		var isFavourite, isArchived int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
 			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
-			&recipe.CreatedByName, &isFavourite, &recipe.UpdatedAt, &dishType, &totalTime, &usualGrams,
-			&isArchived)
+			&recipe.CreatedByName, &isFavourite, &recipe.TimesLogged, &recipe.UpdatedAt, &dishType,
+			&totalTime, &usualGrams, &isArchived)
 		if err != nil {
 			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -274,6 +281,12 @@ func getRecipeForUser(id, userID int64) (*models.Recipe, error) {
 		return nil, err
 	}
 	recipe.IsFavourite = isFavourite != 0
+
+	if err := database.DB.QueryRow(`
+		SELECT COUNT(*) FROM diary_entries WHERE recipe_id = ? AND user_id = ?
+	`, id, userID).Scan(&recipe.TimesLogged); err != nil {
+		return nil, err
+	}
 
 	usualGrams, err := loadUsualRecipePortion(userID, id)
 	if err != nil {

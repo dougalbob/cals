@@ -14,6 +14,40 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Larger Favourite hit area and compact recipe-image badges (decision 78)
+
+To make the Favourite easier to tap without hiding more of the photo, its visible circle shrinks from
+44 px to 33 px and the heart from 24 px to 18 px, inside a transparent 66 × 66 px button hit area.
+The per-user log-count badge shrinks from 48 px to 36 px, with numerals from 16 px to 12 px, retaining
+room for three digits. Frontend lint, typecheck, all 178 Vitest tests, `build:go` and `build:preview`
+pass. No data/schema change or release.
+
+## 2026-10-04 — Arena-preview navigation arrow and softer Diary fills (decisions 76–77)
+
+To work around the Arena preview not reliably forwarding horizontal swipes, the fifth bottom-nav slot
+(now Foods) becomes a reversible arrow: it scrolls the menu to show both Foods and Recipes, with a back
+arrow to return. Horizontal swipe and supported-device haptics remain available. The four Diary meal
+fills were reduced from 50% to 25% opacity. Frontend lint, typecheck, all 178 Vitest tests,
+`build:go` and `build:preview` pass. No release or data/schema change.
+
+## 2026-10-04 — Phase 13 polish implemented on the Arena session branch (decisions 68, 72–75)
+
+The session built all four items: fixed app-chrome layering; proportional, meal-accent Diary fills with
+percentage labels; a signed-in-user recipe log-count badge; and a five-visible-item swipeable bottom
+navigation with haptics where available. The badge uses one additive `times_logged` API field backed by
+`COUNT(*)` on `diary_entries(recipe_id, user_id)` — no schema migration or data/appdata change. Frontend
+lint, typecheck, 177 Vitest tests, `build:go` and `build:preview` passed; Go vet and the complete Go test
+suite passed. The Arena preview is live for the owner's phone-size review; no release has been created.
+
+## 2026-10-04 — Phase 13 polish queue extended (decisions 74–75, documentation only)
+
+The owner specified the recipe log-count badge's blue primary fill, white digits, circular three-digit
+size and preferred top-left position. Code inspection found that the top-left is clear on active
+recipe cards but occupied by the *Archived* pill on archived cards; the queued treatment moves that
+pill to the top-right, which has no heart in the archived state. The owner also requested a five-item
+bottom navigation with horizontal swipe and haptic feedback to reveal overflow (currently Recipes),
+ready for future Settings and Exercise destinations. **No app code was changed in this queue update.** See [decisions 74–75](../product/vision-and-open-questions.md).
+
 ## 2026-10-04 — Published `v2.0.0-dev-rc20` (PR #46, documentation only)
 
 The owner said **"lets publish"**, so the delivery loop ran end to end. PR #46 passed both

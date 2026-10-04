@@ -64,3 +64,11 @@
 @utility safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

@@ -550,10 +550,12 @@ function RecipeCard({
       className="h-full overflow-hidden rounded-2xl bg-card shadow-card"
       aria-label={recipe.is_archived ? `${recipe.name} (archived)` : undefined}
     >
-      <div
-        className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900 ${recipe.is_archived ? 'opacity-70 saturate-50' : ''}`}
-      >
-        <Link to={detailHref} aria-label={`View ${recipe.name}`} className="absolute inset-0 z-0 block">
+      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-green-900">
+        <Link
+          to={detailHref}
+          aria-label={`View ${recipe.name}`}
+          className={`absolute inset-0 z-0 block ${recipe.is_archived ? 'opacity-70 saturate-50' : ''}`}
+        >
           {imageUrl ? (
             <img src={imageUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
           ) : (
@@ -570,21 +572,38 @@ function RecipeCard({
           onTagClick={onTagClick}
           className="absolute bottom-3 left-3 right-16 z-10"
         />
+        {recipe.times_logged > 0 && (
+          <span
+            role="img"
+            data-recipe-log-count
+            aria-label={`Logged ${recipe.times_logged} ${recipe.times_logged === 1 ? 'time' : 'times'}`}
+            className="absolute left-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold tabular-nums leading-none text-white shadow-card"
+          >
+            {recipe.times_logged}
+          </span>
+        )}
         {recipe.is_archived && (
-          <span className="absolute left-3 top-3 z-10 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute right-3 top-3 z-10 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
             Archived
           </span>
         )}
         {!recipe.is_archived && (
           <button
             type="button"
+            data-favourite-hit-target
             onClick={onToggleFavourite}
             disabled={savingFavourite}
             aria-label={`${recipe.is_favourite ? 'Remove' : 'Add'} ${recipe.name} ${recipe.is_favourite ? 'from' : 'to'} favourites`}
             aria-pressed={recipe.is_favourite}
-            className="absolute right-3 top-3 z-20 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/95 shadow-card disabled:opacity-60"
+            className="absolute right-0 top-0 z-20 h-[66px] w-[66px] cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <HeartIcon filled={recipe.is_favourite} className="h-6 w-6" />
+            <span
+              data-favourite-badge
+              aria-hidden="true"
+              className="absolute right-3 top-3 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/95 shadow-card"
+            >
+              <HeartIcon filled={recipe.is_favourite} className="h-[18px] w-[18px]" />
+            </span>
           </button>
         )}
       </div>

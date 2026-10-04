@@ -114,6 +114,8 @@ export interface Recipe {
   fibre_per_100g: number
   updated_at?: string
   is_favourite: boolean
+  /** Number of times the signed-in user has logged this recipe. */
+  times_logged: number
   /**
    * Household-wide retirement flag (decision 59). An archived recipe is hidden from the
    * catalogue by default, cannot be logged until restored, and keeps its Diary history.

@@ -535,23 +535,26 @@ concentration maths and its unit tests are untouched, and the fixture API mirror
 
 The existing per-user recipe usual-portion preference remains separate from shared recipe metadata; Diary entries continue to store gram and nutrition snapshots. Keep persistence additive and narrowly scoped, with API and fixture tests. The owner has reviewed and approved the first recipe metadata increment in the Arena preview; phase-wide phone-size review and final owner acceptance remain required before cutover.
 
-### Queued for the next session — the Phase 13 polish slice (2026-10-04)
+### Phase 13 polish slice requirements — decisions 68, 72–78 (2026-10-04)
 
-Three of the seven items the owner raised on 2026-10-04 do not belong to any phase that exists: they
-are not Metrics work (Phase 14), not Settings work (Phase 15), and the phases they touch are already
-closed or unstarted. They are therefore grouped as one small, self-contained **Phase 13 polish
-slice**, to be taken before the remaining Phase 13 authoring work (new-recipe creation, image
-upload/crop) or alongside it. All three are frontend-first; only the badge needs an API field.
+Three items from the owner's original seven-point road-test list do not belong to an existing phase,
+so they were grouped into a small **Phase 13 polish slice**. The owner subsequently added two
+follow-up requirements (decisions 74–75), then reduced the fill opacity (76), added a temporary
+Arena-preview arrow workaround (77), and refined recipe-card badge sizes and touch targets (78). These
+four deliverables are frontend-first; only the recipe count needs an additive API response field. The current status and order of work are in
+[`CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
 
 | Item | Decision | Shape |
 |---|---|---|
-| **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give the app chrome an explicit layer (above page content, below `Modal`'s `z-50`) and audit the other fixed/sticky chrome for the same omission. A live defect in the published build, so it goes first |
-| **Diary meal-card back fill with a percentage** | 68 | The same proportional fill Today's meal tiles got in rc18, but coloured with each card's own meal accent at 50% opacity and labelled with the percentage it represents in white at the bar's upper-right corner |
-| **Recipe log-count badge** | 72 | A badge on the recipe image showing how many times *that user* has logged the recipe — the number alone. `COUNT(*)` over `diary_entries(recipe_id, user_id)`; no schema change, one additive response field, no badge at zero |
+| **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give app chrome an explicit layer above page content but below `Modal`'s `z-50`, and audit other fixed/sticky chrome. A live defect in the published build, so it goes first |
+| **Diary meal-card back fill with a percentage** | 68, 76 | Reuse the proportional fill from Today's meal tiles, with each meal's own accent at 25% opacity and a padded white percentage label at the bar's upper-right corner |
+| **Recipe log-count badge** | 72, 74, 78 | Number only; `COUNT(*)` over `diary_entries(recipe_id, user_id)`, per signed-in user; no schema change, one additive response field, and no badge at zero. Use a 36 px circular badge with white 12 px digits on the app header's blue primary colour, still sized for three digits, at the image's top-left. That corner is clear on active cards; move the existing *Archived* pill to the top-right on archived cards, where no heart is shown |
+| **Recipe-card Favourite touch target** | 78 | Put the 33 px white favourite badge and 18 px heart inside a transparent 66 × 66 px button target at the image's top-right. This doubles the visual badge diameter for taps without taking more visible photo space |
+| **Five-visible-item swipeable bottom navigation** | 75, 77 | Show five slots at once; horizontal swipe with haptics where supported remains available. For the Arena preview, a fifth-slot arrow toggles the overflow window to reveal both Foods and Recipes, with a back arrow to return. This is a temporary development workaround; future Settings and Exercise pages remain out of scope |
 
-Detail and the open design points (badge placement against the tags, the heart and the *Archived*
-badge; the label rule when a meal's share is only a percent or two) are in the
-[decision log](../product/vision-and-open-questions.md#bank-window-metrics-charts-and-app-polish--decisions-6673-2026-10-04).
+The badge's placement and archived-card collision, plus the small-print rule when a meal's share is only
+a percent or two, are described in the [decision log](../product/vision-and-open-questions.md).
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
-merge.
+merge. The owner approved this slice in the Arena preview on 2026-10-04; Unraid Force Update/review
+remains pending.

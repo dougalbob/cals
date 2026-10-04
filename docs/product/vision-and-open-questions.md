@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–73). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–75). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -687,22 +687,36 @@ unverified, and `AGENTS.md` §3 says so.
 ## Bank window, metrics charts and app polish — decisions 66–73 (2026-10-04)
 
 Seven items the owner raised on 2026-10-04, while Phase 13's safety slices were being published as
-`v2.0.0-dev-rc19`. **None of them is implemented.** They are recorded here as scheduled work: three
-(the Diary meal-card fill, the recipe log-count badge and the navigation layering bug) do not belong
-to any phase that exists, so they are grouped as the next **Phase 13 polish slice**; the rest extend
-**Phase 14 (Metrics + Nutrition)** and **Phase 15 (Settings)**. Order and status: see
-[`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+`v2.0.0-dev-rc19`. Three (the Diary meal-card fill, the recipe log-count badge and the navigation
+layering bug) do not belong to any phase that exists, so they form a **Phase 13 polish slice**; the
+rest extend **Phase 14 (Metrics + Nutrition)** and **Phase 15 (Settings)**. Follow-up presentation and
+navigation requirements were added as decisions 74–78; decision 76 supersedes the original fill opacity,
+decision 77 adds a temporary Arena-preview arrow workaround, and decision 78 improves recipe-card badge
+hit targets and image visibility. Current implementation status and work
+order: [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
 | 66 | 2026-10-04 | **The bank window replaces the day-1 accumulation everywhere — and it defaults to 14 days.** The owner's further research says a deficit or credit accumulated since `bank_start_date` is the wrong figure to steer by. The Banked/Deficit tile, `today_available` (goal + bank) and the ring all read the **last N completed days**; `bank_start_date` becomes the window's floor, not its starting point. Settings offers the presets **30 days, 14 days, 7 days, All time** plus a **custom number of days**. “All time” reproduces today's cumulative behaviour, so nothing is lost. Revises decision 44, which had scoped the window to the ring only. | Owner (scope, presets and 14-day default confirmed 2026-10-04) |
 | 67 | 2026-10-04 | **Measurements get a tappable body map.** An SVG human outline (gender aware, large enough that hitting a body part is never a problem) carries small red tap points; tapping one opens a pop-up showing that part's **last recorded measurement**, which can be overtyped or stepped with up/down buttons, then committed with a save icon. Cancel with an unsaved change warns first (toast or equivalent); saving an unchanged value asks “Measurement hasn't changed — is this correct?” The outline's shape comes from a **new per-user setting** (the owner's choice — `users` has no gender column today), so it is an additive migration alongside Phase 15's other per-user preferences. | Owner |
-| 68 | 2026-10-04 | **The Diary's four meal cards get the Today-style proportional back fill**, with two differences: the fill uses **that card's own meal accent colour at 50% opacity** (not the shared primary), and the **percentage it represents is printed at the upper-right extreme of the bar** in white, with padding, sitting in the bar's top-right corner. | Owner |
+| 68 | 2026-10-04 | **The Diary's four meal cards get the Today-style proportional back fill**, with two differences: the fill uses **that card's own meal accent colour at 50% opacity** (not the shared primary), and the **percentage it represents is printed at the upper-right extreme of the bar** in white, with padding, sitting in the bar's top-right corner. Decision 76 later reduces the fill opacity to 25%. | Owner |
 | 69 | 2026-10-04 | **General rule for Metrics charts: a windowed chart must pan.** Where a chart shows a window of time, the rest of the series is reached by dragging the chart — touch-drag with haptic feedback on a phone, click-and-hold and move left/right on a laptop — never by cramming more points into the same width. Applies to every chart below and to any future one. | Owner |
 | 70 | 2026-10-04 | **The weigh-in chart shows a 30-day window and plots a trend line in the same chart.** Weight history will keep growing, so points must not be cramped: 30 days are visible, and earlier or later periods are reached by panning (decision 69). The chart style is explicitly to be discussed when it is built. | Owner |
 | 71 | 2026-10-04 | **A daily-goal-vs-consumed chart.** Each day's consumed calories against a horizontal daily-goal line: **green below the goal**, and above it a **gradient — amber for the first 10% over the goal, red beyond 10%**. 30-day window, pannable (decision 69). | Owner |
 | 72 | 2026-10-04 | **A recipe card badge showing how many times that user has added the recipe to their Diary.** The number alone — no other text on the badge. | Owner |
 | 73 | 2026-10-04 | **Bug: the Recipes page's tags paint over the menu.** Scrolling the recipe list, the card tags pass over the menu instead of behind it. **The menu must be the topmost visible layer at all times.** Root cause verified in code (below); it is a live defect in the published build. | Owner |
+
+### Follow-up presentation and navigation requirements — decisions 74–78 (2026-10-04)
+
+The owner added badge and navigation requirements to the Phase 13 polish slice, then clarified the fill opacity, added an Arena-preview navigation workaround, and refined recipe-card badge sizing and tap targets. See [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4 for implementation status.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 74 | 2026-10-04 | **Recipe log-count badge styling and placement.** Use the app header's current blue primary colour for the circular badge, white digits, and enough diameter for three digits. Place it at the image's top-left. Active recipe cards leave that corner free; archived cards already show an *Archived* pill there, so avoid overlap by moving that pill to the top-right on archived cards (where no favourite heart is shown). | Owner (top-left preferred; non-overlap treatment follows code inspection) |
+| 75 | 2026-10-04 | **Show five bottom-navigation destinations at a time and swipe to reveal the rest.** Use horizontal swipe to expose overflow entries (currently Recipes is the sixth item), with haptic feedback when supported. Design the navigation to accommodate future pages such as Settings and Exercise; adding those pages is not part of this polish slice. | Owner |
+| 76 | 2026-10-04 | **Reduce the Diary meal-card fill opacity from 50% to 25%.** Keep each card's own meal-accent colour and retain the proportional fill and percentage label. This supersedes the opacity in decision 68. | Owner |
+| 77 | 2026-10-04 | **Add a temporary Arena-preview arrow for navigation overflow.** The preview cannot reliably swipe the bottom menu, so replace the fifth visible slot (formerly Foods) with an arrow button. Pressing it scrolls the menu to reveal both Foods and Recipes; the arrow changes to a back control to return. Keep swipe and supported-device haptics, and do not add future Settings or Exercise pages. This is a development-only workaround, not a permanent product requirement. | Owner |
+| 78 | 2026-10-04 | **Improve recipe-card tap targets and show more of the image.** Keep the visible Favourite badge, but reduce its circle and heart icon by 25%; place it in a transparent 66 × 66 px button hit area (twice the new 33 px badge diameter), above the recipe-image link. Reduce the recipe log-count circle from 48 px to 36 px and its numerals from 16 px to 12 px (25% each), while retaining legibility for three digits. | Owner |
 
 ### The windowed bank (decision 66)
 
@@ -791,10 +805,11 @@ Today's four meal tiles already fill in proportion to each meal's share of the d
 (rc18, `data-calorie-fill` in `HomeRoute.tsx`, `bg-primary-light/50` behind the content). The Diary's
 four meal cards get the same idea, with the owner's two differences:
 
-1. **The fill colour is the card's own meal accent at 50% opacity** — `--color-meal-breakfast`,
-   `--color-meal-lunch`, `--color-meal-dinner`, `--color-meal-snacks`, the same tokens that already
-   drive each card's left border (`MEAL_ACCENT` in `DiaryRoute.tsx`). The fill sits *behind* the
-   entries, totals and buttons, exactly as it does on Today.
+1. **The fill colour is the card's own meal accent at 25% opacity** (decision 76; decision 68
+   originally specified 50%) — `--color-meal-breakfast`, `--color-meal-lunch`, `--color-meal-dinner`,
+   `--color-meal-snacks`, the same tokens that already drive each card's left border (`MEAL_ACCENT`
+   in `DiaryRoute.tsx`). The fill sits *behind* the entries, totals and buttons, exactly as it does on
+   Today.
 2. **The percentage is printed at the upper-right extreme of the bar** — white text, padded, in the
    bar's top-right corner (e.g. `23%`).
 
@@ -865,9 +880,14 @@ their Diary** — the number and nothing else.
   as favourites (decision 37) and each user's usual portion (decision 31). An archived recipe still
   carries its count: the history is real.
 - **Zero means no badge.** A recipe never logged has nothing to say.
-- **Placement is a phone-size decision.** The photo already carries tags at the lower left, the
-  favourite heart at the upper right and an *Archived* badge at the upper left, so the count needs a
-  corner that does not collide — lower right, or beside the heart. Judge it in the preview.
+- **Placement is now set by decision 74:** the owner prefers the upper-left corner. On active cards
+  it is free (tags are lower-left and the favourite heart is upper-right). Archived cards already
+  show an *Archived* pill upper-left; move that pill to the upper-right on archived cards, where no
+  favourite heart is rendered, so the count remains visible without overlap.
+- **Compact badge sizing (decision 78):** reduce the count circle from 48 px to 36 px and the digits
+  from 16 px to 12 px, but retain enough room for three digits. The top-right favourite control uses a
+  66 × 66 px transparent button target around a 33 px visual circle and 18 px heart; that larger
+  clickable area overlays the image link without making the visible badge larger.
 
 ### The Recipes layering bug (decision 73)
 

@@ -100,7 +100,14 @@ describe('RecipesRoute', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search recipes' }), {
       target: { value: '' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Chicken Curry to favourites' }))
+    const favouriteButton = screen.getByRole('button', { name: 'Add Chicken Curry to favourites' })
+    expect(favouriteButton.className).toContain('h-[66px] w-[66px]')
+    expect(favouriteButton.className).toContain('bg-transparent')
+    const favouriteBadge = favouriteButton.querySelector<HTMLElement>('[data-favourite-badge]')
+    expect(favouriteBadge?.className).toContain('h-[33px] w-[33px]')
+    expect(favouriteButton.querySelector('svg')?.getAttribute('class')).toContain('h-[18px] w-[18px]')
+
+    fireEvent.click(favouriteButton)
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Remove Chicken Curry from favourites' }).getAttribute('aria-pressed')).toBe('true')
     })
@@ -110,6 +117,27 @@ describe('RecipesRoute', () => {
     expect(screen.getByText('Chicken Curry')).toBeTruthy()
     expect(screen.queryByText('Porridge & Berries')).toBeNull()
     expect(screen.queryByText('Salmon Traybake')).toBeNull()
+  })
+
+  it('shows each signed-in user\'s recipe log count in a blue, three-digit badge and omits zero', async () => {
+    const curryCount = seed.diaryEntries.filter(
+      (entry) => entry.recipe_id === 1 && entry.user_id === seed.user.id,
+    ).length
+    expect(curryCount).toBeGreaterThan(0)
+
+    renderRoute()
+
+    const badge = await screen.findByRole('img', { name: `Logged ${curryCount} times` })
+    expect(badge.textContent).toBe(String(curryCount))
+    expect(badge.className).toContain('left-3 top-3')
+    expect(badge.className).toContain('rounded-full')
+    expect(badge.className).toContain('bg-primary')
+    expect(badge.className).toContain('text-white')
+    expect(badge.className).toContain('h-9 w-9')
+    expect(badge.className).toContain('text-xs')
+
+    const neverLoggedLink = screen.getByRole('link', { name: 'View Porridge & Berries' })
+    expect(neverLoggedLink.closest('article')?.querySelector('[data-recipe-log-count]')).toBeNull()
   })
 
   it('opens a recipe detail page from a catalogue card', async () => {
@@ -363,6 +391,22 @@ describe('RecipesRoute', () => {
     expect(seedRecipeArchived(3)).toBe(false)
   })
 
+  it('keeps the count in the top-left on archived cards and moves the Archived pill to the top-right', async () => {
+    expect(handle('PUT', new URL('/api/recipes/1/archive', 'http://localhost'), { is_archived: true })?.status).toBe(200)
+    renderRoute()
+
+    const toggle = await screen.findByRole('button', { name: 'Archived' })
+    fireEvent.click(toggle)
+    const archivedSection = await screen.findByRole('region', { name: /Archived recipes \(1\)/ })
+    const archivedCard = within(archivedSection).getByRole('article', { name: 'Chicken Curry (archived)' })
+    const badge = within(archivedCard).getByRole('img', { name: /Logged 4 times/ })
+    const archivedPill = within(archivedCard).getByText('Archived')
+
+    expect(badge.className).toContain('left-3 top-3')
+    expect(archivedPill.className).toContain('right-3 top-3')
+    expect(archivedPill.className).not.toContain('left-3')
+  })
+
   it('disables the archived toggle when nothing is archived', async () => {
     renderRoute()
     const toggle = (await screen.findByRole('button', { name: 'Archived' })) as HTMLButtonElement
@@ -411,6 +455,9 @@ describe('RecipesRoute', () => {
 
     it('logs the portion to the carried meal and date, then returns to that day', async () => {
       const target = addDays(seed.TODAY, -3)
+      const countBefore = seed.diaryEntries.filter(
+        (entry) => entry.recipe_id === 1 && entry.user_id === seed.user.id,
+      ).length
       armed('breakfast', target)
 
       const add = await screen.findByRole('button', {
@@ -435,6 +482,9 @@ describe('RecipesRoute', () => {
         expect(logged).toMatchObject({ meal: 'breakfast' })
         expect(logged?.quantity_grams).toBeGreaterThan(0)
       })
+      expect(
+        await screen.findByRole('img', { name: `Logged ${countBefore + 1} times` }),
+      ).toBeTruthy()
       // No archived-recipe or history surprises: the entry is on the asked-for day.
       expect(seed.entriesFor(seed.TODAY).some((entry) => entry.recipe_id === 1)).toBe(false)
 

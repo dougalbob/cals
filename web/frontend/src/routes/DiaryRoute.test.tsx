@@ -149,6 +149,63 @@ describe('DiaryRoute', () => {
     expect(screen.getByText('Nothing logged yet')).toBeTruthy()
   })
 
+  it('fills meal cards by each meal share of the day\'s logged food calories', async () => {
+    const otherDays = seed.diaryEntries.filter((entry) => entry.date !== seed.TODAY)
+    const todayEntries = ([
+      ['breakfast', 300],
+      ['lunch', 200],
+      ['dinner', 500],
+    ] as const).map(([meal, calories], index) => ({
+      id: 9800 + index,
+      user_id: 1,
+      date: seed.TODAY,
+      meal,
+      food_id: 1,
+      recipe_id: null,
+      quantity_grams: 100,
+      calories,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fibre: 0,
+      created_at: `${seed.TODAY}T08:00:00Z`,
+      updated_at: `${seed.TODAY}T08:00:00Z`,
+      food_name: 'Test food',
+    }))
+    seed.diaryEntries.splice(0, seed.diaryEntries.length, ...otherDays, ...todayEntries)
+
+    renderDiary('/diary')
+
+    const breakfast = (await screen.findByRole('heading', { name: /Breakfast/ })).closest('section')
+    const dinner = screen.getByRole('heading', { name: /Dinner/ }).closest('section')
+    expect(breakfast).toBeTruthy()
+    expect(dinner).toBeTruthy()
+
+    const breakfastFill = breakfast?.querySelector<HTMLElement>('[data-calorie-fill]')
+    expect(breakfastFill?.style.width).toBe('30%')
+    expect(breakfastFill?.className).toContain('bg-meal-breakfast/25')
+    expect(within(breakfast as HTMLElement).getByLabelText('30% of logged food calories')).toBeTruthy()
+
+    const dinnerFill = dinner?.querySelector<HTMLElement>('[data-calorie-fill]')
+    expect(dinnerFill?.style.width).toBe('50%')
+    expect(dinnerFill?.className).toContain('bg-meal-dinner/25')
+    expect(within(dinner as HTMLElement).getByLabelText('50% of logged food calories')).toBeTruthy()
+
+    const snacks = screen.getByRole('heading', { name: /Snacks/ }).closest('section')
+    expect(within(snacks as HTMLElement).getByLabelText('0% of logged food calories')).toBeTruthy()
+  })
+
+  it('omits meal fills and percentage labels when the day has no logged food', async () => {
+    const otherDays = seed.diaryEntries.filter((entry) => entry.date !== seed.TODAY)
+    seed.diaryEntries.splice(0, seed.diaryEntries.length, ...otherDays)
+
+    renderDiary('/diary')
+
+    const breakfast = (await screen.findByRole('heading', { name: /Breakfast/ })).closest('section')
+    expect(breakfast?.querySelector('[data-calorie-fill]')).toBeNull()
+    expect(breakfast?.querySelector('[data-calorie-share]')).toBeNull()
+  })
+
   it('shows the water target from water-counting drink entries', async () => {
     renderDiary('/diary')
 
