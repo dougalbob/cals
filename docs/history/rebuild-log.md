@@ -14,6 +14,37 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Admin/Standard roles and the acting-user switch built (decisions 89 and 90)
+
+The role work decision 88 pulled ahead of Phase 14 Metrics is implemented. Roles are **declared** in
+the appdata `.env` as `ADMIN_EMAILS` / `STANDARD_EMAILS` and **reconciled** into the additive
+`users.is_admin` column at every start-up (decision 89): a declared Admin is granted on boot and on
+first sign-in, everyone else is set to Standard, and removing an address from `ADMIN_EMAILS` revokes
+the role on the next restart. A malformed address — or one declared as both roles — refuses to start
+the container rather than silently granting nothing; an unset `ADMIN_EMAILS` leaves the database
+untouched, so the capability is opted into. `GET /api/users` became Admin-only: it had been answering
+any authenticated request, which exposed both household email addresses for no product reason.
+
+The switch itself (decision 90) separates two identities in the request context: the **authenticated**
+identity (who Cloudflare vouched for, used for authorization) and the **acting** user (whose data the
+request touches). `ActingUserMiddleware` rewrites only the second, so every handler, the bank maths
+and every diary row keep working unchanged, while role checks reading the first let an Admin who is
+viewing another account still list accounts and swap back. The `cals_acting_user` cookie is
+deliberately not signed: it is honoured only when the JWT-verified identity holds the Admin role, so
+a cookie forged by a Standard user is ignored and cleared. The UI adds a **Swap user** sheet for
+Admins and a persistent amber **Viewing as …** banner with **Return to my account**, and clears the
+whole query cache on a switch because every cached query is account-scoped.
+
+`USER` was rejected as a `.env` key because the shell already exports it and real environment
+variables win over `.env` values, so such a line would be read back as `root` and silently ignored.
+
+Also in this session: the fixture API's placeholder email was replaced with `owner@example.com`, and
+the owner used the existing `bank_start_date` control (`PUT /api/users/me`) rather than deleting
+historic meals to correct a calorie deficit that appeared when drink calories began counting towards
+the bank. That deficit is bounded properly by the 14-day windowed bank (decision 66, Phase 14), which
+is why no checkpoint UI was added here. One additive migration; no data copy and no appdata
+operation.
+
 ## 2026-10-04 — Production Admin roles and Swap user prioritized before Metrics (decision 88)
 
 The owner clarified the next-session priority after noting that a Cloudflare login as himself maps to his own sparse cals account; it does not expose his wife's history. The owner is Admin and his wife is Standard. The next session should focus on the secure production role, acting-user switch, and the UI needed to switch back, ahead of Phase 14 Metrics. Cloudflare Access remains the authentication provider, and both identities must stay permitted by the Access policy. Direct LAN access to the production origin does not carry the Cloudflare JWT; use the Cloudflare hostname, including while on the LAN. `DEV_MODE` and the dev identity picker remain confined to the separate development copy.
