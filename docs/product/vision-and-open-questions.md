@@ -290,7 +290,7 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > dependent recipe definition transactionally, including archived recipes. The implementation and
 > regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
 > `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in latest checkpoint
-> rc21. The Unraid Force Update/review remains pending for rc21. Recipe creation from scratch and
+> rc22. The Unraid Force Update/review remains pending for rc22. Recipe creation from scratch and
 > image upload/crop remain later work. See [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
@@ -557,7 +557,7 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
-  `v2.0.0-dev-rc19`; the changes are included in latest checkpoint rc21, whose Unraid Force Update/review remains pending.
+  `v2.0.0-dev-rc19`; the changes are included in latest checkpoint rc22, whose Unraid Force Update/review remains pending.
 - **Later authoring work remains separate:** creating recipes from scratch and image upload/crop are
   not part of the two authorized slices.
 
@@ -589,7 +589,7 @@ label everywhere, including historical entries. Current implementation status li
   Legacy UI: the Delete button became **Archive** (restoring is done from the React Recipes page).
   Regression tests: Go (`recipes_archive_test.go`, `migrations_test.go`) assert diary rows, day totals,
   the bank and the recipe label are identical across archive and restore; Vitest covers the UI.
-- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in latest checkpoint rc21; its Unraid Force Update/review remains pending.
+- **Decisions 60–61 — implemented and published in `v2.0.0-dev-rc19` (2026-10-04); owner-approved in the Arena preview before publication.** These features are included in latest checkpoint rc22; its Unraid Force Update/review remains pending.
   Food nutrition correction and every dependent recipe refresh share one transaction; archived
   definitions are included, manually measured cooked weights are retained, and saved Diary nutrition
   and totals remain unchanged. A corrected food name may change its joined historic label only.
@@ -616,8 +616,8 @@ manual-weight concentration, both household users' history, daily totals, bank f
 corrected nutrition, and rollback when a dependent update fails. A separate recipe-editor regression
 proves a failed ingredient insert cannot partially save content. Go tests/vet and frontend tests, typecheck, lint and `build:go` pass. The owner exercised both slices
 in the Arena preview and signed off on them on 2026-10-04. PR #44 and the post-merge Go validation
-passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc21
-includes these changes; the owner has not yet Force Updated Unraid to rc21.
+passed; `v2.0.0-dev-rc19` was published with anonymous-pull verification. The latest checkpoint rc22
+includes these changes; the owner has not yet Force Updated Unraid to rc22.
 
 ## Calendar clarity and the recipe pick hand-off — decisions 62–65 (2026-10-03)
 
@@ -678,9 +678,10 @@ link behave as one flow rather than two.
 The previous session's handoff recorded that "the Go tests in `calendar_test.go` have never been
 executed" because "there's no Go toolchain in this sandbox and the Go download hosts are blocked". The
 second half is true of `go.dev`/`dl.google.com`/`proxy.golang.org`; the conclusion is not.
-`scripts/verify-go-in-sandbox.sh` fetches a working toolchain from the PyPI `go-bin` wheel and builds
-the server with CGO in about a minute, and **it runs the tests too**: `go build ./...`,
-`go vet ./...` and `go test ./...` all pass on the current tree, including the three calendar
+`scripts/verify-go-in-sandbox.sh` fetches a working toolchain from the PyPI `go-bin` wheel and
+builds `./cmd/server` with CGO in about a minute; it is a build-only helper. After it creates the
+scratch copy at `/tmp/calstest`, run `go vet ./...` and `go test ./...` there as separate commands. In
+the current verification, the build, vet and full test suite all pass, including the three calendar
 regression tests. Nothing had rotted in `_test.go` — but nothing had been checking that either, which
 is what decision 65 fixes. Agents: "the sandbox has no Go" is not a reason to leave a backend change
 unverified, and `AGENTS.md` §3 says so.
@@ -693,8 +694,9 @@ layering bug) do not belong to any phase that exists, so they form a **Phase 13 
 rest extend **Phase 14 (Metrics + Nutrition)** and **Phase 15 (Settings)**. Follow-up presentation and
 navigation requirements were added as decisions 74–78; decision 76 supersedes the original fill opacity,
 decision 77 adds a temporary Arena-preview arrow workaround, and decision 78 improves recipe-card badge
-hit targets and image visibility. Decision 79 records the recipe-origin marker requested in the current
-session. Current implementation status and work order: [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+hit targets and image visibility. Decision 79's recipe-origin marker shipped in rc22; decisions 80–81
+record the owner's subsequent Today hydration and meal-fill choices, also shipped in rc22. Current
+implementation status and work order: [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -715,7 +717,7 @@ The owner added badge and navigation requirements to the Phase 13 polish slice, 
 |---|---|---|---|
 | 74 | 2026-10-04 | **Recipe log-count badge styling and placement.** Use the app header's current blue primary colour for the circular badge, white digits, and enough diameter for three digits. Place it at the image's top-left. Active recipe cards leave that corner free; archived cards already show an *Archived* pill there, so avoid overlap by moving that pill to the top-right on archived cards (where no favourite heart is shown). | Owner (top-left preferred; non-overlap treatment follows code inspection) |
 | 75 | 2026-10-04 | **Show five bottom-navigation destinations at a time and swipe to reveal the rest.** Use horizontal swipe to expose overflow entries (currently Recipes is the sixth item), with haptic feedback when supported. Design the navigation to accommodate future pages such as Settings and Exercise; adding those pages is not part of this polish slice. | Owner |
-| 76 | 2026-10-04 | **Reduce the Diary meal-card fill opacity from 50% to 25%.** Keep each card's own meal-accent colour and retain the proportional fill and percentage label. This supersedes the opacity in decision 68. | Owner |
+| 76 | 2026-10-04 | **Reduce the Diary meal-card fill opacity from 50% to 25%.** Keep each card's own meal-accent colour and retain the proportional fill and percentage label. This supersedes the opacity in decision 68; decision 81 later changes both Today and Diary fills to 5%. | Owner |
 | 77 | 2026-10-04 | **Add a temporary Arena-preview arrow for navigation overflow.** The preview cannot reliably swipe the bottom menu, so replace the fifth visible slot (formerly Foods) with an arrow button. Pressing it scrolls the menu to reveal both Foods and Recipes; the arrow changes to a back control to return. Keep swipe and supported-device haptics, and do not add future Settings or Exercise pages. This is a development-only workaround, not a permanent product requirement. | Owner |
 | 78 | 2026-10-04 | **Improve recipe-card tap targets and show more of the image.** Keep the visible Favourite badge, but reduce its circle and heart icon by 25%; place it in a transparent 66 × 66 px button hit area (twice the new 33 px badge diameter), above the recipe-image link. Reduce the recipe log-count circle from 48 px to 36 px and its numerals from 16 px to 12 px (25% each), while retaining legibility for three digits. | Owner |
 
@@ -725,12 +727,22 @@ The owner requested an orange option in the existing Edit recipe interface so a 
 as **Own creation**, placed above **Key foods (choose up to two)** and grouped with its other tags.
 This implementation follows the existing shared recipe-classification model: the marker is a
 **shared recipe-level boolean**, not per-user authorship. Either household user may set or clear it;
-Favourites and usual portions remain personal. The orange card tag also filters the catalogue. This
-shared interpretation is an implementation choice for owner review in the Arena preview.
+Favourites and usual portions remain personal. The orange card tag also filters the catalogue. The
+owner confirmed this shared interpretation and signed off in the Arena preview; it shipped in rc22.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
-| 79 | 2026-10-04 | Add a shared orange **Own creation** origin marker to recipe metadata. Support it in the existing Edit recipe flow now and reuse the same field in the future create-from-scratch UI; do not pull the broader recipe-creation or image upload/crop work into this slice. | Owner request; shared scope follows existing tag model (confirm in preview) |
+| 79 | 2026-10-04 | Add a shared orange **Own creation** origin marker to recipe metadata. Support it in the existing Edit recipe flow now and reuse the same field in the future create-from-scratch UI; do not pull the broader recipe-creation or image upload/crop work into this slice. | Owner request; preview approved and shipped in rc22 |
+
+### Today focus and meal-fill opacity — decisions 80–81 (2026-10-04)
+
+The owner approved both changes in the Arena preview; they were merged in PR #50 and published in
+`v2.0.0-dev-rc22`. They do not change drink-calorie accounting or Diary's hydration controls.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 80 | 2026-10-04 | **Keep Today focused on calorie and meal summaries.** Remove its hydration and Quick drinks controls; keep them available on Diary. Drink calories still contribute to Today totals, the ring and the bank. | Owner request; preview approved and shipped in rc22 |
+| 81 | 2026-10-04 | **Set proportional meal-fill color alpha to 5% on both Today and Diary.** Retain each fill's proportional width and the existing meal colors on Diary. Tailwind's slash-alpha color utility applies alpha to the fill color, not to the whole card or its text; this supersedes decision 76's 25% Diary fill. | Owner request; preview approved and shipped in rc22 |
 
 ### The windowed bank (decision 66)
 
@@ -819,8 +831,8 @@ Today's four meal tiles already fill in proportion to each meal's share of the d
 (rc18, `data-calorie-fill` in `HomeRoute.tsx`, `bg-primary-light/50` behind the content). The Diary's
 four meal cards get the same idea, with the owner's two differences:
 
-1. **The fill colour is the card's own meal accent at 25% opacity** (decision 76; decision 68
-   originally specified 50%) — `--color-meal-breakfast`, `--color-meal-lunch`, `--color-meal-dinner`,
+1. **The fill colour is the card's own meal accent at 5% alpha** (decision 81 supersedes decision
+   76's 25% opacity, which replaced decision 68's original 50%) — `--color-meal-breakfast`, `--color-meal-lunch`, `--color-meal-dinner`,
    `--color-meal-snacks`, the same tokens that already drive each card's left border (`MEAL_ACCENT`
    in `DiaryRoute.tsx`). The fill sits *behind* the entries, totals and buttons, exactly as it does on
    Today.

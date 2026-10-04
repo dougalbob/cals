@@ -3,22 +3,31 @@
 **Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six earlier
 increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing recipe content
 (decisions 55–58) and transactional food-correction refresh of dependent recipe definitions
-(decisions 60–61). The latest checkpoint, `v2.0.0-dev-rc21`, also includes the Phase 13 polish slice
-(decisions 68, 72–78), published 2026-10-04 after the owner approved the Arena preview. **Force
-Update/review of rc21 on Unraid remains pending.** Earlier increments cover the photo-led catalogue,
-per-user favourites, shared structured tags and filters, named gram-backed food measures,
-recipe-to-Diary portion logging with each user's remembered usual, archive/restore, Diary meal-card
-recipe hand-off and the Calendar/rc18 refinements. The current Arena session branch adds the shared
-orange **Own creation** marker to Edit recipe and supports it in the API, fixes a mobile Diary Edit
-sheet layout bug, and removes hydration actions from Today while retaining them on Diary. Meal-card
-fills now use 5% color alpha on both Today and Diary; these changes are not part of rc21 or a release.
-The later create-from-scratch UI should reuse the same field; the broader authoring UI and image
-upload/crop remain separate queued work. The legacy Mealie importer is not being pursued or
-ported to React. The
-Diary/Metrics/Foods screens began as a spike and remain a work-in-progress; the existing vanilla UI is
-still the default. The Go app serves the React shell only under the temporary `/next/` path. Nothing is
-cut over by this phase. UI/UX improvement is a headline acceptance gate for the later screen phases;
-see [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
+(decisions 60–61), and rc21 shipped the Phase 13 polish slice (decisions 68, 72–78). The latest
+checkpoint, `v2.0.0-dev-rc22` (PR #50), was published 2026-10-04 after the owner approved the Arena
+preview. It adds the shared orange **Own creation** marker (decision 79), fixes the mobile Diary Edit
+sheet, removes hydration actions from Today while retaining them on Diary, and sets both pages' meal
+fills to 5% color alpha. **Force Update/review of rc22 on Unraid is pending; the owner plans to
+re-test the Edit sheet on a phone after updating.** A test-only **stabilisation pass** now sits on the
+`arena/01a106a2-cals` branch (PR #52, unmerged, publishes nothing): a Playwright browser suite over
+the highest-value phone journeys (with the recipe area covered control by control), a CI step that
+starts the built image against a disposable database and smokes its routes, a fix for the **recipe
+portion sheet**'s Cancel / Add to diary actions being cut off on a 360 px-wide phone (the sheet now
+keeps them in the modal footer), and a fix for **phone taps on tick-boxes** — labels are now tap
+targets rather than selectable text, and interactive controls use `touch-action: manipulation`, so a
+slightly slow tap no longer becomes a text selection (Android's copy-text helper) or a double-tap
+zoom. See
+[`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The only schema change is additive:
+`recipes.is_own_creation` defaults false and is applied at startup; no appdata copy or reset. The later
+create-from-scratch UI should reuse this field; the broader authoring UI and image upload/crop remain
+separate queued work. Earlier increments cover the photo-led catalogue, per-user favourites, shared
+structured tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with
+each user's remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18
+refinements. The legacy Mealie importer is not being pursued or ported to React. The Diary/Metrics/Foods
+screens began as a spike and remain a work-in-progress; the existing vanilla UI is still the default.
+The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this
+phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
+[`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 Background and the full proposal: [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
@@ -29,12 +38,12 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Screen | Route | Notes |
 |---|---|---|
 | Today | `/` | Summary landing: calorie ring, food/drink totals, and four meal tiles with proportional calorie fills. Hydration and Quick drinks are intentionally kept off Today to reduce clutter; drink calories still contribute to the Drinks tile, ring and bank. The fluid controls remain on Diary. Today meal fills use a 5% color alpha. |
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, hydration/Quick drinks card, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64). Meal fills use a 5% color alpha. In the current branch, the Edit quantity sheet keeps Cancel/Save pinned while its content scrolls |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, hydration/Quick drinks card, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64). Meal fills use 5% color alpha. The Edit quantity sheet keeps Cancel/Save pinned while its content scrolls (rc22); the owner plans a phone-size re-test after updating |
 | Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (phone-friendly per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back, and tapping a day opens `/diary/:date` (decision 49 follow-up). Day cells are classified against the selected month, not the first padded grid date: dates inside the month stay fully visible, while padded dates outside it remain muted. Over-goal days have a green bar split at the goal with a proportional red tail (decision 62). The calendar stops at Today — the forward arrow is disabled on the current month/week, future URLs are clamped back, and future dates remain muted and non-clickable (decision 63). The shared card is labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 | My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Diary Quick drinks selector. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options. Saving a food correction refreshes its dependent recipe definitions and invalidates recipe queries; saved Diary nutrition stays unchanged |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the current session branch adds an orange **Own creation** checkbox above the key-food choices. **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the orange **Own creation** checkbox above the key-food choices is a shared recipe-origin field whose tag filters the catalogue (decision 79). **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
 
 The proportional fills use Tailwind v4's slash-alpha background-color utilities
 (`bg-primary-light/5` on Today and, for example, `bg-meal-breakfast/5` on Diary). This is the correct approach: the
@@ -193,12 +202,24 @@ npm run typecheck     # tsc --noEmit, strict
 npm test              # vitest: domain maths + screen render tests
 npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
 npm run build:go      # production shell for the Go /next/ route → web/dist/
+npm run test:e2e      # Playwright browser suite (builds the preview bundle first)
 ```
 
 The tests exercise typed API behavior, domain maths and render the implemented screens against the
 fixture API, including add/edit/delete diary flows, serving/grams mode, recipe portion logging,
 hydration-target feedback, proportional meal-card fills and calendar month-cell states
-(172 tests total as of 2026-10-04).
+(177 tests total as of 2026-10-04).
+
+The **browser suite** (`e2e/`, 51 tests) covers what jsdom cannot: Diary logging/editing and the Edit
+sheet's pinned actions on a short screen, the Today-vs-Diary hydration split with drink-calorie
+accounting, the recipe-origin marker with the catalogue filters, the portion sheet on a small phone,
+and — after a phone report about tick-boxes ignoring taps — the whole recipe area control by control
+(catalogue search/empty state/favourites/archived, the Add tag form, the portion sheet's usual-portion
+rules, Edit recipe's validation, the Diary meal picker, and real touch taps on every tick-box) plus
+the bottom navigation's arrow and touch swipe. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
+server, no database and never household data — and, in CI, only for milestones (release tags, or a
+PR labelled `run-e2e`; manual dispatch would need the workflow on `main`, which is production and read-only, so a run is asked for with the label or a tag). Layer-by-layer detail, including the sandbox's browser
+workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).
 
 ## Phase 11 Go integration
 

@@ -59,6 +59,44 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
+
+  /*
+   * Phone taps on controls (owner report, 2026-10-04: tick-boxes "not
+   * responding", Android's copy-text helper appearing when tapping labels).
+   *
+   * Two browser behaviours can swallow a tap that a mouse never notices:
+   *  - a slightly slow tap on selectable text starts a text selection, so the
+   *    release shows the copy/paste helper instead of activating the control
+   *    under the finger;
+   *  - a tap shortly after another nearby tap can be read as a double-tap zoom.
+   *
+   * `touch-action: manipulation` keeps scrolling and pinch-zoom but drops the
+   * double-tap interpretation, so the first tap is delivered immediately, and
+   * the user-select rules make a label a tap target rather than selectable
+   * text. Real text fields stay fully selectable.
+   */
+  a,
+  button,
+  input,
+  label,
+  select,
+  summary,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  label {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 @utility safe-bottom {

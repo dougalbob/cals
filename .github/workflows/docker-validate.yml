@@ -1,13 +1,32 @@
-# Build-only validation of the Docker image.
+# Build-and-run validation of the Docker image.
 #
 # Runs on every pull request so that a Dockerfile/source change is proven to
-# build before it reaches `cals-dev` (or `main`). It builds the same image the
+# build *and start* before it reaches `cals-dev`. It builds the same image the
 # publish workflow builds, but never logs in to a registry, never pushes, and
 # needs no credentials.
 #
-# Why this exists: the Phase 11 foundation PR was merged with the container
-# build recorded as unverified (Docker cannot run in the Arena sandbox), so this
-# check is the gate that must pass before the first V2 image is published.
+# The `main` entry under `pull_request.branches` exists only so that the owner's
+# deliberate release PR (cals-dev -> main, a separate decision that has not
+# happened) would still be checked. `main` is production and read-only: no
+# session work targets it, nothing is merged into it by these workflows, and it
+# must never be the base of a normal PR. See AGENTS.md §1 and
+# docs/architecture/git-workflow.md.
+#
+# Why this exists:
+#   * The Phase 11 foundation PR was merged with the container build recorded as
+#     unverified (Docker cannot run in the Arena sandbox), so this check is the
+#     gate that must pass before the first V2 image is published.
+#   * It used to build only. A build can pass while the app still fails at
+#     runtime (bad migration, missing web assets, listener change), and the
+#     Unraid install smoke test is owner-run and separate. The job now starts
+#     the image against a *disposable* database, checks the key routes through
+#     scripts/smoke-app-routes.sh, checks the schema, and verifies Cloudflare
+#     Access is still enforced when DEV_MODE is off.
+#
+# NEVER point any of this at live Unraid data: the container gets no volume
+# mounts at all, so its /app/data lives and dies with the container. See
+# docs/architecture/data-copy-warning.md.
+#
 # See docs/architecture/unraid-image-release.md and
 # docs/architecture/rebuild-kickoff.md.
 
@@ -28,9 +47,18 @@ concurrency:
   group: docker-validate-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  IMAGE: cals-dev-v2:validation
+  # A private bridge network with fixed addresses, so DEV_MODE's loopback/private
+  # bind rule is satisfied and the published ports work on any Docker host
+  # (including Docker Desktop, which has no host networking).
+  NETWORK: cals-ci-net
+  DEV_IP: 172.31.250.10
+  AUTH_IP: 172.31.250.11
+
 jobs:
   build:
-    name: docker build (no push)
+    name: docker build + run (no push)
     runs-on: ubuntu-latest
     steps:
       - name: Check out the pull request merge commit
@@ -39,16 +67,85 @@ jobs:
       # The Dockerfile is the build contract: it runs the frontend lint, tests
       # and production build in the Node stage, then the CGO Go build.
       - name: Build the image without pushing
-        run: docker build --tag cals-dev-v2:validation .
+        run: docker build --tag "$IMAGE" .
+
+      - name: Start the image with disposable data (DEV_MODE, no volumes)
+        run: |
+          docker network create --subnet 172.31.250.0/24 "$NETWORK" || true
+          docker run -d --name cals-ci-dev \
+            --network "$NETWORK" --ip "$DEV_IP" \
+            -p 127.0.0.1:8151:8151 \
+            -e PORT=8151 -e BIND_ADDRESS="$DEV_IP" \
+            -e DEV_MODE=true -e DEV_USER_EMAIL=ci-smoke@example.invalid \
+            -e DB_PATH=/app/data/cals.db \
+            "$IMAGE"
+
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8151/health >/dev/null 2>&1; then
+              echo "Container is healthy."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The container did not become healthy within 30s."
+          docker logs cals-ci-dev || true
+          exit 1
+
+      - name: Smoke the key routes against the running image
+        run: ./scripts/smoke-app-routes.sh http://127.0.0.1:8151
+
+      - name: Check the disposable database ran its migrations
+        run: |
+          COUNT="$(docker exec cals-ci-dev sqlite3 /app/data/cals.db \
+            "select count(*) from sqlite_master where type='table' and name not like 'sqlite_%';")"
+          echo "Tables created: $COUNT"
+          for table in users diary_entries drink_entries drinks recipes recipe_ingredients foods; do
+            docker exec cals-ci-dev sqlite3 /app/data/cals.db \
+              "select name from sqlite_master where type='table' and name='$table';" \
+              | grep -qx "$table" || { echo "::error::Expected table '$table' is missing."; exit 1; }
+          done
+          if [ "$COUNT" -lt 20 ]; then
+            echo "::error::Expected at least 20 tables after migrations, found $COUNT."
+            exit 1
+          fi
+
+      - name: Check the app also runs without DEV_MODE (production auth path)
+        run: |
+          docker run -d --name cals-ci-auth \
+            --network "$NETWORK" --ip "$AUTH_IP" \
+            -p 127.0.0.1:8152:8152 \
+            -e PORT=8152 -e BIND_ADDRESS="$AUTH_IP" \
+            -e CF_TEAM_DOMAIN=example.cloudflareaccess.com -e CF_POLICY_AUD=local \
+            "$IMAGE"
+
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8152/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          # Protected routes must still answer 401 without a Cloudflare JWT.
+          ./scripts/smoke-app-routes.sh --expect-auth http://127.0.0.1:8152
+
+      - name: Container logs (failure diagnostics)
+        if: failure()
+        run: |
+          for container in cals-ci-dev cals-ci-auth; do
+            echo "===== docker logs $container ====="
+            docker logs --tail 80 "$container" 2>&1 || true
+          done
 
       - name: Summarise
+        if: always()
         run: |
           {
-            echo "### Docker build succeeded (no push)"
+            echo "### Docker build + runtime smoke"
             echo ""
             echo "| Field | Value |"
             echo "|---|---|"
-            echo "| Image id | $(docker image inspect cals-dev-v2:validation --format '{{.Id}}') |"
-            echo "| Size (bytes) | $(docker image inspect cals-dev-v2:validation --format '{{.Size}}') |"
+            echo "| Image id | $(docker image inspect "$IMAGE" --format '{{.Id}}' 2>/dev/null || echo 'n/a') |"
+            echo "| Size (bytes) | $(docker image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null || echo 'n/a') |"
             echo "| Commit | $GITHUB_SHA |"
+            echo "| Job result | ${{ job.status }} |"
+            echo ""
+            echo "Started with a disposable database (no volume mounts, nothing from appdata)"
+            echo "and checked the key routes with scripts/smoke-app-routes.sh."
           } >> "$GITHUB_STEP_SUMMARY"

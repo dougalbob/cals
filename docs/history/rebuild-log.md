@@ -14,6 +14,101 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Phone tick-box taps: the recipe area gets a top-to-bottom browser pass
+
+The owner reported that on the phone the **Own creation** tick-box sometimes ignored a tap, that the
+**Meal occasion** boxes behaved oddly too, and that a tap sometimes started Android's copy-text helper
+— and asked for a top-to-bottom test pass over the recipe pages and sheets to see what else fell out.
+Still PR #52, unmerged and unpublished.
+
+**The cause was browser interpretation of a slightly slow tap, not app logic.** Label rows carried
+selectable text and no `touch-action`, so a long-ish press began a text selection — the release then
+showed the copy/paste helper and never reached the control — and a tap shortly after another nearby
+tap could be read as double-tap zoom and swallowed. A desktop mouse never triggers either, which is
+exactly why the earlier checks passed. `src/styles.css` now sets `touch-action: manipulation` on
+interactive controls and stops labels being selectable, while text fields stay selectable. The
+bottom nav's touch swipe was the one thing this could plausibly break, so it is now pinned by its own
+test.
+
+**The recipe area is covered control by control** (`recipes-catalogue`, `recipes-detail`,
+`recipes-portion-sheet`, `recipes-editor`, `recipes-diary-handoff`, `recipes-touch`, plus
+`navigation.spec.ts`): search and the empty state, favourites, the archived view and restore; the
+detail facts, ingredients, method and the Add tag form (meal occasions, the two-key-food limit,
+Cancel, total time) and archive/restore; the portion sheet's remembered usual, fractions, direct
+grams, the one-off versus make-this-my-usual split and meal choice; Edit recipe's fixed name,
+measured-versus-calculated weight, validation, text ingredients and Cancel; the Diary meal picker's
+carried meal and date; and real touch taps on every tick-box. Expected values are read from the API
+rather than hard-coded, and everything a finger does is driven through `page.touchscreen`/CDP.
+
+Two smaller findings were recorded rather than changed: the Serves field's `min="1"` means the
+browser's own constraint message appears before the app's, leaving the app's wording unreachable (the
+outcome is still correct — nothing saves), and the Archived view toggle stays pressed-but-disabled
+once the last archived recipe is restored.
+
+Evidence: 51/51 browser tests, 177 Vitest tests, lint and typecheck clean.
+
+## 2026-10-04 — Stabilisation pass: a real-browser suite, a container runtime check, and the portion sheet's actions
+
+The owner asked for the app to be tested as it stands before Phase 14 — fix what testing confirms,
+record what remains, add no features. All of it lives on `arena/01a106a2-cals` as **PR #52, unmerged
+and unpublished**; rc22 stays the latest checkpoint.
+
+**A small Playwright suite** (`web/frontend/e2e/`, 17 tests) drives the built bundle in a real
+Chromium at phone size: Diary logging with an API cross-check, rescaling one entry, Cancel writing
+nothing, and the Edit quantity sheet's Cancel/Save pinned in view on a 412×560 screen with the page
+behind it scroll-locked; Today carrying no water controls while drink calories still count; the Diary
+glass, over-target copy, long-press delete, past-date logging and drink calories landing in tomorrow's
+bank; the orange **Own creation** marker on exactly one card plus the tag/occasion filters; and the
+portion sheet on a 360×640 phone. The suite serves the pre-built bundle with the fixture API in
+process — no Go server, no database, never household data — resets fixtures before each spec, and pins
+UTC in both the server and the browser. It runs at milestones (`v*-dev*` tags, or a PR
+labelled `run-e2e`), never on ordinary PRs — the workflow also declares a manual dispatch, which
+GitHub will not offer until the file is on the default branch (`main`, production and read-only: the
+label or the tag is how a run is asked for, and nothing here puts files on `main`).
+
+**The runtime gap closed as far as CI allows.** `docker-validate.yml` now starts the built image with a
+disposable database (no volume mounts), waits for `/health`, exercises the real routes with
+`scripts/smoke-app-routes.sh`, asserts the migrations created the expected tables, and checks a second
+container without `DEV_MODE` still refuses the protected routes with `401`. Failures print a route
+table and the containers' logs. Docker remains unavailable in the Arena sandbox, which is why this
+lives in GitHub Actions; it is green on PR #52.
+
+**One real bug found and fixed.** On a 360 px-wide phone the recipe portion sheet opened with **Cancel**
+and **Add to diary** about 63 px below the fold (563 px sheet, 124 px of scroll overflow) — fine at
+412×839, so the earlier phone work had missed it. `RecipePortionSheet` now hands the actions to
+`Modal`'s fixed `footer`, outside the scrolling area; a Playwright test at 360×640 and a Vitest
+structural assertion pin it. The fix is in no image yet. The diary Edit sheet's similar fix *is* in
+rc22.
+
+**Two follow-ups recorded rather than fixed.** The milestone workflow's artifact name used the PR ref
+(`52/merge`), which Actions rejects because it contains a slash; the artifact is now named from the run
+id, and a labelled PR re-runs the suite on later pushes. And raw Actions log downloads stay unreliable
+from the Arena sandbox, so CI is built to be self-diagnosing instead: a short failure summary in the
+run summary, and artifacts uploaded with `if: always()`.
+
+Checks at the end of the pass: 17/17 Playwright in the sandbox (the same 17 pass in GitHub), 177 Vitest
+tests, ESLint and `tsc` clean, `build:go`/`build:preview` clean, Go vet + tests green, and Docker
+validation green in GitHub. How each layer works, and what is deliberately not covered, is written up
+once in [`../architecture/testing.md`](../architecture/testing.md).
+
+## 2026-10-04 — Published `v2.0.0-dev-rc22` (PR #50, decisions 79–81)
+
+The owner approved the Arena preview before publication. PR #50 passed Docker and Go validation,
+merged to `cals-dev` as `c022f059ec46b26be5b5672b7c1096bbff44cd67`, and passed post-merge Go tests.
+[Publish run 37194090053](https://github.com/dougalbob/cals/actions/runs/37194090053) passed the
+ancestry guard, image build/push, prerelease creation and anonymous-pull check. Digest:
+`sha256:08a9f465e3d6c7b01d830bd95d68a2bbc629af26150e2ab16d1c79db71c09a12`;
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc22).
+
+The checkpoint adds the shared orange **Own creation** marker (decision 79), fixes the mobile Diary
+Edit sheet, removes hydration/Quick drinks controls from Today while keeping them on Diary (decision
+80), and sets the proportional meal-fill color alpha to 5% on both pages (decision 81). Drink-entry
+calories remain included in Today totals. The additive `recipes.is_own_creation INTEGER NOT NULL
+DEFAULT 0` migration keeps existing recipes unmarked and applies at startup. Frontend lint, typecheck,
+177 Vitest tests, `build:go`, `build:preview`, PR Docker validation, and PR/post-merge Go validation
+passed. No data copy, appdata operation or Unraid template change. The owner signed off on the preview;
+Force Update/review on Unraid and the planned phone re-test of the Edit sheet remain pending.
+
 ## 2026-10-04 — Today hydration panel removed and meal fills set to 5% alpha
 
 The Today page no longer renders the hydration/Quick drinks panel or carries its add/delete state,

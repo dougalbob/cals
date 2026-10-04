@@ -54,8 +54,26 @@ reachable; `go.dev` and the Go proxy are not):
 This copies the repo to `/tmp/calstest` and builds with CGO. It has been verified: the server
 starts, migrations create all **20** tables, and `/api/users/me` correctly returns `401` without a
 Cloudflare JWT. Nothing in `/tmp` persists between turns. **Docker cannot run in the sandbox** —
-the `Docker build (validation)` GitHub Actions workflow builds the image on every pull request, and
-the publish workflow builds the exact tagged commit.
+the `Docker build (validation)` GitHub Actions workflow builds the image on every pull request *and
+starts it against a disposable database to smoke its routes*; the publish workflow builds the exact
+tagged commit.
+
+## 2b. You can run the browser suite too
+
+`web/frontend/e2e/` holds a Playwright suite that drives the built bundle in a real Chromium at phone
+size. The browser is not downloadable from the sandbox (the CDNs are blocked), but the wrapper fetches
+an equivalent build from the npm registry and re-provisions it in seconds:
+
+```bash
+./scripts/run-playwright-in-sandbox.sh                        # whole suite
+./scripts/run-playwright-in-sandbox.sh e2e/diary.spec.ts      # one spec
+./scripts/run-playwright-in-sandbox.sh --project=desktop      # the @desktop project only
+```
+
+It is hermetic (pre-built bundle + fixture API in one process — never household data) and the specs
+are committed, so a new session runs them as they are. Added 2026-10-04; see
+[`testing.md`](./testing.md) for what each layer covers, what survives between sessions, and what is
+deliberately not covered.
 
 ## 3. The phases
 
@@ -86,6 +104,8 @@ Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7; curr
 | Never touch live appdata | `/mnt/user/appdata/cals-dev-v2` is live household data — read [`data-copy-warning.md`](./data-copy-warning.md) first |
 | UI improvement is a headline requirement; preview user-facing work at phone size and state the concrete improvement in its PR | A framework migration/parity alone is not success |
 | Run `npm run lint && npm run typecheck && npm test && npm run build:go` before any frontend PR | Cheap, deterministic, catches regressions |
+| For layout, touch or interaction work, also run `./scripts/run-playwright-in-sandbox.sh` | jsdom cannot see a clipped button, a swipe or a tap being read as text selection |
+| Add the `run-e2e` label to a PR whose change deserves the browser suite in CI | The suite is a milestone gate; the label is how a risky UI change gets it before the tag |
 | Never change the bank, recipe or unit-conversion maths without tests | Those numbers are trusted |
 | Publish images only from an approved tag on `cals-dev`, and never assign `latest` to a development candidate | The tag push is the human approval step; `latest` is reserved for a stable release promoted to `main` |
 | Update [`../CURRENT_STATE.md`](../CURRENT_STATE.md) when status changes, and [`../history/rebuild-log.md`](../history/rebuild-log.md) when something lands | Status used to drift across four documents; it now lives in one place |
@@ -94,6 +114,7 @@ Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7; curr
 
 - [ ] Committed on the session branch; nothing pushed to `main`
 - [ ] `npm run lint && npm run typecheck && npm test && npm run build:go` pass (frontend) / `go build ./...` (backend)
+- [ ] For UI work: `./scripts/run-playwright-in-sandbox.sh` green, and the `run-e2e` label on the PR so CI proves it on the same commit
 - [ ] `Docker build (validation)` check green on the PR for anything that changes the image (or `docker build` locally where Docker is available)
 - [ ] Verified against the real server locally where possible (`VITE_API_TARGET=http://localhost:8150`)
 - [ ] For user-facing work: previewed at phone size, the concrete UX improvement described in the PR, and owner review obtained before merge/cutover

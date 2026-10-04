@@ -504,8 +504,8 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 request, 2026-10-03).
 
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
-preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc21.**
-The Unraid Force Update/review of the latest checkpoint rc21 remains pending. The React Recipes detail route now edits existing shared content
+preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc22.**
+The Unraid Force Update/review of the latest checkpoint rc22 remains pending. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -514,16 +514,16 @@ food refreshes every dependent recipe definition—including archived recipes—
 as food/measure updates; manual cooked weights are retained. Go and fixture regressions cover these
 guarantees and atomic rollback. Go tests/vet, Vitest, typecheck and lint pass.
 
-**Shared recipe-origin marker — implemented on the current Arena session branch, not yet merged or
-released (decision 79).** Existing Edit recipe now has an orange **Own creation** checkbox above
-**Key foods (choose up to two)**, grouped with the structured tags. The `is_own_creation` field is
-additive, defaults false, appears in recipe list/detail responses, and can be changed by the optional
-metadata update without older clients clearing it. The create API accepts the same field now, so the
-future recipe-creation UI should reuse it. The broader create-from-scratch flow and image upload/crop
-remain separate queued work. This metadata-only change does not touch recipe content or Diary
-snapshots. Full recipe-edit guarantees remain in the
-[decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03);
-current branch status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+**Shared recipe-origin marker — implemented, owner-approved and published in `v2.0.0-dev-rc22`
+(PR #50, decision 79).** Existing Edit recipe has an orange **Own creation** checkbox above **Key
+foods (choose up to two)**, grouped with the structured tags. The additive `is_own_creation` field
+defaults false, appears in recipe list/detail responses, and can be changed by optional metadata
+updates without older clients clearing it. The create API accepts the same field so the future
+recipe-creation UI can reuse it. The broader create-from-scratch flow and image upload/crop remain
+separate queued work. This metadata-only change does not touch recipe content or Diary snapshots. The
+migration runs at startup and needs no data copy or appdata operation. Full recipe-edit guarantees
+remain in the [decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03);
+rc22 Unraid Force Update/review is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3.
 
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and
@@ -556,7 +556,7 @@ four deliverables are frontend-first; only the recipe count needs an additive AP
 | Item | Decision | Shape |
 |---|---|---|
 | **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give app chrome an explicit layer above page content but below `Modal`'s `z-50`, and audit other fixed/sticky chrome. A live defect in the previously published build, fixed in rc21 |
-| **Diary meal-card back fill with a percentage** | 68, 76 | Reuse the proportional fill from Today's meal tiles, with each meal's own accent at 25% opacity and a padded white percentage label at the bar's upper-right corner |
+| **Diary meal-card back fill with a percentage** | 68, 76, 81 | Reuse the proportional fill from Today's meal tiles, with each meal's own accent at 5% color alpha and a padded white percentage label at the bar's upper-right corner; decision 81 applies the 5% alpha to both Today and Diary |
 | **Recipe log-count badge** | 72, 74, 78 | Number only; `COUNT(*)` over `diary_entries(recipe_id, user_id)`, per signed-in user; no schema change, one additive response field, and no badge at zero. Use a 36 px circular badge with white 12 px digits on the app header's blue primary colour, still sized for three digits, at the image's top-left. That corner is clear on active cards; move the existing *Archived* pill to the top-right on archived cards, where no heart is shown |
 | **Recipe-card Favourite touch target** | 78 | Put the 33 px white favourite badge and 18 px heart inside a transparent 66 × 66 px button target at the image's top-right. This doubles the visual badge diameter for taps without taking more visible photo space |
 | **Five-visible-item swipeable bottom navigation** | 75, 77 | Show five slots at once; horizontal swipe with haptics where supported remains available. For the Arena preview, a fifth-slot arrow toggles the overflow window to reveal both Foods and Recipes, with a back arrow to return. This is a temporary development workaround; future Settings and Exercise pages remain out of scope |
@@ -566,4 +566,5 @@ a percent or two, are described in the [decision log](../product/vision-and-open
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
 merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
-`v2.0.0-dev-rc21` (PR #48), and Unraid Force Update/review remains pending.
+`v2.0.0-dev-rc21` (PR #48) and is included in rc22. Force Update/review of the latest rc22 remains
+pending on Unraid.

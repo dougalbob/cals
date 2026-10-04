@@ -490,6 +490,16 @@ describe('RecipesRoute', () => {
       // The portion sheet is the same one as always, with the diary's answers in it.
       const sheet = await screen.findByRole('dialog', { name: 'Add Chicken Curry to Breakfast' })
       expect(within(sheet).getByText(/Going to Breakfast/)).toBeTruthy()
+
+      // Cancel / Add to diary are pinned outside the scrolling content, so a
+      // small phone screen cannot scroll them out of reach (this was measured
+      // off-screen at 360×640 before the footer moved).
+      const scrollArea = sheet.querySelector('[data-modal-scroll]')
+      const actionFooter = sheet.querySelector('[data-modal-footer]')
+      expect(actionFooter).toBeTruthy()
+      expect(within(actionFooter as HTMLElement).getByRole('button', { name: 'Cancel' })).toBeTruthy()
+      expect(within(actionFooter as HTMLElement).getByRole('button', { name: 'Add to diary' })).toBeTruthy()
+      expect(scrollArea?.contains(within(actionFooter as HTMLElement).getByRole('button', { name: 'Add to diary' }))).toBe(false)
       const breakfast = within(sheet)
         .getAllByRole('button')
         .find((button) => button.getAttribute('aria-pressed') === 'true' && button.textContent?.includes('Breakfast'))

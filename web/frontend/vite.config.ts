@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fixtureApi } from './mock-api/vite-plugin.mjs'
@@ -37,6 +37,12 @@ export default defineConfig(({ mode }) => {
             '/health': { target: apiTarget, changeOrigin: true },
           }
         : undefined,
+    },
+    test: {
+      // `e2e/` holds the Playwright browser suite. Vitest's default include
+      // pattern matches `*.spec.ts`, so without this it tries to run Playwright
+      // tests inside jsdom and fails the unit suite.
+      exclude: [...configDefaults.exclude, 'e2e/**', 'preview/**'],
     },
     build: {
       // Docker/Go serves the production frontend from web/dist.
