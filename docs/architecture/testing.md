@@ -18,7 +18,7 @@
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
 | **Container runtime smoke** | part of `Docker build (validation)` | every PR | Starts the built image with a **disposable** database (no volume mounts), waits for `/health`, runs `scripts/smoke-app-routes.sh`, checks migrations created the expected tables, and checks a second container **without** `DEV_MODE` still answers `401` on protected routes |
-| **Playwright browser suite** | `cd web/frontend && npm run test:e2e` | milestones only (`Playwright browser suite (milestone)`): release-candidate tags, manual dispatch, or a PR labelled `run-e2e` | The built React bundle in a real Chromium at phone size — the journeys that live in layout and interaction rather than in jsdom |
+| **Playwright browser suite** | `cd web/frontend && npm run test:e2e` | milestones only (`Playwright browser suite (milestone)`): release-candidate tags, or a PR labelled `run-e2e`. (The workflow also declares `workflow_dispatch`, but GitHub only allows a manual dispatch once the file is on the **default branch** — that is `main`, which does not have it yet) | The built React bundle in a real Chromium at phone size — the journeys that live in layout and interaction rather than in jsdom |
 
 The **Unraid install smoke test** is separate and owner-run; see
 [`unraid-image-release.md`](./unraid-image-release.md). Nothing automated here goes near live
@@ -103,13 +103,33 @@ Point the suite at something else with `E2E_BASE_URL` (the specs use relative UR
 serving the app and `/api/*` works). Video is switched off in the sandbox because Playwright's
 bundled ffmpeg comes from the blocked CDN; traces and screenshots still work.
 
+### What survives between sessions
+
+The **tests are part of the repository** — `web/frontend/e2e/`, `playwright.config.ts` and
+`scripts/run-playwright-in-sandbox.sh` are committed on the branch (and on `cals-dev` once the PR
+merges), so no session, developer or CI run has to write them again. The second question, whether
+they can still be *run*, is answered by the environment rather than the repo:
+
+| Thing | Lives in | Gone at the end of a session? |
+|---|---|---|
+| Specs, config, the sandbox bootstrap script | the repository | No — committed |
+| The preview bundle the suite drives | `web/frontend/preview/` | No — rebuilt by `npm run build:preview`, which `test:e2e` and the wrapper both run |
+| npm dependencies | `web/frontend/node_modules/` | Yes — `npm ci` (the wrapper does it when missing) |
+| The Chromium binary and its libraries | `/tmp`, outside the repo | Yes — the wrapper re-*provisions* them (~5 s warm, ~1 min cold); nothing is re-written by hand |
+| Failure traces, screenshots, reports | `web/frontend/test-results/`, `playwright-report/` | Yes, and they are git-ignored; CI attaches them to the run instead |
+
+So a later session runs `./scripts/run-playwright-in-sandbox.sh` and gets the same suite; the only
+thing that is ever rebuilt is the toolchain, never the tests.
+
 ## 3. CI behaviour, and why failures are diagnosable
 
 - Ordinary PRs keep the fast checks: frontend lint/typecheck/Vitest/build, Go vet/tests, the Docker
   build **and** the container runtime smoke.
-- The Playwright suite is reserved for milestones (`v*-dev*` tags), a manual `workflow_dispatch`, or a
-  PR that opts in with the `run-e2e` label. Opting in is the way to prove a risky UI change before it
-  reaches a release candidate.
+- The Playwright suite is reserved for milestones (`v*-dev*` tags) or a PR that opts in with the
+  `run-e2e` label — the way to prove a risky UI change before it reaches a release candidate. The
+  workflow also declares `workflow_dispatch`, but GitHub only allows a manual dispatch once the file
+  exists on the **default branch**; until `main` carries it, use the label (or the tag). Opting a PR in
+  also keeps the suite running on later pushes to that PR.
 - **A failing browser run explains itself without the raw Actions log.** The `Failure summary` step
   turns Playwright's JSON report into a short list — project, file, test title, the first line of the
   error and the artifact paths — in the job log and the run summary, and the full `test-results/` and
@@ -119,6 +139,16 @@ bundled ffmpeg comes from the blocked CDN; traces and screenshots still work.
 - Raw Actions log *downloads* have been unreliable from some environments (`results-receiver.actions.githubusercontent.com`
   has failed from the Arena sandbox). Rely on the run/job summary, the uploaded artifacts, and
   `gh api .../actions/runs/<id>/jobs` for step-level results.
+
+### Publishing a checkpoint
+
+Pushing a `v*-dev*` tag starts the publish workflow **and** the browser suite against the same commit,
+so every development checkpoint carries a record that the phone journeys were exercised on exactly the
+code being deployed. The browser run is evidence rather than a gate — the image is already in GHCR by
+the time it finishes, and a failure does not unpublish it (report it and fix forward instead). The
+pre-publish checklist in
+[`git-workflow.md`](./git-workflow.md#before-you-start-the-loop--the-pre-publish-checklist) covers the
+rest: docs finished in the same PR, no stale claims, and the checks green on the commit being tagged.
 
 ## 4. What this deliberately does not cover
 

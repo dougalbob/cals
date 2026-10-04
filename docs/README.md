@@ -47,4 +47,8 @@ Project documentation for **cals**, a personal calorie and nutrition tracking ap
 - Decisions get a date and an owner. Open questions are listed explicitly rather than left implied.
 - **Status lives in exactly one place** — [`CURRENT_STATE.md`](CURRENT_STATE.md). Do not copy phase status, "what is deployed" or "what is next" into other documents; link to it. When the state changes, update that page in the same PR.
 - **Dated narrative belongs in [`history/rebuild-log.md`](history/rebuild-log.md)**, newest first — what landed, why, and what it was called at the time. Documents that agents must read to *do work* should describe the present, not the journey.
+- **Cross-references are checked mechanically**: `node scripts/check-doc-links.mjs` walks every
+  Markdown file and fails on a relative link that does not exist, a `#anchor` that no heading matches,
+  or a link that escapes the repository. Run it before a publish; it is part of the
+  [pre-publish checklist](architecture/git-workflow.md#before-you-start-the-loop--the-pre-publish-checklist).
 - **The code is the final source of truth**: `internal/models/models.go` for the API contract, `internal/database/migrations.go` for the schema, and the route table in `cmd/server/main.go` for endpoints. Documentation that disagrees with the code is a bug in the documentation — fix it in the same PR.

@@ -3,9 +3,11 @@
 # WHEN THIS RUNS
 # Not on every pull request. The suite is heavier than the fast checks (it
 # builds the bundle and drives a real Chromium), so it is reserved for
-# milestones: every release-candidate tag, a manual dispatch, or a PR that
-# opts in with the `run-e2e` label (and keeps it for every later push to that
-# PR, since the label means "this change deserves the browser suite").
+# milestones: every release-candidate tag, or a PR that opts in with the
+# `run-e2e` label (and keeps it for every later push to that PR, since the
+# label means "this change deserves the browser suite"). A manual dispatch is
+# declared below but GitHub only offers it once this file is on the default
+# branch (`main`); until then use the label or a tag.
 # Ordinary PRs keep the frontend lint/Vitest/typecheck/build, the Docker build
 # + runtime smoke and the Go checks.
 #

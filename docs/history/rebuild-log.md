@@ -61,8 +61,9 @@ glass, over-target copy, long-press delete, past-date logging and drink calories
 bank; the orange **Own creation** marker on exactly one card plus the tag/occasion filters; and the
 portion sheet on a 360×640 phone. The suite serves the pre-built bundle with the fixture API in
 process — no Go server, no database, never household data — resets fixtures before each spec, and pins
-UTC in both the server and the browser. It runs at milestones (`v*-dev*` tags, manual dispatch, or a PR
-labelled `run-e2e`), never on ordinary PRs.
+UTC in both the server and the browser. It runs at milestones (`v*-dev*` tags, or a PR
+labelled `run-e2e`), never on ordinary PRs — the workflow also declares a manual dispatch, which
+GitHub will not offer until the file is on the default branch (`main`).
 
 **The runtime gap closed as far as CI allows.** `docker-validate.yml` now starts the built image with a
 disposable database (no volume mounts), waits for `/health`, exercises the real routes with

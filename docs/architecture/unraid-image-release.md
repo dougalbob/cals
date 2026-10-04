@@ -67,9 +67,15 @@ check that compiles and runs the Go test files; `go build` never touches `_test.
 
 | Workflow | File | Trigger | What it does | Token permissions |
 |---|---|---|---|---|
-| **Docker build (validation)** | `docker-validate.yml` | every pull request targeting `cals-dev` or `main` (plus manual dispatch) | `docker build` with no registry login, no push; writes the image id/size to the run summary | `contents: read` |
-| **Go tests (validation)** | `go-validate.yml` | every pull request targeting `cals-dev` or `main`, every push to `cals-dev` (plus manual dispatch) | `go vet ./...` and `go test ./...` with `CGO_ENABLED=1` on the Go version from `go.mod` — the gate that catches a failing or non-compiling backend test | `contents: read` |
+| **Docker build (validation)** | `docker-validate.yml` | every pull request targeting `cals-dev` or `main` | `docker build` with no registry login, no push; writes the image id/size to the run summary | `contents: read` |
+| **Go tests (validation)** | `go-validate.yml` | every pull request targeting `cals-dev` or `main`, every push to `cals-dev` | `go vet ./...` and `go test ./...` with `CGO_ENABLED=1` on the Go version from `go.mod` — the gate that catches a failing or non-compiling backend test | `contents: read` |
 | **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, creates the GitHub prerelease with the image digest in its notes, then logs out and verifies the image pulls **anonymously** (the test Unraid depends on) | `contents: write`, `packages: write` |
+
+**Manual dispatch is not available yet.** All four workflows declare `workflow_dispatch`, but GitHub
+only offers the *Run workflow* button (and `gh workflow run`) for a workflow that exists on the
+repository's **default branch** — here `main`, which carries no `.github/` directory until the first
+stable promotion. Until then the triggers in the table above are the only ones that fire; use a pull
+request (with the `run-e2e` label for the browser suite) or a tag.
 
 Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.
 
@@ -89,7 +95,19 @@ The workflow then, in order:
 2. pushes `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc1` and moves `ghcr.io/dougalbob/cals-dev-v2:dev-latest`;
 3. creates the GitHub **prerelease** for the tag, with the source commit and image digest in its notes.
 
+**The same tag also starts the milestone browser suite** (`web-e2e.yml`), which runs the Playwright
+journeys against the tagged commit — the same suite a PR runs when it carries the `run-e2e` label. It
+is evidence, not a gate: the image is already in GHCR by then, and a red browser run does **not**
+unpublish it. Treat it as the record that the phone journeys were exercised on exactly the commit
+being deployed; if it fails, report it with the traces and screenshots the run attaches and fix
+forward in the next checkpoint rather than re-tagging the same commit. See
+[`testing.md`](./testing.md#3-ci-behaviour-and-why-failures-are-diagnosable).
+
 After it succeeds, make the GHCR package public if it is not already (see [GHCR visibility](#ghcr-visibility)), then apply the update to the `cals-dev-v2` container on Unraid (see [Installing V2 on Unraid](#installing-v2-on-unraid-template-method)).
+
+Before starting any of this, work through the
+[pre-publish checklist](./git-workflow.md#before-you-start-the-loop--the-pre-publish-checklist) — most
+of it is documentation, and it is deliberately done in the same PR rather than afterwards.
 
 **If publishing fails:** check the run log first — the guard step names the reason. A GHCR permission error usually means the repository's **Settings → Actions → General → Workflow permissions** do not allow write access; the workflow requests `packages: write` explicitly, but this is the setting to confirm. A failure after the image is pushed (for example, creating the prerelease) can be fixed and the workflow re-run without rebuilding anything by hand.
 

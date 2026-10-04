@@ -171,22 +171,57 @@ again at each step**:
 1. Sync first: `git fetch origin refs/heads/cals-dev:refs/remotes/origin/cals-dev && git merge origin/cals-dev`.
 2. Make sure the work is committed on the session branch and the acceptance gate is satisfied — for UI
    work the owner's preview review plus the PR description of the concrete UX improvement.
-3. Push the session branch, open the PR **against `cals-dev`**, and wait for its checks
-   (`.github/workflows/docker-validate.yml`, the build-only Docker check).
+3. Push the session branch, open the PR **against `cals-dev`**, and wait for its checks:
+   `docker-validate.yml` (Docker build **and** the container runtime smoke against a disposable
+   database) and `go-validate.yml` (`go vet` + `go test`). A PR that changes layout or interaction also
+   takes the milestone browser suite — add the **`run-e2e`** label to the PR, which starts
+   `web-e2e.yml` and keeps running it on later pushes; see
+   [`testing.md`](./testing.md#3-ci-behaviour-and-why-failures-are-diagnosable).
 4. Merge the PR with a merge commit (the topology in §2 — `main` is never involved).
 5. Fast-forward the local branch to the merge commit on `cals-dev`, then tag that exact commit:
    `git tag -a v2.0.0-dev-rcN -m "<checkpoint summary>" <merge-sha>` and `git push origin v2.0.0-dev-rcN`.
-   The tag is the approval step; `publish-dev-image.yml` then builds, pushes the exact tag and
-   `dev-latest`, creates the GitHub prerelease and verifies an anonymous pull.
+   The tag is the approval step. Two workflows start from it: `publish-dev-image.yml` builds, pushes the
+   exact tag and `dev-latest`, creates the GitHub prerelease and verifies an anonymous pull; and
+   `web-e2e.yml` runs the milestone browser suite against that same commit. **Confirm both appear in
+   the run list** — the tag is the first time the browser suite is triggered that way, so if it does
+   not appear, say so rather than assuming it passed.
 6. Record the result: add the row to the [release log](./unraid-image-release.md#release-log) with the
-   run link and image digest, note what the checkpoint contains, and confirm no schema migration or
-   appdata operation happened (or say exactly what did).
-7. Tell the owner what to Force Update on Unraid and what to review.
+   run links and image digest, note what the checkpoint contains, confirm no schema migration or
+   appdata operation happened (or say exactly what did), and link the browser run.
+7. Tell the owner what to Force Update on Unraid and what to review, screen by screen and at phone size.
 
 **What “Lets publish” does *not* authorize:** pushing or merging `main`, promoting to stable, changing
 live appdata, moving `latest`, or skipping checks. Publishing a development checkpoint does not update
 a running Unraid container; the owner's Force Update is what applies it. If a check fails, fix it and
-report — do not tag around it.
+report — do not tag around it. A red browser run on the tag does **not** unpublish the image that is
+already in GHCR: report the failure with its uploaded traces/screenshots and fix forward in the next
+checkpoint.
+
+#### Before you start the loop — the pre-publish checklist
+
+The owner asked (2026-10-04) that documentation be finished **before** the loop begins, so that
+“Lets publish” is mechanical and nothing has to be written up under time pressure. Run this checklist
+against the exact commit that will be tagged:
+
+1. **Docs are in the same PR, not a follow-up.** `docs/CURRENT_STATE.md` (“Last reviewed”, §1
+   deployments, §2 phase status, §3 waiting-on-owner, §4 next work, §6 housekeeping),
+   [`docs/history/rebuild-log.md`](../history/rebuild-log.md) (a dated entry), `testing.md` if the
+   checks changed, `web/frontend/README.md` if the screens changed, and this loop's release-log row
+   *prepared* (filled with real links and a digest only after the run exists).
+2. **No stale claims.** Anything now merged or published must stop reading “unmerged”, “not yet” or
+   “pending”; anything the PR does *not* change must keep saying so. Test totals, workflow names and
+   image tags quoted in prose are checked against reality, and `node scripts/check-doc-links.mjs`
+   reports no broken relative links or heading anchors.
+3. **The checks are green on that commit** — the PR's Docker, Go and (where applicable) browser runs,
+   plus `cd web/frontend && npm run lint && npm run typecheck && npm test` for frontend work. Show the
+   links; do not tag a commit whose evidence is a sandbox-only run for work the CI gates can prove.
+4. **Nothing is claimed before it exists.** Run IDs, digests and “passed” statements are written only
+   after the run has finished and been read.
+5. **The owner-review note is written out** — which screens to look at, on what device, what changed,
+   and what to expect. If a fix is not in the image being tagged, say so explicitly rather than leaving
+   it to be discovered.
+6. **Superseded PRs are settled** — anything this PR replaces is closed as included, with a comment, so
+   the owner is not asked to merge two versions of the same docs.
 
 ### Releases (`cals-dev` → `main`)
 
