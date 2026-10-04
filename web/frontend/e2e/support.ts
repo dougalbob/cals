@@ -83,3 +83,61 @@ export function boxWithinViewport(
   if (!box || !viewport) return false
   return box.y >= 0 && box.y + box.height <= viewport.height + 0.5
 }
+
+export type RecipeFixture = {
+  id: number
+  name: string
+  description: string
+  instructions: string
+  serves: number
+  total_weight_grams: number
+  total_calories: number
+  calories_per_100g: number
+  protein_per_100g: number
+  usual_grams: number | null
+  weight_is_manual: boolean
+  calculated_weight_grams: number
+  is_archived: boolean
+  is_own_creation: boolean
+  is_favourite: boolean
+  meal_occasions: string[]
+  dish_type?: string
+  total_time_minutes: number | null
+  times_logged: number
+  key_foods: { food_id: number; food_name: string }[]
+  ingredients: { id: number; food_id: number; food_name: string; quantity_grams: number }[]
+  text_ingredients: { id: number; description: string }[]
+}
+
+/** Read a recipe straight from the fixture API, so assertions use the app's own numbers. */
+export async function recipeAs(request: APIRequestContext, id: number): Promise<RecipeFixture> {
+  const response = await request.get(`/api/recipes/${id}`)
+  expect(response.ok(), `GET /api/recipes/${id} failed with ${response.status()}`).toBeTruthy()
+  return (await response.json()) as RecipeFixture
+}
+
+/** The app renders `Math.round(value)` directly in a few card/detail lines (no thousands separators). */
+export function rounded(value: number): string {
+  return String(Math.round(value))
+}
+
+/** en-GB number formatting, matching the app's `formatNumber`. */
+export function gb(value: number, digits = 0): string {
+  return new Intl.NumberFormat('en-GB', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value)
+}
+
+/**
+ * A real touch tap, the way a phone delivers it. The element is centred first:
+ * the app's bottom navigation is fixed, so anything sitting behind it would
+ * take the tap instead (which is a genuine way for a tap to "do nothing", but
+ * not what these tests are about).
+ */
+export async function touchTap(locator: Locator): Promise<void> {
+  await locator.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  const box = await locator.boundingBox()
+  if (!box) throw new Error('touchTap: element is not visible')
+  await locator.page().touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+}
