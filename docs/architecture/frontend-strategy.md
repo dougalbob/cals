@@ -168,6 +168,7 @@ Hard rules:
 6. **Mobile-first and accessible:** 44 px touch targets, `env(safe-area-inset-*)`, visible focus states, labelled inputs.
 7. **Legacy UI freeze during migration.** `web/static/**` and `web/templates/index.html` receive critical bug fixes only, so the two UIs don't drift.
 8. **UI quality is an acceptance gate.** For every user-facing phase, compare the live preview with the current build on a phone-sized viewport, describe the concrete UX improvement in the PR, and obtain owner review before merging/cutting over. Phase 11 infrastructure may be UI-neutral; later screen phases may not.
+9. **A chart that shows a window of time must pan (decision 69, 2026-10-04).** Touch-drag with haptic feedback on a phone, click-and-hold and drag on a laptop; the rest of the series is reached by moving the chart, never by cramming more points into the same width. This implies range parameters on the stats endpoints (`from`/`to`, as `GET /api/calendar` already has) and the `date(date)` normalisation described in the [deferred RFC3339 issue](../product/vision-and-open-questions.md#known-issue-deferred--rfc3339-dates-on-the-metrics-endpoints-2026-10-03).
 
 ---
 
@@ -180,8 +181,8 @@ The timeboxed spike is complete. The owner authorized **Phase 11 — Foundation*
 | **11 — Foundation** | `web/frontend/` scaffold, Tailwind theme tokens, typed API client and query hooks for core endpoints, dev proxy, Go serving `web/dist` under a temporary `/next/` path, multi-stage Docker build, lint + typecheck + tests | New shell is reachable at `/next/` while the old UI remains the default; fixture and real-API dev loops work; typecheck, lint, tests and production build pass |
 | **12 — Diary** | Diary view at `/diary/:date` with meal sections, a familiar quick-add selector for Tea/Coffee/Water, drinks, bank ring, date navigation, add/edit/delete food entries (optimistic) | The primary phone-based logging flow is demonstrably easier than the current build; owner reviews the mobile preview; drink calories are included in the bank with a regression test; old diary stays reachable until approval |
 | **13 — Foods + Recipes** | Custom foods list/create/edit/delete; recipe list/detail/create/edit, ingredient search and image upload/crop; recipe→Diary flow; serving/grams choices; photo-led recipe browsing with favourites, structured classification and filters. **Do not port the legacy Mealie import.** | Preserve cooked-weight concentration maths with unit tests. Foods support named gram-backed measures; Add/Edit starts in serving mode when reliable and keeps grams accessible. Recipe logging supports each user's remembered usual grams, whole-recipe fractions and direct gram editing; no guessed first quantity, remember the first successful log, and later changes are one-off unless explicitly made usual. All diary paths store grams and the existing nutrition snapshot. Recipes support multiple meal occasions plus a separate dish-type facet, up to two key foods selected only from known cals Foods, optional exact prep-to-plate minutes, and per-user favourites. Filter on these facets. No Goodness score in this phase; its method is future discovery |
-| **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect, **rolling bank balance for the wheel (30 completed days by default)** | Rolling balance uses the selected completed-day window and includes both food and drink calories; the cumulative bank and today's available allowance remain unchanged; charts render correctly |
-| **15 — Settings + PWA** | Settings, calorie/water targets, **per-user bank-ring display limits and lookback window**, the **admin swap-user capability** (decision 45), themes, `vite-plugin-pwa` **installability only** (decision 53 — no offline logging, no write queue, no cached-data promise), remove legacy no-cache hacks | Ring limits and lookback persist per user; changing either affects only the display, not bank maths; Lighthouse PWA pass on mobile; SW installs cleanly; admin role is server-validated |
+| **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect, **the windowed bank (decision 66: the last N completed days, 14 by default — and that window is the bank everywhere, not just the ring)**, the tappable body-map measurement picker (decision 67), the 30-day pannable weigh-in chart with a trend line (decision 70) and the daily-goal-vs-consumed chart (decision 71) | The windowed balance covers completed days, includes food **and** drink calories, excludes unlogged days (decision 42), is labelled with its window, and drives the tile, `today_available` and the ring alike — with regression tests (`AGENTS.md`: the bank is crown-jewel maths). Windowed charts pan (decision 69) and stay readable at their default width; the body map commits a measurement without wiping the other parts recorded that day |
+| **15 — Settings + PWA** | Settings, calorie/water targets, **per-user bank-ring display limits and the bank window** (decision 66: presets **30 / 14 / 7 / All time** plus a **custom** number of days, defaulting to 14), the **per-user body-outline preference** behind decision 67's body map, the **admin swap-user capability** (decision 45), themes, `vite-plugin-pwa` **installability only** (decision 53 — no offline logging, no write queue, no cached-data promise), remove legacy no-cache hacks | Ring limits and the window persist per user; the **window changes bank maths** (decision 66) while the ring's ± limits stay presentation-only; Lighthouse PWA pass on mobile; SW installs cleanly; admin role is server-validated |
 | **16 — Cutover** | Delete `web/static/**`, `web/templates/index.html`, and old SW cache rules; make React the single SPA; update `docs/` (keep legacy `ai_contextual_docs/context.txt` frozen) | Total front-end LOC and file count drop sharply; no dead code left; owner approves the demonstrated UI improvement |
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
@@ -371,7 +372,7 @@ A missing `net/http/httptest` import in the existing drinks-builder Go test file
 
 The observed grey-ring case has a concrete cause. The current outer ring draws `consumed / today_available`, where `today_available = daily_goal + bank_balance`. With a large deficit, `today_available` can be negative; `percentOf` clamps that progress to zero, so the colored arc has no length and the grey track remains visible—even though the stroke colour has been set to red.
 
-The approved outer ring is a **display of the cumulative bank balance**, not another daily-consumption ring. Until Phase 15 Settings, it uses fixed limits of +2,000 and -2,000 kcal:
+The approved outer ring is a **display of the bank balance as it is calculated today — cumulative from `bank_start_date`** — not another daily-consumption ring. Decision 66 (2026-10-04) will change what that balance *means* (a windowed figure) without changing how the ring draws it. Until Phase 15 Settings, the ring uses fixed limits of +2,000 and -2,000 kcal:
 
 - Positive balance fills clockwise in green from 12 o'clock: +1,000 is 50%; +2,000 or more is full green.
 - Negative balance fills anticlockwise in red from the same 12 o'clock start: -650 is 32.5%; -2,000 or less is full red.
@@ -394,17 +395,35 @@ Implementation note for future work: the anticlockwise case **reflects the SVG g
 
 This is a presentation-only change: no schema, API, or data change, and it does not alter the Phase 14 rolling-balance metric or the Phase 15 per-user limits, which will simply reuse whichever direction the signed value takes.
 
-### Phase 14 — calculate a recent-window balance for the ring
+### Phase 14 — the windowed bank (decision 66 supersedes the earlier “ring only” plan)
 
-The owner has also proposed that the outer ring look back over a recent, adjustable period (tentatively 30 days) rather than visualizing a balance accumulated since the bank start date. This is **not already implemented**. `GET /api/stats/bank?days=30` returns a 30-day series, but each point is still a cumulative snapshot from `bank_start_date`; it is not a rolling 30-day balance. The stats handler also currently sums food entries without drinks, unlike the current `/api/bank` handler.
+The owner proposed that the outer ring look back over a recent, adjustable period rather than
+visualizing a balance accumulated since the bank start date, and on **2026-10-04 went further**:
+after further research he decided that a deficit or credit accumulated from day 1 is the wrong figure
+to steer by, so **the window is the bank everywhere** — the Banked/Deficit tile, `today_available`
+(goal + bank) and the ring all read the last N completed days, with **14 days as the default** and
+presets of 30 / 14 / 7 / All time plus a custom value in Phase 15 Settings. This is **not already
+implemented**. `GET /api/stats/bank?days=30` returns a 30-day series, but each point is still a
+cumulative snapshot from `bank_start_date`; it is not a rolling balance. The stats handler also
+currently sums food entries without drinks, unlike the current `/api/bank` handler.
 
-Recommendation: add a separate rolling-balance value for the ring while preserving the existing cumulative bank and `today_available` behavior. For an as-of date, calculate over the previous N **completed calendar days** (excluding the as-of date), bounded below by `bank_start_date`; include both food and drink calories. Keep the exact cumulative balance in the existing Banked/Deficit tile, and label the ring as `Last N days` so it cannot be mistaken for the full bank. Add tests for the window boundary, shorter history after a manual bank reset, food + drink inclusion, and unchanged cumulative-bank behavior.
+For an as-of date, calculate over the previous N **completed calendar days** (excluding the as-of
+date, because today is always in progress), bounded below by `bank_start_date`; include both food and
+drink calories; and let decision 42 exclude unlogged days inside the window, so budget accrues only
+for days that have logging. Label every surface with its window (`Last 14 days`) so a windowed
+balance can never be mistaken for an all-time one, and keep “All time” as an explicit preset that
+reproduces today's numbers. Add tests for the window boundary, a window shorter than the history, a
+window reaching past `bank_start_date`, unlogged days inside the window, food + drink inclusion, the
+All-time preset, and `today_available` moving with the window. Ship the maths in Phase 14 with the
+14-day default hard-coded and the setting in Phase 15, so the owner sees the new numbers before the
+control exists. Full detail:
+[decision 66](../product/vision-and-open-questions.md#the-windowed-bank-decision-66).
 
-Phase 14 is the right home for the separate metric/API calculation and tests because it already owns stats and charts. Use 30 days as its default while the setting is not yet available.
+Phase 14 is the right home for the calculation, the API change and the tests because it already owns stats and charts. Use **14 days** as the default while the Phase 15 setting does not exist (decision 66 — this replaces the earlier 30-day placeholder).
 
 ### Phase 15 — make the ring limits and lookback user-adjustable
 
-This fits naturally beside the planned Settings screen. Store the positive-bank cap and deficit magnitude as **separate per-user kcal preferences**, defaulting to 2,000 each, plus a per-user lookback window defaulting to 30 days. Keep the positive and negative limits independent. Persist all three through the user's API/settings rather than browser local storage, so they follow the user across devices. The ring should saturate at either limit while using the selected window's rolling balance; the full cumulative bank and today's allowance remain unchanged.
+This fits naturally beside the planned Settings screen. Store the positive-bank cap and deficit magnitude as **separate per-user kcal preferences**, defaulting to 2,000 each, plus a per-user **bank window** defaulting to **14 days** with the presets **30 / 14 / 7 / All time** and a custom number of days (decision 66 — this replaces the earlier 30-day lookback default). Keep the positive and negative limits independent. Persist all three through the user's API/settings rather than browser local storage, so they follow the user across devices. The ring saturates at either limit using the selected window's balance. **Note the difference in kind:** the ± limits are presentation-only, but since decision 66 the window *is* the bank — changing it moves the Banked/Deficit figure and `today_available`, not just the ring. The same Settings screen also carries the per-user body-outline preference behind decision 67's body map.
 
 This is a deliberately narrow exception to the current frontend-only migration boundary: it needs additive user fields, an SQLite migration, and `/api/users/me` read/update support. Keep that preference change isolated and tested; it must not alter calorie-bank calculations.
 
@@ -515,3 +534,24 @@ concentration maths and its unit tests are untouched, and the fixture API mirror
 - **Mealie:** the existing search/import code is legacy-only and is not being ported to the React Recipes view. It relies on parsing an external Mealie payload that may change and currently imports text ingredients without matching cals Foods. The legacy implementation is not a Phase 13 requirement; it may be lost when the legacy UI is removed unless separately reconsidered. Do not add Mealie parsing or sync work as part of this phase.
 
 The existing per-user recipe usual-portion preference remains separate from shared recipe metadata; Diary entries continue to store gram and nutrition snapshots. Keep persistence additive and narrowly scoped, with API and fixture tests. The owner has reviewed and approved the first recipe metadata increment in the Arena preview; phase-wide phone-size review and final owner acceptance remain required before cutover.
+
+### Queued for the next session — the Phase 13 polish slice (2026-10-04)
+
+Three of the seven items the owner raised on 2026-10-04 do not belong to any phase that exists: they
+are not Metrics work (Phase 14), not Settings work (Phase 15), and the phases they touch are already
+closed or unstarted. They are therefore grouped as one small, self-contained **Phase 13 polish
+slice**, to be taken before the remaining Phase 13 authoring work (new-recipe creation, image
+upload/crop) or alongside it. All three are frontend-first; only the badge needs an API field.
+
+| Item | Decision | Shape |
+|---|---|---|
+| **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give the app chrome an explicit layer (above page content, below `Modal`'s `z-50`) and audit the other fixed/sticky chrome for the same omission. A live defect in the published build, so it goes first |
+| **Diary meal-card back fill with a percentage** | 68 | The same proportional fill Today's meal tiles got in rc18, but coloured with each card's own meal accent at 50% opacity and labelled with the percentage it represents in white at the bar's upper-right corner |
+| **Recipe log-count badge** | 72 | A badge on the recipe image showing how many times *that user* has logged the recipe — the number alone. `COUNT(*)` over `diary_entries(recipe_id, user_id)`; no schema change, one additive response field, no badge at zero |
+
+Detail and the open design points (badge placement against the tags, the heart and the *Archived*
+badge; the label rule when a meal's share is only a percent or two) are in the
+[decision log](../product/vision-and-open-questions.md#bank-window-metrics-charts-and-app-polish--decisions-6673-2026-10-04).
+The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
+PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
+merge.

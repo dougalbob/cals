@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in a dated decision table (decisions 1–17, 18–28, 29–41 and the [second pass](#second-discovery-pass--2026-10-03) 42–48). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–73). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -86,25 +86,40 @@ The bank is the most distinctive feature of cals. It runs from a `bank_start_dat
 
 ### Bank-ring presentation (2026-10-03)
 
-The owner approved separating the two stories shown by the Home and Diary rings: the **outer ring** visualizes the cumulative bank, while the **inner ring** continues to show today's calories against the daily goal. Until Phase 15 Settings, the display limits are fixed at +2,000 kcal and -2,000 kcal: +1,000 fills half green, -650 fills about one third red, and balances at or beyond either limit fill the outer ring completely. The exact balance remains visible even when the arc is capped; these boundaries affect presentation only, never the bank maths.
+The owner approved separating the two stories shown by the Home and Diary rings: the **outer ring** visualizes the cumulative bank *(the windowed bank once decision 66 is implemented)*, while the **inner ring** continues to show today's calories against the daily goal. Until Phase 15 Settings, the display limits are fixed at +2,000 kcal and -2,000 kcal: +1,000 fills half green, -650 fills about one third red, and balances at or beyond either limit fill the outer ring completely. The exact balance remains visible even when the arc is capped; these boundaries affect presentation only, never the bank maths.
 
 **Direction (decision 28, 2026-10-03):** both arcs begin at 12 o'clock, but a surplus grows **clockwise** (green) and a deficit grows **anticlockwise** (red), so the sign of the balance is visible from the shape alone rather than from colour alone. Implemented; it changes no figure and no maths.
 
 Phase 15 will make the positive-bank cap and deficit magnitude independently adjustable per user, defaulting to 2,000 kcal each. Persist the settings through the user's API/schema so they follow the user across devices, not in browser-only storage. This is a narrow backend addition to the otherwise frontend-only rebuild.
 
-The current grey arc at a large deficit is explained by the old outer ring dividing by `today_available`: once that value is negative, progress clamps to zero and the arc has no visible length. The fixed-range ring currently uses the signed cumulative `bank_balance` directly.
+The current grey arc at a large deficit is explained by the old outer ring dividing by `today_available`: once that value is negative, progress clamps to zero and the arc has no visible length. The fixed-range ring currently uses the signed cumulative `bank_balance` directly. Decision 66 changes what `bank_balance` *means* (a windowed figure rather than a day-1 accumulation) without changing how the ring draws it.
 
-### Proposed lookback window — 2026-10-03 (settled as decision 44)
+### Proposed lookback window — 2026-10-03, **replaced by decision 66 (2026-10-04)**
 
-The owner has suggested that the outer ring represent a recent rolling balance rather than all time since `bank_start_date`, tentatively the last 30 completed days, with the lookback length adjustable per user — **settled on 2026-10-03 as decision 44: the window is user-definable, and “no window” means cumulative from day 1.** Recommendation: make this a separate **display metric for the ring**; do not change the cumulative bank or the calculation of today's available allowance. The Banked/Deficit tile should continue to show the exact cumulative balance, while the ring label states the selected period (for example, “Last 30 days”).
+The owner has suggested that the outer ring represent a recent rolling balance rather than all time since `bank_start_date`, tentatively the last 30 completed days, with the lookback length adjustable per user — settled on 2026-10-03 as decision 44: the window is user-definable, and “no window” means cumulative from day 1.
 
-This is not already implemented: the existing `GET /api/stats/bank?days=30` returns 30 dated snapshots, but each snapshot is cumulative from `bank_start_date`, not a rolling-window total. It also currently omits drink calories. Schedule a tested rolling calculation and food+drink consistency with Phase 14 Metrics, then make the lookback per-user and editable with the ring limits in Phase 15 Settings. The 30-day default and exact settings range remain to be confirmed during that design.
+> **⚠️ Decision 44 is superseded on two points by decision 66 (2026-10-04), after the owner's further
+> research.** The original recommendation below — a separate display metric for the ring, with the
+> cumulative day-1 figure kept everywhere else — **is no longer the plan**:
+>
+> 1. **The window is the bank, everywhere.** The Banked/Deficit tile, `today_available` (goal + bank)
+>    and the ring all use the last N completed days. `bank_start_date` becomes the floor of the
+>    window rather than its starting point. The owner's reasoning: a deficit or credit accumulated
+>    since day 1 is not a meaningful figure to steer by.
+> 2. **The default window is 14 days, not 30**, with presets of 30 / 14 / 7 / All time plus a custom
+>    value in Settings.
+>
+> What decision 44 keeps: the window is **user-definable**, “All time” remains available as an
+> explicit choice (it reproduces today's behaviour), the maths covers **completed days** and includes
+> **both food and drink** calories, and Phase 14 computes it while Phase 15 adds the setting.
+
+This is not already implemented: the existing `GET /api/stats/bank?days=30` returns 30 dated snapshots, but each snapshot is cumulative from `bank_start_date`, not a rolling-window total. It also currently omits drink calories. Schedule a tested rolling calculation and food+drink consistency with Phase 14 Metrics, then make the lookback per-user and editable with the ring limits in Phase 15 Settings. ~~The 30-day default and exact settings range remain to be confirmed during that design.~~ **Settled by decision 66: 14 days by default, presets 30/14/7/All time plus a custom number of days.**
 
 1. ~~**Does it ever reset?**~~ **Answered (2026-10-02, decision 17): manual only.** No automatic reset; the existing `bank_start_date` setting in Settings is the "start fresh from today" control, and it resets the running balance without touching history.
 2. **Should exercise credit the bank?** **Deferred by the owner (2026-10-03): not now.** Google Fit steps keep syncing and stay informational (Metrics), with no effect on the bank maths. Revisit as its own decision; "eat back your steps" is a common source of drift, and a future version could credit only steps above a daily floor.
 3. ~~**Should the bank be per-user, or shared as a household?**~~ **Answered (2026-10-03, decision 43): per person, as now.** Each of you keeps your own bank, goals and history. Seeing the other person's numbers is handled by the admin role (decision 45), not by merging the banks.
 4. ~~**What should a day with no logging at all count as**~~ **Answered (2026-10-03, decision 42): no data — the day is excluded from the bank.** It neither adds the daily budget nor removes consumption, so an unlogged day is a wash rather than an inflated bank. This is a change from today's behaviour (which counts it as zero consumed) and lands in Phase 14. Because the usual cause is human oversight, the owner wants a future **Issues** feature — a bell on Home that raises "you didn't log this day" and asks the user to resolve it — so the exclusion is visible rather than silent.
-5. ~~**Would an average be more useful than a running total**~~ **Answered (2026-10-03, decision 44): keep the running total, and make the window user-definable.** The owner's earlier lookback idea (a rolling period, tentatively 30 days) is generalised: the ring shows a **user-selected window**, and if no window is chosen it shows the cumulative figure from day 1 to today. The Banked/Deficit tile continues to show the exact cumulative balance. Phase 14 computes the rolling metric; Phase 15 adds the setting.
+5. ~~**Would an average be more useful than a running total**~~ **Answered (2026-10-03, decision 44, revised 2026-10-04 by decision 66): keep the running total, but over a user-selected window — and that window is now the bank, everywhere.** The window is user-definable (**14 days by default**; presets 30 / 14 / 7 / All time plus a custom value), and “All time” reproduces today's day-1 accumulation. The Banked/Deficit tile, `today_available` and the ring all read the same windowed figure. Phase 14 computes it; Phase 15 adds the setting.
 
 ## E. Daily logging ergonomics
 
@@ -201,8 +216,10 @@ status is deliberately not repeated here, and the dated story is in
 sections A–I are the questionnaire, and the decision tables at the end are the results.
 
 **Settled in the 2026-10-03 second and third passes (decisions 42–54):** unlogged days are excluded
-from the bank (42); the bank stays per person (43); the ring window is user-definable with a
-since-day-1 default (44); cross-viewing becomes an admin role with a swap-user control rather than a
+from the bank (42); the bank stays per person (43); the bank window is user-definable (44) and —
+since [decision 66](#bank-window-metrics-charts-and-app-polish--decisions-6673-2026-10-04) on
+2026-10-04 — **that window is the bank everywhere**, defaulting to 14 days with "All time" as a
+preset; cross-viewing becomes an admin role with a swap-user control rather than a
 household view (45); no notifications, but a weekly report is wanted (46); tracked nutrients become
 user-selectable with a missing-data audit (47); steps do **not** credit the bank for now (48); nothing
 else needs fixing in the logging flows, but a **calendar** is planned for reaching historic dates
@@ -328,7 +345,7 @@ And the small details that make it hold together:
 |---|---|---|---|
 | 42 | 2026-10-03 | **An unlogged day is excluded from the bank** — it counts as “no data”, not as zero consumed, so a missed day neither banks the daily budget nor spends anything. Unlogged means no food, recipe or drink entries for that date; a day with any logging counts normally. Because the usual cause is oversight, the owner wants the exclusion to be **visible** rather than silent (see the [Issues bell](#the-issues-bell-proposed-future-feature)). | Owner |
 | 43 | 2026-10-03 | **The bank stays per person.** No shared household bank; seeing the other person's numbers is handled by the admin role (decision 45), not by merging the maths. | Owner |
-| 44 | 2026-10-03 | **The ring's window is user-definable**, generalising the earlier 30-day lookback idea: the user picks a rolling window, and **“no window” means the cumulative figure from day 1 to today**. The Banked/Deficit tile always shows the exact cumulative balance. Phase 14 computes the metric; Phase 15 adds the setting. | Owner |
+| 44 | 2026-10-03 | **The ring's window is user-definable**, generalising the earlier 30-day lookback idea: the user picks a rolling window, and **“no window” means the cumulative figure from day 1 to today**. The Banked/Deficit tile always shows the exact cumulative balance. Phase 14 computes the metric; Phase 15 adds the setting. **Superseded in part by decision 66 (2026-10-04): the window is the bank everywhere, it defaults to 14 days, and “All time” is a preset rather than the absence of a window.** | Owner |
 | 45 | 2026-10-03 | **An admin role plus a “Swap user” control**, rather than a household view. The owner needs to browse the household's data because his own profile has almost none; the flag grants **full read/write** as the other user, with the app making it unmistakable that you are acting as someone else. `GET /api/users` stops being an exposed curiosity and becomes admin-only. | Owner |
 | 46 | 2026-10-03 | **No notifications or reminders** — not for logging, not for water. Instead the owner wants a **weekly report**: an in-app recap of the week's numbers, ideally part of Phase 14's Metrics redesign and its own small feature set if it does not fit. | Owner |
 | 47 | 2026-10-03 | **Tracked nutrients become user-selectable.** Macros and fibre stay on by default; further nutrients (for example saturated fat) are ticked on in a Settings sheet, and the app **audits the existing foods and reports which ones have no values for a newly enabled nutrient** so the gaps can be filled rather than silently ignored. The nutrient list and the audit's exact behaviour are Phase 14 design work (this is an additive API/schema exception, like the Phase 15 settings work). | Owner |
@@ -666,6 +683,209 @@ the server with CGO in about a minute, and **it runs the tests too**: `go build 
 regression tests. Nothing had rotted in `_test.go` — but nothing had been checking that either, which
 is what decision 65 fixes. Agents: "the sandbox has no Go" is not a reason to leave a backend change
 unverified, and `AGENTS.md` §3 says so.
+
+## Bank window, metrics charts and app polish — decisions 66–73 (2026-10-04)
+
+Seven items the owner raised on 2026-10-04, while Phase 13's safety slices were being published as
+`v2.0.0-dev-rc19`. **None of them is implemented.** They are recorded here as scheduled work: three
+(the Diary meal-card fill, the recipe log-count badge and the navigation layering bug) do not belong
+to any phase that exists, so they are grouped as the next **Phase 13 polish slice**; the rest extend
+**Phase 14 (Metrics + Nutrition)** and **Phase 15 (Settings)**. Order and status: see
+[`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 66 | 2026-10-04 | **The bank window replaces the day-1 accumulation everywhere — and it defaults to 14 days.** The owner's further research says a deficit or credit accumulated since `bank_start_date` is the wrong figure to steer by. The Banked/Deficit tile, `today_available` (goal + bank) and the ring all read the **last N completed days**; `bank_start_date` becomes the window's floor, not its starting point. Settings offers the presets **30 days, 14 days, 7 days, All time** plus a **custom number of days**. “All time” reproduces today's cumulative behaviour, so nothing is lost. Revises decision 44, which had scoped the window to the ring only. | Owner (scope, presets and 14-day default confirmed 2026-10-04) |
+| 67 | 2026-10-04 | **Measurements get a tappable body map.** An SVG human outline (gender aware, large enough that hitting a body part is never a problem) carries small red tap points; tapping one opens a pop-up showing that part's **last recorded measurement**, which can be overtyped or stepped with up/down buttons, then committed with a save icon. Cancel with an unsaved change warns first (toast or equivalent); saving an unchanged value asks “Measurement hasn't changed — is this correct?” The outline's shape comes from a **new per-user setting** (the owner's choice — `users` has no gender column today), so it is an additive migration alongside Phase 15's other per-user preferences. | Owner |
+| 68 | 2026-10-04 | **The Diary's four meal cards get the Today-style proportional back fill**, with two differences: the fill uses **that card's own meal accent colour at 50% opacity** (not the shared primary), and the **percentage it represents is printed at the upper-right extreme of the bar** in white, with padding, sitting in the bar's top-right corner. | Owner |
+| 69 | 2026-10-04 | **General rule for Metrics charts: a windowed chart must pan.** Where a chart shows a window of time, the rest of the series is reached by dragging the chart — touch-drag with haptic feedback on a phone, click-and-hold and move left/right on a laptop — never by cramming more points into the same width. Applies to every chart below and to any future one. | Owner |
+| 70 | 2026-10-04 | **The weigh-in chart shows a 30-day window and plots a trend line in the same chart.** Weight history will keep growing, so points must not be cramped: 30 days are visible, and earlier or later periods are reached by panning (decision 69). The chart style is explicitly to be discussed when it is built. | Owner |
+| 71 | 2026-10-04 | **A daily-goal-vs-consumed chart.** Each day's consumed calories against a horizontal daily-goal line: **green below the goal**, and above it a **gradient — amber for the first 10% over the goal, red beyond 10%**. 30-day window, pannable (decision 69). | Owner |
+| 72 | 2026-10-04 | **A recipe card badge showing how many times that user has added the recipe to their Diary.** The number alone — no other text on the badge. | Owner |
+| 73 | 2026-10-04 | **Bug: the Recipes page's tags paint over the menu.** Scrolling the recipe list, the card tags pass over the menu instead of behind it. **The menu must be the topmost visible layer at all times.** Root cause verified in code (below); it is a live defect in the published build. | Owner |
+
+### The windowed bank (decision 66)
+
+**What changes.** `GET /api/bank` stops accumulating from `bank_start_date` and instead sums the
+previous N **completed calendar days** (the as-of date excluded, because today is always in
+progress). Everything that reads the bank — the Banked/Deficit tile, the ring, the Diary header,
+`today_available` and therefore the Calendar's end-of-day figures — shows the same windowed number.
+`bank_start_date` still bounds it: a window can never reach back before the bank's start, and the
+existing “start fresh today” control (decision 17) keeps working.
+
+**What does not change.** Grams and nutrition snapshots, decision 42's exclusion of unlogged days,
+decision 43's per-person bank, and decision 48 (steps never credit it). Within the window, budget
+accrues only for days that have logging — a day with no entries contributes neither budget nor spend
+(decision 42), so a fortnight with two unlogged days budgets 12 days, not 14.
+
+> **Design point to confirm when it is built:** whether “the last 14 days” means 14 *calendar* days
+> (recommended — it matches how a person talks about a fortnight, and decision 42 then decides which
+> of them count) or 14 *logged* days. The two give different figures for anyone who skips days.
+
+**Implementation notes, recorded now because this is crown-jewel maths** (`AGENTS.md` §4 — never
+change the bank incidentally):
+
+- Both ledgers are in scope: `diary_entries` **and** `drink_entries` (decision 1). `HandleGetBank`
+  already sums both; `GET /api/stats/bank` does not, and must be made consistent.
+- Use `date(date)` in the comparisons, as `HandleGetBank` and the fixed calendar handler do — the
+  deferred RFC3339 problem in the section below bites exactly here.
+- Additive migration for the per-user window, defaulting to 14. Persist it on the user record so it
+  follows the person across devices, exactly like Phase 15's ring limits; not browser storage.
+- Regression tests are part of the slice, not an afterthought: window boundary, a window shorter than
+  the history, a window reaching past `bank_start_date`, unlogged days inside the window, food +
+  drink inclusion, the “All time” preset reproducing today's numbers, and `today_available` moving
+  with the window. `internal/handlers/bank_test.go` is the home.
+- **The figure must be labelled with its window** (“Last 14 days”) wherever it appears, so a windowed
+  balance can never be mistaken for an all-time one.
+- Sequencing: Phase 14 implements the maths with the 14-day default hard-coded; Phase 15 adds the
+  Settings control (presets + custom). Do not ship the maths and the setting in one unreviewed step —
+  the owner should see the new numbers before the control exists.
+
+### The body-map measurement picker (decision 67)
+
+The parts that exist today (verified in `internal/database/migrations.go` and
+`internal/models/models.go`): **bust, chest, waist, hips, upper arm, thigh, neck** — seven columns on
+`measurement_entries`, all nullable. The outline needs a tap point per part that makes sense for the
+chosen body shape.
+
+**The interaction, as the owner described it:** tap a point → a small pop-up shows the last value
+recorded for that part → overtype it or nudge it with up/down buttons → tap the save icon to commit.
+Cancel is always available; cancelling after a change warns that there are unsaved values and asks
+whether to cancel anyway; saving without having changed anything asks for confirmation. Proposed
+wording (the owner left it to the implementation session):
+
+- Unsaved cancel: **“You have an unsaved measurement. Discard it?”** — *Discard* / *Keep editing*.
+- Unchanged save: **“Measurement hasn't changed — is this correct?”** — *Save anyway* / *Cancel*.
+
+**Backend gaps to close in the same slice:**
+
+- There is **no update endpoint** for a measurement: the routes are `GET`, `POST` and
+  `DELETE /api/measurements/{id}`.
+- `POST /api/measurements` **deletes the existing row for that date and re-inserts it**, so posting a
+  single part would silently wipe every other part logged on the same day. The owner chose to decide
+  the write target when this is built; the two candidates are (a) **patch the latest entry's own
+  date**, which needs a per-part update endpoint (`PUT /api/measurements/{id}` or a part-level
+  patch), or (b) **write to today's row** using the existing POST, which must then resend every part
+  it wants to keep. Option (a) preserves history and the recorded date; option (b) needs no new
+  endpoint but makes every correction a new measurement.
+- “Last measurement for that part” means the newest entry where that column is non-null — not simply
+  the newest entry, which may have been logged with only a waist value. `GET /api/measurements`
+  currently returns the newest 20 rows, so a part last recorded a year ago would not be found; either
+  raise the limit or add a per-part latest lookup.
+- The **per-user outline preference** is an additive `users` column plus `GET`/`PUT /api/users/me`
+  support — the same narrow, tested exception to the frontend-only boundary that Phase 15's ring
+  limits and lookback window already require.
+
+**Design points left open:** whether the female outline exposes **bust** and the male outline
+**chest** (recommended — it keeps both columns meaningful and avoids asking a person to pick between
+them), or whether both points appear on both outlines; where the outline sits (the Metrics screen
+owns measurements, so it belongs there, with the existing table kept for history); whether the
+up/down stepper is 0.5 cm or 1 cm; and how the pop-up behaves for a part never measured (recommended:
+open empty with the save action creating the first value). Accessibility is not optional here: the
+dots need labels and keyboard focus, and the 44 px touch-target rule means the invisible hit area is
+larger than the visible dot — the same technique `RecipeTags` already uses.
+
+### The Diary meal-card back fill (decision 68)
+
+Today's four meal tiles already fill in proportion to each meal's share of the day's logged calories
+(rc18, `data-calorie-fill` in `HomeRoute.tsx`, `bg-primary-light/50` behind the content). The Diary's
+four meal cards get the same idea, with the owner's two differences:
+
+1. **The fill colour is the card's own meal accent at 50% opacity** — `--color-meal-breakfast`,
+   `--color-meal-lunch`, `--color-meal-dinner`, `--color-meal-snacks`, the same tokens that already
+   drive each card's left border (`MEAL_ACCENT` in `DiaryRoute.tsx`). The fill sits *behind* the
+   entries, totals and buttons, exactly as it does on Today.
+2. **The percentage is printed at the upper-right extreme of the bar** — white text, padded, in the
+   bar's top-right corner (e.g. `23%`).
+
+Keep the percentage's definition identical to Today's: that meal's calories as a share of the day's
+total logged **food** calories, so the four cards sum to 100% and the two screens never disagree.
+Edge cases to design for: a day with nothing logged shows no fill and no label; a meal with a 1–2%
+share produces a bar too narrow to hold its own label, so the label needs a rule (recommended: keep
+it inside the card's top-right and let it sit over the unfilled area, still white with enough
+contrast, rather than shrinking or clipping it); and the fill must not obscure the row text at any
+width.
+
+### Charts pan their window (decision 69) — the general rule
+
+Any Metrics chart that shows a window of time must be draggable: **touch-drag with haptic feedback on
+a phone; click-and-hold then move left/right on a laptop.** The default window stays readable, and
+older or newer data is reached by moving the chart rather than by squeezing the points together.
+
+Two consequences worth recording now:
+
+- **The endpoints cannot do this yet.** `GET /api/weight?days=` and `GET /api/stats/calories?days=`
+  always end at today (`date('now')`), and the calorie stats handler caps `days` at 90. Panning
+  backwards needs a range parameter — `from`/`to`, as `GET /api/calendar?from=&to=` already does — or
+  an `until` date. Whichever handler is touched must also adopt the `date(date)` fix described in the
+  [deferred RFC3339 issue](#known-issue-deferred--rfc3339-dates-on-the-metrics-endpoints-2026-10-03).
+- **Haptics are a nice-to-have, not a dependency.** `navigator.vibrate` is the only lever a PWA has
+  and iOS Safari does not implement it, so the drag must feel right without it. The charting-library
+  choice (§11 question 4 — Chart.js via `react-chartjs-2` versus Recharts) is still open; panning is
+  materially easier with Chart.js's zoom/pan plugin, which is worth weighing when that question is
+  finally answered.
+
+### The weigh-in chart (decision 70)
+
+A 30-day window by default, pannable in both directions (decision 69), with a **trend line plotted in
+the same chart**. The owner explicitly left the chart style to the implementation discussion; the
+candidates are a centred moving average, a least-squares regression line, or both together.
+Recommendation: keep the raw points, add a smoothed trend, and let the owner judge it in a preview —
+this is precisely the kind of thing that reads differently on a phone than on paper.
+
+Two traps to design against: weigh-ins are sparse (nobody logs daily), so the trend must handle gaps
+without inventing data; and a weight chart whose y-axis auto-fits a 30-day span will make a 0.4 kg
+wobble look like a crisis, so the axis needs a sensible fixed padding or an explicit scale choice.
+
+### Daily goal versus consumed (decision 71)
+
+Bars for each day's consumed calories against a horizontal **daily-goal line**: green below the goal;
+above it, a gradient that is **amber for the first 10% over the goal and red beyond that**. A 30-day
+window, pannable (decision 69). This is decision 62's calendar bar taken one step further — the
+calendar splits a day green/red at the goal, and this chart adds the amber band for the first 10% of
+overspend.
+
+Two implementation notes:
+
+- **“Consumed” must include drink calories** (decision 1 — drinks count towards the bank), otherwise
+  this chart will disagree with the ring on the same screen. `GET /api/stats/calories` currently sums
+  `diary_entries` only, so the endpoint has to be extended; that is a real gap, not a detail.
+- The 10% amber threshold is hard-coded for now. Making it a setting is possible but is not asked
+  for; revisit only if the household finds the band wrong.
+
+### The recipe log-count badge (decision 72)
+
+A badge on the recipe image showing **how many times the signed-in user has added that recipe to
+their Diary** — the number and nothing else.
+
+- **No schema change.** `diary_entries` already carries `recipe_id` and `user_id`, so this is a
+  `COUNT(*)` grouped by recipe. It arrives as an additive response field (for example `times_logged`)
+  on `GET /api/recipes` and the recipe detail response.
+- **It is per user, not household-wide** — recipes are shared but habits are personal, the same split
+  as favourites (decision 37) and each user's usual portion (decision 31). An archived recipe still
+  carries its count: the history is real.
+- **Zero means no badge.** A recipe never logged has nothing to say.
+- **Placement is a phone-size decision.** The photo already carries tags at the lower left, the
+  favourite heart at the upper right and an *Archived* badge at the upper left, so the count needs a
+  corner that does not collide — lower right, or beside the heart. Judge it in the preview.
+
+### The Recipes layering bug (decision 73)
+
+Verified in the code on 2026-10-04, so the fix is not guesswork:
+
+- The app's fixed bottom navigation (`web/frontend/src/AppLayout.tsx`) is
+  `fixed bottom-0 left-0 right-0 bg-card border-t border-line safe-bottom` — **it sets no
+  `z-index`**, and `src/styles.css` sets none either.
+- The recipe cards' tags are positioned with `z-10` and the favourite button with `z-20`
+  (`web/frontend/src/routes/RecipesRoute.tsx`).
+- By the CSS painting order, a positioned element with `z-index: auto` (the nav) is painted **before**
+  any positive-`z-index` descendant elsewhere in the tree (the tags), so the tags draw on top of the
+  menu as they scroll past it. That is exactly what the owner sees.
+
+**The fix** is to give the app chrome an explicit layer — the navigation above page content and below
+`Modal`'s `z-50` — and to audit the other fixed/sticky chrome for the same omission. Frontend only:
+no API, schema or data change. It is a live defect in the published build, so it heads the Phase 13
+polish slice.
 
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 
