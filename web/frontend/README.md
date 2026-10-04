@@ -3,20 +3,19 @@
 **Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six earlier
 increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing recipe content
 (decisions 55–58) and transactional food-correction refresh of dependent recipe definitions
-(decisions 60–61), and rc21 shipped the Phase 13 polish slice (decisions 68, 72–78). The latest
-checkpoint, `v2.0.0-dev-rc22` (PR #50), was published 2026-10-04 after the owner approved the Arena
-preview. It adds the shared orange **Own creation** marker (decision 79), fixes the mobile Diary Edit
-sheet, removes hydration actions from Today while retaining them on Diary, and sets both pages' meal
-fills to 5% color alpha. **Force Update/review of rc22 on Unraid is pending; the owner plans to
-re-test the Edit sheet on a phone after updating.** A test-only **stabilisation pass** now sits on the
-`arena/01a106a2-cals` branch (PR #52, unmerged, publishes nothing): a Playwright browser suite over
+(decisions 60–61); rc21 shipped the Phase 13 polish slice (decisions 68, 72–78); and rc22 added the
+shared orange **Own creation** marker (decision 79), the mobile Diary Edit-sheet fix, the removal of
+hydration actions from Today and the 5% meal fills. The latest checkpoint, **`v2.0.0-dev-rc23`**
+(PR #52, published 2026-10-04), is the **stabilisation checkpoint**: a Playwright browser suite over
 the highest-value phone journeys (with the recipe area covered control by control), a CI step that
-starts the built image against a disposable database and smokes its routes, a fix for the **recipe
-portion sheet**'s Cancel / Add to diary actions being cut off on a 360 px-wide phone (the sheet now
-keeps them in the modal footer), and a fix for **phone taps on tick-boxes** — labels are now tap
-targets rather than selectable text, and interactive controls use `touch-action: manipulation`, so a
-slightly slow tap no longer becomes a text selection (Android's copy-text helper) or a double-tap
-zoom. See
+starts the built image against a disposable database and smokes its routes, the **recipe portion
+sheet**'s Cancel / Add to diary kept in the modal footer so they stay on screen on a 360 px-wide
+phone, and the fix for **phone taps on tick-boxes** — labels are now tap targets rather than
+selectable text and interactive controls use `touch-action: manipulation`, so a slightly slow tap no
+longer becomes a text selection (Android's copy-text helper) or a double-tap zoom. It changes **no
+API or schema**. **Force Update/review of rc23 on Unraid is pending, and is where the tick-box taps,
+both sheets' footers and the accumulated rc19–rc22 changes get their first real-device confirmation.**
+See
 [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The only schema change is additive:
 `recipes.is_own_creation` defaults false and is applied at startup; no appdata copy or reset. The later
 create-from-scratch UI should reuse this field; the broader authoring UI and image upload/crop remain
