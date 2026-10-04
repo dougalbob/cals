@@ -9,10 +9,14 @@ preview. It adds the shared orange **Own creation** marker (decision 79), fixes 
 sheet, removes hydration actions from Today while retaining them on Diary, and sets both pages' meal
 fills to 5% color alpha. **Force Update/review of rc22 on Unraid is pending; the owner plans to
 re-test the Edit sheet on a phone after updating.** A test-only **stabilisation pass** now sits on the
-`arena/01a106a2-cals` branch (PR #52, unmerged, publishes nothing): a small Playwright browser suite
-over the highest-value phone journeys, a CI step that starts the built image against a disposable
-database and smokes its routes, and a fix for the **recipe portion sheet**'s Cancel / Add to diary
-actions being cut off on a 360 px-wide phone (the sheet now keeps them in the modal footer). See
+`arena/01a106a2-cals` branch (PR #52, unmerged, publishes nothing): a Playwright browser suite over
+the highest-value phone journeys (with the recipe area covered control by control), a CI step that
+starts the built image against a disposable database and smokes its routes, a fix for the **recipe
+portion sheet**'s Cancel / Add to diary actions being cut off on a 360 px-wide phone (the sheet now
+keeps them in the modal footer), and a fix for **phone taps on tick-boxes** — labels are now tap
+targets rather than selectable text, and interactive controls use `touch-action: manipulation`, so a
+slightly slow tap no longer becomes a text selection (Android's copy-text helper) or a double-tap
+zoom. See
 [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The only schema change is additive:
 `recipes.is_own_creation` defaults false and is applied at startup; no appdata copy or reset. The later
 create-from-scratch UI should reuse this field; the broader authoring UI and image upload/crop remain
@@ -206,10 +210,13 @@ fixture API, including add/edit/delete diary flows, serving/grams mode, recipe p
 hydration-target feedback, proportional meal-card fills and calendar month-cell states
 (177 tests total as of 2026-10-04).
 
-The **browser suite** (`e2e/`, 17 tests) covers what jsdom cannot: Diary logging/editing and the Edit
+The **browser suite** (`e2e/`, 51 tests) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, the Today-vs-Diary hydration split with drink-calorie
-accounting, the recipe-origin marker with the catalogue filters, and the portion sheet on a small
-phone. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
+accounting, the recipe-origin marker with the catalogue filters, the portion sheet on a small phone,
+and — after a phone report about tick-boxes ignoring taps — the whole recipe area control by control
+(catalogue search/empty state/favourites/archived, the Add tag form, the portion sheet's usual-portion
+rules, Edit recipe's validation, the Diary meal picker, and real touch taps on every tick-box) plus
+the bottom navigation's arrow and touch swipe. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
 server, no database and never household data — and, in CI, only for milestones (release tags, manual
 dispatch, or a PR labelled `run-e2e`). Layer-by-layer detail, including the sandbox's browser
 workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).
