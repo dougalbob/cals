@@ -164,8 +164,8 @@ rest: docs finished in the same PR, no stale claims, and the checks green on the
   but is not part of CI.
 - **The Unraid install, template, `.env` loading and Cloudflare routing.** Owner-run, documented in
   [`unraid-image-release.md`](./unraid-image-release.md).
-- **Recipe-photo cropping.** Deliberately deferred by decision 82. The current branch implements
-  direct upload/replacement without cropping; the full 60-test Playwright suite includes create,
+- **Recipe-photo cropping.** Deliberately deferred by decision 82. Direct upload/replacement shipped in
+  rc25 without cropping; the full 60-test Playwright suite includes create,
   upload-failure and replacement journeys, the Own creation detail filter on a phone, and Diary
   delete-confirmation flows. Playwright uses the fixture API; Go handler tests cover storage and
   validation, and the route remains behind the existing auth middleware.

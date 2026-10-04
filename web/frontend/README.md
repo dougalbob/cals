@@ -9,14 +9,15 @@ hydration actions from Today and the original 5% meal fills. Decision 83 later s
 keeping Diary at 5%; decisions 84–85 add the recipe-details Own creation checkbox and Diary delete
 confirmation. The **rc23 stabilisation checkpoint** (PR #52,
 2026-10-04) added the milestone browser suite, disposable-database container smoke, portion-sheet
-footer fix and phone tick-box fix. The latest checkpoint, **`v2.0.0-dev-rc24`** (PR #54, published
-2026-10-04), adds no-photo recipe creation at `/recipes/new` and transactional `POST /api/recipes`;
-there is **no schema migration**. The owner reports rc24 is installed on Unraid and new recipe
-creation works well. Decision 82 adds optional uncropped photo upload during creation and replacement
-on detail to the current branch; decisions 83–85 add the Today/Diary fill distinction, the Own creation
-detail-filter checkbox, and confirmation before deleting a meal entry. The combined branch is not in
-rc24 or a published build yet. Cropping is deferred. The accumulated phone-review status is in
-[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) §3. See
+footer fix and phone tick-box fix. The preceding checkpoint, **`v2.0.0-dev-rc24`** (PR #54), adds
+no-photo recipe creation at `/recipes/new` and transactional `POST /api/recipes`; there is **no schema
+migration**. The owner reports rc24 is installed on Unraid and new recipe creation works well. The
+latest checkpoint, **`v2.0.0-dev-rc25`** (PR #56, published 2026-10-04), includes decisions 82–85:
+uncropped photo upload/replacement, Today/Diary fill distinction, the Own creation detail-filter
+checkbox, and Diary meal-entry delete confirmation. The owner has not yet reported Force Updating or
+reviewing rc25 on Unraid; cropping is deferred. Exact image/release evidence is in the
+[release log](../../docs/architecture/unraid-image-release.md#release-log). The accumulated phone-review
+status is in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) §3. See
 [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The existing
 additive `recipes.is_own_creation` field defaults false and is applied at startup; no data copy or
 reset. Earlier increments cover the photo-led catalogue, per-user favourites, shared
@@ -42,7 +43,7 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Diary Quick drinks selector. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options. Saving a food correction refreshes its dependent recipe definitions and invalidates recipe queries; saved Diary nutrition stays unchanged |
-| Recipes | `/recipes`, `/recipes/new` and `/recipes/:id` | **Create recipe** opens a full-page authoring form for the fixed name, description, matched cals Food ingredients and grams, optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition estimate and shared classification; a successful create opens its detail page and preserves the catalogue/Diary query context. Photo upload/replacement is in the current unpublished branch; cropping is deferred. Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters, including an **Own creation** checkbox beside Dish type — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the orange **Own creation** checkbox above the key-food choices is a shared recipe-origin field whose tag filters the catalogue (decision 79). **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
+| Recipes | `/recipes`, `/recipes/new` and `/recipes/:id` | **Create recipe** opens a full-page authoring form for the fixed name, description, matched cals Food ingredients and grams, optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition estimate and shared classification; a successful create opens its detail page and preserves the catalogue/Diary query context. Photo upload/replacement shipped in rc25; cropping is deferred. Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters, including an **Own creation** checkbox beside Dish type — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the orange **Own creation** checkbox above the key-food choices is a shared recipe-origin field whose tag filters the catalogue (decision 79). **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
 
 The proportional fills use Tailwind v4's slash-alpha background-color utilities
 (`bg-primary-light/25` on Today and, for example, `bg-meal-breakfast/5` on Diary). The compiled CSS
@@ -74,9 +75,8 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 
 Recipe cropping, Google Fit, settings, themes, the PWA/service worker, per-user food measures
 (measures are shared per food for now), and most remaining mutations are not implemented. Recipe
-authoring is available at `/recipes/new`; uncropped photo selection/upload is implemented on the
-current branch, with replacement on existing recipe detail. It is not part of published rc24 yet.
-Existing recipes can also be edited safely in place, and food corrections refresh dependent recipe
+authoring is available at `/recipes/new`; uncropped photo selection/upload and replacement on existing
+recipe detail shipped in rc25 (they are not part of rc24). Existing recipes can also be edited safely in place, and food corrections refresh dependent recipe
 definitions without rewriting Diary snapshots. The existing Mealie search/import is
 legacy-only and is intentionally not part of the React migration; see the product decisions. The React
 Diary supports adding, **editing the logged weight** and deleting entries; deleting a food or recipe
@@ -196,8 +196,7 @@ from the estimate. The typed `POST /api/recipes` writes content and classificati
 query context is preserved through cancel and success. An optional JPEG, PNG or WebP photo (up to
 10 MiB) is previewed and uploaded only after creation; an existing recipe's image can be replaced
 from detail. If that second request fails, the saved recipe remains open with clear retry guidance,
-so the user is not asked to create it again. Upload/replacement is in this branch but not published;
-cropping is deferred. Current status is in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+so the user is not asked to create it again. Upload/replacement shipped in rc25; cropping is deferred. Current status is in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
