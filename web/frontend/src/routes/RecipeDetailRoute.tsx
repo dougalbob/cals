@@ -340,6 +340,7 @@ function RecipeMetadataEditor({
   const [isEditing, setIsEditing] = useState(false)
   const [mealOccasions, setMealOccasions] = useState<RecipeMealOccasion[]>(recipe.meal_occasions)
   const [dishType, setDishType] = useState<RecipeDishType | ''>(recipe.dish_type ?? '')
+  const [isOwnCreation, setIsOwnCreation] = useState(recipe.is_own_creation)
   const [keyFoodIds, setKeyFoodIds] = useState<number[]>(recipe.key_foods.map((food) => food.food_id))
   const [timeMinutes, setTimeMinutes] = useState(
     recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes),
@@ -375,6 +376,7 @@ function RecipeMetadataEditor({
           .filter((occasion) => mealOccasions.includes(occasion)),
         dish_type: dishType,
         key_food_ids: keyFoodIds,
+        is_own_creation: isOwnCreation,
         total_time_minutes: minutes,
       })
       setIsEditing(false)
@@ -396,6 +398,7 @@ function RecipeMetadataEditor({
             onClick={() => {
               setMealOccasions(recipe.meal_occasions)
               setDishType(recipe.dish_type ?? '')
+              setIsOwnCreation(recipe.is_own_creation)
               setKeyFoodIds(recipe.key_foods.map((food) => food.food_id))
               setTimeMinutes(recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes))
               setIsEditing(true)
@@ -443,6 +446,23 @@ function RecipeMetadataEditor({
               ))}
             </select>
           </label>
+
+          <fieldset className="m-0 rounded-xl border border-orange-300 bg-orange-50 p-3">
+            <legend className="px-1 text-sm font-semibold text-orange-950">Recipe origin</legend>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                aria-label="Own creation"
+                checked={isOwnCreation}
+                onChange={(event) => setIsOwnCreation(event.target.checked)}
+                className="h-5 w-5 accent-orange-600"
+              />
+              <span className="rounded-full bg-orange-200 px-2.5 py-1 text-xs font-semibold text-orange-950">
+                Own creation
+              </span>
+              <span className="text-ink-light">Created by someone in your household.</span>
+            </label>
+          </fieldset>
 
           <fieldset className="m-0 flex flex-col gap-1 border-0 p-0">
             <legend className="mb-1 text-sm font-semibold">Key foods (choose up to two)</legend>
@@ -495,6 +515,7 @@ function RecipeMetadataEditor({
               onClick={() => {
                 setMealOccasions(recipe.meal_occasions)
                 setDishType(recipe.dish_type ?? '')
+                setIsOwnCreation(recipe.is_own_creation)
                 setKeyFoodIds(recipe.key_foods.map((food) => food.food_id))
                 setTimeMinutes(recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes))
                 setIsEditing(false)

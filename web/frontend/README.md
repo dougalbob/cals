@@ -8,8 +8,13 @@ increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing re
 Update/review of rc21 on Unraid remains pending.** Earlier increments cover the photo-led catalogue,
 per-user favourites, shared structured tags and filters, named gram-backed food measures,
 recipe-to-Diary portion logging with each user's remembered usual, archive/restore, Diary meal-card
-recipe hand-off and the Calendar/rc18 refinements. Creating a recipe from scratch and image
-upload/crop remain later work. The legacy Mealie importer is not being pursued or ported to React. The
+recipe hand-off and the Calendar/rc18 refinements. The current Arena session branch adds the shared
+orange **Own creation** marker to Edit recipe and supports it in the API, fixes a mobile Diary Edit
+sheet layout bug, and removes hydration actions from Today while retaining them on Diary. Meal-card
+fills now use 5% color alpha on both Today and Diary; these changes are not part of rc21 or a release.
+The later create-from-scratch UI should reuse the same field; the broader authoring UI and image
+upload/crop remain separate queued work. The legacy Mealie importer is not being pursued or
+ported to React. The
 Diary/Metrics/Foods screens began as a spike and remain a work-in-progress; the existing vanilla UI is
 still the default. The Go app serves the React shell only under the temporary `/next/` path. Nothing is
 cut over by this phase. UI/UX improvement is a headline acceptance gate for the later screen phases;
@@ -23,13 +28,18 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 
 | Screen | Route | Notes |
 |---|---|---|
-| Today | `/` | Summary landing: calorie ring, four meal tiles and merged fluids card. The meal tiles show proportional calorie fills. The hydration glass prints the daily target; when the target is exceeded, the card also shows the surplus. One tap logs the configured Water-drink glass volume, which is separate from the daily target. |
-| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64) |
+| Today | `/` | Summary landing: calorie ring, food/drink totals, and four meal tiles with proportional calorie fills. Hydration and Quick drinks are intentionally kept off Today to reduce clutter; drink calories still contribute to the Drinks tile, ring and bank. The fluid controls remain on Diary. Today meal fills use a 5% color alpha. |
+| Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete**, drinks summary, hydration/Quick drinks card, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64). Meal fills use a 5% color alpha. In the current branch, the Edit quantity sheet keeps Cancel/Save pinned while its content scrolls |
 | Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (phone-friendly per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back, and tapping a day opens `/diary/:date` (decision 49 follow-up). Day cells are classified against the selected month, not the first padded grid date: dates inside the month stay fully visible, while padded dates outside it remain muted. Over-goal days have a green bar split at the goal with a proportional red tail (decision 62). The calendar stops at Today — the forward arrow is disabled on the current month/week, future URLs are clamped back, and future dates remain muted and non-clickable (decision 63). The shared card is labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
-| My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
+| My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Diary Quick drinks selector. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options. Saving a food correction refreshes its dependent recipe definitions and invalidates recipe queries; saved Diary nutrition stays unchanged |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients. **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the current session branch adds an orange **Own creation** checkbox above the key-food choices. **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
+
+The proportional fills use Tailwind v4's slash-alpha background-color utilities
+(`bg-primary-light/5` on Today and, for example, `bg-meal-breakfast/5` on Diary). This is the correct approach: the
+compiled CSS applies 5% alpha to the fill color itself, leaving the card text fully opaque; it does
+not lower opacity for the whole meal card.
 
 The shared `CalorieRing` anchors every arc at 12 o'clock and shows its sign by sweep direction
 (owner decision 28, 2026-10-03). The **outer** arc is the bank: a surplus sweeps clockwise in green,
@@ -42,11 +52,11 @@ pinned by `src/components/CalorieRing.test.tsx`.
 
 The wheel carries its own labels and has no captions underneath: `bank ±N` (the bank balance **plus**
 what is left of today), the day's spend in large type, and `daily ±N`. The small lines are
-colour-coded by sign; the full wording lives in the SVG `aria-label`. The one-tap glass logs the
-Water drink's configured volume; **glass size is the per-tap volume, not the per-user daily hydration
-target**. That separate target is written vertically across the glass at 90° (over the water), so the
-fluids card needs no `x / y ml` caption. When hydration goes over target, the card states the exact
-surplus (for example, `Target (+250 ml) reached`).
+colour-coded by sign; the full wording lives in the SVG `aria-label`. On Diary, the one-tap glass logs
+the Water drink's configured volume; **glass size is the per-tap volume, not the per-user daily
+hydration target**. That separate target is written vertically across the glass at 90° (over the water),
+so the fluids card needs no `x / y ml` caption. When hydration goes over target, the card states the
+exact surplus (for example, `Target (+250 ml) reached`).
 
 Under the hood: React 19, React Router (URL is state — the selected date is in the route), TanStack
 Query (one query key per resource, mutations invalidate), Tailwind v4 with the existing

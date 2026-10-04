@@ -59,6 +59,7 @@ func RunMigrations() error {
 			calculated_weight_grams REAL NOT NULL DEFAULT 0,
 			total_weight_grams REAL NOT NULL DEFAULT 0,
 			weight_is_manual BOOLEAN NOT NULL DEFAULT 0,
+			is_own_creation INTEGER NOT NULL DEFAULT 0,
 			total_calories REAL NOT NULL DEFAULT 0,
 			total_protein REAL NOT NULL DEFAULT 0,
 			total_carbs REAL NOT NULL DEFAULT 0,
@@ -159,7 +160,7 @@ func RunMigrations() error {
 
 		`CREATE INDEX IF NOT EXISTS idx_diary_user_date ON diary_entries(user_id, date)`,
 
-                `CREATE TABLE IF NOT EXISTS drinks (
+		`CREATE TABLE IF NOT EXISTS drinks (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
                         name TEXT NOT NULL,
@@ -170,7 +171,7 @@ func RunMigrations() error {
                         FOREIGN KEY (user_id) REFERENCES users(id)
                 )`,
 
-                `CREATE TABLE IF NOT EXISTS drink_entries (
+		`CREATE TABLE IF NOT EXISTS drink_entries (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
                         drink_id INTEGER NOT NULL,
@@ -180,9 +181,9 @@ func RunMigrations() error {
                         FOREIGN KEY (drink_id) REFERENCES drinks(id)
                 )`,
 
-                `CREATE INDEX IF NOT EXISTS idx_drink_entries_user_date ON drink_entries(user_id, date)`,
+		`CREATE INDEX IF NOT EXISTS idx_drink_entries_user_date ON drink_entries(user_id, date)`,
 
-                `CREATE TABLE IF NOT EXISTS fit_tokens (
+		`CREATE TABLE IF NOT EXISTS fit_tokens (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL UNIQUE,
                         access_token TEXT NOT NULL,
@@ -193,7 +194,7 @@ func RunMigrations() error {
                         FOREIGN KEY (user_id) REFERENCES users(id)
                 )`,
 
-                `CREATE TABLE IF NOT EXISTS step_entries (
+		`CREATE TABLE IF NOT EXISTS step_entries (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
                         date DATE NOT NULL,
@@ -203,9 +204,9 @@ func RunMigrations() error {
                         UNIQUE(user_id, date)
                 )`,
 
-                `CREATE INDEX IF NOT EXISTS idx_step_entries_user_date ON step_entries(user_id, date)`,
+		`CREATE INDEX IF NOT EXISTS idx_step_entries_user_date ON step_entries(user_id, date)`,
 
-                `CREATE TABLE IF NOT EXISTS nutrition_settings (
+		`CREATE TABLE IF NOT EXISTS nutrition_settings (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL UNIQUE,
                         protein_goal_per_kg REAL NOT NULL DEFAULT 0.8,
@@ -217,7 +218,6 @@ func RunMigrations() error {
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (user_id) REFERENCES users(id)
                 )`,
-
 
 		`CREATE TABLE IF NOT EXISTS weight_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -271,7 +271,7 @@ func RunMigrations() error {
 
 		// Migrations for existing tables
 		`ALTER TABLE users ADD COLUMN bank_start_date DATE`,
-                `ALTER TABLE users ADD COLUMN target_weight_kg REAL`,
+		`ALTER TABLE users ADD COLUMN target_weight_kg REAL`,
 		`ALTER TABLE foods ADD COLUMN serving_name TEXT`,
 		`ALTER TABLE foods ADD COLUMN serving_grams REAL`,
 		`ALTER TABLE recipes ADD COLUMN description TEXT`,
@@ -301,13 +301,17 @@ func RunMigrations() error {
 		// visible (is_archived = 0).
 		`ALTER TABLE recipes ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE recipes ADD COLUMN archived_at DATETIME`,
+
+		// Phase 13: an optional shared marker for recipes created by the household.
+		// Existing recipes are not marked by default.
+		`ALTER TABLE recipes ADD COLUMN is_own_creation INTEGER NOT NULL DEFAULT 0`,
 	}
 
 	for _, migration := range migrations {
 		_, err := DB.Exec(migration)
 		if err != nil {
-			if !strings.Contains(err.Error(), "duplicate column") && 
-			   !strings.Contains(err.Error(), "already exists") {
+			if !strings.Contains(err.Error(), "duplicate column") &&
+				!strings.Contains(err.Error(), "already exists") {
 				log.Printf("Migration note: %v", err)
 			}
 		}

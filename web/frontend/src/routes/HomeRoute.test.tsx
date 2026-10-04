@@ -4,11 +4,11 @@
  *
  * The point of the screen is *summary, not itemisation*: it must answer "where
  * am I today?" without listing every food in every meal. These tests pin that
- * contract, plus the two new visuals — the allowance countdown ring and the
- * water glass, which drains as water is logged.
+ * contract, the allowance countdown ring, and the removal of hydration actions
+ * while retaining drink-calorie accounting in the summary.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
@@ -16,8 +16,6 @@ import * as seed from '../../mock-api/seed.mjs'
 import type { SeedDiaryEntry } from '../../mock-api/seed.mjs'
 import { HomeRoute } from './HomeRoute'
 import { formatNumber } from '../lib/format'
-
-const DEFAULT_DAILY_WATER_GOAL_ML = seed.user.daily_water_goal_ml
 
 function renderHome() {
   const queryClient = new QueryClient({
@@ -52,7 +50,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  seed.user.daily_water_goal_ml = DEFAULT_DAILY_WATER_GOAL_ML
   vi.unstubAllGlobals()
 })
 
@@ -125,7 +122,7 @@ describe('HomeRoute', () => {
 
     const dinner = within(meals).getByRole('link', { name: /Dinner: 400 kcal/ })
     const dinnerFill = dinner.querySelector<HTMLElement>('[data-calorie-fill]')
-    expect(dinnerFill?.className).toContain('bg-primary-light/50')
+    expect(dinnerFill?.className).toContain('bg-primary-light/5')
     expect(dinnerFill?.getAttribute('aria-hidden')).toBe('true')
     expect(dinner.children[0]).toBe(dinnerFill)
     expect(dinner.querySelector('.relative.z-10')).toBeTruthy()
@@ -155,71 +152,18 @@ describe('HomeRoute', () => {
     expect(consumed).toBeGreaterThan(0)
   })
 
-  it('shows the updated daily target inside the glass and in the remaining amount', async () => {
-    seed.user.daily_water_goal_ml = 1000
-    seed.drinkEntries.splice(
-      0,
-      seed.drinkEntries.length,
-      ...seed.drinkEntries.filter((entry) => entry.date !== seed.TODAY),
-    )
+  it('omits hydration controls but keeps drink calories in the Today summary', async () => {
     renderHome()
 
-    const card = await screen.findByLabelText('Fluids and drinks')
-    expect(await within(card).findByText('1,000 ml')).toBeTruthy()
-    expect(within(card).getByText('1,000')).toBeTruthy()
-    expect(within(card).getByText('ml to go')).toBeTruthy()
-    expect(within(card).queryByText('2,000 ml')).toBeNull()
+    await screen.findByLabelText('Meals today')
+    expect(screen.queryByLabelText('Fluids and drinks')).toBeNull()
+    expect(screen.queryByLabelText('Quick drinks')).toBeNull()
+
+    const drinkCalories = seed.drinkEntriesFor(seed.TODAY).reduce((total, entry) => total + entry.calories, 0)
+    const drinkTile = screen.getByText('Drinks').parentElement
+    expect(drinkTile).toBeTruthy()
+    expect(
+      await within(drinkTile as HTMLElement).findByText(formatNumber(drinkCalories)),
+    ).toBeTruthy()
   })
-
-  it('drains the water glass as water is logged, in one tap', async () => {
-    renderHome()
-
-    const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
-    const target = seed.waterFor(seed.TODAY).target_ml
-    const card = await screen.findByLabelText('Fluids and drinks')
-
-    // The glass level is "what is left", not "what has been drunk".
-    const before = within(card).getByRole('progressbar')
-    expect(before.getAttribute('aria-valuenow')).toBe(String(Math.min(waterBefore, target)))
-
-    fireEvent.click(within(card).getByRole('button', { name: /Add a 250 ml glass of water/ }))
-
-    await waitFor(() =>
-      expect(within(card).getByRole('progressbar').getAttribute('aria-valuenow')).toBe(
-        String(Math.min(waterBefore + 250, target)),
-      ),
-    )
-  })
-  it('confirms long-press deletion of a glass without adding an extra drink', async () => {
-    renderHome()
-    const card = await screen.findByLabelText('Fluids and drinks')
-    const before = seed.drinkEntriesFor(seed.TODAY).filter((e) => e.drink_id === 3).length
-    const waterBefore = seed.waterFor(seed.TODAY).consumed_ml
-    const button = within(card).getByRole('button', { name: /Add a 250 ml glass of water/ })
-    expect(before).toBeGreaterThan(0)
-    vi.stubGlobal('PointerEvent', MouseEvent)
-    fireEvent.pointerDown(button, { button: 0 })
-    expect(await screen.findByRole('dialog', { name: 'Delete drink entry?' })).toBeTruthy()
-    fireEvent.pointerUp(button)
-    fireEvent.click(button)
-    expect(seed.drinkEntriesFor(seed.TODAY).filter((e) => e.drink_id === 3).length).toBe(before)
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    await waitFor(() =>
-      expect(
-        within(card).getByRole('button', {
-          name: `Add a 250 ml glass of water${before - 1 > 0 ? `, ${before - 1} logged today` : ''}`,
-        }),
-      ).toBeTruthy(),
-    )
-    expect(seed.waterFor(seed.TODAY).consumed_ml).toBe(waterBefore - 250)
-  })
-
-  it('keeps Water off the 2×2 and links to My drinks', async () => {
-    renderHome()
-    const quick = await screen.findByLabelText('Quick drinks')
-    expect(within(quick).queryByRole('button', { name: /^Add Water/ })).toBeNull()
-    expect(within(quick).getByRole('link', { name: 'My drinks' })).toBeTruthy()
-    expect(within(quick).getByRole('button', { name: /^Add Tea/ })).toBeTruthy()
-  })
-
 })

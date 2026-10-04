@@ -14,6 +14,44 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Today hydration panel removed and meal fills set to 5% alpha
+
+The Today page no longer renders the hydration/Quick drinks panel or carries its add/delete state,
+mutations, water queries or confirmation modal; those controls remain on Diary. Today's drink-entry
+query is intentionally retained for the Drinks tile and calorie-ring/bank totals. Both Today and Diary
+meal fills now use Tailwind v4 slash-alpha background utilities at 5%. This is the correct way to fade
+the fill without fading the card text: the generated CSS uses a 5% `color-mix(..., transparent)` color
+(and a 5%-alpha fallback). Regression tests assert the panel is absent, drink calories still appear,
+and both pages use `/5`. No API, schema or appdata change. Frontend lint, typecheck, all 177 tests,
+`build:go` and `build:preview` pass; the latest preview bundle has been rebuilt. The branch remains
+unmerged and unpublished.
+
+## 2026-10-04 — Mobile Diary Edit quantity sheet fixed on the Arena session branch
+
+The owner reported that, on mobile, the Diary's Edit food sheet could hide its **Cancel** and **Save**
+actions until the page behind it was dragged. The shared modal now locks background-page scrolling,
+keeps its title fixed, and gives its content an independent overscroll-contained scroll area. The Diary
+Edit sheet's Cancel/Save actions live in a persistent, safe-area-aware footer, so they stay available
+while its contents scroll. A regression test checks the action-footer/scroll-area separation and that
+page scrolling is restored after closing. No nutrition or Diary-snapshot logic changed. Frontend lint,
+typecheck, all 180 tests, `build:go` and `build:preview` pass. The owner still needs to re-test this on
+a phone; the fix is unmerged and unpublished, and rc21 remains the latest release.
+
+## 2026-10-04 — Shared recipe-origin marker added on the Arena session branch (decision 79)
+
+The existing Edit recipe metadata form now has an orange **Own creation** checkbox above the key-food
+choices, and the matching orange card tag filters the catalogue and persists in the tag URL. The
+additive `is_own_creation` field defaults false; list/detail reads return it, the create API accepts
+it, and metadata updates preserve it when omitted by older clients while allowing an explicit `false`
+to clear it. This branch treats the origin marker as shared recipe metadata, following the existing
+tag model. The field is ready for the future create-from-scratch UI to reuse; that UI and image
+upload/crop remain separate work. Existing content-edit and Diary-snapshot safety paths were not
+changed. No live appdata was accessed; the branch is not merged or released, so rc21 remains the
+latest published checkpoint.
+
+Go vet and the full Go test suite pass; frontend tests (180), lint, typecheck, `build:go` and
+`build:preview` pass. See [decision 79](../product/vision-and-open-questions.md#recipe-origin-marker--decision-79-2026-10-04).
+
 ## 2026-10-04 — Published `v2.0.0-dev-rc21` (PR #48, decisions 68, 72–78)
 
 PR #48 passed [Docker build validation](https://github.com/dougalbob/cals/actions/runs/37189445342)

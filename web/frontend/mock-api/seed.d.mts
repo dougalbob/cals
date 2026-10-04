@@ -57,6 +57,7 @@ export interface SeedRecipe {
   created_at: string
   updated_at: string
   is_archived: boolean
+  is_own_creation: boolean
   ingredients: {
     id: number
     recipe_id: number

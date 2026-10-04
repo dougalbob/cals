@@ -152,7 +152,7 @@ describe('RecipesRoute', () => {
     renderRoute()
 
     await screen.findByRole('heading', { name: 'Recipes' })
-    fireEvent.click(screen.getByText('Filter by occasion, dish type or key food'))
+    fireEvent.click(screen.getByText('Filter by recipe details'))
     fireEvent.change(screen.getByRole('combobox', { name: 'Filter by meal occasion' }), {
       target: { value: 'dinner' },
     })
@@ -201,6 +201,28 @@ describe('RecipesRoute', () => {
     expect(screen.queryByText('Chicken Curry')).toBeNull()
     expect(screen.getByText('1 of 4 recipes match')).toBeTruthy()
     expect(search()).toBe('?tags=food:5,food:25')
+  })
+
+  it('shows the own-creation tag in orange and filters by it like the other tags', async () => {
+    renderRoute()
+
+    expect(await screen.findByText('Chicken & Mushroom Pie')).toBeTruthy()
+    const ownTag = tagRow('Chicken & Mushroom Pie').getByRole('button', {
+      name: 'Filter recipes by Own creation',
+    })
+    expect(ownTag.className).toContain('bg-orange-200')
+    fireEvent.click(ownTag)
+
+    expect(tagRow('Chicken & Mushroom Pie').getByRole('button', {
+      name: 'Stop filtering by Own creation',
+    }).className).toContain('bg-orange-700')
+    expect(screen.getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    expect(screen.queryByText('Chicken Curry')).toBeNull()
+    expect(screen.queryByText('Porridge & Berries')).toBeNull()
+    expect(screen.queryByText('Salmon Traybake')).toBeNull()
+    expect(screen.getByText('1 of 4 recipes match')).toBeTruthy()
+    expect(search()).toBe('?tags=origin:own')
+    expect(screen.getByRole('button', { name: 'Remove Own creation filter' })).toBeTruthy()
   })
 
   it('shows the active tags, lets one be removed and clears them all', async () => {

@@ -393,6 +393,7 @@ export function handle(method, url, body) {
     const dishType = body?.dish_type ?? ''
     const keyFoodIds = body?.key_food_ids ?? []
     const totalTime = body?.total_time_minutes ?? null
+    const isOwnCreation = body?.is_own_creation
     const allowedOccasions = new Set(['breakfast', 'lunch', 'dinner', 'snack'])
     const allowedDishTypes = new Set(['main', 'side', 'soup', 'salad', 'dessert'])
 
@@ -413,6 +414,9 @@ export function handle(method, url, body) {
     if (totalTime !== null && (!Number.isInteger(totalTime) || totalTime <= 0)) {
       return err(400, 'Total time must be a positive number of minutes')
     }
+    if (isOwnCreation !== undefined && typeof isOwnCreation !== 'boolean') {
+      return err(400, 'is_own_creation must be a boolean')
+    }
 
     recipe.meal_occasions = [...occasions]
     recipe.dish_type = dishType || undefined
@@ -420,6 +424,7 @@ export function handle(method, url, body) {
       const ingredient = recipe.ingredients.find((item) => item.food_id === foodId)
       return { food_id: foodId, food_name: ingredient.food_name }
     })
+    if (isOwnCreation !== undefined) recipe.is_own_creation = isOwnCreation
     recipe.total_time_minutes = totalTime
     recipe.updated_at = new Date().toISOString()
     return json({ ...recipe, is_favourite: seed.favouriteRecipeIds.has(recipe.id) })

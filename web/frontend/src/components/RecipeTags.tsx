@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { Recipe } from '../api/types'
 import { recipeTags, type RecipeTagRef } from '../lib/recipeTags'
 
-type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods' | 'name'>
+type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods' | 'is_own_creation' | 'name'>
 
 /**
  * The tag row that sits over the recipe photo (visual direction, decision 39).
@@ -42,7 +42,7 @@ export function RecipeTags({
     >
       {tags.map((tag) => {
         const selected = selectedKeys.includes(tag.key)
-        const chipClass = tagChipClass(selected)
+        const chipClass = tagChipClass(tag, selected)
         if (tagHref) {
           return (
             <Link
@@ -81,12 +81,18 @@ export function RecipeTags({
   )
 }
 
-function tagChipClass(selected: boolean): string {
+function tagChipClass(tag: RecipeTagRef, selected: boolean): string {
+  const colors = tag.kind === 'origin'
+    ? selected
+      ? 'bg-orange-700 text-white ring-2 ring-white/80'
+      : 'bg-orange-200 text-orange-950 hover:bg-orange-100'
+    : selected
+      ? 'bg-primary text-white ring-2 ring-white/80'
+      : 'bg-white/90 text-ink hover:bg-white'
+
   return [
     'relative rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none shadow-sm',
     "after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
-    selected
-      ? 'bg-primary text-white ring-2 ring-white/80'
-      : 'bg-white/90 text-ink hover:bg-white',
+    colors,
   ].join(' ')
 }

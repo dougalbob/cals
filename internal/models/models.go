@@ -73,9 +73,10 @@ type Recipe struct {
 	CreatedAt             time.Time              `json:"created_at"`
 	UpdatedAt             time.Time              `json:"updated_at"`
 	IsFavourite           bool                   `json:"is_favourite"`
-	TimesLogged           int64                  `json:"times_logged"` // signed-in user's diary-entry count for this recipe
-	IsArchived            bool                   `json:"is_archived"`  // household-wide (decision 59): hidden from the catalogue and not loggable, history untouched
-	UsualGrams            *float64               `json:"usual_grams"`  // signed-in user's remembered portion; null until they first log it
+	TimesLogged           int64                  `json:"times_logged"`    // signed-in user's diary-entry count for this recipe
+	IsArchived            bool                   `json:"is_archived"`     // household-wide (decision 59): hidden from the catalogue and not loggable, history untouched
+	IsOwnCreation         bool                   `json:"is_own_creation"` // shared recipe-origin tag, editable by either household user
+	UsualGrams            *float64               `json:"usual_grams"`     // signed-in user's remembered portion; null until they first log it
 	MealOccasions         []string               `json:"meal_occasions"`
 	DishType              string                 `json:"dish_type,omitempty"`
 	KeyFoods              []RecipeKeyFood        `json:"key_foods"`
