@@ -3,6 +3,68 @@
 // while deliberately leaving Diary entry snapshots alone.
 const round1 = (value) => Math.round(value * 10) / 10
 
+const supportedMealOccasions = new Set(['breakfast', 'lunch', 'dinner', 'snack'])
+const supportedDishTypes = new Set(['main', 'side', 'soup', 'salad', 'dessert'])
+
+/** Build a new recipe in the fixture API using the same content rules as edits. */
+export function buildNewRecipe(body, foods, id, creator) {
+  const name = String(body?.name ?? '').trim()
+  if (!name) return { error: 'Name is required' }
+  if (body?.is_own_creation !== undefined && typeof body.is_own_creation !== 'boolean') {
+    return { error: 'is_own_creation must be a boolean' }
+  }
+
+  const recipe = { id, name, key_foods: [] }
+  const content = buildRecipeContentUpdate(recipe, { ...body, name }, foods)
+  if (content.error) return content
+
+  const occasions = body?.meal_occasions ?? []
+  const dishType = body?.dish_type ?? ''
+  const keyFoodIds = body?.key_food_ids ?? []
+  const totalTime = body?.total_time_minutes ?? null
+  if (!Array.isArray(occasions) || occasions.some((value) => !supportedMealOccasions.has(value))) {
+    return { error: 'Unsupported meal occasion' }
+  }
+  if (new Set(occasions).size !== occasions.length) return { error: 'Duplicate meal occasion' }
+  if (typeof dishType !== 'string' || (dishType !== '' && !supportedDishTypes.has(dishType))) {
+    return { error: 'Unsupported dish type' }
+  }
+  if (!Array.isArray(keyFoodIds) || keyFoodIds.length > 2) return { error: 'Choose at most two key foods' }
+  if (keyFoodIds.some((foodId) => !Number.isInteger(foodId) || foodId <= 0)) {
+    return { error: 'Invalid key food ID' }
+  }
+  if (new Set(keyFoodIds).size !== keyFoodIds.length) return { error: 'Duplicate key food ID' }
+  const ingredientByFood = new Map(content.content.ingredients.map((ingredient) => [ingredient.food_id, ingredient]))
+  if (keyFoodIds.some((foodId) => !ingredientByFood.has(foodId))) {
+    return { error: 'Key foods must be known foods already used in this recipe' }
+  }
+  if (totalTime !== null && (!Number.isInteger(totalTime) || totalTime <= 0)) {
+    return { error: 'Total time must be a positive number of minutes' }
+  }
+
+  const now = new Date().toISOString()
+  return {
+    recipe: {
+      ...recipe,
+      ...content.content,
+      name,
+      image_filename: '',
+      created_by_user_id: creator.id,
+      created_by_name: creator.name || creator.email,
+      created_at: now,
+      is_archived: false,
+      is_own_creation: Boolean(body?.is_own_creation),
+      meal_occasions: [...occasions],
+      dish_type: dishType || undefined,
+      key_foods: keyFoodIds.map((foodId) => ({
+        food_id: foodId,
+        food_name: ingredientByFood.get(foodId).food_name,
+      })),
+      total_time_minutes: totalTime,
+    },
+  }
+}
+
 export function buildRecipeContentUpdate(recipe, body, foods) {
   if (body?.name != null && (typeof body.name !== 'string' || body.name !== recipe.name)) {
     return { error: 'Recipe names cannot be changed after creation' }

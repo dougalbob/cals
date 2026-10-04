@@ -463,23 +463,22 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 	return &r, nil
 }
 
-// HandleCreateRecipe creates a new recipe
+// HandleCreateRecipe creates a new shared recipe with its initial classification.
+// Recipe content and shared metadata are committed together so a failed metadata
+// write cannot leave behind a half-authored recipe.
 func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
-	email := auth.GetUserEmail(r.Context())
-	user, err := GetOrCreateUser(email)
-	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	var input struct {
-		Name             string  `json:"name"`
-		Description      string  `json:"description"`
-		Instructions     string  `json:"instructions"`
-		Serves           int     `json:"serves"`
-		IsOwnCreation    bool    `json:"is_own_creation"`
-		TotalWeightGrams float64 `json:"total_weight_grams"`
-		WeightIsManual   bool    `json:"weight_is_manual"`
+		Name             string   `json:"name"`
+		Description      string   `json:"description"`
+		Instructions     string   `json:"instructions"`
+		Serves           int      `json:"serves"`
+		IsOwnCreation    bool     `json:"is_own_creation"`
+		DishType         string   `json:"dish_type"`
+		MealOccasions    []string `json:"meal_occasions"`
+		KeyFoodIDs       []int64  `json:"key_food_ids"`
+		TotalTimeMinutes *int     `json:"total_time_minutes"`
+		TotalWeightGrams float64  `json:"total_weight_grams"`
+		WeightIsManual   bool     `json:"weight_is_manual"`
 		Ingredients      []struct {
 			FoodID        int64   `json:"food_id"`
 			QuantityGrams float64 `json:"quantity_grams"`
@@ -492,78 +491,168 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
 		return
 	}
-
+	input.Name = strings.TrimSpace(input.Name)
 	if input.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Name is required")
 		return
 	}
-
 	if input.Serves < 1 {
 		input.Serves = 1
 	}
 
-	// Calculate totals from ingredients
+	metadata := recipeMetadataInput{
+		MealOccasions:    input.MealOccasions,
+		DishType:         input.DishType,
+		KeyFoodIDs:       input.KeyFoodIDs,
+		TotalTimeMinutes: input.TotalTimeMinutes,
+	}
+	if message := validateRecipeMetadata(metadata); message != "" {
+		writeJSONError(w, http.StatusBadRequest, message)
+		return
+	}
+	if input.WeightIsManual && input.TotalWeightGrams <= 0 {
+		writeJSONError(w, http.StatusBadRequest, "A manually measured cooked weight must be greater than zero")
+		return
+	}
+
+	usedFoodIDs := make(map[int64]struct{}, len(input.Ingredients))
+	for _, ingredient := range input.Ingredients {
+		if ingredient.FoodID <= 0 {
+			writeJSONError(w, http.StatusBadRequest, "Food ingredient IDs must be positive")
+			return
+		}
+		if ingredient.QuantityGrams <= 0 {
+			writeJSONError(w, http.StatusBadRequest, "Every food ingredient must have a weight greater than zero grams")
+			return
+		}
+		usedFoodIDs[ingredient.FoodID] = struct{}{}
+	}
+	for _, foodID := range input.KeyFoodIDs {
+		if _, ok := usedFoodIDs[foodID]; !ok {
+			writeJSONError(w, http.StatusBadRequest, "Key foods must be known foods already used in this recipe")
+			return
+		}
+	}
+
+	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		return
+	}
+
+	tx, err := database.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		return
+	}
+	defer tx.Rollback()
+
+	// Resolve every ingredient before inserting anything; an unknown Food must
+	// never result in a recipe whose saved totals disagree with its ingredients.
 	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, calculatedWeight float64
-	for _, ing := range input.Ingredients {
+	for _, ingredient := range input.Ingredients {
 		var cals, protein, carbs, fat, fibre float64
-		err := database.DB.QueryRow(`
+		err := tx.QueryRowContext(r.Context(), `
 			SELECT calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fibre_per_100g
 			FROM foods WHERE id = ?
-		`, ing.FoodID).Scan(&cals, &protein, &carbs, &fat, &fibre)
-		if err != nil {
-			continue
+		`, ingredient.FoodID).Scan(&cals, &protein, &carbs, &fat, &fibre)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, http.StatusBadRequest, "Food "+strconv.FormatInt(ingredient.FoodID, 10)+" was not found")
+			return
 		}
-		multiplier := ing.QuantityGrams / 100
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+			return
+		}
+		multiplier := ingredient.QuantityGrams / 100
 		totalCals += cals * multiplier
 		totalProtein += protein * multiplier
 		totalCarbs += carbs * multiplier
 		totalFat += fat * multiplier
 		totalFibre += fibre * multiplier
-		calculatedWeight += ing.QuantityGrams
+		calculatedWeight += ingredient.QuantityGrams
 	}
 
-	// Use manual weight if provided, otherwise calculated
 	finalWeight := calculatedWeight
-	if input.WeightIsManual && input.TotalWeightGrams > 0 {
+	if input.WeightIsManual {
 		finalWeight = input.TotalWeightGrams
 	}
 
-	// Insert recipe
-	result, err := database.DB.Exec(`
+	var dishType interface{}
+	if input.DishType != "" {
+		dishType = input.DishType
+	}
+	var totalTime interface{}
+	if input.TotalTimeMinutes != nil {
+		totalTime = *input.TotalTimeMinutes
+	}
+	result, err := tx.ExecContext(r.Context(), `
 		INSERT INTO recipes (name, description, instructions, serves, created_by_user_id,
-		                     is_own_creation, calculated_weight_grams, total_weight_grams, weight_is_manual,
+		                     is_own_creation, dish_type, total_time_minutes,
+		                     calculated_weight_grams, total_weight_grams, weight_is_manual,
 		                     total_calories, total_protein, total_carbs, total_fat, total_fibre)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID, input.IsOwnCreation,
-		calculatedWeight, finalWeight, input.WeightIsManual,
+		dishType, totalTime, calculatedWeight, finalWeight, input.WeightIsManual,
 		totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
 		return
 	}
 
-	recipeID, _ := result.LastInsertId()
+	recipeID, err := result.LastInsertId()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		return
+	}
 
-	// Insert food ingredients
-	for _, ing := range input.Ingredients {
-		database.DB.Exec(`
+	for _, ingredient := range input.Ingredients {
+		if _, err := tx.ExecContext(r.Context(), `
 			INSERT INTO recipe_ingredients (recipe_id, food_id, quantity_grams, sort_order)
 			VALUES (?, ?, ?, ?)
-		`, recipeID, ing.FoodID, ing.QuantityGrams, ing.SortOrder)
+		`, recipeID, ingredient.FoodID, ingredient.QuantityGrams, ingredient.SortOrder); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+			return
+		}
 	}
-
-	// Insert text ingredients
-	for _, ti := range input.TextIngredients {
-		database.DB.Exec(`
+	for _, ingredient := range input.TextIngredients {
+		if _, err := tx.ExecContext(r.Context(), `
 			INSERT INTO recipe_text_ingredients (recipe_id, description, sort_order)
 			VALUES (?, ?, ?)
-		`, recipeID, ti.Description, ti.SortOrder)
+		`, recipeID, ingredient.Description, ingredient.SortOrder); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+			return
+		}
+	}
+	for _, occasion := range input.MealOccasions {
+		if _, err := tx.ExecContext(r.Context(), `
+			INSERT INTO recipe_meal_occasions (recipe_id, occasion) VALUES (?, ?)
+		`, recipeID, occasion); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+			return
+		}
+	}
+	for order, foodID := range input.KeyFoodIDs {
+		if _, err := tx.ExecContext(r.Context(), `
+			INSERT INTO recipe_key_foods (recipe_id, food_id, sort_order) VALUES (?, ?, ?)
+		`, recipeID, foodID, order); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		return
 	}
 
-	recipe, _ := getRecipeForUser(recipeID, user.ID)
+	recipe, err := getRecipeForUser(recipeID, user.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

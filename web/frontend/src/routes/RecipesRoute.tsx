@@ -202,6 +202,7 @@ export function RecipesRoute() {
         : `${visibleRecipes.length} of ${totalRecipes} recipes match`
 
   const detailTagSuffix = tagQuerySuffix(selectedTags)
+  const createRecipeHref = `/recipes/new${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 
   const emptyMessage =
     (recipesQuery.data?.length ?? 0) === 0
@@ -221,18 +222,27 @@ export function RecipesRoute() {
           <p className="m-0 text-xs uppercase tracking-wide text-ink-light">Your recipe box</p>
           <h2 className="m-0 text-lg font-semibold">Recipes</h2>
         </div>
-        {pick ? (
+        <div className="flex items-center gap-2">
+          {pick ? (
+            <Link
+              to={diaryHrefForPick(pick)}
+              className="min-h-11 py-2 text-sm font-medium text-primary-dark no-underline hover:underline"
+            >
+              Cancel
+            </Link>
+          ) : (
+            <Link to="/" className="min-h-11 py-2 text-sm font-medium text-primary-dark no-underline hover:underline">
+              Back to Today
+            </Link>
+          )}
           <Link
-            to={diaryHrefForPick(pick)}
-            className="text-sm font-medium text-primary-dark no-underline hover:underline"
+            to={createRecipeHref}
+            aria-label="Create recipe"
+            className="flex min-h-11 shrink-0 items-center rounded-xl bg-primary px-3 text-sm font-semibold text-white no-underline"
           >
-            Cancel
+            + New recipe
           </Link>
-        ) : (
-          <Link to="/" className="text-sm font-medium text-primary-dark no-underline hover:underline">
-            Back to Today
-          </Link>
-        )}
+        </div>
       </header>
 
       {pick && (

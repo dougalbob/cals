@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 177 tests over 21 files |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 180 tests over 22 files |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production `/next/` bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
@@ -41,6 +41,8 @@ web/frontend/e2e/recipes.spec.ts       the orange Own creation marker (catalogue
                                        small phone
 web/frontend/e2e/recipes-catalogue.spec.ts  search, empty state, favourites, the archived view,
                                        restore
+web/frontend/e2e/recipes-create.spec.ts    recipe creation (matched Foods, cooked yield, shared
+                                       classification), unobstructed fields and actions on a short phone
 web/frontend/e2e/recipes-detail.spec.ts facts, ingredients, method, the Add tag form (meal
                                        occasions, the two-key-food limit, Cancel, total time) and
                                        archive/restore
@@ -160,7 +162,7 @@ rest: docs finished in the same PR, no stale claims, and the checks green on the
   but is not part of CI.
 - **The Unraid install, template, `.env` loading and Cloudflare routing.** Owner-run, documented in
   [`unraid-image-release.md`](./unraid-image-release.md).
-- **Recipe creation and image upload/crop.** Not built yet.
+- **Recipe photo upload/crop.** Not built yet; recipe creation without a photo is supported.
 - **Every combination of date, meal, unit and filter.** The unit tests carry that weight; the browser
   suite exists to catch what jsdom cannot see.
 - **Android's own selection/copy popup.** Headless Chromium does not reproduce it, so

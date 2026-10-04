@@ -291,8 +291,10 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > regression tests were accepted by the owner in the Arena preview on 2026-10-04 and published as
 > `v2.0.0-dev-rc19` after PR #44 passed validation; these changes are included in rc22 and in the
 > later rc23 stabilisation checkpoint. The Unraid Force Update/review of the latest checkpoint (rc23)
-> remains pending. Recipe creation from scratch and
-> image upload/crop remain later work. See [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
+> remains pending. Current recipe-authoring/review status is tracked in
+> [`CURRENT_STATE.md`](../CURRENT_STATE.md); image upload/crop remains a separate feature. See
+> [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
+> [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
 **Phase 12 close-out (2026-10-03).** The Diary's logged-quantity **Edit** action is implemented: the
 weight of a logged food or recipe can be corrected, with a live calorie preview, and the entry's own
@@ -300,18 +302,18 @@ saved calories/protein/carbs/fat/fibre are rescaled by the new-to-old ratio so t
 not a possibly-changed food definition — is what changes. Zero and negative weights are refused. No
 schema or API change was needed (`PUT /api/diary/{id}` already existed).
 
-### Next increment — Add recipe from a Diary meal card (owner request, 2026-10-03)
+### Implemented — Add recipe from a Diary meal card (owner request, 2026-10-03)
 
-The Diary's four meal cards currently offer only **+ Add food**. The next queued slice (decision 40) adds **+ Add recipe**
-beside it on the same row. The action opens the recipe chooser (shared catalogue, searchable), and the
-portion sheet must open with **the meal card the action was started from already selected** — starting
-it from Lunch pre-selects Lunch rather than falling back to a time-of-day guess. Meal, date, fractions,
-grams and the remembered usual otherwise behave exactly as decided in 29–32, and the log still stores
-grams plus the nutrition snapshot.
+Decision 40 shipped in rc15: every Diary meal card gained **+ Add recipe** beside **+ Add food**, with
+the originating meal carried into the existing recipe portion sheet. The sheet keeps the date, meal,
+fractions, direct gram editing and remembered-usual behaviour from decisions 29–32; diary rows still
+store grams and their nutrition snapshot.
 
-Design detail deliberately left open for that session: whether the chooser opens on the full catalogue
-with search, or leads with the user's favourites and recently logged recipes. Decide it against the
-phone-size preview rather than in advance.
+The owner then answered the chooser question in decision 64: use the **Recipes catalogue**, not a
+separate modal picker, so its search, favourites, archived handling and tag filters remain available.
+The rc17 follow-up passes meal and date in the URL (`/recipes?add-to=<meal>&on=<date>`), lets the user
+log from the matching recipe card, and returns to the originating Diary day after logging. Current
+implementation/release status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ### Implemented — tags filter the list in place (owner request, 2026-10-03)
 
@@ -559,8 +561,9 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
   `v2.0.0-dev-rc19`; the changes are included in rc22 and rc23, whose Unraid Force Update/review remains pending.
-- **Later authoring work remains separate:** creating recipes from scratch and image upload/crop are
-  not part of the two authorized slices.
+- **Separate authoring scope:** recipe creation without a photo is a distinct Phase 13 slice, not part
+  of the two authorized safety slices; image upload/crop remains separate. Current implementation and
+  review status is in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## Retiring recipes and correcting foods — decisions 59–61 (2026-10-03)
 

@@ -203,7 +203,7 @@ describe('Recipe content editing', () => {
     fireEvent.change(within(editor).getByRole('searchbox', { name: 'Search cals Foods to add' }), {
       target: { value: 'Blueberries' },
     })
-    fireEvent.click(await within(editor).findByRole('button', { name: 'Add' }))
+    fireEvent.click(await within(editor).findByRole('button', { name: 'Add Blueberries to recipe' }))
     fireEvent.click(within(editor).getByRole('button', { name: '+ Add text ingredient' }))
     fireEvent.change(within(editor).getByRole('textbox', { name: 'Text ingredient 4' }), {
       target: { value: 'A squeeze of lemon' },
