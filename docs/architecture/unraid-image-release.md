@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 is installed and live (2026-10-02): the `cals-dev-v2` container runs on Unraid and the Cloudflare route now points at port `8151`, so V2 is the app the household sees.** Development checkpoints `v2.0.0-dev-rc1` through **`v2.0.0-dev-rc18`** are published; `dev-latest` points at rc18 (`sha256:33b012aa…`, run 37158593411, source `cd3c4d7` on `cals-dev`) and is anonymously pullable (verified in CI). rc18 is frontend-only: it shows the daily hydration target separately from the per-tap glass volume, reports any over-target amount, adds proportional Today meal-card fills, and fixes month-cell opacity when the Calendar grid is padded from the previous month. No API or schema change, migration, data copy or template change. Phase 12 was owner-approved on 2026-10-03. **On 2026-10-04 the owner confirmed rc18 is running on Unraid and approved it; no rc18 review or Force Update gate remains outstanding.** |
+| **Status** | 🟢 **V2 is installed and live (2026-10-02): `cals-dev-v2` runs on Unraid and Cloudflare routes to port `8151`.** Development checkpoints through **`v2.0.0-dev-rc19`** are published; rc19 (PR #44, source `009a400`) is `dev-latest`, digest `sha256:6c008431…`, publish run 37164183555, and passed the anonymous-pull check. rc19 adds safe recipe-content edits and transactional dependent-recipe recalculation after food corrections. The owner approved these flows in the Arena preview before publication; **Force Update/review of rc19 on Unraid remains pending**. No schema migration, data copy, appdata operation or template change in rc19. rc14's additive archive migration was already included in the owner's reported rc18 install. |
 | **Updated** | 2026-10-04 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -159,29 +159,29 @@ The source repository was made public on 2026-10-02 as a prerequisite of this pu
 
 The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
 
-## Part 2 — publish the first V2 image (complete; rc18 is current)
+## Part 2 — publish the first V2 image (complete; rc19 is current)
 
 The owner-directed sequence is: **finish the Phase 11 foundation PR first (done — PR #5 is merged into `cals-dev`); make the first GHCR image the next focused task.** Do not bundle image publishing into feature PRs.
 
 Before starting Part 2, confirm you are on the current `cals-dev` using the explicit fetch instructions in [`git-workflow.md`](./git-workflow.md).
 
-**Next candidate (2026-10-04):** the owner tested and signed off in the Arena preview on the safe
-existing-recipe editor and transactional food-correction refresh (decisions 55–61). This is the
-next development-image candidate after PR checks and merge, expected to be `v2.0.0-dev-rc19`.
-There is no schema migration, appdata operation or Unraid change in these slices. The release log is
-updated with the exact merge SHA, publish run, digest and prerelease after the tag workflow passes.
+**Latest development checkpoint:** the owner tested and signed off in the Arena preview on the
+safe existing-recipe editor and transactional food-correction refresh (decisions 55–61). PR #44
+passed both validation workflows, merged to `cals-dev`, and was published as `v2.0.0-dev-rc19`;
+the exact merge SHA, run, digest and prerelease are recorded in the release log. The owner has not
+yet Force Updated Unraid to rc19. No schema migration, appdata operation or Unraid change is needed.
 
 | # | Item | State |
 |---|---|---|
 | 1 | Repository public as the owner intended (raw template URL reachable); no appdata, `.env` contents or credentials exposed | ✅ 2026-10-02 |
 | 2 | GitHub Actions validation + publishing workflow added (build-only PR check; publish from an approved tag on `cals-dev` using `GITHUB_TOKEN` with package-write permission) | ✅ 2026-10-02, PR #7 — see [Publishing workflow](#publishing-workflow-added-2026-10-02-part-2-pr); the validation check ran green on that PR |
-| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-03 — rc1 through **rc18** published; rc18 (hydration target/overage clarity, proportional Today meal-card fills, and the Calendar padded-month opacity fix) was built by run 37158593411 from commit `cd3c4d7` and moved `dev-latest` to digest `sha256:33b012aa…`. **No schema migration.** See the [release log](#release-log) |
-| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-03 — every checkpoint from [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) to [rc18](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc18) has a prerelease carrying its source commit and image digest |
+| 3 | Development checkpoints publish `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rcN` plus the moving `dev-latest` (`latest` **not** assigned) | ✅ 2026-10-04 — rc1 through **rc19** published; rc19 (safe recipe editing and transactional food-correction refresh) was built by run 37164183555 from merge commit `009a400` and moved `dev-latest` to digest `sha256:6c008431…`. **No schema migration.** See the [release log](#release-log) |
+| 4 | Corresponding GitHub prerelease for the Git tag created and verified | ✅ 2026-10-04 — every checkpoint from [rc1](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc1) to [rc19](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc19) has a prerelease carrying its source commit and image digest |
 | 5 | GHCR package visible to anonymous pulls (what Unraid needs) | ✅ 2026-10-02 — **verified by CI, not assumed**: the rc2 run logged out of GHCR, deleted its local copy and pulled `dev-latest` as an unauthenticated stranger, successfully. The check now runs on every publish |
-| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02; owner confirmed `cals-dev-v2` is running rc18 and approved it on 2026-10-04. Phase 12 acceptance is signed off (2026-10-03). The rc14 `recipes.is_archived`/`archived_at` migration runs on first rc14+ start if needed; check the in-app footer to confirm the installed build |
-| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ✅ Source, tag, digest and CI build results are recorded through rc18; owner reports rc18 running on Unraid and approved (2026-10-04) |
+| 6 | Unraid install/smoke test from `cals-dev-v2.xml`: port `8151:8151`, isolated `/mnt/user/appdata/cals-dev-v2` mounted at `/app/data`, `.env` loading, health/`/next/`/restart persistence, no conflict with V1 on 8150, and Cloudflare Tunnel route checked separately | ✅ Initial V2 install and routing verified 2026-10-02; owner reports rc18 is running and approved on 2026-10-04. **rc19 is published but still awaits Force Update and Unraid review.** No migration/data copy is in rc19; the rc14 archive migration is already included in the reported rc18 install. Check the in-app footer after Force Update |
+| 7 | Record the exact source commit, Git tag, image tags/digest, build result and smoke-test result in the release log below | ✅ Source, tag, digest and CI build results are recorded through rc19. rc19 Unraid smoke-test result is pending the owner's Force Update and review |
 
-The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have since passed for rc1–rc18. The owner confirmed the rc18 Unraid install and approval on 2026-10-04; no rc18 review gate is outstanding.
+The validation workflow first passed on PR #7 ([run 37037874364](https://github.com/dougalbob/cals/actions/runs/37037874364), 2026-10-02), closing the container build recorded as unverified in the Phase 11 handoff. The owner-approved tag/publish and public-package gates have passed for rc1–rc19. PR #44's Docker and Go checks, the post-merge Go run, and rc19's anonymous-pull publish workflow all passed. The owner reports rc18 running on Unraid and approved; rc19's separate Force Update/review is pending.
 
 From PR #40 there is a second gate on every pull request: **`Go tests (validation)`** (`go vet ./...` +
 `go test ./...` with CGO, decision 65). It is the only check that compiles the backend's `_test.go`
@@ -213,6 +213,7 @@ This first image is a **development smoke-test image**, not a completed UI redes
 | `v2.0.0-dev-rc16` | 2026-10-03, [run 37147534800](https://github.com/dougalbob/cals/actions/runs/37147534800) | `dd2cbef` on `cals-dev` (PR #38: calendar per-day calories fix + owner road-test fixes) | `sha256:69ed52c0b7f409e13f5cff78fbce4a0040fd5b52ea59e72f1ccb25cfba8a175a` | [v2.0.0-dev-rc16](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc16) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review at phone size: the **Calendar showing real per-day calories and bank figures** (rc15 showed `0 / goal` on every day), the **calorie wheel** with `bank` / spend / `daily` inside the ring and the inner ring sweeping anticlockwise in red when overspent, the **hydration glass** with the target written across it at 45°, and the **Quick-drinks milk/sugar dots** now visible on Android. **No schema migration, no data copy, no template change** |
 | `v2.0.0-dev-rc17` | 2026-10-03, [run 37154091274](https://github.com/dougalbob/cals/actions/runs/37154091274) | `5d05f27` on `cals-dev` (PR #40: calendar day bars, calendar stops at Today, recipe pick via the Recipes tab, Go test workflow) | `sha256:429a63c2987d08571f31d0a8ad011b2545064c8bdc3018d28ecc7548bed70f74` | [v2.0.0-dev-rc17](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc17) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` on `8151` (and `8152` for `/next/`) and review at phone size: an over-goal day in the **Calendar** now draws a green bar with a proportional red tail instead of a full-width red line; the Calendar **cannot be paged past Today** (forward arrow disabled on the current month/week, future URLs clamped back, days that have not happened are not links); **🍽 Add recipe** on a Diary meal card opens the **Recipes tab** with the meal and date carried in, and *Done* returns to `/diary/:date#<meal>`. **No schema migration, no data copy, no template change** — frontend only, plus one new CI workflow file (`.github/workflows/go-validate.yml`, no image content) |
 | `v2.0.0-dev-rc18` | 2026-10-03, [run 37158593411](https://github.com/dougalbob/cals/actions/runs/37158593411) | `cd3c4d7` on `cals-dev` (PR #42 merge: hydration/meal-card/Calendar refinements) | `sha256:33b012aa2b80a0c71bd5c4acefa2874ba87d499cc5bec100b15e4b14170f036c` | [v2.0.0-dev-rc18](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc18) (prerelease) | ✅ Owner reports running on Unraid and approves (2026-10-04). Separate per-tap glass volume and daily target, over-target surplus, proportional Today meal fills, and Calendar month opacity reviewed. Frontend-only: **no API/schema change, migration, data copy or template change**; rc14's additive recipe-archive migration runs on first rc14+ start if previously unapplied |
+| `v2.0.0-dev-rc19` | 2026-10-04, [run 37164183555](https://github.com/dougalbob/cals/actions/runs/37164183555) | `009a400` on `cals-dev` (PR #44: safe existing-recipe editing and transactional food-correction recalculation) | `sha256:6c0084319576ee8b92272945fdc3a71e6874d6d14dff7d5897a8cd34f0a6f8a2` | [v2.0.0-dev-rc19](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc19) (prerelease) | ⬜ owner — Force Update `cals-dev-v2` and review safe recipe editing and food-correction recalculation at phone size. Owner approved both in the Arena preview before publication; no schema migration, data copy, appdata operation or template change |
 ## Not implemented yet
 
 - ~~The first end-to-end Unraid run has not been verified.~~ **Verified (owner, 2026-10-02): V2 was installed from `cals-dev-v2.xml` and the Cloudflare route was moved to `8151`.** The anonymous-pull gate has passed on every publish since rc2; Docker still cannot run in the Arena sandbox, so the *image build* is verified by CI and the *container run* by the owner.
@@ -486,3 +487,26 @@ out-of-month dates and future dates remain muted, and future dates remain non-cl
 verified 169/169 tests, lint, typecheck, `build:go` and `build:preview`; it did not access Unraid or live
 appdata. `dev-latest` now points to rc18; on 2026-10-04 the owner confirmed rc18 is running on Unraid
 and approved it.
+
+### 2026-10-04 — rc19: safe recipe editing and transactional food corrections
+
+The owner exercised both authorized safety slices in the Arena preview and signed off before
+publication. PR #44 ([checks](https://github.com/dougalbob/cals/pull/44)) merged to `cals-dev` as
+`009a400028190c963fb917f3a1b2a162f5468e84`. The [PR Docker check](https://github.com/dougalbob/cals/actions/runs/37164039584)
+and [PR Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37164039583) passed; the
+post-merge `cals-dev` Go test run [37164158570](https://github.com/dougalbob/cals/actions/runs/37164158570)
+also passed. That exact merge commit was tagged `v2.0.0-dev-rc19`.
+
+The [publish workflow](https://github.com/dougalbob/cals/actions/runs/37164183555) passed the
+`cals-dev` ancestry guard, Docker build, exact-tag and `dev-latest` pushes, prerelease creation and
+anonymous-pull check. Image digest:
+`sha256:6c0084319576ee8b92272945fdc3a71e6874d6d14dff7d5897a8cd34f0a6f8a2`.
+[Prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc19).
+
+**What changed:** the React detail route edits an existing shared recipe, with the fixed-name rule
+also enforced in the API and legacy editor. Recipe updates and food corrections are transactional;
+food nutrition corrections recalculate every dependent recipe, including archived recipes, while
+preserving manual cooked weights. Saved Diary grams, nutrition, totals and bank history are unchanged.
+**No schema migration, appdata operation, data copy or template change.** The owner has not yet
+Force Updated Unraid to rc19; review is pending. rc18 remains the version the owner last reported
+running and approved.

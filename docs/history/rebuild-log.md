@@ -14,16 +14,21 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
-## 2026-10-04 — Owner approves safe recipe editing and food-correction slices
+## 2026-10-04 — Published `v2.0.0-dev-rc19` (PR #44)
 
 The owner exercised the two authorized Phase 13 safety slices in the Arena preview and signed off on
-them: shared recipe content can be edited in place without changing saved Diary snapshots, and food
-nutrition corrections refresh every dependent recipe definition transactionally (including archived
-recipes) while preserving manual cooked weights and leaving Diary totals untouched. The Go, frontend,
-fixture and rollback regressions pass; frontend typecheck, lint and production build pass. The changes
-are on the Arena session branch and are proceeding through the documented GitHub PR-and-tag loop.
-There is no schema migration, appdata operation or live-Unraid change. Creating recipes from scratch
-and image upload/crop remain later work.
+them before publication. PR #44's Docker and Go validation passed and merged to `cals-dev` as
+`009a400028190c963fb917f3a1b2a162f5468e84`; the [post-merge Go run](https://github.com/dougalbob/cals/actions/runs/37164158570)
+passed. The exact merge commit was tagged `v2.0.0-dev-rc19`; [publish run 37164183555](https://github.com/dougalbob/cals/actions/runs/37164183555)
+passed the ancestry guard, build, image push, prerelease creation and anonymous-pull check. Digest:
+`sha256:6c0084319576ee8b92272945fdc3a71e6874d6d14dff7d5897a8cd34f0a6f8a2`.
+
+Recipe content can now be edited in place without rewriting saved Diary snapshots; food nutrition
+corrections refresh every dependent recipe transactionally, including archived recipes, while
+preserving manual cooked weights and leaving Diary totals untouched. Go, frontend, fixture and rollback
+regressions passed; frontend typecheck, lint and production build passed. There is no schema migration,
+appdata operation or live-Unraid change. rc19 awaits the owner's Force Update/review on Unraid.
+Creating recipes from scratch and image upload/crop remain later work.
 
 ## 2026-10-03 — Published `v2.0.0-dev-rc18` (PR #42)
 
