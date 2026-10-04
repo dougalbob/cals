@@ -504,8 +504,8 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 request, 2026-10-03).
 
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
-preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`.** The Unraid Force
-Update/review remains pending. The React Recipes detail route now edits existing shared content
+preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, now included in rc21.**
+The Unraid Force Update/review of the latest checkpoint rc21 remains pending. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -546,7 +546,7 @@ four deliverables are frontend-first; only the recipe count needs an additive AP
 
 | Item | Decision | Shape |
 |---|---|---|
-| **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give app chrome an explicit layer above page content but below `Modal`'s `z-50`, and audit other fixed/sticky chrome. A live defect in the published build, so it goes first |
+| **Fix the Recipes layering bug** — card tags paint over the menu as they scroll past it | 73 | The fixed bottom nav sets no `z-index` while the tags are `z-10`/`z-20`, so by the CSS painting order the tags win. Give app chrome an explicit layer above page content but below `Modal`'s `z-50`, and audit other fixed/sticky chrome. A live defect in the previously published build, fixed in rc21 |
 | **Diary meal-card back fill with a percentage** | 68, 76 | Reuse the proportional fill from Today's meal tiles, with each meal's own accent at 25% opacity and a padded white percentage label at the bar's upper-right corner |
 | **Recipe log-count badge** | 72, 74, 78 | Number only; `COUNT(*)` over `diary_entries(recipe_id, user_id)`, per signed-in user; no schema change, one additive response field, and no badge at zero. Use a 36 px circular badge with white 12 px digits on the app header's blue primary colour, still sized for three digits, at the image's top-left. That corner is clear on active cards; move the existing *Archived* pill to the top-right on archived cards, where no heart is shown |
 | **Recipe-card Favourite touch target** | 78 | Put the 33 px white favourite badge and 18 px heart inside a transparent 66 × 66 px button target at the image's top-right. This doubles the visual badge diameter for taps without taking more visible photo space |
@@ -556,5 +556,5 @@ The badge's placement and archived-card collision, plus the small-print rule whe
 a percent or two, are described in the [decision log](../product/vision-and-open-questions.md).
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
-merge. The owner approved this slice in the Arena preview on 2026-10-04; Unraid Force Update/review
-remains pending.
+merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
+`v2.0.0-dev-rc21` (PR #48), and Unraid Force Update/review remains pending.
