@@ -748,8 +748,8 @@ const Recipes = {
         content.innerHTML = `
             <div class="recipe-editor-body">
             <div class="form-group">
-                <label>Recipe Name *</label>
-                <input type="text" id="recipe-name" value="${recipe?.name || ''}" placeholder="e.g., Beef Chilli">
+                <label>Recipe Name ${recipe ? '(fixed after creation)' : '*'}</label>
+                <input type="text" id="recipe-name" value="${recipe?.name || ''}" placeholder="e.g., Beef Chilli" ${recipe ? 'readonly aria-readonly="true"' : ''}>
             </div>
 
             <div class="form-group">

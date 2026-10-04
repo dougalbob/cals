@@ -192,7 +192,7 @@ Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-tim
 
 ### 7.2 Phase 12 — Diary (implemented 2026-10-02)
 
-Shipped on `cals-dev` (awaiting the owner's phone-size review before it is treated as accepted):
+Shipped on `cals-dev` and owner-approved after phone-size review on 2026-10-03 (PR #22, `v2.0.0-dev-rc8`):
 
 **One source of truth for water.** `drinks.counts_toward_water` marks which drinks count;
 `GET /api/water?date=` derives `consumed_ml` from those drink entries and returns the user's own
@@ -338,8 +338,8 @@ work does not change the existing target-setting roadmap.
 - Regressions are covered by frontend tests; the suite is at 169 tests. These are
   frontend-only refinements: no API or schema change, data copy, or template change.
 
-At the time of the original preview, the Unraid review against both real identities
-was still outstanding. See [`CURRENT_STATE.md`](../CURRENT_STATE.md) for the current
+The owner later confirmed that rc18 is running on Unraid and approved it (2026-10-04);
+that review is closed. See [`CURRENT_STATE.md`](../CURRENT_STATE.md) for current
 owner-review and release status.
 
 ## Owner-requested Diary and bank-ring follow-ups (2026-10-03)
@@ -412,7 +412,7 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 **First increment implemented and owner-reviewed in the Arena preview (2026-10-03):** the shared recipe catalogue, per-user favourites, recipe detail, separate meal-occasion/dish-type facets, up to two known-Food key foods, optional total minutes, filters and the structured **Add tag** editor below ingredients.
 
-**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. Recipes still have no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed.
+**Second increment merged and published 2026-10-03:** known-Food serving choices in Add/Edit and recipe-to-Diary portion logging, following decisions 29–32 in the source [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03). Owner-reviewed in the Arena preview, merged as PR #28 and published as `v2.0.0-dev-rc11`. At that checkpoint, recipes still had no authoring of their own content (name, ingredients, method, image); only shared metadata and the portion flow changed. Safe in-place content editing has since been added to the current session branch (see below); creating recipes from scratch and image upload/crop remain later work.
 
 | Before | Now |
 |---|---|
@@ -424,7 +424,8 @@ This is a deliberately narrow exception to the current frontend-only migration b
 
 **Third increment — the tags themselves filter the catalogue (owner request, 2026-10-03; decision 41
 in the [decision log](../product/vision-and-open-questions.md#phase-13-recipe-and-quantity-decisions--2026-10-03)).**
-Implemented on the session branch and awaiting the owner's preview review. The first increment put
+Implemented and owner-reviewed in the Arena preview, merged as PR #30 and published as
+`v2.0.0-dev-rc12`. The first increment put
 tags on the cards and filters behind a collapsed panel; this one makes the tags the filter, which is
 what the owner asked for: tap **Chicken** on a card and the list narrows to the chicken recipes, then
 tap **Mushroom** on **Chicken & Mushroom Pie** and it narrows to the recipes carrying both. A recipe
@@ -454,7 +455,7 @@ remembered usual with first-log-becomes-usual), and no API/schema change was nee
 calendar endpoint below. The picker carries day context so on a past date the portion sheet logs to
 that day.
 
-**Decision 64 — that picker is now the Recipes tab — implemented 2026-10-03 (owner review, pending).**
+**Decision 64 — that picker is now the Recipes tab — implemented, owner-accepted and published as `v2.0.0-dev-rc17` (2026-10-03).**
 The in-house picker duplicated a worse version of the recipe box (one search box, no favourites, no
 tag filters, no archived handling), so **🍽 Add recipe** now navigates to
 `/recipes?add-to=<meal>&on=<date>` instead. The intent is URL state (see `src/lib/recipePick.ts`), so
@@ -483,18 +484,17 @@ agree with `GET /api/bank`. No schema migration. The Fluids card label was renam
 **💧 Hydration** because tea/coffee/squash etc. all contribute to the daily ml target (owner
 request, 2026-10-03).
 
-**Adapting an existing recipe — planned, decisions 55–58 (owner-raised, 2026-10-03).** The React
-Recipes experience cannot currently change a recipe's own content: catalogue, detail, tags, favourites
-and portion logging exist, but there is no editor. The owner asked for that gap to be closed and set
-the constraint that makes it safe: **an edit applies to future logs only.** `diary_entries` already
-stores its own grams and nutrition snapshot, and `HandleUpdateRecipe` rewrites only `recipes`,
-`recipe_ingredients` and `recipe_text_ingredients`, so the guarantee holds today — but it is not yet
-pinned by a test, and the two edges are recorded rather than left to be discovered in the slice: renaming a recipe relabels its
-historic diary rows (the name comes from a join, hence decision 58's fixed names), and deleting a
-recipe that any diary row references fails with a foreign-key error. The decisions (edit in place, no
-per-user forks, any household user may edit), the verification, the implementation notes and the
-regression tests the slice owes are in the
-[decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
+**Safe recipe editing and food correction — implemented on the 2026-10-04 Arena session branch,
+owner-tested and signed off in the Arena preview; pending merge and release.** The React Recipes detail route now edits existing shared content
+(description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
+weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
+at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
+one transaction and never touches saved Diary rows, totals, bank values or statistics. Correcting a
+food refreshes every dependent recipe definition—including archived recipes—in the same transaction
+as food/measure updates; manual cooked weights are retained. Go and fixture regressions cover these
+guarantees and atomic rollback. Go tests/vet, Vitest, typecheck and lint pass. The remaining Phase 13
+authoring items are creating a recipe from scratch and image upload/crop. Full decisions and current
+status are in the [decision log](../product/vision-and-open-questions.md#adapting-an-existing-recipe--decisions-5558-2026-10-03).
 
 **What this added to the API (all additive):** `food_servings` now holds household measures
 (`fatsecret_serving_id IS NULL`) beside FatSecret rows, with create/update validating them and

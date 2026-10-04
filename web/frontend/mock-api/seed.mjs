@@ -660,16 +660,9 @@ export function dateOffset(daysAgo) {
 const initialDiaryEntries = diaryEntries.slice()
 const initialDrinkEntries = drinkEntries.map((e) => ({ ...e }))
 const initialDrinks = drinks.map((d) => ({ ...d }))
-const initialRecipeMetadata = new Map(recipes.map((recipe) => [
+const initialRecipeContent = new Map(recipes.map((recipe) => [
   recipe.id,
-  {
-    meal_occasions: [...recipe.meal_occasions],
-    dish_type: recipe.dish_type,
-    key_foods: recipe.key_foods.map((keyFood) => ({ ...keyFood })),
-    total_time_minutes: recipe.total_time_minutes,
-    updated_at: recipe.updated_at,
-    is_archived: recipe.is_archived,
-  },
+  JSON.parse(JSON.stringify(recipe)),
 ]))
 const initialFavouriteRecipeIds = [...favouriteRecipeIds]
 const initialRecipePortions = new Map(recipePortions)
@@ -700,13 +693,8 @@ export function resetFixtures() {
     servings: food.servings.map((serving) => ({ ...serving })),
   })))
   for (const recipe of recipes) {
-    const initial = initialRecipeMetadata.get(recipe.id)
-    recipe.meal_occasions = [...initial.meal_occasions]
-    recipe.dish_type = initial.dish_type
-    recipe.key_foods = initial.key_foods.map((keyFood) => ({ ...keyFood }))
-    recipe.total_time_minutes = initial.total_time_minutes
-    recipe.updated_at = initial.updated_at
-    recipe.is_archived = initial.is_archived
+    const initial = initialRecipeContent.get(recipe.id)
+    Object.assign(recipe, JSON.parse(JSON.stringify(initial)))
   }
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq

@@ -14,6 +14,17 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Owner approves safe recipe editing and food-correction slices
+
+The owner exercised the two authorized Phase 13 safety slices in the Arena preview and signed off on
+them: shared recipe content can be edited in place without changing saved Diary snapshots, and food
+nutrition corrections refresh every dependent recipe definition transactionally (including archived
+recipes) while preserving manual cooked weights and leaving Diary totals untouched. The Go, frontend,
+fixture and rollback regressions pass; frontend typecheck, lint and production build pass. The changes
+are on the Arena session branch and are proceeding through the documented GitHub PR-and-tag loop.
+There is no schema migration, appdata operation or live-Unraid change. Creating recipes from scratch
+and image upload/crop remain later work.
+
 ## 2026-10-03 — Published `v2.0.0-dev-rc18` (PR #42)
 
 After reviewing the live Arena preview, the owner authorized the full **“Lets Publish”** loop. PR #42

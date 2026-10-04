@@ -149,6 +149,116 @@ describe('RecipeDetailRoute archive and restore', () => {
   })
 })
 
+describe('Recipe content editing', () => {
+  it('edits shared content, keeps the name fixed and preserves existing Diary snapshots', async () => {
+    const diaryBefore = seed.diaryEntries.map((entry) => ({ ...entry }))
+    renderRoute(1)
+
+    expect(await screen.findByRole('heading', { name: 'Chicken Curry' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit recipe' }))
+
+    const editor = screen.getByRole('dialog', { name: 'Edit Chicken Curry' })
+    const fixedName = within(editor).getByRole('textbox', { name: 'Recipe name (fixed)' }) as HTMLInputElement
+    expect(fixedName.readOnly).toBe(true)
+    expect(fixedName.value).toBe('Chicken Curry')
+
+    fireEvent.change(within(editor).getByLabelText('Description'), {
+      target: { value: 'A lighter version for weeknights.' },
+    })
+    fireEvent.change(within(editor).getByLabelText('Method / instructions'), {
+      target: { value: 'Simmer gently and serve warm.' },
+    })
+    fireEvent.change(within(editor).getByRole('spinbutton', { name: 'Serves' }), {
+      target: { value: '3' },
+    })
+    fireEvent.change(within(editor).getByRole('spinbutton', {
+      name: 'Chicken Breast, grilled weight (grams) 1',
+    }), { target: { value: '300' } })
+    fireEvent.change(within(editor).getByRole('spinbutton', { name: 'Cooked weight (grams)' }), {
+      target: { value: '900' },
+    })
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'Text ingredient 1' }), {
+      target: { value: 'Fresh ginger' },
+    })
+
+    fireEvent.change(within(editor).getByRole('searchbox', { name: 'Search cals Foods to add' }), {
+      target: { value: 'Blueberries' },
+    })
+    fireEvent.click(await within(editor).findByRole('button', { name: 'Add' }))
+    fireEvent.click(within(editor).getByRole('button', { name: '+ Add text ingredient' }))
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'Text ingredient 4' }), {
+      target: { value: 'A squeeze of lemon' },
+    })
+    fireEvent.click(within(editor).getByRole('button', { name: 'Save recipe' }))
+
+    await waitFor(() => {
+      expect(seedRecipe(1).description).toBe('A lighter version for weeknights.')
+      expect(screen.queryByRole('dialog', { name: 'Edit Chicken Curry' })).toBeNull()
+    })
+    const updated = seedRecipe(1)
+    expect(updated.name).toBe('Chicken Curry')
+    expect(updated.instructions).toBe('Simmer gently and serve warm.')
+    expect(updated.serves).toBe(3)
+    expect(updated.weight_is_manual).toBe(true)
+    expect(updated.total_weight_grams).toBe(900)
+    expect(updated.ingredients.some((ingredient) => ingredient.food_name === 'Blueberries')).toBe(true)
+    expect(updated.ingredients.find((ingredient) => ingredient.food_name === 'Chicken Breast, grilled')?.quantity_grams).toBe(300)
+    expect(updated.text_ingredients.map((ingredient) => ingredient.description)).toContain('Fresh ginger')
+    expect(updated.text_ingredients.map((ingredient) => ingredient.description)).toContain('A squeeze of lemon')
+    expect(seed.diaryEntries).toEqual(diaryBefore)
+    expect(screen.getByText('A lighter version for weeknights.')).toBeTruthy()
+    expect(screen.getByText('900 g cooked')).toBeTruthy()
+  })
+
+  it('rejects recipe-name changes at the fixture API boundary', () => {
+    const before = { ...seedRecipe(1) }
+    const diaryBefore = seed.diaryEntries.map((entry) => ({ ...entry }))
+    for (const attemptedName of ['Renamed Curry', ' Chicken Curry ']) {
+      const response = handle('PUT', new URL('/api/recipes/1', 'http://localhost'), {
+        name: attemptedName,
+      })
+      expect(response?.status).toBe(400)
+    }
+    expect(seedRecipe(1).name).toBe(before.name)
+    expect(seed.diaryEntries).toEqual(diaryBefore)
+  })
+
+  it('recalculates dependent recipe definitions after a food correction without rewriting Diary rows', () => {
+    const chicken = seed.foods.find((food) => food.id === 5)
+    expect(chicken).toBeTruthy()
+    const affected = seed.recipes.filter((recipe) => recipe.ingredients.some((ingredient) => ingredient.food_id === 5))
+    expect(affected.length).toBeGreaterThan(1)
+    const weights = new Map(affected.map((recipe) => [recipe.id, {
+      cooked: recipe.total_weight_grams,
+      manual: recipe.weight_is_manual,
+    }]))
+    const diaryBefore = seed.diaryEntries.map((entry) => ({ ...entry }))
+    handle('PUT', new URL('/api/recipes/1/archive', 'http://localhost'), { is_archived: true })
+
+    const response = handle('PUT', new URL('/api/foods/5', 'http://localhost'), {
+      name: 'Corrected Chicken Breast',
+      calories_per_100g: 200,
+      protein_per_100g: 35,
+      carbs_per_100g: 1,
+      fat_per_100g: 5,
+      fibre_per_100g: 0.3,
+      serving_name: 'Large breast',
+      serving_grams: 180,
+      servings: [],
+    })
+    expect(response?.status).toBe(200)
+
+    for (const recipe of affected) {
+      expect(recipe.total_calories).not.toBe(0)
+      expect(recipe.ingredients.find((ingredient) => ingredient.food_id === 5)?.food_name).toBe('Corrected Chicken Breast')
+      expect(recipe.total_weight_grams).toBe(weights.get(recipe.id)?.cooked)
+      expect(recipe.weight_is_manual).toBe(weights.get(recipe.id)?.manual)
+    }
+    expect(seedRecipe(1).is_archived).toBe(true)
+    expect(seed.diaryEntries).toEqual(diaryBefore)
+  })
+})
+
 describe('RecipePortionSheet', () => {
   it('guesses nothing on a first log, then remembers the first portion as usual', async () => {
     renderRoute()

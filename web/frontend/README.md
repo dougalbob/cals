@@ -1,22 +1,14 @@
 # cals React frontend — Phase 11 foundation and UI spike
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented; Phase 13 has four merged
-slices (recipe catalogue, portion logging, tap-to-filter tags, archive/restore — published through
-`v2.0.0-dev-rc14`), a fifth — decision 40, `+ Add recipe` on each Diary meal card — published in
-`v2.0.0-dev-rc15/16`, and a sixth — the owner's road-test follow-ups: calendar day bars, a calendar
-that stops at Today, and the meal-card `Add recipe` handing over to this tab (decisions 62–64) —
-merged as PR #40 and published as `v2.0.0-dev-rc17`; further owner-requested hydration, Today
-meal-card and Calendar month-cell refinements were merged as PR #42 and **published as
-`v2.0.0-dev-rc18`**. Phone-size review of the latest candidate remains outstanding on the
-container.** The first — a photo-led Recipes catalogue with search, per-user favourites, shared
-structured tags, known-Food key foods, facet filters and optional total time in minutes — was
-owner-reviewed in the Arena preview. The second — named gram-backed food measures (serving/grams
-mode in Add and Edit) and recipe-to-Diary portion logging with each user's remembered usual — is
-implemented, owner-reviewed and published in the `v2.0.0-dev-rc11` development checkpoint. The third
-makes the recipe tags themselves the filter (tap a tag to narrow the list, tap another to narrow it
-further); it was owner-reviewed in the Arena preview and merged as PR #30, published as
-`v2.0.0-dev-rc12`. The fourth (decision 59) lets a recipe be archived and restored without touching
-Diary history; it was owner-reviewed in the Arena preview and published as `v2.0.0-dev-rc14`. Full recipe authoring (name, ingredients, method, image) remains later work. The legacy Mealie importer is
+**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six published
+increments run through `v2.0.0-dev-rc18`; the owner reports rc18 is running on Unraid and approves it
+(2026-10-04). This Arena session additionally implements two authorized slices on its working branch:
+editing existing recipe content safely (decisions 55–58) and transactional food-correction refresh of
+dependent recipe definitions (decisions 60–61). The owner exercised both slices in the Arena preview and signed off on them on 2026-10-04;
+they are pending merge and publication. Earlier increments cover the photo-led catalogue, per-user favourites, shared structured
+tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with each user's
+remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18 refinements.
+Creating a recipe from scratch and image upload/crop remain later work. The legacy Mealie importer is
 not being pursued or ported to React. The Diary/Metrics/Foods screens began as a spike and remain a
 work-in-progress; the existing vanilla UI is still the default. The Go app serves the React shell only
 under the temporary `/next/` path. Nothing is cut over by this phase. UI/UX improvement is a headline
@@ -36,8 +28,8 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (phone-friendly per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back, and tapping a day opens `/diary/:date` (decision 49 follow-up). Day cells are classified against the selected month, not the first padded grid date: dates inside the month stay fully visible, while padded dates outside it remain muted. Over-goal days have a green bar split at the goal with a proportional red tail (decision 62). The calendar stops at Today — the forward arrow is disabled on the current month/week, future URLs are clamped back, and future dates remain muted and non-clickable (decision 63). The shared card is labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 | My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Today 2×2. Not a fifth tab |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist; 90-day weight trend; 14-day calorie bars with goal line; 30-day bank line; 7-day nutrition traffic lights; measurements table |
-| Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options |
-| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail also logs a portion to the diary: whole-recipe fractions (¼, ½, ¾, all) or direct grams, with a live gram + kcal readout, the date and meal, and the user's remembered usual prefill. Shared tags and optional total minutes can be edited below recipe ingredients; a tag on the detail page opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
+| Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options. Saving a food correction refreshes its dependent recipe definitions and invalidates recipe queries; saved Diary nutrition stays unchanged |
+| Recipes | `/recipes` and `/recipes/:id` | Photo-led catalogue with search, per-user favourites, occasion/dish/key-food filters — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients. **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
 
 The shared `CalorieRing` anchors every arc at 12 o'clock and shows its sign by sweep direction
 (owner decision 28, 2026-10-03). The **outer** arc is the bank: a surplus sweeps clockwise in green,
@@ -62,14 +54,15 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 
 ## What's deliberately missing
 
-Full recipe content authoring (name, ingredients and method), image upload, Google Fit, settings,
-themes, the PWA/service worker, per-user food measures (measures are shared per food for now), and
-most remaining mutations. The existing Mealie search/import is legacy-only and is intentionally not
-part of the React migration; see the product decisions. The React Diary supports adding, **editing the
-logged weight** and deleting entries. Editing rescales the entry's own saved nutrition
-(`src/lib/diary.ts`, unit-tested) rather than re-reading the food or recipe definition, which mirrors
-the legacy flow and keeps past days truthful. The production migration phases cover the remaining work
-(see the strategy doc: phases 11–16).
+Creating recipes from scratch and image upload/crop, Google Fit, settings, themes, the PWA/service
+worker, per-user food measures (measures are shared per food for now), and most remaining mutations
+are not implemented. Existing recipes can now be edited safely in place, and food corrections refresh
+dependent recipe definitions without rewriting Diary snapshots. The existing Mealie search/import is
+legacy-only and is intentionally not part of the React migration; see the product decisions. The React
+Diary supports adding, **editing the logged weight** and deleting entries. Editing rescales the entry's
+own saved nutrition (`src/lib/diary.ts`, unit-tested) rather than re-reading the food or recipe
+definition, which mirrors the legacy flow and keeps past days truthful. The production migration phases
+cover the remaining work (see the strategy doc: phases 11–16).
 
 ## Running it
 
@@ -144,8 +137,8 @@ of drinks, ~120 days of weight with realistic noise, five measurement sets, and 
 part-filled (dinner not logged yet).
 
 **Mapped fixtures** (kept aligned with the Go handler contract): `/api/version`, `/api/users/me`,
-`/api/foods/search`, `/api/foods/custom`, `/api/foods` (POST), `/api/foods/{id}` (PUT/DELETE),
-`/api/recipes` (GET), `/api/recipes/{id}` (GET),
+`/api/foods/search`, `/api/foods/custom`, `/api/foods` (POST), `/api/foods/{id}` (GET/PUT/DELETE),
+`/api/recipes` (GET), `/api/recipes/{id}` (GET/PUT content),
 `/api/recipes/{id}/favourite` (PUT), `/api/recipes/{id}/metadata` (PUT),
 `/api/recipes/{id}/archive` (PUT; `/api/recipes` hides archived unless `?include_archived=true`, and
 `POST /api/diary` returns 409 for an archived recipe, as the Go server does),
@@ -160,8 +153,9 @@ carry the signed-in user's `usual_grams`, and `POST /api/diary` honours `make_us
 becomes the usual, later amounts stay one-off. `GET /api/diary` entries carry the logged food's
 `food_serving_name`, `food_serving_grams` and `food_servings[]` so Edit offers the same choices.
 
-**Stubbed**: the Phase 13 operations not yet ported (core recipe create/update/delete and image
-upload) return a clear `501` so the preview does not pretend those flows are implemented.
+**Stubbed**: creating a new recipe, permanently deleting one and image upload/crop are not ported;
+the fixture returns a clear `501` for unsupported operations. Existing recipe content updates are
+implemented and mirrored by the fixture API.
 
 **Implemented 2026-10-03 (decision 40, superseded in shape by decision 64):** every Diary meal card
 has a **🍽 Add recipe** button beside **+ Add food**. It first opened a searchable recipe picker inside
@@ -174,8 +168,9 @@ the existing portion sheet with the originating meal and Diary date already sele
 decision 29–32 behaviour (fractions, direct grams, no guessed quantity, remembered usual). Mealie
 search/import is intentionally not implemented in this React frontend.
 
-**Next planned slice:** the calendar for historic dates (decision 49 follow-up) — a month view opened
-from the Diary date header with data-day markers, landing on `/diary/:date`.
+**Later authoring work:** create a recipe from scratch, with image upload/crop. Existing recipe edits
+and food-correction recalculation are implemented on the current session branch; neither belongs to
+this later slice.
 
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
@@ -193,7 +188,7 @@ npm run build:go      # production shell for the Go /next/ route → web/dist/
 The tests exercise typed API behavior, domain maths and render the implemented screens against the
 fixture API, including add/edit/delete diary flows, serving/grams mode, recipe portion logging,
 hydration-target feedback, proportional meal-card fills and calendar month-cell states
-(169 tests total as of 2026-10-03).
+(172 tests total as of 2026-10-04).
 
 ## Phase 11 Go integration
 

@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -551,117 +552,155 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(recipe)
 }
 
-// HandleUpdateRecipe updates an existing recipe
+// HandleUpdateRecipe updates an existing recipe's content. Recipe names are
+// fixed at creation (decision 58), and Diary nutrition snapshots are never
+// recalculated by a definition edit (decision 55).
 func HandleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid recipe ID", http.StatusBadRequest)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		writeJSONError(w, http.StatusBadRequest, "Invalid recipe ID")
 		return
 	}
 
 	user, err := GetOrCreateUser(auth.GetUserEmail(r.Context()))
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
 	var input struct {
-		Name             string  `json:"name"`
-		Description      string  `json:"description"`
-		Instructions     string  `json:"instructions"`
-		Serves           int     `json:"serves"`
-		TotalWeightGrams float64 `json:"total_weight_grams"`
-		WeightIsManual   bool    `json:"weight_is_manual"`
-		Ingredients      []struct {
-			FoodID        int64   `json:"food_id"`
-			QuantityGrams float64 `json:"quantity_grams"`
-			SortOrder     int     `json:"sort_order"`
-		} `json:"ingredients"`
-		TextIngredients []struct {
-			Description string `json:"description"`
-			SortOrder   int    `json:"sort_order"`
-		} `json:"text_ingredients"`
+		Name             *string                     `json:"name"`
+		Description      string                      `json:"description"`
+		Instructions     string                      `json:"instructions"`
+		Serves           int                         `json:"serves"`
+		TotalWeightGrams float64                     `json:"total_weight_grams"`
+		WeightIsManual   bool                        `json:"weight_is_manual"`
+		Ingredients      []recipeIngredientInput     `json:"ingredients"`
+		TextIngredients  []recipeTextIngredientInput `json:"text_ingredients"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
 		return
 	}
 
 	if input.Serves < 1 {
 		input.Serves = 1
 	}
-
-	// Calculate totals from ingredients
-	var totalCals, totalProtein, totalCarbs, totalFat, totalFibre, calculatedWeight float64
-	for _, ing := range input.Ingredients {
-		var cals, protein, carbs, fat, fibre float64
-		err := database.DB.QueryRow(`
-			SELECT calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fibre_per_100g
-			FROM foods WHERE id = ?
-		`, ing.FoodID).Scan(&cals, &protein, &carbs, &fat, &fibre)
-		if err != nil {
-			continue
+	if input.WeightIsManual && !isFinitePositive(input.TotalWeightGrams) {
+		writeJSONError(w, http.StatusBadRequest, "A manually measured cooked weight must be greater than zero")
+		return
+	}
+	for _, ingredient := range input.Ingredients {
+		if ingredient.FoodID <= 0 {
+			writeJSONError(w, http.StatusBadRequest, "Every food ingredient must reference a known food")
+			return
 		}
-		multiplier := ing.QuantityGrams / 100
-		totalCals += cals * multiplier
-		totalProtein += protein * multiplier
-		totalCarbs += carbs * multiplier
-		totalFat += fat * multiplier
-		totalFibre += fibre * multiplier
-		calculatedWeight += ing.QuantityGrams
+		if !isFinitePositive(ingredient.QuantityGrams) {
+			writeJSONError(w, http.StatusBadRequest, "Every food ingredient must have a weight greater than zero grams")
+			return
+		}
+	}
+	for i := range input.TextIngredients {
+		input.TextIngredients[i].Description = strings.TrimSpace(input.TextIngredients[i].Description)
+		if input.TextIngredients[i].Description == "" {
+			writeJSONError(w, http.StatusBadRequest, "Every text ingredient needs a description")
+			return
+		}
 	}
 
-	finalWeight := calculatedWeight
-	if input.WeightIsManual && input.TotalWeightGrams > 0 {
-		finalWeight = input.TotalWeightGrams
-	}
-
-	// Update recipe
-	_, err = database.DB.Exec(`
-		UPDATE recipes SET name = ?, description = ?, instructions = ?, serves = ?,
-		       calculated_weight_grams = ?, total_weight_grams = ?, weight_is_manual = ?, 
-		       total_calories = ?, total_protein = ?, total_carbs = ?, total_fat = ?, total_fibre = ?,
-		       updated_at = CURRENT_TIMESTAMP
-		WHERE id = ?
-	`, input.Name, input.Description, input.Instructions, input.Serves,
-		calculatedWeight, finalWeight, input.WeightIsManual,
-		totalCals, totalProtein, totalCarbs, totalFat, totalFibre, id)
+	tx, err := database.DB.BeginTx(r.Context(), nil)
 	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	defer tx.Rollback()
+
+	var existingName string
+	if err := tx.QueryRow(`SELECT name FROM recipes WHERE id = ?`, id).Scan(&existingName); err != nil {
+		if err == sql.ErrNoRows {
+			writeJSONError(w, http.StatusNotFound, "Recipe not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	if input.Name != nil && *input.Name != existingName {
+		writeJSONError(w, http.StatusBadRequest, "Recipe names cannot be changed after creation")
 		return
 	}
 
-	// Replace ingredients
-	database.DB.Exec(`DELETE FROM recipe_ingredients WHERE recipe_id = ?`, id)
-	database.DB.Exec(`DELETE FROM recipe_text_ingredients WHERE recipe_id = ?`, id)
+	nutrition, err := calculateRecipeNutrition(tx, input.Ingredients)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
 
-	for _, ing := range input.Ingredients {
-		database.DB.Exec(`
+	finalWeight := nutrition.CalculatedWeightGrams
+	if input.WeightIsManual {
+		finalWeight = input.TotalWeightGrams
+	}
+	if _, err := tx.Exec(`
+		UPDATE recipes SET description = ?, instructions = ?, serves = ?,
+		       calculated_weight_grams = ?, total_weight_grams = ?, weight_is_manual = ?,
+		       total_calories = ?, total_protein = ?, total_carbs = ?, total_fat = ?, total_fibre = ?,
+		       updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, input.Description, input.Instructions, input.Serves,
+		nutrition.CalculatedWeightGrams, finalWeight, input.WeightIsManual,
+		nutrition.Calories, nutrition.Protein, nutrition.Carbs, nutrition.Fat, nutrition.Fibre, id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if _, err := tx.Exec(`DELETE FROM recipe_ingredients WHERE recipe_id = ?`, id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	if _, err := tx.Exec(`DELETE FROM recipe_text_ingredients WHERE recipe_id = ?`, id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	for _, ingredient := range input.Ingredients {
+		if _, err := tx.Exec(`
 			INSERT INTO recipe_ingredients (recipe_id, food_id, quantity_grams, sort_order)
 			VALUES (?, ?, ?, ?)
-		`, id, ing.FoodID, ing.QuantityGrams, ing.SortOrder)
+		`, id, ingredient.FoodID, ingredient.QuantityGrams, ingredient.SortOrder); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error")
+			return
+		}
 	}
-
-	for _, ti := range input.TextIngredients {
-		database.DB.Exec(`
+	for _, ingredient := range input.TextIngredients {
+		if _, err := tx.Exec(`
 			INSERT INTO recipe_text_ingredients (recipe_id, description, sort_order)
 			VALUES (?, ?, ?)
-		`, id, ti.Description, ti.SortOrder)
+		`, id, ingredient.Description, ingredient.SortOrder); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Database error")
+			return
+		}
 	}
-	if _, err := database.DB.Exec(`
+	if _, err := tx.Exec(`
 		DELETE FROM recipe_key_foods
 		WHERE recipe_id = ? AND food_id NOT IN (
 			SELECT food_id FROM recipe_ingredients WHERE recipe_id = ?
 		)
 	`, id, id); err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
-	recipe, _ := getRecipeForUser(id, user.ID)
-
+	recipe, err := getRecipeForUser(id, user.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipe)
 }

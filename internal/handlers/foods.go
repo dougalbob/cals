@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -497,6 +498,15 @@ func HandleUpdateFood(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name is required", http.StatusBadRequest)
 		return
 	}
+	for _, value := range []float64{
+		input.CaloriesPer100g, input.ProteinPer100g, input.CarbsPer100g,
+		input.FatPer100g, input.FibrePer100g,
+	} {
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			http.Error(w, "Nutrition values must be finite and 0 or more", http.StatusBadRequest)
+			return
+		}
+	}
 	if message := validateCustomServings(input.Servings); message != "" {
 		http.Error(w, message, http.StatusBadRequest)
 		return
@@ -535,6 +545,11 @@ func HandleUpdateFood(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := replaceCustomServings(tx, id, input.Servings); err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	if err := recalculateRecipesUsingFood(tx, id); err != nil {
+		log.Printf("could not recalculate recipes using food %d: %v", id, err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}

@@ -6,15 +6,16 @@
  * same ordering, same nullability. This is what makes the spike honest: the UI
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
- * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, favourite + metadata + archive PUT),
+ * Mapped:  /api/version, /api/users/me, /api/recipes (GET/detail, content + favourite + metadata + archive PUT),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/calendar, /api/drinks, /api/weight, /api/measurements,
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Stubbed: unsupported mutations return 501 with a clear message. Diary/drink
- *          demo flows and recipe favourite/metadata/archive edits are implemented for the preview.
+ *          demo flows, recipe content/favourite/metadata/archive edits and dependent nutrition refreshes are implemented for the preview.
  */
 
 import * as seed from './seed.mjs'
+import { buildRecipeContentUpdate, recalculateRecipesUsingFood } from './recipe-content.mjs'
 
 const {
   foods, recipes, drinks, drinkEntries, weightEntries, measurements,
@@ -181,6 +182,18 @@ export function handle(method, url, body) {
     return json(results)
   }
 
+  const foodDetailMatch = pathname.match(/^\/api\/foods\/([^/]+)$/)
+  if (foodDetailMatch && foodDetailMatch[1] !== 'custom' && method === 'GET') {
+    const requestedId = foodDetailMatch[1]
+    const food = requestedId.startsWith('fs_')
+      ? foods.find((candidate) => String(candidate.fatsecret_id ?? '') === requestedId.slice(3))
+      : seed.findFood(requestedId)
+    if (!food) return err(404, 'Food not found')
+    // A FatSecret id resolves to the fixture's already-cached local Food row,
+    // matching HandleGetFood and ensuring recipe writes only receive numeric IDs.
+    return json(foodResponse(food))
+  }
+
   if (pathname === '/api/foods/custom' && method === 'GET') {
     return json(
       foods
@@ -193,10 +206,16 @@ export function handle(method, url, body) {
 
   if (pathname === '/api/diary' && method === 'GET') {
     const date = searchParams.get('date') ?? today
-    const entries = seed.entriesFor(date).map((entry) => ({
-      ...entry,
-      ...(entry.food_id != null ? seed.foodMeasuresFor(entry.food_id) : {}),
-    }))
+    const entries = seed.entriesFor(date).map((entry) => {
+      const food = entry.food_id != null ? seed.findFood(entry.food_id) : null
+      const recipe = entry.recipe_id != null ? recipes.find((item) => item.id === entry.recipe_id) : null
+      return {
+        ...entry,
+        ...(food ? { food_name: food.name } : {}),
+        ...(recipe ? { recipe_name: recipe.name } : {}),
+        ...(entry.food_id != null ? seed.foodMeasuresFor(entry.food_id) : {}),
+      }
+    })
     return json({ date, entries, totals: seed.totalsFor(date) })
   }
 
@@ -355,6 +374,16 @@ export function handle(method, url, body) {
   }
 
   // --- a couple of mutations so the demo is clickable ----------------------
+  const recipeContentMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
+  if (recipeContentMatch && method === 'PUT') {
+    const recipe = recipes.find((item) => item.id === Number(recipeContentMatch[1]))
+    if (!recipe) return err(404, 'Recipe not found')
+    const updated = buildRecipeContentUpdate(recipe, body, foods)
+    if (updated.error) return err(400, updated.error)
+    Object.assign(recipe, updated.content)
+    return json(recipeResponse(recipe))
+  }
+
   const metadataMatch = pathname.match(/^\/api\/recipes\/(\d+)\/metadata$/)
   if (metadataMatch && method === 'PUT') {
     const recipe = recipes.find((item) => item.id === Number(metadataMatch[1]))
@@ -584,6 +613,7 @@ export function handle(method, url, body) {
     // FatSecret-provided measures survive an edit; the household's are replaced.
     food.servings = (food.servings ?? []).filter((serving) => serving.fatsecret_serving_id != null)
     applyMeasures(food, built.servings)
+    recalculateRecipesUsingFood(recipes, food.id, foods)
     return json(foodResponse(food))
   }
 

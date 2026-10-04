@@ -100,7 +100,13 @@ export interface Recipe {
   created_by_name?: string
   calculated_weight_grams: number
   total_weight_grams: number
+  /** True when the cooked yield is a user-measured weight rather than ingredient grams. */
+  weight_is_manual: boolean
   total_calories: number
+  total_protein: number
+  total_carbs: number
+  total_fat: number
+  total_fibre: number
   calories_per_100g: number
   protein_per_100g: number
   carbs_per_100g: number
@@ -148,6 +154,29 @@ export interface RecipeMetadataInput {
   dish_type: RecipeDishType | ''
   key_food_ids: number[]
   total_time_minutes: number | null
+}
+
+export interface RecipeIngredientInput {
+  food_id: number
+  quantity_grams: number
+  sort_order: number
+}
+
+export interface RecipeTextIngredientInput {
+  description: string
+  sort_order: number
+}
+
+/** Full content update for PUT /api/recipes/{id}; names are fixed at creation. */
+export interface RecipeContentInput {
+  name: string
+  description: string
+  instructions: string
+  serves: number
+  total_weight_grams: number
+  weight_is_manual: boolean
+  ingredients: RecipeIngredientInput[]
+  text_ingredients: RecipeTextIngredientInput[]
 }
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
