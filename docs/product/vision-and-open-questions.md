@@ -6,9 +6,9 @@
 | **Started** | 2026-10-02 |
 | **Owner** | @dougalbob |
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
-| **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md) |
+| **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md), [`metrics-evidence.md`](metrics-evidence.md) (working research for Phase 14 Metrics) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–75). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–88). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -167,7 +167,7 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 
 20. **Phone-first, or desk-first?** The current design is mobile-first; is that right?
 21. ~~**Do you need offline logging?**~~ **Answered (2026-10-03, decision 53): no.** Neither offline logging nor an offline read requirement is needed — logging happens where there is a connection. Phase 15's PWA work therefore covers **installability and a clean service worker only**: no write queue, no sync-conflict handling, and no cached-data promise. That removes the riskiest part of the phase.
-22. ~~**Notifications and reminders**~~ **Answered (2026-10-03, decision 46): none — but a weekly report is wanted.** No logging nudges, no water nagging, no push notifications. Instead the owner wants a **weekly report** (what the week's numbers looked like, how the bank moved). If it fits naturally in Phase 14's Metrics redesign, it lives there; otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
+22. ~~**General notifications and reminders**~~ **Answered (decision 46): none for logging or water; a weekly report is wanted.** No general logging nudges, no water nagging, and no push notifications. Decision 87 later adds a narrow future reminder for body measurements after more than four weeks without an entry; its delivery channel and repeat behavior remain open. The weekly report (what the week's numbers looked like, how the bank moved) belongs in Phase 14 if it fits naturally, otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
 23. **Anything needed on a watch, or via Siri/shortcuts?** *(Still open — no requirement recorded either way.)*
 24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need? *(Still open — note Google Fit steps already sync and, per decision 48, do not affect the bank.)*
 25. ~~**How is `appdata/cals` backed up today?**~~ **Answered (2026-10-03, decision 54): it is backed up.** The owner confirms a backup of the household's live data exists, which satisfies the "check before a structural change" rule in [`data-copy-warning.md`](../architecture/data-copy-warning.md). Recording the **location and cadence** in that document is still worth doing so a future session does not have to ask.
@@ -220,7 +220,7 @@ from the bank (42); the bank stays per person (43); the bank window is user-defi
 since [decision 66](#bank-window-metrics-charts-and-app-polish--decisions-6673-2026-10-04) on
 2026-10-04 — **that window is the bank everywhere**, defaulting to 14 days with "All time" as a
 preset; cross-viewing becomes an admin role with a swap-user control rather than a
-household view (45); no notifications, but a weekly report is wanted (46); tracked nutrients become
+household view (45); no general logging/water reminders but a weekly report is wanted (46), with the narrow measurement-reminder exception in decision 87; tracked nutrients become
 user-selectable with a missing-data audit (47); steps do **not** credit the bank for now (48); nothing
 else needs fixing in the logging flows, but a **calendar** is planned for reaching historic dates
 (49); **no logging shortcuts** are wanted (50); the **four meal slots stay** (51); **no barcode
@@ -293,8 +293,10 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > rc24. The owner reports rc24 installed and new recipe creation working well. Decision 82's optional,
 > uncropped photo upload/replacement and decisions 83–85 (Today/Diary fill alpha 25%/5%, Own creation
 > recipe-details filter checkbox, and Diary meal-entry delete confirmation) were published in
-> `v2.0.0-dev-rc25` (PR #56). The owner has not yet reported Force Updating or reviewing rc25 on
-> Unraid; cropping remains deferred. Current status is tracked in [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
+> `v2.0.0-dev-rc25` (PR #56). The owner signed off all published RC candidates through rc25 on
+> 2026-10-04, closing Phase 13 acceptance. The last reported Unraid installation remains rc24, so
+> rc25 deployment is unconfirmed; cropping remains deferred. Current status is tracked in
+> [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
 
@@ -353,7 +355,7 @@ And the small details that make it hold together:
 | 43 | 2026-10-03 | **The bank stays per person.** No shared household bank; seeing the other person's numbers is handled by the admin role (decision 45), not by merging the maths. | Owner |
 | 44 | 2026-10-03 | **The ring's window is user-definable**, generalising the earlier 30-day lookback idea: the user picks a rolling window, and **“no window” means the cumulative figure from day 1 to today**. The Banked/Deficit tile always shows the exact cumulative balance. Phase 14 computes the metric; Phase 15 adds the setting. **Superseded in part by decision 66 (2026-10-04): the window is the bank everywhere, it defaults to 14 days, and “All time” is a preset rather than the absence of a window.** | Owner |
 | 45 | 2026-10-03 | **An admin role plus a “Swap user” control**, rather than a household view. The owner needs to browse the household's data because his own profile has almost none; the flag grants **full read/write** as the other user, with the app making it unmistakable that you are acting as someone else. `GET /api/users` stops being an exposed curiosity and becomes admin-only. | Owner |
-| 46 | 2026-10-03 | **No notifications or reminders** — not for logging, not for water. Instead the owner wants a **weekly report**: an in-app recap of the week's numbers, ideally part of Phase 14's Metrics redesign and its own small feature set if it does not fit. | Owner |
+| 46 | 2026-10-03 | **No general notifications or reminders** — not for logging, not for water. Instead the owner wants a **weekly report**: an in-app recap of the week's numbers, ideally part of Phase 14's Metrics redesign and its own small feature set if it does not fit. **Decision 87 later adds a narrow exception for a future body-measurement reminder after more than four weeks; it does not authorize push notifications or general nudges.** | Owner; narrowly qualified by decision 87 |
 | 47 | 2026-10-03 | **Tracked nutrients become user-selectable.** Macros and fibre stay on by default; further nutrients (for example saturated fat) are ticked on in a Settings sheet, and the app **audits the existing foods and reports which ones have no values for a newly enabled nutrient** so the gaps can be filled rather than silently ignored. The nutrient list and the audit's exact behaviour are Phase 14 design work (this is an additive API/schema exception, like the Phase 15 settings work). | Owner |
 | 48 | 2026-10-03 | **Exercise does not credit the bank for now.** Steps keep syncing and stay informational; “eat back your steps” is deferred, not rejected, and revisiting it must be its own decision with tests. | Owner |
 | 49 | 2026-10-03 | **No further logging-ergonomics work is needed.** The owner is content with the current add/edit flows; the only friction left is **finding historic date entries**, which he intends to solve with a **calendar** (see [the calendar idea](#the-calendar-idea--diary-date-navigation-2026-10-03)) rather than by changing how things are logged. | Owner |
@@ -375,11 +377,18 @@ behaving without borrowing his wife's phone. His wife has no corresponding need 
 
 **The shape of the answer.**
 
+Cloudflare Access continues to authenticate each person; cals maps the verified Access email to that
+user's own account. Both emails must remain allowed by the Cloudflare policy. The Admin role is a
+separate application authorization that permits an explicit acting-user switch. With only the owner's
+Cloudflare identity and no app switch, cals correctly shows the owner's own account, not his wife's
+history. The app's DEV identity picker is not a production substitute.
+
 - An additive `users.is_admin` flag (default `0`), so no existing row changes meaning.
-- The admin identity should come from configuration rather than a hard-coded email in the repository
-  (the source tree is public). Recommended: an `ADMIN_EMAILS` list applied at startup, carried in the
-  Unraid template like the other secrets/settings; alternatively a documented one-off SQL step. This
-  is a decision for the implementation session.
+- The owner has now confirmed the assignment: **he is Admin; his wife is Standard** (decision 88). The
+  admin identity must come from configuration rather than a hard-coded email in the public repository.
+  An `ADMIN_EMAILS` list applied at startup, carried in the Unraid template like other settings, remains
+  a candidate; alternatively use a documented one-off promotion step. The secure bootstrap mechanism is
+  still for the implementation session to decide, and no such configuration is implemented yet.
 - A **Swap user** control using the existing `/dev/identity` pattern, but production-appropriate:
   authenticated, admin-only, **server-side** (a cookie or header the API validates on every request —
   never a client-side claim), loopback restriction **not** applied (it must work through Cloudflare),
@@ -404,7 +413,8 @@ behaving without borrowing his wife's phone. His wife has no corresponding need 
 
 ### The weekly report — 2026-10-03
 
-No notifications (decision 46), but a report is wanted. Recommended shape: a **report card view** in
+No general notifications or logging/water reminders (decision 46; with the narrow measurement-
+reminder exception in decision 87), but a report is wanted. Recommended shape: a **report card view** in
 Metrics for a chosen week (the current week and the previous one at minimum), showing calories against
 goal, how the bank moved, water, weight change, the nutrition traffic lights, the best and worst days,
 and **which days were excluded as unlogged** (decision 42) so the numbers are never quietly
@@ -562,7 +572,7 @@ and nutrition remain unchanged. Deleting a logged recipe is handled by decision 
 - **Verification and acceptance:** Go tests, Vitest editor/mock-API regressions, typecheck, lint and
   `build:go` passed. The owner exercised both slices in the Arena preview and signed off on them on
   2026-10-04. PR #44 and the post-merge Go check passed; the changes were published in
-  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23, rc24 and rc25; the owner later reported rc24 installed.
+  `v2.0.0-dev-rc19`; the changes are included in rc22, rc23, rc24 and rc25. On 2026-10-04 the owner signed off all published RC candidates; the last reported Unraid installation remains rc24.
 - **Separate authoring scope (at rc24):** recipe creation without a photo was a distinct Phase 13
   slice, separate from the two authorized safety slices; it is implemented and published in
   `v2.0.0-dev-rc24` (PR #54). Decision 82 later expands Phase 13 to include uncropped photo upload
@@ -769,6 +779,18 @@ The photo is an optional second request after `POST /api/recipes`, so it is not 
 | 85 | 2026-10-04 | Require explicit confirmation before deleting a food or recipe entry from a populated Diary meal slot. The delete icon opens a confirmation naming the entry and meal; Cancel leaves the entry untouched, and only the confirmation's Delete action removes it. | Owner request, 2026-10-04 |
 
 Current implementation and verification status are in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
+
+### Cross-cutting UX, measurement cadence and access roles — decisions 86–88 (2026-10-04)
+
+The owner made three forward-looking requests. Decision 86 generalizes the light, inline two-step confirmation used for **Archive recipe** to destructive **Delete** or **Remove** actions where the layout has enough room; the ingredient Remove controls in the Edit recipe editor are one candidate. It is a confirmation pattern, not a request to add confirmations to every reversible toggle. Decision 87 sets an ideal body-measurement interval of 3–4 weeks and allows a future reminder after more than four weeks without a measurement. The reminder is not built, and its channel/repeat behavior are open. Decision 88 confirms the owner as Admin and his wife as Standard, and asks that the next session focus on the production role and in-app Swap user work before Phase 14 Metrics. Cloudflare Access remains authentication; both users stay allowed by its policy, and the Admin switch changes only cals' server-validated acting-user context. The detailed bootstrap/session mechanism remains for the implementation session.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 86 | 2026-10-04 | Where there is sufficient UI space, destructive **Delete** and **Remove** actions should use the Recipes page's low-friction inline two-step confirmation pattern: the first action reveals an explicit confirm and cancel choice; the destructive action happens only after confirmation, and cancel leaves the item unchanged. Apply this selectively where the layout allows; an Edit recipe ingredient **Remove** control is a candidate. | Owner observation |
+| 87 | 2026-10-04 | Body measurements should ideally be logged every **3–4 weeks**. Once more than four weeks have elapsed since the most recent measurement, a future reminders feature may prompt the user to update measurements. This is a narrow exception to decision 46's no-general-reminders direction; no reminder channel, recurrence, or push notification is authorized. | Owner request |
+| 88 | 2026-10-04 | **Next-session priority: move production roles and in-app user switching ahead of Phase 14 Metrics.** The owner is **Admin** and his wife is **Standard**. Keep Cloudflare Access as the authentication provider and allow both identities in its access policy; an authenticated Admin must be able to deliberately switch cals' acting user to an existing household account with decision 45's full read/write behavior, an unmistakable persistent “viewing as” indicator, and a way to return to the Admin's own account. Standard users cannot switch. `DEV_MODE`/`DEV_IDENTITY_SWITCH` remain development-only and are not the production feature. The next session should resolve secure role bootstrap, server-side switch/session behavior, affected API authorization (including making `GET /api/users` Admin-only), and tests as part of the work. This records priority and role assignment, not a settled implementation mechanism. | Owner request |
+
+The evidence and open design questions for body-measurement charts, indexed views, weight trends/ETA, and reminder semantics are maintained in [`metrics-evidence.md`](metrics-evidence.md).
 
 ### The windowed bank (decision 66)
 

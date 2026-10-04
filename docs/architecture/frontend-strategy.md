@@ -176,13 +176,21 @@ Hard rules:
 
 The timeboxed spike is complete. The owner authorized **Phase 11 — Foundation** on 2026-10-02. The spike already demonstrates Diary, Metrics and Foods against fixtures; Phase 11 makes the foundation buildable and safely reachable without replacing the production UI. The go/no-go for each user-facing screen remains honest: if it is not clearly better than the current version, do not cut it over.
 
+> **Owner-directed reprioritization (decision 88, 2026-10-04):** the Admin/Standard role and production
+> Swap user capability originally placed in Phase 15 is pulled ahead of Phase 14 Metrics. Treat this as
+> a narrow cross-cutting exception: secure Admin bootstrap, server-enforced acting-user context and API
+> authorization, plus a persistent UI indicator and return control. Cloudflare Access remains the login
+> provider; do not reuse the LAN-only `DEV_MODE` identity picker. Other Settings and PWA work stay in
+> Phase 15. Current next-session scope and the remaining backup/restore requirement are in
+> [`CURRENT_STATE.md`](../CURRENT_STATE.md) §4.
+
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
 | **11 — Foundation** | `web/frontend/` scaffold, Tailwind theme tokens, typed API client and query hooks for core endpoints, dev proxy, Go serving `web/dist` under a temporary `/next/` path, multi-stage Docker build, lint + typecheck + tests | New shell is reachable at `/next/` while the old UI remains the default; fixture and real-API dev loops work; typecheck, lint, tests and production build pass |
 | **12 — Diary** | Diary view at `/diary/:date` with meal sections, a familiar quick-add selector for Tea/Coffee/Water, drinks, bank ring, date navigation, add/edit/delete food entries (optimistic), and explicit confirmation before deleting a populated meal entry (decision 85) | The primary phone-based logging flow is demonstrably easier than the current build; owner reviews the mobile preview; drink calories are included in the bank with a regression test; old diary stays reachable until approval |
 | **13 — Foods + Recipes** | Custom foods list/create/edit/delete; recipe list/detail/create/edit, ingredient search and **uncropped image upload** during creation plus replacement on detail (decision 82); recipe→Diary flow; serving/grams choices; photo-led recipe browsing with favourites, structured classification and filters. **Cropping is deferred.** Include the shared orange **Own creation** recipe-origin marker in Edit and reuse the same field in the create flow. **Do not port the legacy Mealie import.** | Preserve cooked-weight concentration maths with unit tests. Foods support named gram-backed measures; Add/Edit starts in serving mode when reliable and keeps grams accessible. Recipe logging supports each user's remembered usual grams, whole-recipe fractions and direct gram editing; no guessed first quantity, remember the first successful log, and later changes are one-off unless explicitly made usual. All diary paths store grams and the existing nutrition snapshot. Recipes support multiple meal occasions plus a separate dish-type facet, up to two key foods selected only from known cals Foods, an orange shared origin marker, optional exact prep-to-plate minutes, and per-user favourites. Filter on these facets, including an **Own creation** checkbox beside the Dish type selector that stays synchronized with the `origin:own` URL/tag filter (decision 84). Photo upload is optional, directly previewed, limited to supported image formats, and replaceable; if upload fails after creation, leave the recipe saved and offer a safe retry instead of resubmission. No Goodness score in this phase; its method is future discovery |
 | **14 — Metrics + Nutrition** | Weight + measurements + steps, charts (Chart.js via react-chartjs-2), nutrition analysis tab, Google Fit connect/disconnect, **the windowed bank (decision 66: the last N completed days, 14 by default — and that window is the bank everywhere, not just the ring)**, the tappable body-map measurement picker (decision 67), the 30-day pannable weigh-in chart with a trend line (decision 70) and the daily-goal-vs-consumed chart (decision 71) | The windowed balance covers completed days, includes food **and** drink calories, excludes unlogged days (decision 42), is labelled with its window, and drives the tile, `today_available` and the ring alike — with regression tests (`AGENTS.md`: the bank is crown-jewel maths). Windowed charts pan (decision 69) and stay readable at their default width; the body map commits a measurement without wiping the other parts recorded that day |
-| **15 — Settings + PWA** | Settings, calorie/water targets, **per-user bank-ring display limits and the bank window** (decision 66: presets **30 / 14 / 7 / All time** plus a **custom** number of days, defaulting to 14), the **per-user body-outline preference** behind decision 67's body map, the **admin swap-user capability** (decision 45), themes, `vite-plugin-pwa` **installability only** (decision 53 — no offline logging, no write queue, no cached-data promise), remove legacy no-cache hacks | Ring limits and the window persist per user; the **window changes bank maths** (decision 66) while the ring's ± limits stay presentation-only; Lighthouse PWA pass on mobile; SW installs cleanly; admin role is server-validated |
+| **15 — Settings + PWA** | Settings, calorie/water targets, **per-user bank-ring display limits and the bank window** (decision 66: presets **30 / 14 / 7 / All time** plus a **custom** number of days, defaulting to 14), the **per-user body-outline preference** behind decision 67's body map, themes, `vite-plugin-pwa` **installability only** (decision 53 — no offline logging, no write queue, no cached-data promise), remove legacy no-cache hacks. The Admin/Standard role and swap-user capability has been pulled forward before Phase 14 by decision 88 | Ring limits and the window persist per user; the **window changes bank maths** (decision 66) while the ring's ± limits stay presentation-only; Lighthouse PWA pass on mobile; SW installs cleanly; the pulled-forward admin role is server-validated |
 | **16 — Cutover** | Delete `web/static/**`, `web/templates/index.html`, and old SW cache rules; make React the single SPA; update `docs/` (keep legacy `ai_contextual_docs/context.txt` frozen) | Total front-end LOC and file count drop sharply; no dead code left; owner approves the demonstrated UI improvement |
 
 Indicative effort: **2–4 focused weeks** end-to-end, or ~6–10 weeks part-time. Phases 12–14 are the bulk of it. Treat every number here as an estimate to be re-based after the spike.
@@ -507,8 +515,11 @@ request, 2026-10-03).
 **Safe recipe editing and food correction — implemented, owner-tested and signed off in the Arena
 preview on 2026-10-04; merged as PR #44 and published in `v2.0.0-dev-rc19`, included in rc22, rc23 and
 rc24.** The owner reports rc24 is installed and new recipe creation works well. Uncropped photo
-upload/replacement and decisions 83–85 were published in `v2.0.0-dev-rc25` (PR #56); Unraid phone
-review is pending (see [`CURRENT_STATE.md`](../CURRENT_STATE.md)). Cropping is deferred. The React Recipes detail route now edits existing shared content
+upload/replacement and decisions 83–85 were published in `v2.0.0-dev-rc25` (PR #56). The owner
+signed off all published RC candidates through rc25 on 2026-10-04, closing Phase 13 acceptance; the
+latest reported installation remains rc24, so rc25 deployment is unconfirmed (see
+[`CURRENT_STATE.md`](../CURRENT_STATE.md)). No item-by-item phone findings are separately recorded;
+cropping is deferred. The React Recipes detail route now edits existing shared content
 (description, known-Food ingredients and grams, text ingredients, serves, method and measured cooked
 weight). Recipe names are read-only in both the React and legacy editors and are rejected if changed
 at the API boundary (decision 58). `PUT /api/recipes/{id}` applies content and nutrition updates in
@@ -577,5 +588,7 @@ a percent or two, are described in the [decision log](../product/vision-and-open
 The slice needs the usual gates: preview at phone size, the concrete UX improvement described in the
 PR, `npm run lint && npm run typecheck && npm test && npm run build:go` green, and owner review before
 merge. The owner approved this slice in the Arena preview on 2026-10-04; it was published as
-`v2.0.0-dev-rc21` (PR #48) and is included in rc22, rc23 and rc24. The owner reports rc24 installed;
-decision-82 image upload/replacement shipped in rc25; the owner update and phone review are pending.
+`v2.0.0-dev-rc21` (PR #48) and is included in rc22, rc23 and rc24. Decision-82 image
+upload/replacement shipped in rc25. The owner signed off all published RC candidates through rc25 on
+2026-10-04; the latest reported installation remains rc24 and rc25 deployment is unconfirmed (see
+[`CURRENT_STATE.md`](../CURRENT_STATE.md)).
