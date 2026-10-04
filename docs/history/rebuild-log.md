@@ -14,6 +14,20 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Production Admin roles and Swap user prioritized before Metrics (decision 88)
+
+The owner clarified the next-session priority after noting that a Cloudflare login as himself maps to his own sparse cals account; it does not expose his wife's history. The owner is Admin and his wife is Standard. The next session should focus on the secure production role, acting-user switch, and the UI needed to switch back, ahead of Phase 14 Metrics. Cloudflare Access remains the authentication provider, and both identities must stay permitted by the Access policy. Direct LAN access to the production origin does not carry the Cloudflare JWT; use the Cloudflare hostname, including while on the LAN. `DEV_MODE` and the dev identity picker remain confined to the separate development copy.
+
+Decision 45 already specifies full read/write while an Admin is switched into another existing user, a clear “viewing as” indicator, and an Admin-only `GET /api/users`; decision 88 confirms the role assignment and pulls the work forward. The current code has no production role or switch feature, and the existing dev picker is not a substitute. The secure Admin bootstrap and server-side switching/session details remain for the implementation session. The previously requested server-local backup/restore of the database and all recipe images remains outstanding; this documentation update does not implement either feature.
+
+## 2026-10-04 — Phase 13 signed off; Metrics evidence research opened
+
+The owner signed off all published release candidates through `v2.0.0-dev-rc25`; Phase 13 is now accepted. The latest published image is rc25, while the last reported household installation remains rc24 and a Force Update to rc25 is not confirmed. This closes the acceptance gate without claiming an unreported deployment or item-by-item phone-test result. No application code, schema, or appdata changed in this documentation pass.
+
+The owner's Archive-button observation is recorded as decision 86: reuse the light, inline two-step confirmation for destructive Delete/Remove actions where the UI has room, including as a candidate for recipe ingredient removal. Decision 87 records the preferred 3–4 week measurement cadence and a future reminder after more than four weeks, as a narrow exception to the prior no-general-reminders decision.
+
+Created [`product/metrics-evidence.md`](../product/metrics-evidence.md) as a continuing research brief. It captures the proposed raw-cm / indexed-percent body-measurement view, a possible matching weigh-in view, the target-weight ETA question, an evidence-based critique of unverified model claims, measurement protocol sources, reminder questions, and current API/data constraints. These chart designs and prediction methods remain proposals, not a finalized build specification.
+
 ## 2026-10-04 — Phase 13 photo upload and UI follow-ups published as rc25 (PR #56)
 
 The recipe-photo upload/replacement and decisions 83–85 completed the Phase 13 follow-up. PR #56

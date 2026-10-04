@@ -173,8 +173,7 @@ rest: docs finished in the same PR, no stale claims, and the checks green on the
   suite exists to catch what jsdom cannot see.
 - **Android's own selection/copy popup.** Headless Chromium does not reproduce it, so
   `recipes-touch.spec.ts` pins the CSS that stops Android from offering it (`touch-action:
-  manipulation`, `user-select: none` on label rows) rather than the popup itself. The phone re-test
-  after the next release is what confirms it end to end.
+  manipulation`, `user-select: none` on label rows) rather than the popup itself. The owner signed off all published RC candidates through rc25 on 2026-10-04; no separate issue-by-issue phone findings were recorded. The last reported Unraid installation remains rc24 (see [`CURRENT_STATE.md`](../CURRENT_STATE.md)).
 
 ## 5. Adding to the suite
 
