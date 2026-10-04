@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | **Status** | 🟢 **ADOPTED — living document. This is the single source of truth for "where are we now".** |
-| **Last reviewed** | 2026-10-04 (rc19 publication and owner sign-off; the owner's seven-item road-test list recorded as decisions 66–73 and scheduled) |
+| **Last reviewed** | 2026-10-04 (rc19 publication and owner sign-off; the owner's seven-item road-test list recorded as decisions 66–73, scheduled, and published as the documentation-only `v2.0.0-dev-rc20`) |
 | **Owner** | @dougalbob |
 | **Purpose** | Stop status drifting across four documents. Anything dated or narrative belongs in [`history/rebuild-log.md`](history/rebuild-log.md); this page describes **today only** and is updated whenever the state changes |
 | **Related** | [`architecture/rebuild-kickoff.md`](architecture/rebuild-kickoff.md) (first commands), [`architecture/frontend-strategy.md`](architecture/frontend-strategy.md) (the plan), [`product/vision-and-open-questions.md`](product/vision-and-open-questions.md) (decisions and open questions), [`architecture/data-copy-warning.md`](architecture/data-copy-warning.md) (read before touching appdata) |
@@ -18,7 +18,7 @@
 
 | Thing | Port | State |
 |---|---|---|
-| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc19`** (2026-10-04, PR #44): safe in-place editing of existing recipe content with fixed names, plus transactional nutrition refresh for every dependent recipe after a food correction, including archived recipes. Manual cooked weights and saved Diary snapshots are preserved. Publish run [37164183555](https://github.com/dougalbob/cals/actions/runs/37164183555), digest `sha256:6c008431…`; `dev-latest` moved and the anonymous-pull gate passed. **No schema migration, data copy, appdata operation or template change.** The owner reports rc18 is currently running and approved on Unraid; rc19 was tested and approved in the Arena preview but still awaits Force Update and Unraid review. Phase 12 owner acceptance is signed off (2026-10-03); rc14's additive recipe-archive migration is already included in rc18. Check the in-app footer or `GET /api/version` to confirm the installed checkpoint |
+| **V2 `cals-dev-v2`** — the React rebuild's container | 8151 | **Live and Cloudflare-routed: this is the app the household sees.** Installed from the `cals-dev-v2.xml` Unraid template; appdata `/mnt/user/appdata/cals-dev-v2` holds **live household data**. The newest published checkpoint is **`v2.0.0-dev-rc20`** (2026-10-04, PR #46) — **documentation only: the image is functionally identical to rc19**, carrying decisions 66–73 (the owner's road-test list, scheduled not implemented). Publish run [37165937734](https://github.com/dougalbob/cals/actions/runs/37165937734), digest `sha256:67d79b90…`; `dev-latest` moved and the anonymous-pull gate passed. The newest checkpoint with **behaviour** in it is **`v2.0.0-dev-rc19`** (2026-10-04, PR #44): safe in-place editing of existing recipe content with fixed names, plus transactional nutrition refresh for every dependent recipe after a food correction, including archived recipes. Manual cooked weights and saved Diary snapshots are preserved. Its publish run was [37164183555](https://github.com/dougalbob/cals/actions/runs/37164183555), digest `sha256:6c008431…`. **No schema migration, data copy, appdata operation or template change.** The owner reports rc18 is currently running and approved on Unraid; rc19 was tested and approved in the Arena preview but still awaits Force Update and Unraid review. Phase 12 owner acceptance is signed off (2026-10-03); rc14's additive recipe-archive migration is already included in rc18. Check the in-app footer or `GET /api/version` to confirm the installed checkpoint |
 | **V1 `cals-counter`** | 8150 | Legacy vanilla-JS app, still running but **stale**: it stopped receiving household entries when the Cloudflare route moved to 8151 |
 | **`cals-dev-identity`** (dev only) | 8152, LAN only | Disposable copy used for the `DEV_IDENTITY_SWITCH` (`/dev/identity`, or the template's WebUI shortcut — the bare LAN URL opens the normal app). **The only container allowed to lose data** |
 
@@ -33,7 +33,7 @@ or copy over an appdata directory without reading the warning document first.**
 ### How to tell which build you are looking at
 
 - `GET /api/version` (and the in-app footer) reports the application version — **`2.0.0`** on the V2 line since decision 12; `main` stays on `1.7.0` until promotion.
-- Docker image tags identify the checkpoint: `v2.0.0-dev-rcN` (newest: **rc19**, published 2026-10-04 — safe existing-recipe editing and transactional dependent-recipe food-correction refresh; rc18 brought hydration target/overage clarity, proportional Today meal fills and the Calendar padded-month opacity fix). `dev-latest` follows the newest development tag; **`latest` is reserved for a future stable release and has never been published**.
+- Docker image tags identify the checkpoint: `v2.0.0-dev-rcN` (newest: **rc20**, published 2026-10-04 — **documentation only, functionally identical to rc19**; rc19 brought safe existing-recipe editing and transactional dependent-recipe food-correction refresh; rc18 brought hydration target/overage clarity, proportional Today meal fills and the Calendar padded-month opacity fix). `dev-latest` follows the newest development tag; **`latest` is reserved for a future stable release and has never been published**.
 
 ---
 
@@ -60,11 +60,12 @@ summary.
 
 The owner reports that **rc18 is running on Unraid and approves it** (2026-10-04); that review is closed.
 The owner also tested and signed off on rc19's two safety slices in the Arena preview; the new image
-is published, but the Unraid Force Update/review remains outstanding.
+is published, but the Unraid Force Update/review remains outstanding. `v2.0.0-dev-rc20` was published
+after it and adds nothing to review — it is the documentation checkpoint for decisions 66–73.
 
 | # | What | Where |
 |---|---|---|
-| 1 | **Force Update `cals-dev-v2` to `v2.0.0-dev-rc19` and review existing-recipe editing and food-correction recalculation at phone size.** No schema migration, appdata operation, data copy or template change; rc14's additive archive migration is already present in rc18. Confirm the in-app footer or `GET /api/version` after updating. | Unraid → `cals-dev-v2` |
+| 1 | **Force Update `cals-dev-v2` to `v2.0.0-dev-rc20` and review existing-recipe editing and food-correction recalculation at phone size.** rc20 is the newest tag but carries documentation only, so the *behaviour* to review is unchanged from rc19 — and no Force Update is needed on rc20's own account. No schema migration, appdata operation, data copy or template change; rc14's additive archive migration is already present in rc18. Confirm the in-app footer or `GET /api/version` after updating. | Unraid → `cals-dev-v2` |
 | 2 | ~~**Phase 12 acceptance review** — Home and Diary, both identities, phone size~~ **✅ Signed off 2026-10-03.** | (closed) |
 | 3 | **Answer the question decision 63 raised:** should Today be the last loggable day *everywhere*? The Calendar now clamps at Today, but the Diary's › arrow and `POST /api/diary` still accept tomorrow so a planned meal can be logged ahead of time. If the answer is “clamp it everywhere”, that is a small PR plus a `400` on future dates and a regression test | `docs/product/vision-and-open-questions.md` §I |
 
@@ -114,6 +115,8 @@ Full reasoning and every open sub-question:
 ---
 
 ## 6. Housekeeping done recently
+
+- **Published `v2.0.0-dev-rc20` — decisions 66–73 scheduled (2026-10-04, PR #46, documentation only).** PR #46 passed [Go vet + tests](https://github.com/dougalbob/cals/actions/runs/37165813876) and [Docker build validation](https://github.com/dougalbob/cals/actions/runs/37165813898), merged to `cals-dev` as `4c96fa3`, and that exact commit was tagged. [Publish run 37165937734](https://github.com/dougalbob/cals/actions/runs/37165937734) passed the ancestry guard, build, image push, prerelease creation and anonymous-pull check; digest `sha256:67d79b90c27d4fbb446ca33e7abc3076dbf7cb0e4ab33d0cf56f04be4d01b202`, [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc20). **The image is functionally identical to rc19** — nothing new reaches the household and no Force Update is required on its own account. No schema migration, data copy, appdata operation or template change.
 
 - **The owner's seven-item road-test list recorded and scheduled — decisions 66–73 (2026-10-04).** Nothing implemented; this was a documentation pass. Four clarifications were settled with the owner first: the bank window applies **everywhere** rather than to the ring alone (revising decision 44), it **defaults to 14 days** with presets of 30 / 14 / 7 / All time plus a custom value, the body outline's shape comes from a **new per-user setting** (`users` has no gender column today), and the body map's write target is left as an open design point for the session that builds it (today `POST /api/measurements` deletes the whole row for a date, and there is no update endpoint). Three items — the Diary meal-card fill, the recipe log-count badge and the Recipes layering bug — fit no existing phase and are grouped as the **Phase 13 polish slice** in §4; the bank window, the body map and the three chart decisions extend Phase 14, and the two new settings extend Phase 15. The layering bug's root cause was verified in the code (`AppLayout.tsx` sets no `z-index`; `RecipesRoute.tsx` tags are `z-10`/`z-20`), so the fix is not guesswork. **No code, schema, API, image or appdata change** — documentation only, following the rc13 precedent.
 
