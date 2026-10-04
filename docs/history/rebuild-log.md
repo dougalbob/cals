@@ -14,6 +14,48 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Stabilisation pass: a real-browser suite, a container runtime check, and the portion sheet's actions
+
+The owner asked for the app to be tested as it stands before Phase 14 — fix what testing confirms,
+record what remains, add no features. All of it lives on `arena/01a106a2-cals` as **PR #52, unmerged
+and unpublished**; rc22 stays the latest checkpoint.
+
+**A small Playwright suite** (`web/frontend/e2e/`, 17 tests) drives the built bundle in a real
+Chromium at phone size: Diary logging with an API cross-check, rescaling one entry, Cancel writing
+nothing, and the Edit quantity sheet's Cancel/Save pinned in view on a 412×560 screen with the page
+behind it scroll-locked; Today carrying no water controls while drink calories still count; the Diary
+glass, over-target copy, long-press delete, past-date logging and drink calories landing in tomorrow's
+bank; the orange **Own creation** marker on exactly one card plus the tag/occasion filters; and the
+portion sheet on a 360×640 phone. The suite serves the pre-built bundle with the fixture API in
+process — no Go server, no database, never household data — resets fixtures before each spec, and pins
+UTC in both the server and the browser. It runs at milestones (`v*-dev*` tags, manual dispatch, or a PR
+labelled `run-e2e`), never on ordinary PRs.
+
+**The runtime gap closed as far as CI allows.** `docker-validate.yml` now starts the built image with a
+disposable database (no volume mounts), waits for `/health`, exercises the real routes with
+`scripts/smoke-app-routes.sh`, asserts the migrations created the expected tables, and checks a second
+container without `DEV_MODE` still refuses the protected routes with `401`. Failures print a route
+table and the containers' logs. Docker remains unavailable in the Arena sandbox, which is why this
+lives in GitHub Actions; it is green on PR #52.
+
+**One real bug found and fixed.** On a 360 px-wide phone the recipe portion sheet opened with **Cancel**
+and **Add to diary** about 63 px below the fold (563 px sheet, 124 px of scroll overflow) — fine at
+412×839, so the earlier phone work had missed it. `RecipePortionSheet` now hands the actions to
+`Modal`'s fixed `footer`, outside the scrolling area; a Playwright test at 360×640 and a Vitest
+structural assertion pin it. The fix is in no image yet. The diary Edit sheet's similar fix *is* in
+rc22.
+
+**Two follow-ups recorded rather than fixed.** The milestone workflow's artifact name used the PR ref
+(`52/merge`), which Actions rejects because it contains a slash; the artifact is now named from the run
+id, and a labelled PR re-runs the suite on later pushes. And raw Actions log downloads stay unreliable
+from the Arena sandbox, so CI is built to be self-diagnosing instead: a short failure summary in the
+run summary, and artifacts uploaded with `if: always()`.
+
+Checks at the end of the pass: 17/17 Playwright in the sandbox (the same 17 pass in GitHub), 177 Vitest
+tests, ESLint and `tsc` clean, `build:go`/`build:preview` clean, Go vet + tests green, and Docker
+validation green in GitHub. How each layer works, and what is deliberately not covered, is written up
+once in [`../architecture/testing.md`](../architecture/testing.md).
+
 ## 2026-10-04 — Published `v2.0.0-dev-rc22` (PR #50, decisions 79–81)
 
 The owner approved the Arena preview before publication. PR #50 passed Docker and Go validation,

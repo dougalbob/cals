@@ -8,7 +8,12 @@ checkpoint, `v2.0.0-dev-rc22` (PR #50), was published 2026-10-04 after the owner
 preview. It adds the shared orange **Own creation** marker (decision 79), fixes the mobile Diary Edit
 sheet, removes hydration actions from Today while retaining them on Diary, and sets both pages' meal
 fills to 5% color alpha. **Force Update/review of rc22 on Unraid is pending; the owner plans to
-re-test the Edit sheet on a phone after updating.** The only schema change is additive:
+re-test the Edit sheet on a phone after updating.** A test-only **stabilisation pass** now sits on the
+`arena/01a106a2-cals` branch (PR #52, unmerged, publishes nothing): a small Playwright browser suite
+over the highest-value phone journeys, a CI step that starts the built image against a disposable
+database and smokes its routes, and a fix for the **recipe portion sheet**'s Cancel / Add to diary
+actions being cut off on a 360 px-wide phone (the sheet now keeps them in the modal footer). See
+[`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The only schema change is additive:
 `recipes.is_own_creation` defaults false and is applied at startup; no appdata copy or reset. The later
 create-from-scratch UI should reuse this field; the broader authoring UI and image upload/crop remain
 separate queued work. Earlier increments cover the photo-led catalogue, per-user favourites, shared
@@ -193,12 +198,21 @@ npm run typecheck     # tsc --noEmit, strict
 npm test              # vitest: domain maths + screen render tests
 npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
 npm run build:go      # production shell for the Go /next/ route → web/dist/
+npm run test:e2e      # Playwright browser suite (builds the preview bundle first)
 ```
 
 The tests exercise typed API behavior, domain maths and render the implemented screens against the
 fixture API, including add/edit/delete diary flows, serving/grams mode, recipe portion logging,
 hydration-target feedback, proportional meal-card fills and calendar month-cell states
-(172 tests total as of 2026-10-04).
+(177 tests total as of 2026-10-04).
+
+The **browser suite** (`e2e/`, 17 tests) covers what jsdom cannot: Diary logging/editing and the Edit
+sheet's pinned actions on a short screen, the Today-vs-Diary hydration split with drink-calorie
+accounting, the recipe-origin marker with the catalogue filters, and the portion sheet on a small
+phone. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
+server, no database and never household data — and, in CI, only for milestones (release tags, manual
+dispatch, or a PR labelled `run-e2e`). Layer-by-layer detail, including the sandbox's browser
+workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).
 
 ## Phase 11 Go integration
 
