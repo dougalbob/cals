@@ -39,6 +39,22 @@ web/frontend/e2e/hydration.spec.ts     Today has no water controls; Diary has th
 web/frontend/e2e/recipes.spec.ts       the orange Own creation marker (catalogue + detail toggle),
                                        tag/occasion filtering, and the portion sheet's actions on a
                                        small phone
+web/frontend/e2e/recipes-catalogue.spec.ts  search, empty state, favourites, the archived view,
+                                       restore
+web/frontend/e2e/recipes-detail.spec.ts facts, ingredients, method, the Add tag form (meal
+                                       occasions, the two-key-food limit, Cancel, total time) and
+                                       archive/restore
+web/frontend/e2e/recipes-portion-sheet.spec.ts  remembered usual, fractions, direct grams,
+                                       one-off vs make-this-my-usual, meal choice, Cancel
+web/frontend/e2e/recipes-editor.spec.ts  Edit recipe: fixed name, measured vs calculated weight,
+                                       validation, text ingredients, Cancel discarding edits
+web/frontend/e2e/recipes-diary-handoff.spec.ts  the Diary meal picker: carried meal/date, logging
+                                       return trip, archived recipe refusing to log
+web/frontend/e2e/recipes-touch.spec.ts  every tick-box answers a real touch tap (box and text),
+                                       rows resist selection/double-tap zoom, text fields stay
+                                       selectable
+web/frontend/e2e/navigation.spec.ts    the bottom nav's arrow and a real touch swipe reveal the
+                                       last destinations
 web/frontend/e2e/desktop-smoke.spec.ts thin desktop render pass (tagged @desktop)
 web/frontend/e2e/support.ts            fixture reset + API/date helpers
 web/frontend/e2e/summarise-results.mjs short failure list for the job log/summary
@@ -53,8 +69,14 @@ Design rules, so the suite stays trustworthy:
   every spec, both the server and the browser pinned to UTC so "today" cannot differ between them.
 - **Phone-first.** The default project is a Pixel 7 viewport with touch; specs that only make sense on
   a desktop are tagged `@desktop` and run in the second project.
-- **Small.** Only the highest-value journeys. Anything already covered by a unit test belongs there,
-  not here.
+- **Small, but the recipe area is deliberately thorough.** The owner asked for a top-to-bottom pass
+  over the recipe pages and sheets after a phone oddity on the Add tag form, so that area is covered
+  control by control; the rest of the suite stays a thin slice of the highest-value journeys.
+- **Expected values come from the API**, not from memory: a spec reads `/api/recipes/:id` or
+  `/api/diary` and asserts the screen against it, so a fixture change cannot silently weaken a test.
+- **Real touch input for phone behaviour.** `touchTap` in `support.ts` centres an element and taps it
+  with `page.touchscreen`, and the navigation swipe uses CDP touch events — a mouse click would prove
+  nothing about either.
 - **Evidence on failure.** Traces, screenshots and video are written for failures and uploaded as the
   `playwright-*` artifact even when the job fails; the JSON report is uploaded too.
 
@@ -109,6 +131,10 @@ bundled ffmpeg comes from the blocked CDN; traces and screenshots still work.
 - **Recipe creation and image upload/crop.** Not built yet.
 - **Every combination of date, meal, unit and filter.** The unit tests carry that weight; the browser
   suite exists to catch what jsdom cannot see.
+- **Android's own selection/copy popup.** Headless Chromium does not reproduce it, so
+  `recipes-touch.spec.ts` pins the CSS that stops Android from offering it (`touch-action:
+  manipulation`, `user-select: none` on label rows) rather than the popup itself. The phone re-test
+  after the next release is what confirms it end to end.
 
 ## 5. Adding to the suite
 
@@ -118,4 +144,6 @@ bundled ffmpeg comes from the blocked CDN; traces and screenshots still work.
 3. Use role/name locators from the app's real accessible names — no test IDs were added for this.
 4. Assert at phone size (the default project). If a bug needs a short screen, set the viewport
    explicitly and say why in a comment, as `diary.spec.ts` does for the Edit sheet.
-5. Keep it green: `npm run lint && npm run typecheck && npm test && npm run test:e2e`.
+5. For anything a finger does — tapping, swiping, long-pressing — drive it through
+   `page.touchscreen`/CDP instead of `click()`, or the test cannot see the bug you are chasing.
+6. Keep it green: `npm run lint && npm run typecheck && npm test && npm run test:e2e`.

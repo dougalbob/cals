@@ -14,6 +14,39 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-04 — Phone tick-box taps: the recipe area gets a top-to-bottom browser pass
+
+The owner reported that on the phone the **Own creation** tick-box sometimes ignored a tap, that the
+**Meal occasion** boxes behaved oddly too, and that a tap sometimes started Android's copy-text helper
+— and asked for a top-to-bottom test pass over the recipe pages and sheets to see what else fell out.
+Still PR #52, unmerged and unpublished.
+
+**The cause was browser interpretation of a slightly slow tap, not app logic.** Label rows carried
+selectable text and no `touch-action`, so a long-ish press began a text selection — the release then
+showed the copy/paste helper and never reached the control — and a tap shortly after another nearby
+tap could be read as double-tap zoom and swallowed. A desktop mouse never triggers either, which is
+exactly why the earlier checks passed. `src/styles.css` now sets `touch-action: manipulation` on
+interactive controls and stops labels being selectable, while text fields stay selectable. The
+bottom nav's touch swipe was the one thing this could plausibly break, so it is now pinned by its own
+test.
+
+**The recipe area is covered control by control** (`recipes-catalogue`, `recipes-detail`,
+`recipes-portion-sheet`, `recipes-editor`, `recipes-diary-handoff`, `recipes-touch`, plus
+`navigation.spec.ts`): search and the empty state, favourites, the archived view and restore; the
+detail facts, ingredients, method and the Add tag form (meal occasions, the two-key-food limit,
+Cancel, total time) and archive/restore; the portion sheet's remembered usual, fractions, direct
+grams, the one-off versus make-this-my-usual split and meal choice; Edit recipe's fixed name,
+measured-versus-calculated weight, validation, text ingredients and Cancel; the Diary meal picker's
+carried meal and date; and real touch taps on every tick-box. Expected values are read from the API
+rather than hard-coded, and everything a finger does is driven through `page.touchscreen`/CDP.
+
+Two smaller findings were recorded rather than changed: the Serves field's `min="1"` means the
+browser's own constraint message appears before the app's, leaving the app's wording unreachable (the
+outcome is still correct — nothing saves), and the Archived view toggle stays pressed-but-disabled
+once the last archived recipe is restored.
+
+Evidence: 51/51 browser tests, 177 Vitest tests, lint and typecheck clean.
+
 ## 2026-10-04 — Stabilisation pass: a real-browser suite, a container runtime check, and the portion sheet's actions
 
 The owner asked for the app to be tested as it stands before Phase 14 — fix what testing confirms,
