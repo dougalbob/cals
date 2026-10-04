@@ -119,11 +119,37 @@ export function RecipePortionSheet({
     )
   }
 
+  // Cancel / Add to diary live in the sheet's fixed footer, exactly like the
+  // Diary quantity Edit sheet: on a small phone the portion sheet's content is
+  // taller than the screen, and an action row that scrolls with it can sit
+  // below the fold the moment the sheet opens (measured at 360×640 before this
+  // fix, where "Add to diary" opened 63 px off-screen).
+  const footer = canLog ? (
+    <div className="flex items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={onClose}
+        className="min-h-11 rounded-xl border border-line bg-surface px-4 text-sm text-ink cursor-pointer"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        disabled={!valid || !nutrition || log.isPending}
+        onClick={() => log.mutate()}
+        className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-white border-0 cursor-pointer disabled:opacity-50"
+      >
+        {log.isPending ? 'Adding…' : 'Add to diary'}
+      </button>
+    </div>
+  ) : undefined
+
   return (
     <Modal
       open
       title={fromDiary ? `Add ${recipe.name} to ${mealLabel(meal)}` : `Add ${recipe.name}`}
       onClose={onClose}
+      footer={footer}
     >
       {!canLog ? (
         <p role="alert" className="m-0 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -262,24 +288,6 @@ export function RecipePortionSheet({
               {(log.error as Error).message}
             </p>
           )}
-
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-11 rounded-xl border border-line bg-surface px-4 text-sm text-ink"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!valid || !nutrition || log.isPending}
-              onClick={() => log.mutate()}
-              className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {log.isPending ? 'Adding…' : 'Add to diary'}
-            </button>
-          </div>
         </div>
       )}
     </Modal>
