@@ -229,7 +229,7 @@ The tests exercise typed API behavior, domain maths and render the implemented s
 fixture API, including add/edit/delete diary flows and delete confirmation, serving/grams mode, recipe
 portion logging, URL-backed recipe filters including Own creation, hydration-target feedback, separate
 Today/Diary meal-fill alpha, calendar month-cell states and new-recipe creation/validation plus
-recipe-photo upload/replacement flows (248 tests across 32 files as of 2026-10-05).
+recipe-photo upload/replacement flows (249 tests across 32 files as of 2026-10-05).
 
 The **browser suite** (`e2e/`) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, confirmation/cancel behaviour when deleting a meal entry,

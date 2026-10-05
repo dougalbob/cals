@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 248 tests over 32 files (2026-10-05, with 14.3's drag-gesture, trend and goal-band tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue), API client behaviour, and screen rendering with user events against the fixture API — 249 tests over 32 files (2026-10-05, with 14.3's drag-gesture, trend and goal-band tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production `/next/` bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
