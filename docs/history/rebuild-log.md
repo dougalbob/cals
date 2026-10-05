@@ -17,7 +17,7 @@ at the decision numbers and PRs rather than restating the documents.
 ## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
 
 The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
-increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`; its latest code checks passed: Docker/runtime ([run 37385601037](https://github.com/dougalbob/cals/actions/runs/37385601037)), Go ([run 37385600798](https://github.com/dougalbob/cals/actions/runs/37385600798)) and Playwright ([run 37385600594](https://github.com/dougalbob/cals/actions/runs/37385600594), 72/72).
+increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`. After PR #75 merged the rc33 publication record into the base, the updated code-bearing head `fc6e461` passed Docker/runtime ([run 37386598852](https://github.com/dougalbob/cals/actions/runs/37386598852)), Go ([run 37386598895](https://github.com/dougalbob/cals/actions/runs/37386598895)) and Playwright ([run 37386598925](https://github.com/dougalbob/cals/actions/runs/37386598925), 72/72); the docs-only final head is checked again before merge.
 
 Settings persists profile/targets, bank-window presets and custom values, independent surplus/deficit
 ring display limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
