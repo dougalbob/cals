@@ -40,6 +40,7 @@ const MIME = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -125,7 +126,29 @@ const server = createServer(async (req, res) => {
     pathname = url.pathname
   }
 
-  const candidate = resolve(join(ROOT, pathname))
+  // The app is deliberately reviewed at its production mount point. Keep the
+  // root app's manifest/worker paths untouched; extension-less links used by
+  // older Playwright specs redirect into the React app's /next/ basename.
+  if (pathname === '/next') {
+    res.writeHead(308, { Location: `/next/${url.search}` })
+    res.end()
+    return
+  }
+  if (!pathname.startsWith('/next/')) {
+    if (!extname(pathname)) {
+      res.writeHead(308, { Location: `/next${pathname}${url.search}` })
+      res.end()
+      return
+    }
+    res.statusCode = 404
+    res.setHeader('Content-Type', MIME['.txt'])
+    res.end('Not found')
+    return
+  }
+
+  const relativePath = pathname.slice('/next/'.length)
+  const candidate = resolve(join(ROOT, relativePath))
+  if (relativePath === 'sw.js') res.setHeader('Service-Worker-Allowed', '/next/')
   // Refuse to serve anything outside the build directory.
   if (candidate !== ROOT && !candidate.startsWith(ROOT + sep)) {
     res.statusCode = 403
@@ -155,7 +178,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`cals preview (static + fixtures) v${APP_VERSION}`)
-  console.log(`  http://localhost:${PORT}/`)
+  console.log(`  http://localhost:${PORT}/next/`)
   console.log(`  serving   ${ROOT}`)
   if (process.env.VITE_API_TARGET) {
     console.log(

@@ -109,6 +109,29 @@ describe('fixture windowed bank', () => {
     expect(body.days_unlogged).toBe(seed.daysBetween(seed.users[1].bank_start_date, seed.TODAY) - 2)
   })
 
+  it('keeps each per-user bank-ring display limit independent and presentation-only', () => {
+    const primaryBefore = get('/api/users/me').body
+    expect(primaryBefore.bank_ring_surplus_limit_kcal).toBe(2000)
+    expect(primaryBefore.bank_ring_deficit_limit_kcal).toBe(2000)
+
+    expect(put('/api/users/me', {
+      bank_ring_surplus_limit_kcal: 3500,
+      bank_ring_deficit_limit_kcal: 1250,
+    }, asUser(2)).status).toBe(200)
+    const sarah = get('/api/users/me', asUser(2)).body
+    expect(sarah.bank_ring_surplus_limit_kcal).toBe(3500)
+    expect(sarah.bank_ring_deficit_limit_kcal).toBe(1250)
+
+    const primaryAfter = get('/api/users/me').body
+    expect(primaryAfter.bank_ring_surplus_limit_kcal).toBe(2000)
+    expect(primaryAfter.bank_ring_deficit_limit_kcal).toBe(2000)
+
+    expect(put('/api/users/me', { bank_ring_surplus_limit_kcal: 0 }, asUser(2)).status).toBe(400)
+    const afterRejectedUpdate = get('/api/users/me', asUser(2)).body
+    expect(afterRejectedUpdate.bank_ring_surplus_limit_kcal).toBe(3500)
+    expect(afterRejectedUpdate.bank_ring_deficit_limit_kcal).toBe(1250)
+  })
+
   it('rejects a negative window and keeps the stored value', () => {
     expect(put('/api/users/me', { bank_window_days: -1 }).status).toBe(400)
     expect(get(`/api/bank?date=${seed.TODAY}`).body.window_days).toBe(14)

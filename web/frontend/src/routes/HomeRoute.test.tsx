@@ -72,7 +72,7 @@ describe('HomeRoute', () => {
       `Bank balance ${signedBalance} kcal`,
     )
     expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
-      `${percentText} of its plus or minus 2,000 kcal display scale`,
+      `${percentText} of its plus 2,000 kcal surplus or minus 2,000 kcal deficit display scale`,
     )
     expect(screen.queryByText(/kcal scale/)).toBeNull()
   })

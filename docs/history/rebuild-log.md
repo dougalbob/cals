@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
+
+The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
+increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`. After PR #75 merged the rc33 publication record into the base, the updated code-bearing head `fc6e461` passed Docker/runtime ([run 37386598852](https://github.com/dougalbob/cals/actions/runs/37386598852)), Go ([run 37386598895](https://github.com/dougalbob/cals/actions/runs/37386598895)) and Playwright ([run 37386598925](https://github.com/dougalbob/cals/actions/runs/37386598925), 72/72); the docs-only final head is checked again before merge.
+
+Settings persists profile/targets, bank-window presets and custom values, independent surplus/deficit
+ring display limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
+limits are additive user columns, each defaulting to 2,000 kcal; they only scale the outer arc and never
+change bank arithmetic. Theme and haptics remain device-local. Decision-47 tracked-nutrient preferences
+and the missing-data audit stay deferred until their open choices are settled.
+
+The React PWA has its own manifest and icons, with `start_url` and worker scope `/next/`; it does not
+reuse the legacy root app's assets. Its worker has no fetch handler or cache behavior: no offline logging,
+queued writes, cached API/data promise or push notifications. The install guidance requires a connection.
+**Phase 16 still has to retarget and retest installability at `/`.** The migration is additive; no data
+copy, reset or appdata operation occurred.
+
+Verification: 311 Vitest tests over 40 files, lint/typecheck/doc links, Go tests/vet, `build:go` and
+`build:preview` passed. The full local phone+desktop Playwright suite and all three PR browser checks
+pass: **72/72**. The previously deferred bottom-navigation swipe failure was fixed for this publication
+loop by forwarding gestures started on the More/Back overlays to the scroller; the updated phone test
+swipes through both overlays. The new Settings journey, all three PWA checks and both desktop smoke
+tests pass. The PWA build emits a non-blocking `inlineDynamicImports` deprecation warning. The
+tracked-nutrient slice (15.2) remains deferred pending decision 47.
+
+---
+
 ## 2026-10-05 — Phase 14.6 published as `v2.0.0-dev-rc33`, after GitHub's Actions incident
 
 PR #74 (the weekly report) was merged into `cals-dev` as `e6d4d3c531ceae421245b40879f1b1a58dd7e993` and

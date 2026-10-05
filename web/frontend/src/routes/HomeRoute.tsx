@@ -90,6 +90,8 @@ export function HomeRoute() {
             bankBalance={bankBalance}
             goal={bank.data?.daily_goal ?? 0}
             bankWindowDays={bank.data?.window_days}
+            bankSurplusLimitKcal={user.data?.bank_ring_surplus_limit_kcal}
+            bankDeficitLimitKcal={user.data?.bank_ring_deficit_limit_kcal}
           />
 
           <div className="w-full flex-1 grid grid-cols-2 gap-3">

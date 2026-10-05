@@ -154,6 +154,11 @@ export interface SeedUser {
   daily_water_goal_ml: number
   weight_unit: string
   bank_start_date: string
+  bank_window_days: number
+  bank_ring_surplus_limit_kcal: number
+  bank_ring_deficit_limit_kcal: number
+  weight_trend_days: number
+  body_outline: 'female' | 'male' | null
   target_weight_kg?: number
   created_at: string
   updated_at: string

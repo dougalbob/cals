@@ -10,7 +10,7 @@ import {
   updateDiaryEntry,
 } from '../api/diary'
 import type { CreateDiaryEntryInput } from '../api/diary'
-import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api/types'
+import { MEALS, type DiaryEntry, type Drink, type Food, type Meal, type User } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
 import { QuantityPicker } from '../components/QuantityPicker'
@@ -47,6 +47,10 @@ export function DiaryRoute() {
   const [deleteEntryConfirm, setDeleteEntryConfirm] = useState<DiaryEntry | null>(null)
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null)
 
+  const user = useQuery<User>({
+    queryKey: queryKeys.user,
+    queryFn: () => apiGet<User>('/api/users/me'),
+  })
   const diary = useDiary(date)
   const bank = useBank(date)
   const drinks = useDrinkEntries(date)
@@ -220,6 +224,8 @@ export function DiaryRoute() {
           bankBalance={bankBalance}
           goal={bank.data?.daily_goal ?? 0}
           bankWindowDays={bank.data?.window_days}
+          bankSurplusLimitKcal={user.data?.bank_ring_surplus_limit_kcal}
+          bankDeficitLimitKcal={user.data?.bank_ring_deficit_limit_kcal}
         />
         <div className="flex-1 w-full grid grid-cols-2 gap-3">
           <Tile label="Daily goal" value={formatNumber(bank.data?.daily_goal ?? 0)} unit="kcal" />

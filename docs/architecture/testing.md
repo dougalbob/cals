@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 305 tests over 38 files (2026-10-05, with 14.3's drag-gesture, trend and goal-band tests and 14.6's report-range, summary and card tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 311 tests over 40 files (2026-10-05, including Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production `/next/` bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
@@ -56,13 +56,17 @@ web/frontend/e2e/recipes-diary-handoff.spec.ts  the Diary meal picker: carried m
 web/frontend/e2e/recipes-touch.spec.ts  every tick-box answers a real touch tap (box and text),
                                        rows resist selection/double-tap zoom, text fields stay
                                        selectable
-web/frontend/e2e/navigation.spec.ts    the bottom nav's arrow and a real touch swipe reveal the
-                                       last destinations
+web/frontend/e2e/navigation.spec.ts    the bottom nav's arrow, plus real touch swipes through the
+                                       More/Back overlays to reveal and return from the last destinations
 web/frontend/e2e/metrics.spec.ts      the 14.3 charts: a real touch drag moves the shared window,
                                        the URL keeps it across a reload, and the trend names its method
 web/frontend/e2e/metrics-report.spec.ts  the 14.6 weekly report: opening on the current week, paging
                                        back, unlogged days named, and a free custom range (with its
                                        backwards-range refusal)
+web/frontend/e2e/settings.spec.ts    phone flow from overflow navigation; saves the custom bank
+                                       window and independent ring limits to the fixture account
+web/frontend/e2e/pwa.spec.ts          React-specific /next/ manifest and icons, inert network-only
+                                       worker, pre-paint theme and worker scope
 web/frontend/e2e/desktop-smoke.spec.ts thin desktop render pass (tagged @desktop)
 web/frontend/e2e/support.ts            fixture reset + API/date helpers
 web/frontend/e2e/summarise-results.mjs short failure list for the job log/summary

@@ -341,6 +341,12 @@ func RunMigrations() error {
 		// the Bust point and the male outline the Chest point (decision 98),
 		// keeping both measurement columns meaningful.
 		`ALTER TABLE users ADD COLUMN body_outline TEXT`,
+
+		// Phase 15 (decision 27): independent positive and negative display
+		// limits for the bank ring. Additive defaults preserve today's ±2,000
+		// kcal appearance; these values never enter the bank calculation.
+		`ALTER TABLE users ADD COLUMN bank_ring_surplus_limit_kcal INTEGER NOT NULL DEFAULT 2000`,
+		`ALTER TABLE users ADD COLUMN bank_ring_deficit_limit_kcal INTEGER NOT NULL DEFAULT 2000`,
 	}
 
 	for _, migration := range migrations {

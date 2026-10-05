@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router'
 import { router } from './router'
+import { startInstallPromptCapture } from './lib/pwaInstall'
 import './styles.css'
+
+startInstallPromptCapture()
 
 const queryClient = new QueryClient({
   defaultOptions: {

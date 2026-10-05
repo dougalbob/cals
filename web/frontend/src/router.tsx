@@ -40,6 +40,9 @@ const NutritionRoute = lazy(() =>
 const DrinksRoute = lazy(() =>
   import('./routes/DrinksRoute').then((m) => ({ default: m.DrinksRoute })),
 )
+const SettingsRoute = lazy(() =>
+  import('./routes/SettingsRoute').then((m) => ({ default: m.SettingsRoute })),
+)
 
 const basename =
   import.meta.env.BASE_URL === '/' ? '/' : import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -63,6 +66,7 @@ export const router = createBrowserRouter(
         { path: 'metrics', element: <MetricsRoute /> },
         { path: 'nutrition', element: <NutritionRoute /> },
         { path: 'drinks', element: <DrinksRoute /> },
+        { path: 'settings', element: <SettingsRoute /> },
         { path: '*', element: <Navigate to="/diary" replace /> },
       ],
     },

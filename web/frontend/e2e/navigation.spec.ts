@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { resetFixtures } from './support'
 
 /**
- * The bottom navigation is a five-slot window over six destinations, revealed
+ * The bottom navigation is a five-slot window over eight destinations, revealed
  * by a horizontal swipe or the arrow. The global `touch-action: manipulation`
  * rule for tap reliability must not break that swipe, so both routes are
  * checked here — with real touch input, not a scripted scrollLeft.
@@ -32,17 +32,17 @@ test.describe('Bottom navigation on a phone', () => {
     await resetFixtures(request)
     await page.goto('/diary')
 
-    // Five slots are on screen; Foods and Recipes sit past the right edge. (The
-    // clipping edge leaves a sub-pixel sliver, so ask for "mostly showing".)
+    // Five slots are on screen; Foods, Recipes and Settings sit past the right edge.
     const shown = { ratio: 0.5 } as const
     await expect(page.getByRole('link', { name: 'Today' })).toBeInViewport(shown)
     await expect(page.getByRole('link', { name: 'Foods' })).not.toBeInViewport(shown)
 
-    await page.getByRole('button', { name: 'Show Foods and Recipes' }).click()
+    await page.getByRole('button', { name: 'Show Foods, Recipes and Settings' }).click()
     await expect(page.getByRole('link', { name: 'Foods' })).toBeInViewport(shown)
     await expect(page.getByRole('link', { name: 'Recipes' })).toBeInViewport(shown)
+    await expect(page.getByRole('link', { name: 'Settings' })).toBeInViewport(shown)
 
-    await page.getByRole('button', { name: 'Show earlier navigation destinations' }).click()
+    await page.getByRole('button', { name: 'Show main navigation' }).click()
     await expect(page.getByRole('link', { name: 'Today' })).toBeInViewport(shown)
     await expect(page.getByRole('link', { name: 'Foods' })).not.toBeInViewport(shown)
   })
@@ -59,5 +59,11 @@ test.describe('Bottom navigation on a phone', () => {
 
     await expect(page.getByRole('link', { name: 'Recipes' })).toBeInViewport({ ratio: 0.5 })
     expect(await nav.evaluate((element) => element.scrollLeft)).toBeGreaterThan(50)
+
+    // The Back overlay must also let a rightward finger swipe return to Today.
+    await swipeNav(page, box.x + 30, box.x + box.width - 30)
+    await expect(page.getByRole('link', { name: 'Today' })).toBeInViewport({ ratio: 0.5 })
+    await expect(page.getByRole('link', { name: 'Recipes' })).not.toBeInViewport({ ratio: 0.5 })
+    expect(await nav.evaluate((element) => element.scrollLeft)).toBeLessThan(50)
   })
 })

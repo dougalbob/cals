@@ -39,11 +39,11 @@ func GetOrCreateUser(email string) (*models.User, error) {
 	var targetWeightKg sql.NullFloat64
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, bank_ring_surplus_limit_kcal, bank_ring_deficit_limit_kcal, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
+		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.BankRingSurplusLimitKcal, &user.BankRingDeficitLimitKcal, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -70,6 +70,8 @@ func GetOrCreateUser(email string) (*models.User, error) {
 		user.WeightUnit = "stones"
 		user.BankStartDate = today
 		user.BankWindowDays = defaultBankWindowDays
+		user.BankRingSurplusLimitKcal = 2000
+		user.BankRingDeficitLimitKcal = 2000
 		user.WeightTrendDays = defaultWeightTrendDays
 		user.IsAdmin = isAdmin
 		user.CreatedAt = time.Now()
@@ -143,15 +145,17 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates struct {
-		Name             *string   `json:"name"`
-		DailyCalorieGoal *int      `json:"daily_calorie_goal"`
-		DailyWaterGoalML *int      `json:"daily_water_goal_ml"`
-		WeightUnit       *string   `json:"weight_unit"`
-		BankStartDate    *string   `json:"bank_start_date"`
-		BankWindowDays   *int      `json:"bank_window_days"`
-		WeightTrendDays  *int      `json:"weight_trend_days"`
-		BodyOutline      *string   `json:"body_outline"`
-		TargetWeightKG   **float64 `json:"target_weight_kg"`
+		Name                     *string   `json:"name"`
+		DailyCalorieGoal         *int      `json:"daily_calorie_goal"`
+		DailyWaterGoalML         *int      `json:"daily_water_goal_ml"`
+		WeightUnit               *string   `json:"weight_unit"`
+		BankStartDate            *string   `json:"bank_start_date"`
+		BankWindowDays           *int      `json:"bank_window_days"`
+		BankRingSurplusLimitKcal *int      `json:"bank_ring_surplus_limit_kcal"`
+		BankRingDeficitLimitKcal *int      `json:"bank_ring_deficit_limit_kcal"`
+		WeightTrendDays          *int      `json:"weight_trend_days"`
+		BodyOutline              *string   `json:"body_outline"`
+		TargetWeightKG           **float64 `json:"target_weight_kg"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -188,6 +192,20 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		}
 		user.BankWindowDays = *updates.BankWindowDays
 	}
+	if updates.BankRingSurplusLimitKcal != nil {
+		if *updates.BankRingSurplusLimitKcal <= 0 {
+			http.Error(w, "bank_ring_surplus_limit_kcal must be greater than 0", http.StatusBadRequest)
+			return
+		}
+		user.BankRingSurplusLimitKcal = *updates.BankRingSurplusLimitKcal
+	}
+	if updates.BankRingDeficitLimitKcal != nil {
+		if *updates.BankRingDeficitLimitKcal <= 0 {
+			http.Error(w, "bank_ring_deficit_limit_kcal must be greater than 0", http.StatusBadRequest)
+			return
+		}
+		user.BankRingDeficitLimitKcal = *updates.BankRingDeficitLimitKcal
+	}
 	if updates.WeightTrendDays != nil {
 		// The chart draws a trend only where at least three weigh-ins exist
 		// (decision 95), so a smaller window could never do anything; and the
@@ -219,9 +237,9 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = database.DB.Exec(`
-		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, body_outline = ?, target_weight_kg = ?, updated_at = CURRENT_TIMESTAMP
+		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, bank_ring_surplus_limit_kcal = ?, bank_ring_deficit_limit_kcal = ?, weight_trend_days = ?, body_outline = ?, target_weight_kg = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.BodyOutline, nullableFloat64(user.TargetWeightKG), user.ID)
+	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.BankRingSurplusLimitKcal, user.BankRingDeficitLimitKcal, user.WeightTrendDays, user.BodyOutline, nullableFloat64(user.TargetWeightKG), user.ID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -248,7 +266,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, bank_ring_surplus_limit_kcal, bank_ring_deficit_limit_kcal, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
 		FROM users ORDER BY name, email
 	`)
 	if err != nil {
@@ -264,7 +282,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 		var targetWeightKg sql.NullFloat64
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
+			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.BankRingSurplusLimitKcal, &user.BankRingDeficitLimitKcal, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {

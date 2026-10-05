@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { addDays, todayIso } from '../lib/format'
+import { vibrate } from '../lib/preferences'
 
 /**
  * Drag-to-pan a windowed chart (decision 69).
@@ -181,7 +182,7 @@ export function usePanWindow(days = 30): PanWindow {
           const appliedDelta = moveBy(delta)
           if (appliedDelta !== 0 && Math.abs(appliedDelta - lastHapticDelta) >= HAPTIC_DAY_INTERVAL) {
             lastHapticDelta = appliedDelta
-            navigator.vibrate?.(HAPTIC_MS)
+            vibrate(HAPTIC_MS)
           }
         }
       }

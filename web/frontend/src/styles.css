@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './themes.css';
 
 /*
  * Theme tokens ported from web/static/css/themes.css (CSS custom properties)

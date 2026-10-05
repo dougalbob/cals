@@ -1,8 +1,10 @@
 import { bankWindowPhrase } from '../lib/bank'
 import { formatNumber } from '../lib/format'
 
-/** Fixed display scale until the per-user limits are added in Phase 15 Settings. */
+/** Existing default display limit, retained for callers/tests that need the default. */
 export const BANK_RING_LIMIT_KCAL = 2_000
+export const DEFAULT_BANK_RING_SURPLUS_LIMIT_KCAL = BANK_RING_LIMIT_KCAL
+export const DEFAULT_BANK_RING_DEFICIT_LIMIT_KCAL = BANK_RING_LIMIT_KCAL
 
 /** 12 o'clock, where both the surplus and the deficit arc begin. */
 const START_ROTATION_DEGREES = -90
@@ -37,11 +39,11 @@ export function signedKcal(value: number): string {
 /**
  * The daily calorie rings answer two separate questions.
  *
- * **Outer ring:** where the cumulative calorie bank sits on a fixed -2,000 to
- * +2,000 kcal display scale. Both directions start at 12 o'clock; a surplus
- * fills clockwise in green and a deficit fills anticlockwise in red, and values
- * beyond either limit saturate the ring. The exact balance remains visible in
- * the hub; this is only a visual scale, not bank maths.
+ * **Outer ring:** where the calorie bank sits on two independent, per-user
+ * display scales. Both directions start at 12 o'clock; a surplus fills
+ * clockwise in green and a deficit fills anticlockwise in red, and values
+ * beyond the relevant limit saturate the ring. The exact balance remains
+ * visible in the hub; these limits are only presentation, not bank maths.
  *
  * **Inner ring:** today's plain daily allowance. Under the goal it is a
  * countdown — a complete green circle that drains clockwise as calories are
@@ -58,12 +60,17 @@ export function CalorieRing({
   bankBalance,
   goal,
   bankWindowDays,
+  bankSurplusLimitKcal = DEFAULT_BANK_RING_SURPLUS_LIMIT_KCAL,
+  bankDeficitLimitKcal = DEFAULT_BANK_RING_DEFICIT_LIMIT_KCAL,
 }: {
   consumed: number
   bankBalance: number
   goal: number
   /** The bank's rolling window, so the accessible label names it (decision 66). */
   bankWindowDays?: number
+  /** Per-user display-only limits for the outer bank arc (decision 27). */
+  bankSurplusLimitKcal?: number
+  bankDeficitLimitKcal?: number
 }) {
   const size = 190
   const stroke = 16
@@ -71,7 +78,15 @@ export function CalorieRing({
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
 
-  const bankProgress = Math.min(Math.abs(bankBalance) / BANK_RING_LIMIT_KCAL, 1)
+  // These limits alter only the arc's visual scale. The bankBalance itself is
+  // untouched and continues to come from the normal bank calculation.
+  const surplusLimit = Number.isFinite(bankSurplusLimitKcal) && bankSurplusLimitKcal > 0
+    ? bankSurplusLimitKcal
+    : DEFAULT_BANK_RING_SURPLUS_LIMIT_KCAL
+  const deficitLimit = Number.isFinite(bankDeficitLimitKcal) && bankDeficitLimitKcal > 0
+    ? bankDeficitLimitKcal
+    : DEFAULT_BANK_RING_DEFICIT_LIMIT_KCAL
+  const bankProgress = Math.min(Math.abs(bankBalance) / (bankBalance < 0 ? deficitLimit : surplusLimit), 1)
   const bankColour = bankBalance > 0 ? '#26de81' : bankBalance < 0 ? '#fc5c65' : '#edf2f7'
   const bankPercent = Math.round(bankProgress * 1_000) / 10
   const bankPercentLabel = `${formatNumber(bankPercent, Number.isInteger(bankPercent) ? 0 : 1)}%`
@@ -113,7 +128,8 @@ export function CalorieRing({
         : `Bank balance 0 kcal${overWindow}, with no surplus or deficit and no arc.`
   const availableSummary =
     goal > 0 ? ` Total available including today: ${signedKcal(totalAvailable)} kcal.` : ''
-  const summary = `${bankSummary} The outer ring shows ${bankPercentLabel} of its plus or minus ${formatNumber(BANK_RING_LIMIT_KCAL)} kcal display scale. ${dailySummary}${availableSummary}`
+  const scaleSummary = `plus ${formatNumber(surplusLimit)} kcal surplus or minus ${formatNumber(deficitLimit)} kcal deficit`
+  const summary = `${bankSummary} The outer ring shows ${bankPercentLabel} of its ${scaleSummary} display scale. ${dailySummary}${availableSummary}`
 
   return (
     <div className="flex flex-col items-center" style={{ width: size }}>
@@ -125,8 +141,8 @@ export function CalorieRing({
           role="img"
           aria-label={summary}
         >
-          {/* Outer: cumulative bank balance, capped at ±2,000 kcal. A surplus sweeps
-              clockwise from 12 o'clock; a deficit sweeps anticlockwise from there. */}
+          {/* Outer: cumulative bank balance, capped by independent per-user
+              surplus/deficit display limits. It never changes bank arithmetic. */}
           <circle cx={centre} cy={centre} r={radius} fill="none" stroke="#edf2f7" strokeWidth={stroke} />
           <circle
             cx={centre}
