@@ -116,16 +116,15 @@ export function AppLayout() {
 
     // Scroll position is set on the next frame so the nav has its real width
     // in jsdom as well as in the browser; synchronously reading clientWidth
-    // on first render returned 0 in tests. With a 20%-wide Back overlay on the
-    // left of page 1, only four content slots are visible; scrolling by TWO
-    // item widths slides Nutrition+Metrics off-screen-left (Nutrition sits
-    // under the Back button as visual context for "where did I come from"),
-    // putting Foods in slot 1 and Recipes in slot 2 — both ≥50% visible as
-    // the navigation e2e expects.
+    // on first render returned 0 in tests. With a 20%-wide Back overlay on
+    // the left of page 1, scrolling by THREE item widths puts Today/Diary/
+    // Meals off-screen-left, slides Metrics under the Back overlay as peek
+    // context, and lands Foods in slot 1 and Recipes in slot 2 — both ≥50%
+    // visible as the navigation e2e expects.
     requestAnimationFrame(() => {
       if (!nav || nav.clientWidth === 0) return
       const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-      const nextScroll = wantPage === 1 ? 2 * itemWidth : 0
+      const nextScroll = wantPage === 1 ? 3 * itemWidth : 0
       if (Math.abs(nav.scrollLeft - nextScroll) > 1) {
         nav.scrollLeft = nextScroll
       }
@@ -147,10 +146,11 @@ export function AppLayout() {
     const nav = navRef.current
     if (!nav || nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    // Scroll to page 1: items shift left two slots so Nutrition sits under
-    // the Back overlay and Foods/Recipes land in the remaining four visible
-    // slots (both ≥50% in viewport).
-    nav.scrollLeft = 2 * itemWidth
+    // Scroll to page 1: items shift left three slots so Foods/Recipes land
+    // in the middle of the five-slot viewport, both ≥50% visible (e2e
+    // requires it). The Back overlay covers the first slot, where Metrics
+    // sits as peek context.
+    nav.scrollLeft = 3 * itemWidth
     setPage(1)
     vibrateForNavigationChange()
   }
@@ -259,10 +259,10 @@ export function AppLayout() {
             onScroll={handleNavScroll}
             className="scrollbar-hidden flex snap-x snap-mandatory touch-pan-x overflow-x-auto overscroll-x-contain"
           >
-            {/* Seven destinations at w-1/5. On page 1 we scroll by two item
-                widths so Nutrition sits under the left Back overlay (peek
-                context) and Foods/Recipes land in the remaining four visible
-                slots — no extra spacer slot needed. */}
+            {/* Seven destinations at w-1/5. On page 1 we scroll by three item
+                widths so Metrics sits under the left Back overlay (peek
+                context) and Foods/Recipes land in the visible slots — both
+                ≥50% in viewport as the nav e2e requires. */}
             {NAV.map((item) => (
               <NavigationLink key={item.to} item={item} />
             ))}
