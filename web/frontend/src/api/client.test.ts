@@ -20,6 +20,23 @@ describe('API response handling', () => {
     await expect(apiGet<typeof body>('/api/example')).resolves.toEqual(body)
   })
 
+  it('forwards an optional abort signal to fetch for cancellable range reads', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiGet<unknown[]>('/api/weight?from=2026-09-01&to=2026-09-30', {
+      signal: controller.signal,
+    })).resolves.toEqual([])
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/weight?from=2026-09-01&to=2026-09-30',
+      expect.objectContaining({ signal: controller.signal }),
+    )
+  })
+
   it('sends multipart bodies without overriding the browser boundary header', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ filename: 'v_abc', updated_at: '2026-10-04T10:00:00Z' }), {

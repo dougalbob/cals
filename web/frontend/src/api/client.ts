@@ -3,7 +3,8 @@
  *
  * Deliberately small: every call goes through `apiGet`/`apiPost`/`apiPut`/`apiDelete`, so the
  * Cloudflare Access behaviour (and any future auth handling) lives in one place
- * rather than being re-implemented per screen.
+ * rather than being re-implemented per screen. GET requests can forward a
+ * TanStack Query AbortSignal so obsolete range reads stop when a chart pans on.
  *
  * Cloudflare Access note: when the Access session expires, requests come back
  * as an HTML login page with a 200/302 rather than a JSON 401. Detecting that
@@ -34,14 +35,21 @@ function reloadForAuthentication() {
   window.location.reload()
 }
 
+export interface ApiRequestOptions {
+  /** TanStack Query supplies this so an obsolete range request can be aborted. */
+  signal?: AbortSignal
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
   bodyFormat: 'json' | 'form' = 'json',
+  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(path, {
     method,
+    ...(signal ? { signal } : {}),
     headers: body === undefined || bodyFormat === 'form'
       ? undefined
       : { 'Content-Type': 'application/json' },
@@ -101,7 +109,8 @@ async function request<T>(
   }
 }
 
-export const apiGet = <T>(path: string) => request<T>('GET', path)
+export const apiGet = <T>(path: string, options?: ApiRequestOptions) =>
+  request<T>('GET', path, undefined, 'json', options?.signal)
 export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', path, body)
 export const apiPostForm = <T>(path: string, body: FormData) => request<T>('POST', path, body, 'form')
 export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)

@@ -300,11 +300,14 @@ function FoodEditorModal({
 }) {
   const [name, setName] = useState(food?.name ?? '')
   const [brand, setBrand] = useState(food?.brand ?? '')
-  const [calories, setCalories] = useState(food ? String(food.calories_per_100g) : '')
-  const [protein, setProtein] = useState(food ? String(food.protein_per_100g) : '')
-  const [carbs, setCarbs] = useState(food ? String(food.carbs_per_100g) : '')
-  const [fat, setFat] = useState(food ? String(food.fat_per_100g) : '')
-  const [fibre, setFibre] = useState(food ? String(food.fibre_per_100g) : '')
+  // FatSecret can supply floating-point noise such as 8.499999. The editor is
+  // intentionally whole-number precision; saving without touching a field
+  // should not write those raw decimals back into the household catalogue.
+  const [calories, setCalories] = useState(food ? String(Math.round(food.calories_per_100g)) : '')
+  const [protein, setProtein] = useState(food ? String(Math.round(food.protein_per_100g)) : '')
+  const [carbs, setCarbs] = useState(food ? String(Math.round(food.carbs_per_100g)) : '')
+  const [fat, setFat] = useState(food ? String(Math.round(food.fat_per_100g)) : '')
+  const [fibre, setFibre] = useState(food ? String(Math.round(food.fibre_per_100g)) : '')
   const [servingName, setServingName] = useState(food?.serving_name ?? '')
   const [servingGrams, setServingGrams] = useState(food?.serving_grams ? String(food.serving_grams) : '')
   const [measures, setMeasures] = useState<MeasureDraft[]>(() => householdMeasures(food))

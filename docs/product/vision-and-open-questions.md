@@ -1035,9 +1035,9 @@ crashed the rc28 React Metrics screen on any account with measurements. Both are
 
 The owner reviewed the React app on a phone and raised a batch of issues. Four were settled in this pass
 and are built on the session branch (frontend only — no API, schema, migration, data copy or appdata
-change). The questions that could not be settled — where a FatSecret ingredient's long decimals appear, and
-how much cropping is wanted — were left alone; cropping stays deferred under decision 82. The chart-panning
-complaint is recorded as a known issue below, with its diagnosis, and is fixed in a follow-up slice.
+change). The question about FatSecret long decimals was left open during this pass and settled in the
+follow-up as decision 106 below; cropping stays deferred under decision 82. The chart-panning complaint
+is diagnosed below and its follow-up fix is in PR #72.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -1045,27 +1045,22 @@ complaint is recorded as a known issue below, with its diagnosis, and is fixed i
 | 103 | 2026-10-05 | **The ⋯ vary-this-time button appears for every drink whose *type* accepts milk or sugar**, not only when the stored `accepts_milk`/`accepts_sugar` columns are set. The additive extras migration (`ALTER TABLE drinks … DEFAULT 0`) left every pre-existing row as "accepts nothing", so the household's Tea and Coffee lost the button entirely — reported as a rendering bug. `drinkExtras()` now ORs the row's stored flags with the catalog type's, so a set flag is never lost and a legacy zero is repaired from the type; the drink's *usual* milk and sugar stay exactly what the row stores (sugar is no longer defaulted from the type), and a type that accepts neither (Juice, Milk, Squash, …) still has no button. | Owner (reported as a bug; agent's fix) |
 | 104 | 2026-10-05 | **Recipe photos keep two entry points — take and choose — and cropping stays deferred.** The picker gains a camera input (`capture="environment"`) beside the gallery/file input, sharing the same validation, preview and upload path; the hero control shows **Take photo** next to replace/choose, and the create form stacks its status line above the take / choose buttons so the row cannot overflow a narrow phone. No crop step is inserted before upload. The owner asked what cropping would cost; the legacy "crop" was an automatic centre-square with no controls, whereas a draggable/zoomable crop would be its own slice, so decision 82 is confirmed unchanged. | Owner |
 | 105 | 2026-10-05 | **Recipe authoring shows the summed ingredient weight as a hint beside the manual cooked-weight box, and ingredient removal asks first.** The hint totals the food ingredients only (text ingredients are not weighed) and is display-only: it never pre-fills the box, because a recipe that loses water in cooking must not have the raw figure saved by accident. Removing a food or text ingredient uses the same in-place, two-button check as *Archive recipe* (`Yes, remove` / `Keep`), so a slip cannot drop an ingredient and its key-food selection. | Owner |
+| 106 | 2026-10-05 | **The food editor presents and saves whole-number per-100 g nutrition.** When an existing food opens in `FoodEditorModal`, round calories, protein, carbs, fat and fibre to the nearest whole number for the prefilled fields; saving without edits therefore stores those whole numbers instead of raw FatSecret decimals. Do not change the search-list or Diary-row precision. | Owner |
 
-## Known issue, fix pending — panned metric charts flash while a range loads (2026-10-05)
+## Panned metric chart range-loading flash — follow-up fix in PR #72 (2026-10-05)
 
-The owner reports that the rc28/rc29 weigh-in and goal-vs-consumed charts "flash and redraw" while
-panning unless the drag is slow and deliberate, that the lower part of the card feels better, and that it
-"settles down" once a stretch of days has been visited. He asked whether haptics or a loading delay are
-responsible, and whether it is cached.
+The owner reported that the rc28/rc29 weigh-in and goal-vs-consumed charts "flash and redraw" while
+panning unless the drag is slow and deliberate, and that they settle once a stretch of days has been
+visited.
 
-Diagnosis from the code (not yet reproduced in a browser; no rc29 road-test happened before this note):
-`usePanWindow` writes `?from=&to=` **once per day of movement**, so a 30-day drag performs up to 30
-`setSearchParams` calls. Each write creates a new TanStack Query key for `/api/weight` and
-`/api/stats/calories` with **no keep-previous-data option**, so while the new range is in flight the
-charts fall back to `Loading…` — a visible flash — and every range is a separate network request. Ranges
-visited before are cached, which is exactly why it improves on a second pass over the same days. Each
-day change also re-renders the whole route (body map, history table and all), and `navigator.vibrate`
-fires once per day of movement.
+Diagnosis: `usePanWindow` wrote `?from=&to=` once per day of movement, creating a new TanStack Query key
+for each range. Without a keep-previous-data option, the charts fell back to `Loading…` while each new
+range loaded; each day also re-rendered the route and called `navigator.vibrate`.
 
-Planned fix, as its own small slice: keep the previous window's data visible while the next loads
-(`placeholderData: keepPreviousData`), throttle the URL/range commits instead of writing per day, and
-tick haptics at most occasionally (or behind the Phase 15 Settings control). Pointer capture and
-`touch-action` interaction with a diagonal swipe need the same pass.
+PR #72 keeps the previous chart data visible with `placeholderData: keepPreviousData`, throttles URL/range
+commits to 150 ms and flushes the final range on release, forwards TanStack Query's `AbortSignal` so
+superseded reads can stop, and reduces haptic ticks to at least five days of net movement. The haptics
+setting itself remains Phase 15. The fix is frontend-only, with no API or schema change.
 
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 

@@ -11,12 +11,15 @@ import { addDays, todayIso } from '../lib/format'
  * rightwards and reveals older ones; dragging left comes back towards today,
  * which is as far forward as the window can go. The visible range rides in the
  * URL as `?from=&to=` so a reload or a deep link reopens the same view — the
- * same rule the Calendar follows — and each move re-fetches through the
- * `from`/`to` parameters slice 14.1 added to the metrics endpoints.
+ * same rule the Calendar follows — and each committed range re-fetches through
+ * the `from`/`to` parameters slice 14.1 added to the metrics endpoints.
+ *
+ * Range commits are throttled while dragging and the final range is flushed on
+ * release, so a fast gesture does not start a request for every day crossed.
  *
  * Drag gestures:
  * - touch/pen — moves as soon as the pointer has travelled far enough to be a
- *   drag rather than a tap, and ticks `navigator.vibrate` once per day of
+ *   drag rather than a tap, and ticks `navigator.vibrate` every five days of
  *   movement; haptics are a bonus, never a dependency, and iOS ignores them;
  * - mouse — only after a short click-and-hold, so a plain click stays a click.
  *
@@ -46,8 +49,23 @@ const TOUCH_START_PX = 6
 /** A mouse must be held this long before a drag becomes a pan. */
 const MOUSE_HOLD_MS = 150
 
-/** One short haptic tick per day of movement; no continuous buzzing. */
+/** Commit the most recent range at most once per interval while a drag runs. */
+const RANGE_COMMIT_INTERVAL_MS = 150
+
+/** One short haptic tick for each five days of net movement. */
+const HAPTIC_DAY_INTERVAL = 5
 const HAPTIC_MS = 5
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+type DayRange = { from: string; to: string }
+
+function sameRange(left: DayRange, right: DayRange): boolean {
+  return left.from === right.from && left.to === right.to
+}
+
+function dayOffset(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / MS_PER_DAY)
+}
 
 export function usePanWindow(days = 30): PanWindow {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -62,7 +80,7 @@ export function usePanWindow(days = 30): PanWindow {
   const from = requestedFrom && requestedFrom <= to ? requestedFrom : addDays(to, -(days - 1))
 
   // A drag that is still in progress when the component unmounts must not leave
-  // listeners behind.
+  // listeners or a trailing range-commit timer behind.
   const stopDrag = useRef<(() => void) | null>(null)
   useEffect(
     () => () => {
@@ -82,10 +100,51 @@ export function usePanWindow(days = 30): PanWindow {
       const startFrom = from
       const startTo = to
       let dayDelta = 0
+      let lastHapticDelta = 0
       let active = false
       let holdTimer: number | undefined
+      let commitTimer: number | undefined
+      let lastCommitAt: number | null = null
+      let committedRange: DayRange = { from: startFrom, to: startTo }
+      let pendingRange: DayRange | null = null
 
-      const moveBy = (delta: number) => {
+      const commitPending = () => {
+        if (commitTimer !== undefined) {
+          window.clearTimeout(commitTimer)
+          commitTimer = undefined
+        }
+        const nextRange = pendingRange
+        pendingRange = null
+        if (!nextRange || sameRange(nextRange, committedRange)) return
+
+        setSearchParams(
+          (params) => {
+            const updated = new URLSearchParams(params)
+            updated.set('from', nextRange.from)
+            updated.set('to', nextRange.to)
+            return updated
+          },
+          { replace: true },
+        )
+        committedRange = nextRange
+        lastCommitAt = Date.now()
+      }
+
+      const queueRange = (range: DayRange) => {
+        const latestRange = pendingRange ?? committedRange
+        if (sameRange(range, latestRange)) return
+        pendingRange = range
+        if (commitTimer !== undefined) return
+
+        const elapsed = lastCommitAt === null ? RANGE_COMMIT_INTERVAL_MS : Date.now() - lastCommitAt
+        if (elapsed >= RANGE_COMMIT_INTERVAL_MS) {
+          commitPending()
+        } else {
+          commitTimer = window.setTimeout(commitPending, RANGE_COMMIT_INTERVAL_MS - elapsed)
+        }
+      }
+
+      const moveBy = (delta: number): number => {
         const limit = todayIso()
         let nextTo = addDays(startTo, delta)
         let nextFrom = addDays(startFrom, delta)
@@ -94,16 +153,11 @@ export function usePanWindow(days = 30): PanWindow {
           nextTo = limit
           nextFrom = addDays(nextTo, -(days - 1))
         }
-        if (nextFrom === from && nextTo === to) return
-        setSearchParams(
-          (params) => {
-            const updated = new URLSearchParams(params)
-            updated.set('from', nextFrom)
-            updated.set('to', nextTo)
-            return updated
-          },
-          { replace: true },
-        )
+        const nextRange = { from: nextFrom, to: nextTo }
+        if (sameRange(nextRange, pendingRange ?? committedRange)) return 0
+
+        queueRange(nextRange)
+        return dayOffset(startTo, nextTo)
       }
 
       const print = (moveEvent: PointerEvent) => {
@@ -124,13 +178,19 @@ export function usePanWindow(days = 30): PanWindow {
         const delta = Math.round(-dx / pxPerDay)
         if (delta !== dayDelta) {
           dayDelta = delta
-          moveBy(delta)
-          navigator.vibrate?.(HAPTIC_MS)
+          const appliedDelta = moveBy(delta)
+          if (appliedDelta !== 0 && Math.abs(appliedDelta - lastHapticDelta) >= HAPTIC_DAY_INTERVAL) {
+            lastHapticDelta = appliedDelta
+            navigator.vibrate?.(HAPTIC_MS)
+          }
         }
       }
 
       function finish(event?: PointerEvent) {
         window.clearTimeout(holdTimer)
+        // A gesture that ends before the throttle timer fires still commits its
+        // exact final range, rather than leaving the chart one tick behind.
+        commitPending()
         window.removeEventListener('pointermove', print)
         window.removeEventListener('pointerup', finish)
         window.removeEventListener('pointercancel', finish)

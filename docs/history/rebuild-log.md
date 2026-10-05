@@ -14,6 +14,24 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — food-editor precision and metric panning polish (decision 106, PR #72)
+
+The owner reviewed the Arena preview and asked to publish this small frontend-only follow-up. Decision 106
+rounds prefilled per-100 g calories, protein, carbs, fat and fibre to whole numbers in the food editor; the
+Save & edit regression verifies an unchanged save stores those rounded values. Search and Diary formatting
+remain untouched. The metric charts retain the previous window while the next range loads, throttle URL/range
+commits to 150 ms with a final flush on release, forward AbortSignals to cancel superseded reads, and tick
+haptics after at least five days of net movement. The haptics preference remains Phase 15.
+
+Verification: frontend lint, typecheck, all 285 Vitest tests and `build:go` passed; both Metrics phone
+Playwright tests passed; PR #72's Go and Docker checks passed. No API/schema change, migration, data copy,
+appdata operation or template change. The owner explicitly deferred the known rc30 nav follow-up; its
+navigation-specific Playwright tests were not run for this PR. The tag-triggered milestone suite will still
+run on publication, so any recurrence of those existing nav failures will be recorded rather than treated
+as a blocker for the image.
+
+---
+
 ## 2026-10-05 — rc31 published: the owner's road-test papercuts (PR #70, decisions 102–105)
 
 The owner reviewed the papercuts slice in the Arena preview — **"all looks good"** — and asked for it to be

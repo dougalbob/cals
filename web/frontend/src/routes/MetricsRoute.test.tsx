@@ -15,6 +15,8 @@ import { pointerDown, pointerMove, pointerUp, withClientWidth } from '../test-su
 
 const calls: string[] = []
 let trendDays = 7
+let holdPannedRangeRequests = false
+const pendingRangeResolves: ((response: Response) => void)[] = []
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -35,9 +37,18 @@ function renderMetrics(path = '/metrics') {
 beforeEach(() => {
   calls.length = 0
   trendDays = 7
+  holdPannedRangeRequests = false
+  pendingRangeResolves.length = 0
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     calls.push(`${url.pathname}${url.search}`)
+    const isPannedMetricsRequest =
+      (url.pathname === '/api/weight' || url.pathname === '/api/stats/calories') &&
+      url.searchParams.has('from') &&
+      url.searchParams.has('to')
+    if (holdPannedRangeRequests && isPannedMetricsRequest) {
+      return new Promise<Response>((resolve) => pendingRangeResolves.push(resolve))
+    }
     // The user record is the source of the trend window, so the test controls
     // it here to prove the chart reads the column.
     if (url.pathname === '/api/users/me') return json({ ...seed.user, weight_trend_days: trendDays })
@@ -63,6 +74,32 @@ describe('MetricsRoute — 14.3 charts', () => {
 
     expect(await screen.findByText(/10-weigh-in moving average/)).toBeTruthy()
     expect(screen.queryByText(/7-weigh-in moving average/)).toBeNull()
+  })
+
+  it('keeps the previous chart data visible while a new panned range is loading', async () => {
+    renderMetrics()
+    expect(await screen.findByRole('img', { name: 'Weigh-ins with trend' })).toBeTruthy()
+    expect(await screen.findByRole('img', { name: 'Daily totals' })).toBeTruthy()
+
+    // Leave both new-range requests unresolved to inspect the in-between state.
+    holdPannedRangeRequests = true
+    const element = withClientWidth(screen.getByTestId('weight-pan'), 300)
+    act(() => {
+      pointerDown(element, 100)
+      pointerMove(300)
+      pointerUp(300)
+    })
+
+    await waitFor(() => expect(pendingRangeResolves).toHaveLength(2))
+    expect(screen.getByRole('img', { name: 'Weigh-ins with trend' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Daily totals' })).toBeTruthy()
+    expect(screen.queryByText('Loading…')).toBeNull()
+
+    // Let the pending fixture reads finish so the test leaves no open work.
+    const resolvePending = pendingRangeResolves.splice(0)
+    await act(async () => {
+      resolvePending.forEach((resolve) => resolve(json([])))
+    })
   })
 
   it('pans the shared window from the weigh-in chart and re-fetches both charts', async () => {

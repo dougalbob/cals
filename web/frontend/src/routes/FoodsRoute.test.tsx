@@ -92,40 +92,68 @@ describe('FoodsRoute', () => {
     expect(row.textContent).toContain('1 slice (12.5 g)')
   })
 
-  it('saves a FatSecret result to the catalogue and opens it for correction', async () => {
+  it('saves a FatSecret result to the catalogue with whole-number nutrition, then opens it for correction', async () => {
     renderFoods()
 
     fireEvent.change(await screen.findByPlaceholderText('Search local foods (FatSecret when configured)…'), {
-      target: { value: 'thick toast' },
+      target: { value: 'pasta bake' },
     })
 
     const save = await screen.findByRole('button', {
-      name: 'Save Sliced white bread, thick toast to your foods and edit it',
+      name: 'Save Chicken and bacon pasta bake, family tray to your foods and edit it',
     })
     fireEvent.click(save)
 
-    // The editor opens on the saved food, with its FatSecret provenance noted.
-    const modal = await screen.findByRole('dialog', { name: /Sliced white bread, thick toast/ })
+    // The editor rounds every raw FatSecret value to whole-number precision.
+    const modal = await screen.findByRole('dialog', { name: /Chicken and bacon pasta bake, family tray/ })
     expect(within(modal).getByText(/Saved from FatSecret/)).toBeTruthy()
-    const calories = within(modal).getByLabelText('Calories *') as HTMLInputElement
-    expect(calories.value).toBe('254')
+    expect((within(modal).getByLabelText('Calories *') as HTMLInputElement).value).toBe('168')
+    expect((within(modal).getByLabelText('Protein') as HTMLInputElement).value).toBe('11')
+    expect((within(modal).getByLabelText('Carbs') as HTMLInputElement).value).toBe('18')
+    expect((within(modal).getByLabelText('Fat') as HTMLInputElement).value).toBe('6')
+    expect((within(modal).getByLabelText('Fibre') as HTMLInputElement).value).toBe('1')
 
-    fireEvent.change(calories, { target: { value: '248' } })
+    // Saving without editing writes those whole numbers, rather than the raw
+    // FatSecret decimals, back to the local catalogue.
     fireEvent.click(within(modal).getByRole('button', { name: 'Save food' }))
-
     await waitFor(() => {
-      const cached = seed.foods.find((food) => food.name === 'Sliced white bread, thick toast')
-      expect(cached?.calories_per_100g).toBe(248)
-      expect(cached?.is_edited).toBe(true)
+      const cached = seed.foods.find((food) => food.name === 'Chicken and bacon pasta bake, family tray')
+      expect(cached).toMatchObject({
+        calories_per_100g: 168,
+        protein_per_100g: 11,
+        carbs_per_100g: 18,
+        fat_per_100g: 6,
+        fibre_per_100g: 1,
+        is_edited: true,
+      })
     })
 
     // A later search shows the saved food as an editable local row, not the
-    // pending FatSecret hit, and its FatSecret measures were kept.
-    const row = await screen.findByText('Sliced white bread, thick toast')
+    // pending FatSecret hit, and its FatSecret measure was kept.
+    const row = await screen.findByText('Chicken and bacon pasta bake, family tray')
     const listItem = row.closest('li') as HTMLElement
-    expect(within(listItem).getByRole('button', { name: /^Edit Sliced white bread/ })).toBeTruthy()
-    expect(listItem.textContent).toContain('1 thick slice (60.0 g)')
+    const edit = await within(listItem).findByRole('button', {
+      name: /^Edit Chicken and bacon pasta bake/,
+    })
+    expect(listItem.textContent).toContain('1 portion (350.0 g)')
     expect(listItem.textContent).toContain('From FatSecret')
+
+    // The whole-number starting point is still editable as a correction.
+    fireEvent.click(edit)
+    const editModal = await screen.findByRole('dialog', { name: /Chicken and bacon pasta bake, family tray/ })
+    const calories = within(editModal).getByLabelText('Calories *') as HTMLInputElement
+    expect(calories.value).toBe('168')
+    fireEvent.change(calories, { target: { value: '170' } })
+    fireEvent.click(within(editModal).getByRole('button', { name: 'Save food' }))
+
+    await waitFor(() => {
+      const cached = seed.foods.find((food) => food.name === 'Chicken and bacon pasta bake, family tray')
+      expect(cached?.calories_per_100g).toBe(170)
+      expect(cached?.protein_per_100g).toBe(11)
+      expect(cached?.carbs_per_100g).toBe(18)
+      expect(cached?.fat_per_100g).toBe(6)
+      expect(cached?.fibre_per_100g).toBe(1)
+    })
   })
 
   it('refuses an incomplete measure instead of inventing a conversion', async () => {

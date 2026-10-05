@@ -69,6 +69,37 @@ describe('usePanWindow', () => {
     expect(vibrate).toHaveBeenCalledWith(5)
   })
 
+  it('throttles range commits during a drag, flushes on release and ticks less often', () => {
+    vi.useFakeTimers()
+    renderHarness()
+    const initialTo = screen.getByTestId('to').textContent as string
+
+    act(() => {
+      pointerDown(chart('chart-a'), 100)
+      pointerMove(110) // Commit the first one-day move immediately.
+    })
+    expect(screen.getByTestId('to').textContent).toBe(addDays(initialTo, -1))
+
+    act(() => {
+      pointerMove(120)
+      pointerMove(130)
+    })
+    // Further movement is coalesced until the throttle interval elapses.
+    expect(screen.getByTestId('to').textContent).toBe(addDays(initialTo, -1))
+    expect(vibrate).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(150))
+    expect(screen.getByTestId('to').textContent).toBe(addDays(initialTo, -3))
+    expect(vibrate).not.toHaveBeenCalled()
+
+    act(() => pointerMove(160)) // Six days back: one tick, not six.
+    expect(screen.getByTestId('to').textContent).toBe(addDays(initialTo, -3))
+    expect(vibrate).toHaveBeenCalledTimes(1)
+
+    act(() => pointerUp(160))
+    expect(screen.getByTestId('to').textContent).toBe(addDays(initialTo, -6))
+  })
+
   it('requires a click-and-hold before a mouse drag pans', () => {
     vi.useFakeTimers()
     renderHarness()
