@@ -14,10 +14,39 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 15 published as `v2.0.0-dev-rc34` (PR #76)
+
+PR #76 merged into `cals-dev` as `40f1e171e21c7a77bdb7050a05d635d3a85fb504`, then was tagged and
+published as `v2.0.0-dev-rc34`. The publish workflow [37387169202](https://github.com/dougalbob/cals/actions/runs/37387169202)
+passed the `cals-dev` ancestry guard, image build/push, prerelease creation and anonymous-pull gate.
+The image digest is `sha256:1eba3145aa8adafdd6b03445a1082ff92ad77576f13a24b6450880acdb44e173`; the
+[GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc34) records the exact
+source commit and image. **The tag target is an ancestor of `origin/cals-dev`; the publication guard
+passed.**
+
+The final PR checks passed on head `6be0c20`: Docker/runtime
+[37386887916](https://github.com/dougalbob/cals/actions/runs/37386887916), Go
+[37386887936](https://github.com/dougalbob/cals/actions/runs/37386887936) and Playwright
+[37386887922](https://github.com/dougalbob/cals/actions/runs/37386887922) (**72/72**). The tagged
+[phone+desktop browser run](https://github.com/dougalbob/cals/actions/runs/37387169333) also passed
+**72/72**, including both swipes through the More/Back overlays that previously blocked the gesture.
+The image publish job verified an anonymous pull of `dev-latest` for Unraid.
+
+rc34 adds the Phase 15 Settings foundation and React PWA installability scoped to `/next/`; the legacy
+root app remains untouched and Phase 16 still owns retargeting/retesting installability at `/`. The two
+additive `users.bank_ring_surplus_limit_kcal` and `users.bank_ring_deficit_limit_kcal` columns default
+to 2,000 kcal; there was no data copy, appdata operation or template change. The owner-approved
+accumulated Force Update and phone review remain pending: rc27 is the last reported Unraid installation.
+Force Update the existing `cals-dev-v2` container on port `8151`, keeping its current image tag
+`ghcr.io/dougalbob/cals-dev-v2:dev-latest` (now rc34); one update carries rc28–rc34. No template or
+appdata change is required. See [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 item 10 for the phone checklist.
+
+---
+
 ## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
 
 The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
-increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`. After PR #75 merged the rc33 publication record into the base, the updated code-bearing head `fc6e461` passed Docker/runtime ([run 37386598852](https://github.com/dougalbob/cals/actions/runs/37386598852)), Go ([run 37386598895](https://github.com/dougalbob/cals/actions/runs/37386598895)) and Playwright ([run 37386598925](https://github.com/dougalbob/cals/actions/runs/37386598925), 72/72); the docs-only final head is checked again before merge.
+increment. The owner reviewed the Arena preview, said it looked good and asked to publish. After PR #75 merged the rc33 publication record, the updated code-bearing head `fc6e461` passed Docker/runtime ([run 37386598852](https://github.com/dougalbob/cals/actions/runs/37386598852)), Go ([run 37386598895](https://github.com/dougalbob/cals/actions/runs/37386598895)) and Playwright ([run 37386598925](https://github.com/dougalbob/cals/actions/runs/37386598925), 72/72). The final PR head `6be0c20` also passed all checks — Docker/runtime [37386887916](https://github.com/dougalbob/cals/actions/runs/37386887916), Go [37386887936](https://github.com/dougalbob/cals/actions/runs/37386887936), Playwright [37386887922](https://github.com/dougalbob/cals/actions/runs/37386887922) (72/72) — before PR #76 was merged and published as rc34 (see the newest entry above).
 
 Settings persists profile/targets, bank-window presets and custom values, independent surplus/deficit
 ring display limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
