@@ -14,6 +14,24 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — rc29 published: the body-map measurement picker (PR #67, Phase 14.4 + decision 101)
+
+The owner approved the Arena preview ("looks good") and the code-split fix, so PR #67 was merged into
+`cals-dev` as `3c54b824f7bfb8818a70f327b073e10b42e34a14` and tagged `v2.0.0-dev-rc29` at exactly that
+commit. [Publish run 37327096123](https://github.com/dougalbob/cals/actions/runs/37327096123) passed the
+ancestry guard, built and pushed `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc29` plus `dev-latest`
+(digest `sha256:7f101181d96492b62a1f3c78cc94c4af5ca4552bc7ce8baa974ee95d6c8a2436`), created the
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc29) and passed the
+anonymous-pull gate; the tagged [browser suite 37327096209](https://github.com/dougalbob/cals/actions/runs/37327096209)
+passed 66 tests. One additive migration (`users.body_outline`, nullable) and decision 101's route-level
+code splitting ship in this image. The owner said he will have a proper road-test once it is published —
+that Force Update (CURRENT_STATE §3 item 10) also covers rc28's pending chart drag test (item 8), since
+one update carries both. Release details are recorded in the
+[release log](../architecture/unraid-image-release.md#release-log); like rc28's, this publication record
+lands in a focused docs-only follow-up PR per [`git-workflow.md`](../architecture/git-workflow.md) §5.
+
+---
+
 ## 2026-10-05 — 14.4 preview approved; bundle audit and route-level code splitting (decision 101)
 
 The owner reviewed the Phase 14.4 Arena preview — **"looks good"** — closing CURRENT_STATE §3 item 9's
