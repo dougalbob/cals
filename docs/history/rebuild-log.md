@@ -14,21 +14,31 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
-## 2026-10-05 — food-editor precision and metric panning polish (decision 106, PR #72)
+## 2026-10-05 — rc32 published: food-editor precision and metric panning polish (decision 106, PR #72)
 
-The owner reviewed the Arena preview and asked to publish this small frontend-only follow-up. Decision 106
-rounds prefilled per-100 g calories, protein, carbs, fat and fibre to whole numbers in the food editor; the
-Save & edit regression verifies an unchanged save stores those rounded values. Search and Diary formatting
-remain untouched. The metric charts retain the previous window while the next range loads, throttle URL/range
-commits to 150 ms with a final flush on release, forward AbortSignals to cancel superseded reads, and tick
-haptics after at least five days of net movement. The haptics preference remains Phase 15.
+The owner reviewed the Arena preview and asked to publish this frontend-only follow-up. PR #72 merged into
+`cals-dev` as `d5a996e22a4652e9cc0fec456b763a381266dda0` and was tagged `v2.0.0-dev-rc32` at that exact
+commit. [Publish run 37358754022](https://github.com/dougalbob/cals/actions/runs/37358754022) passed the
+ancestry guard, image build/push, prerelease creation and anonymous-pull gate; it published digest
+`sha256:16334a2811579fd30a1342830a213dd04d6a0fb260c2be400f2a8ddea6b3c629` and the
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc32).
+
+Decision 106 rounds prefilled per-100 g calories, protein, carbs, fat and fibre to whole numbers in the food
+editor; the Save & edit regression verifies an unchanged save stores those rounded values. Search and Diary
+formatting remain untouched. The metric charts retain the previous window while the next range loads, throttle
+URL/range commits to 150 ms with a final flush on release, forward AbortSignals to cancel superseded reads,
+and tick haptics after at least five days of net movement. The haptics preference remains Phase 15.
 
 Verification: frontend lint, typecheck, all 285 Vitest tests and `build:go` passed; both Metrics phone
-Playwright tests passed; PR #72's Go and Docker checks passed. No API/schema change, migration, data copy,
-appdata operation or template change. The owner explicitly deferred the known rc30 nav follow-up; its
-navigation-specific Playwright tests were not run for this PR. The tag-triggered milestone suite will still
-run on publication, so any recurrence of those existing nav failures will be recorded rather than treated
-as a blocker for the image.
+Playwright tests passed locally. PR [Go](https://github.com/dougalbob/cals/actions/runs/37358288410) and
+[Docker](https://github.com/dougalbob/cals/actions/runs/37358288558) checks passed, as did the post-merge
+[Go run](https://github.com/dougalbob/cals/actions/runs/37358715115). The PR milestone browser check was
+skipped as requested so the owner-deferred nav specs were not run at PR time. The tagged milestone
+[browser run 37358754067](https://github.com/dougalbob/cals/actions/runs/37358754067) completed with **64
+passed, 2 failed**: both failures are the known, owner-deferred `e2e/navigation.spec.ts` bottom-navigation
+tests. The owner asked to leave the nav issue and spec untouched; the [run's uploaded Playwright artifacts](https://github.com/dougalbob/cals/actions/runs/37358754067)
+contain traces/screenshots. No API/schema change, migration, data copy, appdata operation or template change
+in rc32. The last reported Unraid installation remains rc27; Force Update to rc32 is pending.
 
 ---
 
