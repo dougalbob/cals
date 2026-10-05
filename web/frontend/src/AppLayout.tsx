@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type UIEvent } from 'react'
+import { Suspense, useEffect, useRef, useState, type UIEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, queryKeys } from './api/client'
@@ -204,7 +204,17 @@ export function AppLayout() {
       {swapOpen && <SwapUserSheet onClose={() => setSwapOpen(false)} />}
 
       <main className="flex-1 mx-auto w-full max-w-2xl px-3 py-4 pb-24">
-        <Outlet />
+        {/* Routes are lazy-loaded (decision 101); the brief while a page chunk
+            arrives shows a quiet placeholder instead of a blank main area. */}
+        <Suspense
+          fallback={
+            <p className="px-1 py-8 text-center text-sm text-ink-light" data-testid="route-loading">
+              Loading…
+            </p>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
 
       <nav

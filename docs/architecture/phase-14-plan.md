@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **APPROVED for slices 14.1–14.4** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), and Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05) — including a third option for Q6 and a bundle of extras beyond this plan. **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built, owner-approved in the Arena preview and published as `v2.0.0-dev-rc28` (PR #65, 2026-10-05), awaiting the owner's Unraid road-test**; **14.4 (the body-map measurement picker) is built 2026-10-05 and awaits the owner's Arena-preview approval**. **Q10–Q11 (§6) are still open** and gate 14.5–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **APPROVED for slices 14.1–14.4** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), and Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05) — including a third option for Q6 and a bundle of extras beyond this plan. **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built, owner-approved in the Arena preview and published as `v2.0.0-dev-rc28` (PR #65, 2026-10-05), awaiting the owner's Unraid road-test**; **14.4 (the body-map measurement picker) is built and owner-approved in the Arena preview on 2026-10-05 ("looks good"), now also carrying decision 101's route-level code splitting; PR #67 is ready to merge and publish**. **Q10–Q11 (§6) are still open** and gate 14.5–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -290,8 +290,13 @@ and the extras bundle as decision 100. Six things building it taught:
 - **Tap points are HTML buttons over the SVG**, not SVG nodes: the 44 px hit area, keyboard focus and
   accessible labels come for free, and the visible dot stays the small red point decision 67 described —
   filled when measured, hollow when not.
-- **The bundle grew ~20 kB** (508 → 529 kB, still one chunk, still over Vite's 500 kB warning). Decision
-  94's no-chart-library choice stands; code-splitting is a future-slice concern.
+- **The bundle grew ~20 kB** (508 → 529 kB) and the owner asked whether that was metrics-specific
+  before more metrics work lands. It was not — a module-level audit found ~72% fixed framework
+  overhead shared by every page — so it was settled the same day as **decision 101: route-level
+  code splitting**, delivered inside this PR. Every route now lazy-loads its own chunk (Home stays
+  eager as the landing page) behind one Suspense fallback in the shell: the main chunk is 339 kB
+  (the >500 kB Vite warning is gone) and Metrics is its own 28 kB chunk, so future metrics growth
+  stays inside the metrics chunk. Decision 94's no-chart-library choice stands.
 
 Verification: `go vet`/`go test` with 7 new handler tests (wire shape, no-wipe, PUT patch/clear/move,
 latest-vs-20-row-window, legacy limit and window validation, outline round-trip) — each run against the
