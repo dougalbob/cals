@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ALL SIX SLICES BUILT** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30 and the rc31/rc32 follow-ups after them — all awaiting the single accumulated Unraid Force Update in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05 and awaits the owner's Arena-preview review and the accumulated road-test**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **ALL SIX SLICES BUILT AND PUBLISHED** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30, the rc31/rc32 follow-ups after them and 14.6 in rc33 — all awaiting the single accumulated Unraid Force Update in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05, approved in the Arena preview and published as `v2.0.0-dev-rc33` (PR #74)**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -377,7 +377,7 @@ the report both read their numbers.
 | 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good"); the rc28 Force Update and road-test is the remaining gate** |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
 | 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
-| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 | Does the report card at `/next/metrics` answer "how did last week go"? **Awaiting the owner's Arena-preview review, then one accumulated Unraid Force Update with rc28–rc32's changes (CURRENT_STATE §3)** |
+| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc33` (PR #74) | Does the report card at `/next/metrics` answer "how did last week go"? **Owner-approved in the Arena preview; the accumulated Unraid Force Update with rc28–rc33's changes is the remaining gate (CURRENT_STATE §3 item 10)** |
 
 ---
 
@@ -489,9 +489,9 @@ Re-based 2026-10-05 after 14.1 and 14.2 landed and were signed off:
 | 14.3 | Medium | Two charts plus the shared pan hook and one additive column. Decision 94 keeps the hand-written SVG components, so the Chart.js path is closed and the bundle does not grow a chart library |
 | 14.4 | **Large** | New SVG surface, new endpoint, migration, accessibility |
 | 14.5 | Medium | Mostly porting a screen V1 already has. **Built** — shipped in rc30 |
-| 14.6 | Small-medium | Presentation over data the other slices already produce. **Built 2026-10-05** — the work was the report maths, the `from`/`to` range on the nutrition endpoint and its fixture mirror (§14.6) |
+| 14.6 | Small-medium | Presentation over data the other slices already produce. **Built and published 2026-10-05** — shipped in rc33; the work was the report maths, the `from`/`to` range on the nutrition endpoint and its fixture mirror (§14.6) |
 
-Phase 14 is realistically **several working sessions**, not one; **all six slices are now built** — 14.1/14.2
-signed off on Unraid, 14.3–14.5 and the rc31/rc32 follow-ups published and awaiting the accumulated Force
-Update, and 14.6 awaiting its preview review. Nothing in it needs a decision about cutover, and nothing in it
-moves the household off `/`.
+Phase 14 is realistically **several working sessions**, not one; **all six slices are now built and published**
+(rc27→rc33) — 14.1/14.2 signed off on Unraid, and 14.3–14.6 with the rc31/rc32 follow-ups awaiting the one
+accumulated Force Update. Nothing in it needs a decision about cutover, and nothing in it moves the household
+off `/`.
