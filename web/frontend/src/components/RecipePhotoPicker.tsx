@@ -15,7 +15,12 @@ interface RecipePhotoPickerProps {
   children?: ReactNode
 }
 
-/** A direct photo picker with a local preview. It deliberately does not crop. */
+/**
+ * A direct photo picker with a local preview. It deliberately does not crop
+ * (decision 82). Two entry points share one input each: "Take photo" requests
+ * the camera (`capture="environment"`) and "Choose photo" opens the gallery /
+ * file picker, so both a fresh photo and an existing one are reachable.
+ */
 export function RecipePhotoPicker({
   variant,
   recipeName,
@@ -29,13 +34,18 @@ export function RecipePhotoPicker({
   children,
 }: RecipePhotoPickerProps) {
   const inputId = useId()
+  const takePhotoId = `${inputId}-camera`
   const inputRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
   const [selectionError, setSelectionError] = useState<string | null>(null)
   const [preview, setPreview] = useState<{ file: File; url: string } | null>(null)
   const previewUrl = selectedFile && preview?.file === selectedFile ? preview.url : null
 
   useEffect(() => {
-    if (!selectedFile && inputRef.current) inputRef.current.value = ''
+    if (!selectedFile) {
+      if (inputRef.current) inputRef.current.value = ''
+      if (cameraRef.current) cameraRef.current.value = ''
+    }
   }, [selectedFile])
 
   useEffect(() => {
@@ -112,33 +122,45 @@ export function RecipePhotoPicker({
       )}
 
       {variant === 'hero' ? (
-        <label
-          htmlFor={inputId}
-          className="absolute right-3 top-3 z-20 flex min-h-11 cursor-pointer items-center rounded-xl bg-black/65 px-3 text-sm font-semibold text-white shadow-md backdrop-blur-sm hover:bg-black/75"
-        >
-          {isUploading ? 'Uploading…' : chooseLabel}
-          <input
-            ref={inputRef}
-            id={inputId}
-            aria-label="Choose recipe photo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            disabled={isUploading}
-            onChange={handleFileChange}
-            className="sr-only"
-          />
-        </label>
-      ) : (
-        <input
-          ref={inputRef}
-          id={inputId}
-          aria-label="Choose recipe photo"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={handleFileChange}
-          className="sr-only"
-        />
-      )}
+        <div className="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
+          <label
+            htmlFor={takePhotoId}
+            className="flex min-h-11 cursor-pointer items-center rounded-xl bg-black/65 px-3 text-sm font-semibold text-white shadow-md backdrop-blur-sm hover:bg-black/75"
+          >
+            📷 Take photo
+          </label>
+          <label
+            htmlFor={inputId}
+            className="flex min-h-11 cursor-pointer items-center rounded-xl bg-black/65 px-3 text-sm font-semibold text-white shadow-md backdrop-blur-sm hover:bg-black/75"
+          >
+            {isUploading ? 'Uploading…' : chooseLabel}
+          </label>
+        </div>
+      ) : null}
+
+      {/* Both entry points share the same handler and limits: the camera input
+          asks for `capture="environment"`, the other opens the picker. */}
+      <input
+        ref={inputRef}
+        id={inputId}
+        aria-label="Choose recipe photo"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={isUploading}
+        onChange={handleFileChange}
+        className="sr-only"
+      />
+      <input
+        ref={cameraRef}
+        id={takePhotoId}
+        aria-label="Take recipe photo"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        disabled={isUploading}
+        onChange={handleFileChange}
+        className="sr-only"
+      />
     </div>
   )
 
@@ -197,14 +219,24 @@ export function RecipePhotoPicker({
         </p>
       </div>
       {imageFrame}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate text-xs text-ink-light">
+      {/* The status line gets its own row: with a photo selected there are three
+          controls here (take, choose, remove), and a single non-shrinking row
+          overflows a 412 px phone — which makes Chromium mobile shrink the whole
+          page to fit. The buttons wrap instead. */}
+      <div className="flex flex-col gap-2">
+        <span className="min-w-0 truncate text-xs text-ink-light">
           {selectedFile ? (previewUrl ? `Previewing ${selectedFile.name}` : `Selected ${selectedFile.name}`) : 'No photo selected'}
         </span>
-        <div className="flex shrink-0 gap-2">
+        <div data-testid="recipe-photo-actions" className="flex flex-wrap gap-2">
+          <label
+            htmlFor={takePhotoId}
+            className="flex min-h-11 cursor-pointer items-center whitespace-nowrap rounded-xl border border-primary px-3 text-sm font-semibold text-primary-dark hover:bg-primary/5"
+          >
+            📷 Take photo
+          </label>
           <label
             htmlFor={inputId}
-            className="flex min-h-11 cursor-pointer items-center rounded-xl border border-primary px-4 text-sm font-semibold text-primary-dark hover:bg-primary/5"
+            className="flex min-h-11 cursor-pointer items-center whitespace-nowrap rounded-xl border border-primary px-3 text-sm font-semibold text-primary-dark hover:bg-primary/5"
           >
             {chooseLabel}
           </label>

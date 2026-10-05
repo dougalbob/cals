@@ -65,4 +65,22 @@ describe('DrinksRoute', () => {
     await waitFor(() => expect(seed.drinks.some((d) => d.name === 'Hot chocolate')).toBe(true))
     expect(await screen.findByRole('dialog', { name: /hot chocolate/i })).toBeTruthy()
   })
+
+  it('does not start a retyped volume with a leading zero', async () => {
+    renderDrinks()
+    // The seeded Tea opens its own editor from the "On Today" list.
+    const onToday = (await screen.findByText('On Today')).closest('section') as HTMLElement
+    fireEvent.click(within(onToday).getByRole('button', { name: /Tea/ }))
+    const modal = await screen.findByRole('dialog', { name: /your tea/i })
+    const volume = within(modal).getByLabelText('Typical volume (ml)') as HTMLInputElement
+
+    // Clearing the field must leave it empty, not write a literal 0 that the
+    // next keystroke turns into "0250".
+    fireEvent.change(volume, { target: { value: '' } })
+    expect(volume.value).toBe('')
+
+    fireEvent.change(volume, { target: { value: '3' } })
+    fireEvent.change(volume, { target: { value: '33' } })
+    expect(volume.value).toBe('33')
+  })
 })

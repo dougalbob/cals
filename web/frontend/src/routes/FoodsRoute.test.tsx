@@ -92,6 +92,42 @@ describe('FoodsRoute', () => {
     expect(row.textContent).toContain('1 slice (12.5 g)')
   })
 
+  it('saves a FatSecret result to the catalogue and opens it for correction', async () => {
+    renderFoods()
+
+    fireEvent.change(await screen.findByPlaceholderText('Search local foods (FatSecret when configured)…'), {
+      target: { value: 'thick toast' },
+    })
+
+    const save = await screen.findByRole('button', {
+      name: 'Save Sliced white bread, thick toast to your foods and edit it',
+    })
+    fireEvent.click(save)
+
+    // The editor opens on the saved food, with its FatSecret provenance noted.
+    const modal = await screen.findByRole('dialog', { name: /Sliced white bread, thick toast/ })
+    expect(within(modal).getByText(/Saved from FatSecret/)).toBeTruthy()
+    const calories = within(modal).getByLabelText('Calories *') as HTMLInputElement
+    expect(calories.value).toBe('254')
+
+    fireEvent.change(calories, { target: { value: '248' } })
+    fireEvent.click(within(modal).getByRole('button', { name: 'Save food' }))
+
+    await waitFor(() => {
+      const cached = seed.foods.find((food) => food.name === 'Sliced white bread, thick toast')
+      expect(cached?.calories_per_100g).toBe(248)
+      expect(cached?.is_edited).toBe(true)
+    })
+
+    // A later search shows the saved food as an editable local row, not the
+    // pending FatSecret hit, and its FatSecret measures were kept.
+    const row = await screen.findByText('Sliced white bread, thick toast')
+    const listItem = row.closest('li') as HTMLElement
+    expect(within(listItem).getByRole('button', { name: /^Edit Sliced white bread/ })).toBeTruthy()
+    expect(listItem.textContent).toContain('1 thick slice (60.0 g)')
+    expect(listItem.textContent).toContain('From FatSecret')
+  })
+
   it('refuses an incomplete measure instead of inventing a conversion', async () => {
     renderFoods()
 

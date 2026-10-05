@@ -409,18 +409,41 @@ export function handle(method, url, body, headers = {}) {
         return aStarts - bStarts || a.name.localeCompare(b.name)
       })
       .map(foodResponse)
+
+    // Uncached FatSecret hits come back as `fs_<id>` rows, exactly as
+    // HandleSearchFoods returns them; picking one saves it locally.
+    for (const hit of seed.uncachedFatSecretFoods) {
+      if (results.length >= 20) break
+      if (foods.some((food) => String(food.fatsecret_id ?? '') === String(hit.fatsecret_id))) continue
+      if (!hit.name.toLowerCase().includes(q) && !(hit.brand ?? '').toLowerCase().includes(q)) continue
+      results.push({
+        id: `fs_${hit.fatsecret_id}`,
+        fatsecret_id: hit.fatsecret_id,
+        name: hit.name,
+        ...(hit.brand ? { brand: hit.brand } : {}),
+        // The real search result carries the calories parsed from the
+        // FatSecret description and nothing else; the full values arrive when
+        // the food is cached.
+        calories_per_100g: hit.calories_per_100g,
+        protein_per_100g: 0,
+        carbs_per_100g: 0,
+        fat_per_100g: 0,
+        fibre_per_100g: 0,
+        is_edited: false,
+      })
+    }
     return json(results)
   }
 
   const foodDetailMatch = pathname.match(/^\/api\/foods\/([^/]+)$/)
   if (foodDetailMatch && foodDetailMatch[1] !== 'custom' && method === 'GET') {
     const requestedId = foodDetailMatch[1]
+    // A FatSecret id caches the hit on first fetch, matching HandleGetFood and
+    // ensuring recipe writes only receive numeric IDs; a cached one is a lookup.
     const food = requestedId.startsWith('fs_')
-      ? foods.find((candidate) => String(candidate.fatsecret_id ?? '') === requestedId.slice(3))
+      ? seed.cacheFatSecretFood(requestedId.slice(3))
       : seed.findFood(requestedId)
     if (!food) return err(404, 'Food not found')
-    // A FatSecret id resolves to the fixture's already-cached local Food row,
-    // matching HandleGetFood and ensuring recipe writes only receive numeric IDs.
     return json(foodResponse(food))
   }
 

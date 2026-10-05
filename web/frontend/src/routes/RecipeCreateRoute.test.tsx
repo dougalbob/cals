@@ -84,6 +84,8 @@ describe('RecipeCreateRoute', () => {
     fireEvent.change(within(form).getByRole('spinbutton', { name: 'Cooked weight (grams)' }), {
       target: { value: '200' },
     })
+    // The summed ingredient weight is shown as a hint under the manual box.
+    expect(within(form).getByText(/The foods in this recipe add up to/).textContent).toContain('250')
     expect(within(form).getByRole('region', { name: 'Nutrition estimate' }).textContent).toContain('412.5 kcal total')
     expect(within(form).getByRole('region', { name: 'Nutrition estimate' }).textContent).toContain('206.3 kcal / 100 g cooked')
 
@@ -145,6 +147,11 @@ describe('RecipeCreateRoute', () => {
     fireEvent.change(within(form).getByRole('textbox', { name: 'Recipe name' }), {
       target: { value: 'Photo-only recipe' },
     })
+    // Both entry points exist: the gallery picker and the camera.
+    expect(within(form).getByText('📷 Take photo')).toBeTruthy()
+    const camera = within(form).getByLabelText('Take recipe photo')
+    expect(camera.getAttribute('capture')).toBe('environment')
+
     const photo = new File(['fixture image bytes'], 'photo.png', { type: 'image/png' })
     fireEvent.change(within(form).getByLabelText('Choose recipe photo'), { target: { files: [photo] } })
     expect(within(form).getByText(/(?:Selected|Previewing) photo\.png/)).toBeTruthy()

@@ -14,6 +14,7 @@ import { MEALS, type DiaryEntry, type Drink, type Food, type Meal } from '../api
 import { CalorieRing } from '../components/CalorieRing'
 import { FluidsCard, pickWaterDrink } from '../components/FluidsCard'
 import { QuantityPicker } from '../components/QuantityPicker'
+import { getFood } from '../api/foods'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
@@ -307,7 +308,7 @@ export function DiaryRoute() {
                 {mealEntries.map((entry) => (
                   <li key={entry.id} className="flex items-center gap-3 py-2 border-b border-line-light last:border-0">
                     <div className="flex-1 min-w-0">
-                      <p className="m-0 truncate text-sm font-medium">{entry.food_name || entry.recipe_name}</p>
+                      <p className="m-0 break-words text-sm font-medium">{entry.food_name || entry.recipe_name}</p>
                       <p className="m-0 text-xs text-ink-light">
                         {formatGrams(entry.quantity_grams)} · {formatNumber(entry.calories)} kcal
                         {entry.recipe_id ? ' · recipe' : ''}
@@ -382,7 +383,7 @@ export function DiaryRoute() {
                   {entry.icon || '🥤'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="m-0 truncate text-sm font-medium">{entry.name}</p>
+                  <p className="m-0 break-words text-sm font-medium">{entry.name}</p>
                   <p className="m-0 text-xs text-ink-light tabular-nums">
                     {entry.volume_ml} ml · {formatNumber(entry.calories)} kcal
                   </p>
@@ -647,6 +648,11 @@ function AddFoodModal({
   const [term, setTerm] = useState('')
   const [selected, setSelected] = useState<Food | null>(null)
   const [gramsText, setGramsText] = useState('100')
+  // A FatSecret hit has no local row yet: picking it saves the food (and its
+  // measures) into the catalogue first, exactly as the legacy Add sheet did.
+  const [resolvingFood, setResolvingFood] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const debounced = useDebounced(term, 250)
 
   const results = useQuery<Food[]>({
@@ -660,14 +666,39 @@ function AddFoodModal({
   const nutrition = selected ? nutritionForGrams(selected, grams) : null
 
   /** Start on the food's preferred measure when it has one; grams otherwise. */
-  const choose = (food: Food) => {
+  const startOnFood = (food: Food) => {
     setSelected(food)
     setGramsText(defaultServing(food) === null ? '100' : String(defaultServing(food)?.grams))
+  }
+
+  const choose = async (food: Food) => {
+    setResolveError(null)
+    if (typeof food.id === 'number') {
+      startOnFood(food)
+      return
+    }
+
+    setResolvingFood(String(food.id))
+    try {
+      const saved = await getFood(food.id)
+      if (typeof saved.id !== 'number') {
+        throw new Error('That food could not be saved to your food list.')
+      }
+      startOnFood(saved)
+      // The search cache still holds the `fs_` hit; refresh it so going back
+      // shows the saved food (with its measures) rather than the pending one.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foodSearchAll })
+    } catch (caught) {
+      setResolveError((caught as Error).message)
+    } finally {
+      setResolvingFood(null)
+    }
   }
 
   const close = () => {
     setSelected(null)
     setTerm('')
+    setResolveError(null)
     onClose()
   }
 
@@ -678,6 +709,7 @@ function AddFoodModal({
           <p className="m-0 text-xs text-ink-light">
             {formatNumber(selected.calories_per_100g)} kcal per 100 g
             {selected.brand ? ` · ${selected.brand}` : ''}
+            {selected.fatsecret_id ? ' · saved to your food list' : ''}
           </p>
 
           <QuantityPicker
@@ -734,6 +766,11 @@ function AddFoodModal({
               {error}
             </p>
           )}
+          {resolveError && (
+            <p role="alert" className="m-0 mb-2 text-sm text-danger">
+              {resolveError}
+            </p>
+          )}
           {results.isFetching && <p className="text-sm text-ink-light m-0">Searching…</p>}
 
           <ul className="list-none m-0 p-0">
@@ -741,22 +778,29 @@ function AddFoodModal({
               const portion = defaultServing(food)
               const portionGrams = portion?.grams ?? 100
               const kcal = Math.round((food.calories_per_100g * portionGrams) / 100)
+              const fromFatSecret = typeof food.id === 'string'
+              const resolving = resolvingFood === String(food.id)
               return (
                 <li key={String(food.id)} className="border-b border-line-light last:border-0">
                   <button
                     type="button"
-                    disabled={saving || typeof food.id === 'string'}
-                    onClick={() => choose(food)}
+                    disabled={saving || resolvingFood !== null}
+                    onClick={() => void choose(food)}
                     className="w-full text-left bg-transparent border-0 py-2.5 min-h-11 cursor-pointer disabled:opacity-40"
-                    title={typeof food.id === 'string' ? 'FatSecret results are read-only in the spike' : undefined}
+                    title={fromFatSecret ? 'Saving it adds it to your food list' : undefined}
                   >
                     <span className="block text-sm font-medium">
                       {food.name}
                       {food.brand ? <span className="text-ink-light font-normal"> · {food.brand}</span> : null}
                     </span>
                     <span className="block text-xs text-ink-light">
-                      {formatNumber(kcal)} kcal for{' '}
-                      {portion ? `${portion.label} (${formatGrams(portionGrams)})` : formatGrams(portionGrams)}
+                      {resolving ? 'Saving to your food list…' : (
+                        <>
+                          {formatNumber(kcal)} kcal for{' '}
+                          {portion ? `${portion.label} (${formatGrams(portionGrams)})` : formatGrams(portionGrams)}
+                          {fromFatSecret ? ' · FatSecret' : ''}
+                        </>
+                      )}
                     </span>
                   </button>
                 </li>

@@ -323,13 +323,19 @@ function TweakDrinkModal({
 }) {
   const type = catalogTypeForName(drink.name)
   const extras = drinkExtras(drink)
-  const [volume, setVolume] = useState(drink.volume_ml)
-  const [calories, setCalories] = useState(drink.calories)
+  // Held as text, not numbers: a controlled `type="number"` fed `Number('')`
+  // renders a literal 0 the moment the field is cleared, so the next keystroke
+  // produced "0250". Text state keeps the field empty while it is being
+  // retyped, exactly as the food editor does.
+  const [volumeText, setVolumeText] = useState(String(drink.volume_ml))
+  const [caloriesText, setCaloriesText] = useState(String(drink.calories))
   const [milk, setMilk] = useState(extras.usualMilk)
   const [sugar, setSugar] = useState<SugarAmount>(extras.usualSugar)
   const [waterFlag, setWaterFlag] = useState(drink.counts_toward_water)
   const [caloriesTouched, setCaloriesTouched] = useState(false)
 
+  const volume = volumeText.trim() === '' ? Number.NaN : Number(volumeText)
+  const calories = caloriesText.trim() === '' ? Number.NaN : Number(caloriesText)
   const acceptsMilk = extras.acceptsMilk
   const acceptsSugar = extras.acceptsSugar
 
@@ -337,7 +343,7 @@ function TweakDrinkModal({
     setMilk(nextMilk)
     setSugar(nextSugar)
     if (!caloriesTouched && type) {
-      setCalories(usualCalories(type, nextMilk, nextSugar))
+      setCaloriesText(String(usualCalories(type, nextMilk, nextSugar)))
     }
   }
 
@@ -349,8 +355,8 @@ function TweakDrinkModal({
           <input
             type="number"
             min={1}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
+            value={volumeText}
+            onChange={(e) => setVolumeText(e.target.value)}
             className="min-h-11 rounded-xl border border-line px-3 text-sm tabular-nums text-ink"
           />
         </label>
@@ -386,10 +392,10 @@ function TweakDrinkModal({
           <input
             type="number"
             min={0}
-            value={calories}
+            value={caloriesText}
             onChange={(e) => {
               setCaloriesTouched(true)
-              setCalories(Number(e.target.value))
+              setCaloriesText(e.target.value)
             }}
             className="min-h-11 rounded-xl border border-line px-3 text-sm tabular-nums text-ink"
           />
@@ -415,7 +421,7 @@ function TweakDrinkModal({
           </button>
           <button
             type="button"
-            disabled={pending || volume <= 0 || calories < 0}
+            disabled={pending || !(volume > 0) || !(calories >= 0)}
             onClick={() =>
               onSave({
                 name: drink.name,

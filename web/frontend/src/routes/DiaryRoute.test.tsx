@@ -278,6 +278,36 @@ describe('DiaryRoute', () => {
     })
   })
 
+  it('saves a FatSecret result into the food list when it is picked, then logs it', async () => {
+    renderDiary('/diary')
+
+    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
+    const breakfast = (await screen.findByText('Breakfast')).closest('section')
+    fireEvent.click(within(breakfast as HTMLElement).getByRole('button', { name: '+ Add food' }))
+
+    fireEvent.change(screen.getByPlaceholderText('Search foods…'), { target: { value: 'thick toast' } })
+    const modal = screen.getByRole('dialog')
+    const hit = await within(modal).findByRole('button', { name: /Sliced white bread, thick toast/ })
+    // FatSecret results are selectable — the old read-only spike behaviour is gone.
+    expect((hit as HTMLButtonElement).disabled).toBe(false)
+
+    fireEvent.click(hit)
+
+    // Picking it caches the food and its measures, then opens the quantity sheet.
+    expect(await within(modal).findByText(/saved to your food list/)).toBeTruthy()
+    const cached = seed.foods.find((food) => food.name === 'Sliced white bread, thick toast')
+    expect(cached?.calories_per_100g).toBe(254)
+
+    // The FatSecret measure is offered and converts through grams.
+    fireEvent.click(within(modal).getByRole('button', { name: /1 thick slice/ }))
+    fireEvent.click(within(modal).getByRole('button', { name: 'Add to Breakfast' }))
+
+    await waitFor(() => {
+      const added = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
+      expect(added).toMatchObject({ food_id: cached?.id, quantity_grams: 60 })
+    })
+  })
+
   it('logs a drink in one tap and updates water, drink totals and the bank', async () => {
     renderDiary('/diary')
 

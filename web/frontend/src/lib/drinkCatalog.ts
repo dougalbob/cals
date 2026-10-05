@@ -81,11 +81,17 @@ export function drinkExtras(drink: Drink): {
   usualSugar: SugarAmount
 } {
   const fromCatalog = catalogTypeForName(drink.name)
+  // The extras columns arrived after the first drinks existed, and the additive
+  // migration defaulted every legacy row to "accepts nothing" — which made the
+  // ⋯ vary-this-time button disappear from Tea and Coffee. The drink's type is
+  // the fallback: a Tea row that has never been configured still accepts milk
+  // and sugar, exactly as the catalog says. A row that has been configured
+  // keeps whatever it says on top of that.
   return {
-    acceptsMilk: drink.accepts_milk ?? fromCatalog?.accepts_milk ?? false,
-    acceptsSugar: drink.accepts_sugar ?? fromCatalog?.accepts_sugar ?? false,
+    acceptsMilk: Boolean(drink.accepts_milk) || Boolean(fromCatalog?.accepts_milk),
+    acceptsSugar: Boolean(drink.accepts_sugar) || Boolean(fromCatalog?.accepts_sugar),
     usualMilk: drink.usual_milk ?? (fromCatalog ? defaultUsual(fromCatalog).milk : false),
-    usualSugar: normalizeSugar(drink.usual_sugar) ?? (fromCatalog ? defaultUsual(fromCatalog).sugar : '0'),
+    usualSugar: normalizeSugar(drink.usual_sugar),
   }
 }
 
