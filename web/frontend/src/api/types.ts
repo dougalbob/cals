@@ -14,6 +14,12 @@ export interface User {
   bank_start_date: string
   /** The calorie bank's rolling window in completed calendar days; 0 = all time (decisions 66, 93). */
   bank_window_days: number
+  /**
+   * The weigh-in chart's trend window, counted in weigh-ins rather than
+   * calendar days (decision 95). Defaults to 7; set through PUT /api/users/me
+   * with no UI until Phase 15.
+   */
+  weight_trend_days: number
   target_weight_kg?: number
   /** Admin/Standard role (decisions 45, 89): declared in the server's .env and reconciled at start-up. */
   is_admin: boolean

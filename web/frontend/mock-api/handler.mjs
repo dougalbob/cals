@@ -239,8 +239,10 @@ export function handle(method, url, body, headers = {}) {
   if (pathname === '/api/users/me' && method === 'GET') return json(currentUser())
 
   // PUT /api/users/me — bank_window_days is the slice-14.2 addition (decision
-  // 93). 0 means "all time"; a negative window is a 400 rather than a silent
-  // no-op, matching internal/handlers/users.go.
+  // 93) and weight_trend_days the slice-14.3 one (decision 95). 0 means "all
+  // time" for the bank; the trend window must be something the chart could
+  // actually draw (3–90 weigh-ins). Anything else is a 400 rather than a
+  // silent no-op, matching internal/handlers/users.go.
   if (pathname === '/api/users/me' && method === 'PUT') {
     const account = currentUser()
     if (body && Object.prototype.hasOwnProperty.call(body, 'bank_window_days')) {
@@ -249,6 +251,13 @@ export function handle(method, url, body, headers = {}) {
         return err(400, 'bank_window_days must be 0 (all time) or a number of days')
       }
       account.bank_window_days = days
+    }
+    if (body && Object.prototype.hasOwnProperty.call(body, 'weight_trend_days')) {
+      const weighIns = body.weight_trend_days
+      if (!Number.isInteger(weighIns) || weighIns < 3 || weighIns > 90) {
+        return err(400, 'weight_trend_days must be between 3 and 90 weigh-ins')
+      }
+      account.weight_trend_days = weighIns
     }
     return json(account)
   }

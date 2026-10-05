@@ -599,6 +599,8 @@ export const users = [
     bank_start_date: iso(localNoon(20)),
     // The additive default from decision 93; 0 would mean "all time".
     bank_window_days: 14,
+    // The slice-14.3 trend window, counted in weigh-ins (decision 95).
+    weight_trend_days: 7,
     target_weight_kg: 85,
     // Decision 89: the Admin role is declared in the server's .env.
     is_admin: true,
@@ -614,6 +616,7 @@ export const users = [
     weight_unit: 'stones',
     bank_start_date: iso(localNoon(20)),
     bank_window_days: 14,
+    weight_trend_days: 10,
     target_weight_kg: 68,
     is_admin: false,
     created_at: '2025-02-14T09:00:00Z',

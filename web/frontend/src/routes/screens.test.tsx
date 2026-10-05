@@ -54,7 +54,7 @@ describe('MetricsRoute', () => {
     renderRoute(<MetricsRoute />)
 
     expect(await screen.findByText('⚖️ Weight')).toBeTruthy()
-    expect(screen.getByText('🔥 Daily calories (14 days)')).toBeTruthy()
+    expect(screen.getByText('🔥 Daily goal vs consumed')).toBeTruthy()
     expect(screen.getByText('🏦 Calorie bank (30 days)')).toBeTruthy()
     expect(screen.getByText('🥗 Nutrition — 7 day rolling')).toBeTruthy()
     expect(screen.getByText('📏 Measurements')).toBeTruthy()
