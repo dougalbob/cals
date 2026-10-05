@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **APPROVED for slices 14.1–14.3** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05). **Q6–Q11 (§6) are still open** and gate 14.4–14.6. Nothing is built yet; implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **APPROVED for slices 14.1–14.3** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is ready to build**. **Q6–Q11 (§6) are still open** and gate 14.4–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -204,6 +204,16 @@ owner's wife's deficit will change by more than the window alone explains. This 
 checkpoint with its own preview: the numbers should be looked at before anything is built on top of them.
 See **Q1** — one line of the existing documentation is wrong about this.
 
+**Built 2026-10-05** (PR #62, shipped in `v2.0.0-dev-rc27`; the owner road-tested the changed figures on Unraid on 2026-10-05 — "all looks good"). Five things building it taught, recorded here because 14.3 and the rest of the phase build on them:
+
+- **One helper, three surfaces.** `GET /api/bank`, the Calendar's per-day closing balance and `GET /api/stats/bank` now all call one `computeBankWindow`. The Calendar had re-implemented the old cumulative rule and the stats endpoint was food-only and cumulative; shipping the new rule in one place would have put Today, Diary and the Calendar on three different figures — exactly the class of bug the RFC3339 incident came from. Any future change to the bank goes through the same helper.
+- **One rounding rule.** Half away from zero, applied once per window, replaced the Calendar's round-half-up and the bank's truncation. The two only disagreed on some values, so nothing had ever surfaced it.
+- **A "logged day" is any entry in either ledger.** A day with only a logged glass of water contributes a full day's budget — the literal reading of decision 42. The owner was shown the alternative (only calorie-bearing entries count) and asked **not** to narrow it: the household logs water most days, and that is the reading that matches decision 42's wording ("a day with no logging at all").
+- **The numbers move twice over.** A window is smaller than a since-day-one accumulation, *and* an unlogged day no longer adds a day's budget — so the deficit change is larger than the window alone explains. That is why the slice was its own checkpoint and why the owner read the real figures on both accounts before 14.3.
+- **Prove the tests fail without the change.** The new window tests were run against a simulated pre-slice calculation: the window tests report the old figures (e.g. 2500 where the windowed rule says 1000) and the Calendar reports 1870 where the windowed rule says 370. A test that passes before and after is evidence of nothing.
+
+Two RFC3339 leaks remain open by choice (`GET /api/users/me`'s `bank_start_date` and `GET /api/bank`'s `start_date`), because the wire-format question is untouched by this phase. `web/static/**` still prints the figure without its window label, as the legacy UI is frozen to critical fixes.
+
 ### 14.3 — Metrics charts *(decisions 69, 70, 71)*
 
 1. A shared **panning window hook**: drag on a phone (with `navigator.vibrate` where supported, never a
@@ -220,6 +230,12 @@ See **Q1** — one line of the existing documentation is wrong about this.
 4. The charting approach is settled by decision 94: the existing SVG components, plus the pan hook.
 
 *Frontend plus the read-only endpoints from 14.1. No schema change.*
+
+**Ready 2026-10-05.** Decisions 69, 70, 71, 94 and 95 are all settled and nothing gates the slice; three implementation notes were recorded when the plan was brought in line after rc27's sign-off:
+
+- **Read the trend window from `GET /api/users/me`, do not hard-code 7.** 14.3 adds the additive `users.weight_trend_days` column (default 7), readable and writable through `PUT /api/users/me` with no UI — the same column-now-control-later pattern as 14.2's bank window (decision 93). The chart must use the value the user record returns, not the literal 7, or the Phase 15 control would appear to do nothing.
+- **The trend is drawn only where it has at least three weigh-ins to average, and it is labelled with its method.** Points stay points; the moving average is taken over weigh-ins rather than calendar days (decision 95); it carries a visible "n-weigh-in moving average" label; and there is no forecast, ETA or plateau claim anywhere.
+- **The other Metrics surfaces keep their windows.** The pan moves the chart window only: the 30-day bank line and the measurements table are unchanged, and only the weigh-in and goal-vs-consumed charts share the pannable window.
 
 ### 14.4 — Body-map measurements *(decision 67)*
 
@@ -281,8 +297,8 @@ the report both read their numbers.
 | Slice | Automated | Owner acceptance |
 |---|---|---|
 | 14.1 | Go handler tests for date format, range params, drink inclusion; V1 metrics screen still renders | None needed — no visible change. Confirm `GET /api/weight` JSON dates read `YYYY-MM-DD` |
-| 14.2 | The seven bank regression tests plus a Calendar-vs-`/api/bank` agreement test | **Read the new bank figure on his and his wife's account at `/next/` and confirm it looks right** before anything builds on it |
-| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? |
+| 14.2 | The seven bank regression tests plus a Calendar-vs-`/api/bank` agreement test | **Read the new bank figure on his and his wife's account at `/next/` and confirm it looks right** before anything builds on it — ✅ **done: owner signed off on Unraid 2026-10-05 ("all looks good")** |
+| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? (ready to build; no question gates it) |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
 | 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
 | 14.6 | Report maths tests, including excluded-day labelling | Does the report card answer "how did last week go"? |
@@ -376,16 +392,16 @@ segmented-control pattern the Calendar already uses.
 
 ## 7. Rough size
 
-Estimates, to be re-based after 14.1 and 14.2 land:
+Re-based 2026-10-05 after 14.1 and 14.2 landed and were signed off:
 
 | Slice | Size | Notes |
 |---|---|---|
-| 14.1 | Small | Three handlers, tests. No UI |
-| 14.2 | **Medium-large** | Small diff, high risk. Most of the effort is tests and the two mirrors |
-| 14.3 | Medium | Two charts plus the pan hook; larger if Q4 goes to Chart.js |
+| 14.1 | Small | Three handlers, tests. No UI. **Built** — two small additions beyond the plan and one planned "fix" that was not a fix (§14.1) |
+| 14.2 | **Medium-large** | Small diff, high risk. Most of the effort is tests and the two mirrors. **Built and signed off** — the two mirrors were the substance, plus one rounding rule and the logged-day rule (§14.2) |
+| 14.3 | Medium | Two charts plus the shared pan hook and one additive column. Decision 94 keeps the hand-written SVG components, so the Chart.js path is closed and the bundle does not grow a chart library |
 | 14.4 | **Large** | New SVG surface, new endpoint, migration, accessibility |
 | 14.5 | Medium | Mostly porting a screen V1 already has |
 | 14.6 | Small-medium | Presentation over data the other slices already produce |
 
-Phase 14 is realistically **several working sessions**, not one. Nothing in it needs a decision about
-cutover, and nothing in it moves the household off `/`.
+Phase 14 is realistically **several working sessions**, not one; two of the six slices are done. Nothing
+in it needs a decision about cutover, and nothing in it moves the household off `/`.

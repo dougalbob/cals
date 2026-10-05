@@ -14,8 +14,10 @@ no-photo recipe creation at `/recipes/new` and transactional `POST /api/recipes`
 migration**. The owner reports rc24 is installed on Unraid and new recipe creation works well. The
 latest checkpoint, **`v2.0.0-dev-rc25`** (PR #56, published 2026-10-04), includes decisions 82–85:
 uncropped photo upload/replacement, Today/Diary fill distinction, the Own creation detail-filter
-checkbox, and Diary meal-entry delete confirmation. The owner signed off all published RC candidates through rc25 on 2026-10-04; the last reported
-Unraid installation remains rc24, and a Force Update is unconfirmed. Phase 13 is accepted; cropping is deferred. Exact image/release evidence is in the
+checkbox, and Diary meal-entry delete confirmation. The owner signed off all published RC candidates through rc25 on 2026-10-04, tested rc26 on Unraid,
+then Force Updated to **rc27** and road-tested the windowed bank the same day ("all looks good").
+rc27 is the last reported installation; Phase 13 is accepted, and Phase 14.3 (the pannable metrics
+charts) is next. Cropping is deferred. Exact image/release evidence is in the
 [release log](../../docs/architecture/unraid-image-release.md#release-log). Phase 13 sign-off and last-reported installation status are in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) §3. See
 [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The existing
 additive `recipes.is_own_creation` field defaults false and is applied at startup; no data copy or
@@ -23,7 +25,8 @@ reset. Earlier increments cover the photo-led catalogue, per-user favourites, sh
 structured tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with
 each user's remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18
 refinements. The legacy Mealie importer is not being pursued or ported to React. The Diary/Metrics/Foods
-screens began as a spike; Metrics remains a work-in-progress. Research for Phase 14 is in
+screens began as a spike; Metrics gained the windowed bank in rc27 and the pannable weigh-in and
+goal-vs-consumed charts (Phase 14.3) are next. Research for Phase 14 is in
 [`../../docs/product/metrics-evidence.md`](../../docs/product/metrics-evidence.md); the existing vanilla UI is still the default.
 The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this
 phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
@@ -226,7 +229,7 @@ The tests exercise typed API behavior, domain maths and render the implemented s
 fixture API, including add/edit/delete diary flows and delete confirmation, serving/grams mode, recipe
 portion logging, URL-backed recipe filters including Own creation, hydration-target feedback, separate
 Today/Diary meal-fill alpha, calendar month-cell states and new-recipe creation/validation plus
-recipe-photo upload/replacement flows (198 tests across 25 files as of 2026-10-04).
+recipe-photo upload/replacement flows (228 tests across 28 files as of 2026-10-05).
 
 The **browser suite** (`e2e/`) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, confirmation/cancel behaviour when deleting a meal entry,
