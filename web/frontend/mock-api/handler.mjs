@@ -371,11 +371,11 @@ export function handle(method, url, body, headers = {}) {
   }
 
   if (pathname === '/api/weight' && method === 'GET') {
-    const days = Number.parseInt(searchParams.get('days') ?? '90', 10) || 90
-    const from = seed.dateOffset(days)
+    const range = resolveSeriesRange(searchParams, 90, 0)
+    if (range.error) return err(400, range.error)
     return json(
       weightEntries
-        .filter((e) => e.user_id === actingUserId && e.date >= from)
+        .filter((e) => e.user_id === actingUserId && e.date >= range.from && e.date <= range.to)
         .sort((a, b) => b.date.localeCompare(a.date)),
     )
   }
@@ -398,14 +398,19 @@ export function handle(method, url, body, headers = {}) {
     )
   }
 
+  // Calories are food **and** drink, mirroring internal/handlers/stats.go: a
+  // chart built on this endpoint must not disagree with the ring.
   if (pathname === '/api/stats/calories' && method === 'GET') {
-    const days = clampDays(searchParams.get('days'))
+    const range = resolveSeriesRange(searchParams, 14)
+    if (range.error) return err(400, range.error)
     const out = []
-    for (let back = days - 1; back >= 0; back--) {
-      const date = seed.dateOffset(back)
+    for (let date = range.from; date <= range.to; date = seed.nextDate(date)) {
+      const drinks = seed
+        .drinkEntriesFor(date, actingUserId)
+        .reduce((acc, e) => acc + e.calories, 0)
       out.push({
         date,
-        calories: num(seed.totalsFor(date, actingUserId).calories),
+        calories: num(seed.totalsFor(date, actingUserId).calories + drinks),
         goal: currentUser().daily_calorie_goal,
       })
     }
@@ -413,10 +418,10 @@ export function handle(method, url, body, headers = {}) {
   }
 
   if (pathname === '/api/stats/bank' && method === 'GET') {
-    const days = clampDays(searchParams.get('days'))
+    const range = resolveSeriesRange(searchParams, 14)
+    if (range.error) return err(400, range.error)
     const out = []
-    for (let back = days - 1; back >= 0; back--) {
-      const date = seed.dateOffset(back)
+    for (let date = range.from; date <= range.to; date = seed.nextDate(date)) {
       out.push({ date, balance: bank(date).bank_balance })
     }
     return json(out)
@@ -779,6 +784,36 @@ export function handle(method, url, body, headers = {}) {
   }
 
   return null
+}
+
+// Mirrors resolveSeriesRange in internal/handlers/stats.go: an explicit
+// from/to pair wins, otherwise `days` counts back from today. A malformed range
+// is a 400 rather than a silently narrowed window. `to` is pulled back to today
+// because these endpoints fabricate a row per calendar day.
+const MAX_SERIES_SPAN = 400
+
+function resolveSeriesRange(searchParams, defaultDays, maxDays = 90) {
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/
+
+  if (!from && !to) {
+    // Lenient, exactly as the Go handlers have always been: an unparseable or
+    // out-of-range `days` falls back to the default rather than erroring.
+    let days = defaultDays
+    const raw = searchParams.get('days') ?? ''
+    if (/^\d+$/.test(raw)) {
+      const parsed = Number.parseInt(raw, 10)
+      if (parsed > 0 && (maxDays === 0 || parsed <= maxDays)) days = parsed
+    }
+    return { from: seed.dateOffset(days - 1), to: seed.TODAY }
+  }
+  if (!from || !to) return { error: 'from and to must both be given (YYYY-MM-DD)' }
+  if (!isoDate.test(from)) return { error: 'invalid from date (want YYYY-MM-DD)' }
+  if (!isoDate.test(to)) return { error: 'invalid to date (want YYYY-MM-DD)' }
+  if (to < from) return { error: 'to must be on or after from' }
+  if (seed.daysBetween(from, to) + 1 > MAX_SERIES_SPAN) return { error: `range exceeds ${MAX_SERIES_SPAN} days` }
+  return { from, to: to > seed.TODAY ? seed.TODAY : to }
 }
 
 function clampDays(raw, fallback = 14) {
