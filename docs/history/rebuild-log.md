@@ -41,6 +41,34 @@ tracked-nutrient slice (15.2) remains deferred pending decision 47.
 
 ---
 
+## 2026-10-05 — Phase 14.6 published as `v2.0.0-dev-rc33`, after GitHub's Actions incident
+
+PR #74 (the weekly report) was merged into `cals-dev` as `e6d4d3c531ceae421245b40879f1b1a58dd7e993` and
+tagged `v2.0.0-dev-rc33`. The tag-triggered publish and browser runs never started: GitHub was mid-incident
+([Actions — delays assigning GitHub-hosted runners](https://www.githubstatus.com/incidents/3q1yb5m7ltvb),
+first reported 19:11 UTC), and three consecutive runs — 37364192851, 37366694356 and 37369971976 — were each
+cancelled after the 15-minute runner-acquisition timeout with *"The job was not acquired by Runner of type
+hosted even after multiple attempts"*. Nothing in the repository was at fault; the ancestry guard, image
+build and browser suite never executed.
+
+Recovery was deliberately **the same tag pushed again, not a new tag**. The annotated tag object (`a827fcf`,
+pointing at `e6d4d3c`) was deleted and re-pushed byte-for-byte unchanged so the `push` event fired a fresh
+run — no commit, tag message or target moved, and the tag's contents are identical to the first push. Run
+[37371578204](https://github.com/dougalbob/cals/actions/runs/37371578204) acquired a runner at 20:44 UTC and
+passed every gate: the `cals-dev` ancestry guard, the image build, the exact-tag and `dev-latest` pushes, the
+prerelease and the anonymous-pull check. Digest
+`sha256:46dec0bbfa4f811caf85c2b2d84378e88596b7d3b9a01ee1cdbeae56aedd66c1`; [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc33).
+`dev-latest` now points at rc33.
+
+The tagged [browser suite](https://github.com/dougalbob/cals/actions/runs/37371578135) ran **68 tests and
+passed 66**: both new `e2e/metrics-report.spec.ts` phone specs pass, and the only failures are the two
+owner-deferred `e2e/navigation.spec.ts` tests that have been red since rc30 (`playwright-run-37371578135`
+artifact attached). Nothing in PR #74 touches navigation.
+
+Phase 14 is complete in code: all six slices are built and published (rc27→rc33). rc33 is the newest of the
+five consecutive published checkpoints that await one accumulated Force Update, and rc27 remains the last
+reported Unraid installation.
+
 ## 2026-10-05 — Phase 14.6 built: the weekly report (decisions 46, 107–109)
 
 The last slice of Phase 14. Before anything was written the owner settled its three shape questions, now
