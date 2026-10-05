@@ -428,6 +428,10 @@ export interface MacroStatus {
 export interface DailyNutrition {
   date: string
   calories: number
+  /** Food-only calories (macros come from this ledger). */
+  food_calories: number
+  /** Drink-only calories (no macro breakdown — decision 1 + slice 14.1 precedent). */
+  drink_calories: number
   protein: number
   carbs: number
   fat: number

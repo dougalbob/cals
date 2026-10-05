@@ -34,6 +34,9 @@ const RecipeDetailRoute = lazy(() =>
 const MetricsRoute = lazy(() =>
   import('./routes/MetricsRoute').then((m) => ({ default: m.MetricsRoute })),
 )
+const NutritionRoute = lazy(() =>
+  import('./routes/NutritionRoute').then((m) => ({ default: m.NutritionRoute })),
+)
 const DrinksRoute = lazy(() =>
   import('./routes/DrinksRoute').then((m) => ({ default: m.DrinksRoute })),
 )
@@ -58,6 +61,7 @@ export const router = createBrowserRouter(
         { path: 'recipes/new', element: <RecipeCreateRoute /> },
         { path: 'recipes/:id', element: <RecipeDetailRoute /> },
         { path: 'metrics', element: <MetricsRoute /> },
+        { path: 'nutrition', element: <NutritionRoute /> },
         { path: 'drinks', element: <DrinksRoute /> },
         { path: '*', element: <Navigate to="/diary" replace /> },
       ],

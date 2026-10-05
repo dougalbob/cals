@@ -131,7 +131,8 @@ function nutritionAnalysis(days = 7) {
   for (let back = days - 1; back >= 0; back--) {
     const date = seed.dateOffset(back)
     const t = seed.totalsFor(date)
-    const totalCal = t.calories
+    const drinkCal = seed.drinkEntriesFor(date).reduce((acc, e) => acc + e.calories, 0)
+    const totalCal = t.calories + drinkCal
     const proteinKcal = t.protein * 4
     const carbsKcal = t.carbs * 4
     const fatKcal = t.fat * 9
@@ -141,6 +142,8 @@ function nutritionAnalysis(days = 7) {
     daily.push({
       date,
       calories: num(totalCal),
+      food_calories: num(t.calories),
+      drink_calories: num(drinkCal),
       protein: num(t.protein),
       carbs: num(t.carbs),
       fat: num(t.fat),
@@ -150,7 +153,7 @@ function nutritionAnalysis(days = 7) {
       fat_percent: macroKcal ? num((fatKcal / macroKcal) * 100) : 0,
       protein_per_kg: kg ? num(t.protein / kg) : 0,
     })
-    if (t.calories > 0) daysWithData++
+    if (totalCal > 0) daysWithData++
   }
 
   const withData = daily.filter((d) => d.calories > 0)
@@ -268,6 +271,22 @@ export function handle(method, url, body, headers = {}) {
         return err(400, 'body_outline must be "female" or "male"')
       }
       account.body_outline = outline
+    }
+    // Slice 14.5: target weight in kg (nullable — null clears it). The
+    // additive column existed but was neither SELECTed nor written by any
+    // handler before 14.5, so the Target tile on Metrics was permanently
+    // "Not set". Accepting null lets the user clear it.
+    if (body && Object.prototype.hasOwnProperty.call(body, 'target_weight_kg')) {
+      const t = body.target_weight_kg
+      if (t === null || t === undefined) {
+        account.target_weight_kg = undefined
+      } else {
+        const n = Number(t)
+        if (!Number.isFinite(n) || n <= 20 || n >= 300) {
+          return err(400, 'target_weight_kg must be a reasonable weight in kg, or null to clear')
+        }
+        account.target_weight_kg = Math.round(n * 10) / 10
+      }
     }
     return json(account)
   }

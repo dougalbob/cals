@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState, type UIEvent } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, type UIEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, queryKeys } from './api/client'
@@ -10,12 +10,20 @@ const NAV = [
   { to: '/diary', label: 'Diary', icon: '📔', end: false },
   { to: '/calendar', label: 'Calendar', icon: '📅', end: false },
   { to: '/metrics', label: 'Metrics', icon: '📈', end: false },
-  { to: '/foods', label: 'Foods', icon: '🥗', end: false },
+  { to: '/nutrition', label: 'Nutrition', icon: '🥗', end: false },
+  { to: '/foods', label: 'Foods', icon: '🍲', end: false },
   { to: '/recipes', label: 'Recipes', icon: '🍽️', end: false },
 ]
 
+/**
+ * Number of slots visible at a time in the bottom nav. With 7 destinations the
+ * first page shows Today/Diary/Calendar/Metrics/Nutrition; the › button on the
+ * right reveals Foods/Recipes, and a ‹ Back button at the far left returns.
+ * The back button sits on the far left of the bar as an overlay (owner
+ * niggle, session 2026-10-05) so it never lands in the middle of the row.
+ */
 const VISIBLE_NAV_ITEMS = 5
-const NAV_OVERFLOW_INSERT_INDEX = VISIBLE_NAV_ITEMS - 1
+
 
 function vibrateForNavigationChange() {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return
@@ -50,7 +58,11 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const navRef = useRef<HTMLDivElement>(null)
   const navPageRef = useRef(0)
-  const [navOverflowVisible, setNavOverflowVisible] = useState(false)
+  // Page 0 (default, five slots visible) shows the › More overlay on the far
+  // right; page 1 (scrolled to reveal Foods/Recipes) shows ‹ Back on the far
+  // left (owner niggle, 2026-10-05 — Back must never land in the middle of
+  // the bar).
+  const [navOnPage1, setNavOnPage1] = useState(false)
 
   const queryClient = useQueryClient()
   const [swapOpen, setSwapOpen] = useState(false)
@@ -77,60 +89,72 @@ export function AppLayout() {
     staleTime: 5 * 60_000,
   })
 
-  // If a route change lands on an item outside the current five-slot window
-  // (for example, following Diary → Add recipe), reveal it without haptics.
+  /** Which page the scroll view is on. Synchronises the overlays with the
+   *  scroll position; routing a destination ≥ VISIBLE_NAV_ITEMS also flips
+   *  this so the right overlay is rendered on first paint for deep links. */
+  const setPage = useCallback((page: number) => {
+    setNavOnPage1(page >= 1)
+    navPageRef.current = page
+  }, [])
+
+  // If a route change lands on an overflow item (Foods/Recipes), scroll the
+  // nav so the Back overlay appears and the item is in view. Page 0 (default)
+  // shows the first five; page 1 reveals Foods/Recipes with a ‹ Back on the
+  // far left.
   useEffect(() => {
     const nav = navRef.current
-    if (!nav || nav.clientWidth === 0) return
+    if (!nav) return
 
     const destinationIndex = NAV.findIndex(({ to, end }) =>
       end ? pathname === to : pathname === to || pathname.startsWith(`${to}/`),
     )
     if (destinationIndex < 0) return
 
-    // The overflow arrow sits between Metrics and Foods in the scrolling row.
-    const activeIndex = destinationIndex >= NAV_OVERFLOW_INSERT_INDEX ? destinationIndex + 1 : destinationIndex
-    const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    const itemLeft = activeIndex * itemWidth
-    const itemRight = itemLeft + itemWidth
-    const viewportRight = nav.scrollLeft + nav.clientWidth
-    if (itemLeft < nav.scrollLeft || itemRight > viewportRight) {
-      const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth)
-      const nextScroll = Math.min(maxScroll, Math.max(0, itemRight - nav.clientWidth))
-      nav.scrollLeft = nextScroll
-      navPageRef.current = Math.round(nextScroll / itemWidth)
-      setNavOverflowVisible(maxScroll > 0 && nextScroll >= maxScroll - itemWidth / 2)
-    }
-  }, [pathname])
+    // Destinations at index ≥ VISIBLE_NAV_ITEMS live on page 1 (Foods/Recipes).
+    // Nutrition is at index 4 (last visible slot), so it stays on page 0.
+    const wantPage = destinationIndex >= VISIBLE_NAV_ITEMS ? 1 : 0
+
+    // Scroll position is set on the next frame so the nav has its real width
+    // in jsdom as well as in the browser; synchronously reading clientWidth
+    // on first render returned 0 in tests.
+    requestAnimationFrame(() => {
+      if (!nav || nav.clientWidth === 0) return
+      const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
+      const nextScroll = wantPage === 1 ? (VISIBLE_NAV_ITEMS - 1) * itemWidth : 0
+      if (Math.abs(nav.scrollLeft - nextScroll) > 1) {
+        nav.scrollLeft = nextScroll
+      }
+      setPage(wantPage)
+    })
+  }, [pathname, setPage])
 
   const handleNavScroll = (event: UIEvent<HTMLDivElement>) => {
     const nav = event.currentTarget
     if (nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    const nextPage = Math.round(nav.scrollLeft / itemWidth)
-    const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth)
-    setNavOverflowVisible(maxScroll > 0 && nav.scrollLeft >= maxScroll - itemWidth / 2)
+    const nextPage = nav.scrollLeft > itemWidth / 2 ? 1 : 0
     if (nextPage === navPageRef.current) return
-    navPageRef.current = nextPage
+    setPage(nextPage)
     vibrateForNavigationChange()
   }
 
-  const handleNavOverflowClick = () => {
+  const handleMoreClick = () => {
     const nav = navRef.current
     if (!nav || nav.clientWidth === 0) return
-
-    const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth)
-    if (maxScroll === 0) return
-
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    const isAtOverflowEnd = nav.scrollLeft >= maxScroll - itemWidth / 2
-    const nextScroll = isAtOverflowEnd ? 0 : maxScroll
-    const currentPage = Math.round(nav.scrollLeft / itemWidth)
-    const nextPage = Math.round(nextScroll / itemWidth)
-    nav.scrollLeft = nextScroll
-    navPageRef.current = nextPage
-    setNavOverflowVisible(nextScroll > 0)
-    if (currentPage !== nextPage) vibrateForNavigationChange()
+    // Scroll to page 1: items shift left one slot, leaving the first slot's
+    // width covered by the Back overlay.
+    nav.scrollLeft = (VISIBLE_NAV_ITEMS - 1) * itemWidth
+    setPage(1)
+    vibrateForNavigationChange()
+  }
+
+  const handleBackClick = () => {
+    const nav = navRef.current
+    if (!nav) return
+    nav.scrollLeft = 0
+    setPage(0)
+    vibrateForNavigationChange()
   }
 
   return (
@@ -220,33 +244,53 @@ export function AppLayout() {
       <nav
         aria-label="Primary navigation"
         aria-describedby="primary-navigation-hint"
-        className="fixed bottom-0 left-0 right-0 z-40 overflow-hidden border-t border-line bg-card safe-bottom"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-card safe-bottom"
       >
-        <div
-          ref={navRef}
-          data-testid="primary-navigation-scroll"
-          onScroll={handleNavScroll}
-          className="scrollbar-hidden mx-auto flex w-full max-w-2xl snap-x snap-mandatory touch-pan-x overflow-x-auto overscroll-x-contain"
-        >
-          {NAV.slice(0, NAV_OVERFLOW_INSERT_INDEX).map((item) => (
-            <NavigationLink key={item.to} item={item} />
-          ))}
-          <button
-            type="button"
-            data-testid="primary-navigation-overflow-button"
-            aria-label={navOverflowVisible ? 'Show earlier navigation destinations' : 'Show Foods and Recipes'}
-            title={navOverflowVisible ? 'Show earlier navigation destinations' : 'Show Foods and Recipes'}
-            onClick={handleNavOverflowClick}
-            className="flex-none w-1/5 snap-start flex flex-col items-center justify-center gap-0.5 py-2 min-h-11 text-xs font-medium text-ink-light hover:text-ink bg-transparent border-0 cursor-pointer"
+        <div className="relative mx-auto w-full max-w-2xl">
+          <div
+            ref={navRef}
+            data-testid="primary-navigation-scroll"
+            onScroll={handleNavScroll}
+            className="scrollbar-hidden flex snap-x snap-mandatory touch-pan-x overflow-x-auto overscroll-x-contain"
           >
-            <span aria-hidden className="text-2xl leading-none">
-              {navOverflowVisible ? '‹' : '›'}
-            </span>
-            <span>{navOverflowVisible ? 'Back' : 'More'}</span>
-          </button>
-          {NAV.slice(NAV_OVERFLOW_INSERT_INDEX).map((item) => (
-            <NavigationLink key={item.to} item={item} />
-          ))}
+            {/* Extra empty slot at the end: when we scroll to the overflow page
+                (page 1) the Back overlay covers one slot-width, so adding a
+                spacer slot keeps Foods/Recipes aligned to the remaining four
+                visible columns rather than disappearing under the overlay. */}
+            {NAV.map((item) => (
+              <NavigationLink key={item.to} item={item} />
+            ))}
+            <div aria-hidden className="flex-none w-1/5" />
+          </div>
+          {/* Overlay controls: › More sits at the far right on page 0; ‹ Back
+              sits at the far left on page 1 (owner niggle, 2026-10-05: the back
+              arrow must not appear in the middle of the bar). */}
+          {!navOnPage1 && (
+            <button
+              type="button"
+              data-testid="primary-navigation-more"
+              aria-label="Show Foods and Recipes"
+              title="Show Foods and Recipes"
+              onClick={handleMoreClick}
+              className="absolute right-0 top-0 bottom-0 flex w-[20%] cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-card py-2 text-xs font-medium text-ink-light hover:text-ink"
+            >
+              <span aria-hidden className="text-2xl leading-none">›</span>
+              <span>More</span>
+            </button>
+          )}
+          {navOnPage1 && (
+            <button
+              type="button"
+              data-testid="primary-navigation-back"
+              aria-label="Show main navigation"
+              title="Show main navigation"
+              onClick={handleBackClick}
+              className="absolute left-0 top-0 bottom-0 flex w-[20%] cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-card py-2 text-xs font-medium text-ink-light hover:text-ink"
+            >
+              <span aria-hidden className="text-2xl leading-none">‹</span>
+              <span>Back</span>
+            </button>
+          )}
         </div>
         <span id="primary-navigation-hint" className="sr-only">
           Swipe horizontally or use the arrow to reveal Foods and Recipes. Haptic feedback is used when supported.

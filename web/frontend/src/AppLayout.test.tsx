@@ -101,31 +101,34 @@ describe('AppLayout development identity link', () => {
 })
 
 describe('AppLayout primary navigation', () => {
-  it('shows five equal-width navigation slots at a time and haptically signals swipe paging when supported', async () => {
+  it('lays out nav links in equal fifths and haptically signals swipe paging when supported', async () => {
     const vibrate = vi.fn()
     vi.stubGlobal('navigator', { vibrate })
     renderApp(false)
 
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
-    const links = within(nav).getAllByRole('link')
-
-    expect(links).toHaveLength(6)
+    // 7 destinations (slice 14.5 added Nutrition) plus a trailing spacer slot
+    // so the overlay Back button doesn't cover Foods/Recipes on page 1.
+    const links = within(scroller).getAllByRole('link')
+    expect(links.length).toBeGreaterThanOrEqual(7)
     expect(links.every((link) => link.className.includes('w-1/5'))).toBe(true)
     expect(nav.className).toContain('z-40')
     expect(nav.textContent).toContain('Swipe horizontally or use the arrow to reveal Foods and Recipes')
-    const overflowButton = within(nav).getByTestId('primary-navigation-overflow-button')
-    expect(overflowButton.className).toContain('w-1/5')
-    expect(scroller.children[4]).toBe(overflowButton)
+
+    // Overlay controls sit outside the scroller — More on the right when on
+    // page 0 (owner niggle, 2026-10-05: the Back arrow must always be at the
+    // far left when visible, never in the middle of the bar).
+    expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
 
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
-    scroller.scrollLeft = 100
+    // 7 destinations + 1 spacer @ w-1/5 each = 8 * 100px = 800px
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
+    scroller.scrollLeft = 300 // past the half-way point → page 1 (Back visible)
     fireEvent.scroll(scroller)
     expect(vibrate).toHaveBeenCalledTimes(1)
     expect(vibrate).toHaveBeenCalledWith(10)
 
-    // A single swipe/page change produces one pulse, not one per scroll event.
     fireEvent.scroll(scroller)
     expect(vibrate).toHaveBeenCalledTimes(1)
 
@@ -134,36 +137,32 @@ describe('AppLayout primary navigation', () => {
     expect(vibrate).toHaveBeenCalledTimes(2)
   })
 
-  it('uses the fifth slot as an arrow to reveal Foods and Recipes, with a way back', async () => {
+  it('uses an overlay › More on the far right to reveal Foods/Recipes and a ‹ Back on the far left to return', async () => {
     renderApp(false)
 
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
 
-    const links = within(nav).getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Foods', '🍽️Recipes']))
-    expect(scroller.children).toHaveLength(7)
+    const links = within(scroller).getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Nutrition', '🍲Foods', '🍽️Recipes']))
 
-    const overflowButton = within(nav).getByRole('button', { name: 'Show Foods and Recipes' })
-    expect(scroller.children[4]).toBe(overflowButton)
-    fireEvent.click(overflowButton)
-    expect(scroller.scrollLeft).toBe(200)
-    expect(within(nav).getByRole('button', { name: 'Show earlier navigation destinations' })).toBeTruthy()
-
-    fireEvent.click(overflowButton)
-    expect(scroller.scrollLeft).toBe(0)
-    expect(within(nav).getByRole('button', { name: 'Show Foods and Recipes' })).toBeTruthy()
-
-    // From a partial swipe position, the arrow should continue to the end
-    // rather than treating the first newly revealed item as the back state.
-    scroller.scrollLeft = 100
-    fireEvent.scroll(scroller)
-    const moreButton = within(nav).getByRole('button', { name: 'Show Foods and Recipes' })
+    // Page 0: More sits at the far right, no Back button.
+    const moreButton = within(nav).getByTestId('primary-navigation-more')
+    expect(within(nav).queryByTestId('primary-navigation-back')).toBeNull()
     fireEvent.click(moreButton)
-    expect(scroller.scrollLeft).toBe(200)
-    expect(within(nav).getByRole('button', { name: 'Show earlier navigation destinations' })).toBeTruthy()
+    // Scroll to page 1 aligns the 4th item under slot 0 (leaving a full slot
+    // under the Back overlay, so Foods lands under slot 1).
+    expect(scroller.scrollLeft).toBe(400)
+    // After scrolling, Back is on the far left.
+    const backButton = within(nav).getByTestId('primary-navigation-back')
+    expect(backButton).toBeTruthy()
+    expect(within(nav).queryByTestId('primary-navigation-more')).toBeNull()
+
+    fireEvent.click(backButton)
+    expect(scroller.scrollLeft).toBe(0)
+    expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
   })
 })
 
