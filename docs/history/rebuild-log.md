@@ -29,7 +29,7 @@ the morning's waist) and the `sql.NullFloat64` wire shape that crashed the rc28 
 with measurements. Both are fixed and pinned — Go handler tests (7 new), 27 new Vitest tests, 4 new
 Playwright phone tests, full suite 66 passed; lint, typecheck, `build:go`, `build:preview` and the
 live-server curl pass all green. One additive migration, no data copy or appdata operation; the bundle grew
-508 → 529 kB. The slice now waits for the owner's Arena-preview approval (CURRENT_STATE §3 item 9), then
+508 → 529 kB. The slice is open as PR #67 (Docker and Go checks green) and waits for the owner's Arena-preview approval (CURRENT_STATE §3 item 9), then
 merges and publishes as the next rc.
 
 ---
