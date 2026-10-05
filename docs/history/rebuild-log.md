@@ -17,7 +17,7 @@ at the decision numbers and PRs rather than restating the documents.
 ## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
 
 The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
-increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`; Docker/runtime and Go validation are pending.
+increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`; Docker/runtime ([run 37382762699](https://github.com/dougalbob/cals/actions/runs/37382762699)) and Go ([run 37382762632](https://github.com/dougalbob/cals/actions/runs/37382762632)) checks passed. The labelled GitHub Playwright job is red ([run 37382773826](https://github.com/dougalbob/cals/actions/runs/37382773826)).
 
 Settings persists profile/targets, bank-window presets and custom values, independent surplus/deficit
 ring display limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
@@ -32,9 +32,11 @@ queued writes, cached API/data promise or push notifications. The install guidan
 copy, reset or appdata operation occurred.
 
 Verification: 311 Vitest tests over 40 files, lint/typecheck/doc links, Go tests/vet, `build:go` and
-`build:preview` passed. The phone Playwright run passed 69/70; its one remaining failure is the already
-deferred bottom-navigation horizontal swipe. The new Settings journey and all three PWA checks passed.
-The PWA build emits a non-blocking `inlineDynamicImports` deprecation warning. The tracked-nutrient
+`build:preview` passed. The full local phone+desktop Playwright suite passed 71/72: the one failure is
+the already-deferred bottom-navigation horizontal swipe; the new Settings journey, all three PWA checks
+and both desktop smoke tests passed. The PR's Docker/runtime and Go checks passed; its labelled
+Playwright workflow is red on this known navigation issue, and the owner-deferred fix remains out of
+scope. The PWA build emits a non-blocking `inlineDynamicImports` deprecation warning. The tracked-nutrient
 slice (15.2) remains deferred pending decision 47.
 
 ---
