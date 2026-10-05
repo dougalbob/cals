@@ -59,5 +59,11 @@ test.describe('Bottom navigation on a phone', () => {
 
     await expect(page.getByRole('link', { name: 'Recipes' })).toBeInViewport({ ratio: 0.5 })
     expect(await nav.evaluate((element) => element.scrollLeft)).toBeGreaterThan(50)
+
+    // The Back overlay must also let a rightward finger swipe return to Today.
+    await swipeNav(page, box.x + 30, box.x + box.width - 30)
+    await expect(page.getByRole('link', { name: 'Today' })).toBeInViewport({ ratio: 0.5 })
+    await expect(page.getByRole('link', { name: 'Recipes' })).not.toBeInViewport({ ratio: 0.5 })
+    expect(await nav.evaluate((element) => element.scrollLeft)).toBeLessThan(50)
   })
 })

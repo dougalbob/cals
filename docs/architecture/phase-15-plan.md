@@ -104,7 +104,9 @@ retest installability at `/`.**
 
 The owner reviewed the Arena preview on 2026-10-05, said it looked good and asked to publish this
 increment. Verification on the branch: 40 Vitest files / 311 tests; lint, typecheck, doc-link check,
-Go tests/vet, `build:go` and `build:preview` passed. The full phone Playwright suite ran 70 tests: 69
-passed; its only failure is the already-deferred bottom-navigation horizontal-swipe test. The new
-Settings browser test and all three `/next/` PWA tests passed. Vite emitted a non-blocking
-`inlineDynamicImports` deprecation warning during the PWA build.
+Go tests/vet, `build:go` and `build:preview` passed. The full phone+desktop Playwright suite now passes
+72/72. To clear its known swipe failure without changing the visual navigation design, the More/Back
+overlay buttons forward a finger-drag to the scroller and only suppress the synthetic click when the
+swipe stays on the same page; the browser test now verifies swiping in both directions. The new
+Settings browser test, all three `/next/` PWA tests and both desktop smoke tests pass. Vite emits a
+non-blocking `inlineDynamicImports` deprecation warning during the PWA build.

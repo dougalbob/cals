@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState, type UIEvent } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, type TouchEvent as ReactTouchEvent, type UIEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, queryKeys } from './api/client'
@@ -26,6 +26,12 @@ const NAV = [
  */
 const VISIBLE_NAV_ITEMS = 5
 
+type OverlayTouchGesture = {
+  source: 'more' | 'back'
+  startX: number
+  startScrollLeft: number
+  moved: boolean
+}
 
 function NavigationLink({ item }: { item: (typeof NAV)[number] }) {
   return (
@@ -51,6 +57,8 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const navRef = useRef<HTMLDivElement>(null)
   const navPageRef = useRef(0)
+  const overlayTouchRef = useRef<OverlayTouchGesture | null>(null)
+  const suppressedOverlayClickRef = useRef<'more' | 'back' | null>(null)
   // Page 0 (default, five slots visible) shows the › More overlay on the far
   // right; page 1 (scrolled to reveal Foods/Recipes/Settings) shows ‹ Back on the far
   // left (owner niggle, 2026-10-05 — Back must never land in the middle of
@@ -90,6 +98,63 @@ export function AppLayout() {
     navPageRef.current = page
   }, [])
 
+  // The More/Back controls sit above the scroller as overlays. A finger that
+  // starts there cannot trigger the scroller's native pan, so forward that
+  // gesture to its scroll position while preserving taps on the arrows.
+  const handleOverlayTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    suppressedOverlayClickRef.current = null
+    if (!(event.target instanceof Element)) return
+
+    const source = event.target.closest('[data-navigation-overlay="more"]')
+      ? 'more'
+      : event.target.closest('[data-navigation-overlay="back"]')
+        ? 'back'
+        : null
+    const nav = navRef.current
+    if (!source || !nav || event.touches.length !== 1) {
+      overlayTouchRef.current = null
+      return
+    }
+
+    overlayTouchRef.current = {
+      source,
+      startX: event.touches[0].clientX,
+      startScrollLeft: nav.scrollLeft,
+      moved: false,
+    }
+  }
+
+  const handleOverlayTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const gesture = overlayTouchRef.current
+    const nav = navRef.current
+    if (!gesture || !nav || event.touches.length !== 1) return
+
+    const delta = gesture.startX - event.touches[0].clientX
+    if (!gesture.moved && Math.abs(delta) < 8) return
+    gesture.moved = true
+
+    const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth)
+    nav.scrollLeft = Math.max(0, Math.min(maxScroll, gesture.startScrollLeft + delta))
+  }
+
+  const handleOverlayTouchEnd = () => {
+    const gesture = overlayTouchRef.current
+    overlayTouchRef.current = null
+    if (!gesture?.moved) return
+
+    const nav = navRef.current
+    if (!nav || nav.clientWidth === 0) return
+
+    const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
+    const nextPage = nav.scrollLeft > itemWidth / 2 ? 1 : 0
+    const pageChanged = nextPage !== navPageRef.current
+    if (pageChanged) vibrate(10)
+    setPage(nextPage)
+    // If the finger only moved partway, don't let its synthetic click also
+    // activate More/Back. A new touch or mouse press clears this guard.
+    if (!pageChanged) suppressedOverlayClickRef.current = gesture.source
+  }
+
   // If a route change lands on an overflow item (Foods/Recipes/Settings), scroll the
   // nav so the Back overlay appears and the item is in view. Page 0 (default)
   // shows the first five; page 1 reveals Foods/Recipes/Settings with a ‹ Back on the
@@ -127,7 +192,7 @@ export function AppLayout() {
 
   const handleNavScroll = (event: UIEvent<HTMLDivElement>) => {
     const nav = event.currentTarget
-    if (nav.clientWidth === 0) return
+    if (overlayTouchRef.current?.moved || nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
     const nextPage = nav.scrollLeft > itemWidth / 2 ? 1 : 0
     if (nextPage === navPageRef.current) return
@@ -136,6 +201,10 @@ export function AppLayout() {
   }
 
   const handleMoreClick = () => {
+    if (suppressedOverlayClickRef.current === 'more') {
+      suppressedOverlayClickRef.current = null
+      return
+    }
     const nav = navRef.current
     if (!nav || nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
@@ -149,6 +218,10 @@ export function AppLayout() {
   }
 
   const handleBackClick = () => {
+    if (suppressedOverlayClickRef.current === 'back') {
+      suppressedOverlayClickRef.current = null
+      return
+    }
     const nav = navRef.current
     if (!nav) return
     nav.scrollLeft = 0
@@ -245,7 +318,16 @@ export function AppLayout() {
         aria-describedby="primary-navigation-hint"
         className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-card safe-bottom"
       >
-        <div className="relative mx-auto w-full max-w-2xl">
+        <div
+          className="relative mx-auto w-full max-w-2xl"
+          onPointerDown={(event) => {
+            if (event.pointerType === 'mouse') suppressedOverlayClickRef.current = null
+          }}
+          onTouchStart={handleOverlayTouchStart}
+          onTouchMove={handleOverlayTouchMove}
+          onTouchEnd={handleOverlayTouchEnd}
+          onTouchCancel={handleOverlayTouchEnd}
+        >
           <div
             ref={navRef}
             data-testid="primary-navigation-scroll"
@@ -267,6 +349,7 @@ export function AppLayout() {
             <button
               type="button"
               data-testid="primary-navigation-more"
+              data-navigation-overlay="more"
               aria-label="Show Foods, Recipes and Settings"
               title="Show Foods, Recipes and Settings"
               onClick={handleMoreClick}
@@ -280,6 +363,7 @@ export function AppLayout() {
             <button
               type="button"
               data-testid="primary-navigation-back"
+              data-navigation-overlay="back"
               aria-label="Show main navigation"
               title="Show main navigation"
               onClick={handleBackClick}

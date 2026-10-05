@@ -56,8 +56,8 @@ web/frontend/e2e/recipes-diary-handoff.spec.ts  the Diary meal picker: carried m
 web/frontend/e2e/recipes-touch.spec.ts  every tick-box answers a real touch tap (box and text),
                                        rows resist selection/double-tap zoom, text fields stay
                                        selectable
-web/frontend/e2e/navigation.spec.ts    the bottom nav's arrow and a real touch swipe reveal the
-                                       last destinations
+web/frontend/e2e/navigation.spec.ts    the bottom nav's arrow, plus real touch swipes through the
+                                       More/Back overlays to reveal and return from the last destinations
 web/frontend/e2e/metrics.spec.ts      the 14.3 charts: a real touch drag moves the shared window,
                                        the URL keeps it across a reload, and the trend names its method
 web/frontend/e2e/metrics-report.spec.ts  the 14.6 weekly report: opening on the current week, paging
