@@ -14,6 +14,25 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — rc27 installed and signed off; Phase 14.3 ready to build (docs pass)
+
+The owner Force Updated `cals-dev-v2` to `v2.0.0-dev-rc27` on Unraid and road-tested it on 2026-10-05.
+His verdict: **"all looks good"**. The household's real bank figures were read on both accounts (the
+Admin Swap user reaches the second one), which the rc27 release note had left as the gate before 14.3.
+That closes the Phase 14.1/14.2 acceptance gate, makes rc27 the last reported installation, and leaves
+every published checkpoint installed and signed off.
+
+A follow-up documentation pass recorded the sign-off and brought the plan in line with what was built:
+14.2 is marked **built** in [`phase-14-plan.md`](../architecture/phase-14-plan.md) with the five things
+building it taught (one helper shared by three surfaces; one rounding rule; the logged-day rule the owner
+chose to keep; the numbers moving twice over and by more than the window explains; and proving the new
+tests fail without the change). 14.3 is marked **ready** with three implementation notes
+(`weight_trend_days` read from `GET /api/users/me` rather than a hard-coded 7; a trend drawn only where at
+least three weigh-ins are available and labelled with its method; the 30-day bank line and measurements
+table keeping their windows). §5's acceptance table and §7's estimates were re-based, and the stale
+"not yet installed" and test-count claims were corrected (228 Vitest tests over 28 files at rc27). No code,
+API, schema or appdata change — documentation only.
+
 ## 2026-10-05 — Phase 14 slices 14.1 + 14.2 published as rc27 (PR #62)
 
 The owner approved the Arena preview, declined the optional narrowing of what counts as a logged day, and
