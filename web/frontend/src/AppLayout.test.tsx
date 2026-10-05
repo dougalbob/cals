@@ -123,8 +123,9 @@ describe('AppLayout primary navigation', () => {
     expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
 
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    // 7 destinations @ w-1/5 each = 7 * 100px = 700px (no spacer needed —
-    // Nutrition slides under the Back overlay as the peek context).
+    // 7 destinations @ w-1/5 each = 7 * 100px = 700px. Page 1 scrolls by two
+    // slots so Nutrition sits under the Back overlay and Foods/Recipes land
+    // in the visible slots.
     Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
     scroller.scrollLeft = 80 // past half-an-item → page 1 (Back visible)
     fireEvent.scroll(scroller)
@@ -154,9 +155,10 @@ describe('AppLayout primary navigation', () => {
     const moreButton = within(nav).getByTestId('primary-navigation-more')
     expect(within(nav).queryByTestId('primary-navigation-back')).toBeNull()
     fireEvent.click(moreButton)
-    // Scroll to page 1 shifts by one item width so Nutrition slides under
-    // the left Back overlay and Foods/Recipes land in visible slots 1 & 2.
-    expect(scroller.scrollLeft).toBe(100)
+    // Scroll to page 1 shifts by two item widths so Nutrition+Metrics sit
+    // left of/under the Back overlay and Foods/Recipes land in the visible
+    // slots (both ≥50% in viewport, matching e2e expectations).
+    expect(scroller.scrollLeft).toBe(200)
     // After scrolling, Back is on the far left.
     const backButton = within(nav).getByTestId('primary-navigation-back')
     expect(backButton).toBeTruthy()
