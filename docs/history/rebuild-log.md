@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14 slices 14.1 + 14.2 published as rc27 (PR #62)
+
+The owner approved the Arena preview, declined the optional narrowing of what counts as a logged day, and
+said "Lets publish". PR #62 merged to `cals-dev` at `3619859ebb55b53b74948afd645196898549c74e`, and the
+annotated tag `v2.0.0-dev-rc27` points at exactly that commit — 14.2's windowed bank plus 14.1's metrics
+backend foundations, released together because the owner held 14.1's checkpoint deliberately.
+
+[Publish run 37296647260](https://github.com/dougalbob/cals/actions/runs/37296647260) passed the ancestry
+guard, built and pushed the exact tag and `dev-latest`, recorded digest
+`sha256:bf36365a44e46e454878eb4ebf82770a45d3cb2f8c8d50e95f3c154b6d251130`, created the [GitHub
+prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc27) and passed the anonymous-pull
+gate. The tagged [Playwright suite 37296647285](https://github.com/dougalbob/cals/actions/runs/37296647285)
+passed all 60 tests, and the PR's own [Docker/runtime](https://github.com/dougalbob/cals/actions/runs/37292157541),
+[Go](https://github.com/dougalbob/cals/actions/runs/37292157536) and [browser](https://github.com/dougalbob/cals/actions/runs/37296373968)
+checks were green as well (the PR carried the `run-e2e` label because the slice changes layout).
+
+**One additive migration** (`users.bank_window_days`, existing accounts default to 14) runs on first start:
+no data copy, appdata operation or template change. rc27 is `dev-latest` but **not yet installed**; the
+last reported installation is **rc26**, which the owner tested on Unraid and signed off on the same day,
+closing the rc24/rc25 installation-status gap along with it.
+
+**What the owner is being asked to review on the updated container:** the new bank figure on both
+accounts, on Today, Diary, Calendar and Metrics at phone size. Two things move at once — the window is
+14 completed days rather than everything since the bank's start date, and a day with **no logging at all**
+no longer adds a day's budget (a day with any entry, including a logged glass of water, still counts).
+Cropping remains deferred, and Phase 14.3 waits on the owner's read of the real numbers.
+
 ## 2026-10-05 — Phase 14 slice 14.2 built: the windowed bank
 
 **The bank stopped being a running total.** `GET /api/bank` now sums the previous N **completed
@@ -66,8 +93,9 @@ today's bank untouched and drops tomorrow's balance and `today_available` by exa
 because today sits inside tomorrow's window. `start_date` still returns its raw RFC3339 shape on purpose
 — the wire-format question is untouched.
 
-**State:** built on the Arena branch, reviewed at `/next/`, not merged, no image built. 14.3 and the
-Phase 15 window control wait on the owner's read of the figure.
+**State at the time of writing:** built on the Arena branch and reviewed at `/next/`; it was published
+the same day as `v2.0.0-dev-rc27` — see the entry above — after which 14.3 and the Phase 15 window
+control wait on the owner's read of the real figure.
 
 ---
 
