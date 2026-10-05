@@ -116,11 +116,14 @@ export function AppLayout() {
 
     // Scroll position is set on the next frame so the nav has its real width
     // in jsdom as well as in the browser; synchronously reading clientWidth
-    // on first render returned 0 in tests.
+    // on first render returned 0 in tests. Page 1 scrolls by one item width:
+    // that shifts Nutrition under the left Back overlay and puts Foods/Recipes
+    // in visible slots 1 and 2 (no hidden-under-overlay dead zone needed,
+    // because the 7th destination is the last real one).
     requestAnimationFrame(() => {
       if (!nav || nav.clientWidth === 0) return
       const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-      const nextScroll = wantPage === 1 ? (VISIBLE_NAV_ITEMS - 1) * itemWidth : 0
+      const nextScroll = wantPage === 1 ? itemWidth : 0
       if (Math.abs(nav.scrollLeft - nextScroll) > 1) {
         nav.scrollLeft = nextScroll
       }
@@ -142,9 +145,9 @@ export function AppLayout() {
     const nav = navRef.current
     if (!nav || nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    // Scroll to page 1: items shift left one slot, leaving the first slot's
-    // width covered by the Back overlay.
-    nav.scrollLeft = (VISIBLE_NAV_ITEMS - 1) * itemWidth
+    // Scroll to page 1: items shift left one slot, so Nutrition lands under
+    // the left Back overlay and Foods/Recipes are revealed in the next slots.
+    nav.scrollLeft = itemWidth
     setPage(1)
     vibrateForNavigationChange()
   }
@@ -253,14 +256,13 @@ export function AppLayout() {
             onScroll={handleNavScroll}
             className="scrollbar-hidden flex snap-x snap-mandatory touch-pan-x overflow-x-auto overscroll-x-contain"
           >
-            {/* Extra empty slot at the end: when we scroll to the overflow page
-                (page 1) the Back overlay covers one slot-width, so adding a
-                spacer slot keeps Foods/Recipes aligned to the remaining four
-                visible columns rather than disappearing under the overlay. */}
+            {/* Seven destinations at w-1/5. On page 1 we scroll by exactly one
+                item width so Nutrition peeks under the left Back overlay and
+                Foods/Recipes sit in the remaining visible slots — no extra
+                spacer slot needed. */}
             {NAV.map((item) => (
               <NavigationLink key={item.to} item={item} />
             ))}
-            <div aria-hidden className="flex-none w-1/5" />
           </div>
           {/* Overlay controls: › More sits at the far right on page 0; ‹ Back
               sits at the far left on page 1 (owner niggle, 2026-10-05: the back

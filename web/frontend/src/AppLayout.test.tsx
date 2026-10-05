@@ -108,10 +108,11 @@ describe('AppLayout primary navigation', () => {
 
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
-    // 7 destinations (slice 14.5 added Nutrition) plus a trailing spacer slot
-    // so the overlay Back button doesn't cover Foods/Recipes on page 1.
+    // 7 destinations (slice 14.5 added Nutrition). On page 1, Nutrition slides
+    // under the left Back overlay as peek context, so no spacer slot is
+    // needed — Foods/Recipes land in the remaining visible slots.
     const links = within(scroller).getAllByRole('link')
-    expect(links.length).toBeGreaterThanOrEqual(7)
+    expect(links.length).toBe(7)
     expect(links.every((link) => link.className.includes('w-1/5'))).toBe(true)
     expect(nav.className).toContain('z-40')
     expect(nav.textContent).toContain('Swipe horizontally or use the arrow to reveal Foods and Recipes')
@@ -122,9 +123,10 @@ describe('AppLayout primary navigation', () => {
     expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
 
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    // 7 destinations + 1 spacer @ w-1/5 each = 8 * 100px = 800px
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
-    scroller.scrollLeft = 300 // past the half-way point → page 1 (Back visible)
+    // 7 destinations @ w-1/5 each = 7 * 100px = 700px (no spacer needed —
+    // Nutrition slides under the Back overlay as the peek context).
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
+    scroller.scrollLeft = 80 // past half-an-item → page 1 (Back visible)
     fireEvent.scroll(scroller)
     expect(vibrate).toHaveBeenCalledTimes(1)
     expect(vibrate).toHaveBeenCalledWith(10)
@@ -143,7 +145,7 @@ describe('AppLayout primary navigation', () => {
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
 
     const links = within(scroller).getAllByRole('link')
     expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Nutrition', '🍲Foods', '🍽️Recipes']))
@@ -152,9 +154,9 @@ describe('AppLayout primary navigation', () => {
     const moreButton = within(nav).getByTestId('primary-navigation-more')
     expect(within(nav).queryByTestId('primary-navigation-back')).toBeNull()
     fireEvent.click(moreButton)
-    // Scroll to page 1 aligns the 4th item under slot 0 (leaving a full slot
-    // under the Back overlay, so Foods lands under slot 1).
-    expect(scroller.scrollLeft).toBe(400)
+    // Scroll to page 1 shifts by one item width so Nutrition slides under
+    // the left Back overlay and Foods/Recipes land in visible slots 1 & 2.
+    expect(scroller.scrollLeft).toBe(100)
     // After scrolling, Back is on the far left.
     const backButton = within(nav).getByTestId('primary-navigation-back')
     expect(backButton).toBeTruthy()
