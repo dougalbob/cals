@@ -24,20 +24,23 @@ func HandleGetWeightEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get optional days parameter
-	days := 90 // default
-	if d := r.URL.Query().Get("days"); d != "" {
-		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
-			days = parsed
-		}
+	// Window: an explicit from/to pair, or the legacy `days` parameter counting
+	// back from today (90 by default, uncapped as before).
+	from, to, ok := resolveSeriesRange(w, r, 90, 0, false)
+	if !ok {
+		return
 	}
 
+	// date(date) rather than the bare column: weight_entries.date is declared
+	// DATE, so mattn/go-sqlite3 hands back RFC3339 when it is scanned into a
+	// string. The legacy Metrics screen compares that against a plain
+	// YYYY-MM-DD, so today's weigh-in never pre-filled.
 	rows, err := database.DB.Query(`
-		SELECT id, user_id, date, weight_kg, created_at 
-		FROM weight_entries 
-		WHERE user_id = ? AND date >= date('now', '-' || ? || ' days')
-		ORDER BY date DESC
-	`, userID, days)
+		SELECT id, user_id, date(date) AS day, weight_kg, created_at
+		FROM weight_entries
+		WHERE user_id = ? AND date >= date(?) AND date <= date(?)
+		ORDER BY day DESC
+	`, userID, from, to)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -50,6 +53,7 @@ func HandleGetWeightEntries(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&e.ID, &e.UserID, &e.Date, &e.WeightKG, &e.CreatedAt); err != nil {
 			continue
 		}
+		e.Date = isoDate(e.Date)
 		entries = append(entries, e)
 	}
 

@@ -186,6 +186,7 @@ export function drinkEntriesFor(date: string): SeedDrinkEntry[]
 export function caloriesBetween(startDate: string, endDateExclusive: string): number
 export function daysBetween(startDate: string, endDate: string): number
 export function dateOffset(daysAgo: number): string
+export function nextDate(isoDate: string): string
 export function drinkCaloriesBetween(startDate: string, endDateExclusive: string): number
 export interface SeedWaterSummary {
   date: string

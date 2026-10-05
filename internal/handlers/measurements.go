@@ -25,11 +25,16 @@ func HandleGetMeasurements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// date(date) rather than the bare column: measurement_entries.date is
+	// declared DATE, so the driver returns RFC3339 when it is scanned into a
+	// string, and the JSON has been carrying '2026-09-07T00:00:00Z' rather than
+	// '2026-09-07'. The 20-row limit and the missing per-part update path are
+	// the body-map slice's problem, not this one's.
 	rows, err := database.DB.Query(`
-		SELECT id, user_id, date, bust_cm, chest_cm, waist_cm, hips_cm, upper_arm_cm, thigh_cm, neck_cm, created_at
-		FROM measurement_entries 
+		SELECT id, user_id, date(date) AS day, bust_cm, chest_cm, waist_cm, hips_cm, upper_arm_cm, thigh_cm, neck_cm, created_at
+		FROM measurement_entries
 		WHERE user_id = ?
-		ORDER BY date DESC
+		ORDER BY day DESC
 		LIMIT 20
 	`, userID)
 	if err != nil {
@@ -44,6 +49,7 @@ func HandleGetMeasurements(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&e.ID, &e.UserID, &e.Date, &e.BustCM, &e.ChestCM, &e.WaistCM, &e.HipsCM, &e.UpperArmCM, &e.ThighCM, &e.NeckCM, &e.CreatedAt); err != nil {
 			continue
 		}
+		e.Date = isoDate(e.Date)
 		entries = append(entries, e)
 	}
 

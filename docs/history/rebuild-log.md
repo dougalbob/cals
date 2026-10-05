@@ -14,6 +14,49 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14 slice 14.1 built: the metrics backend foundations
+
+The first slice of the newly scoped Phase 14, and deliberately the one with **no owner-visible change**:
+it is what the charts and the windowed bank stand on.
+
+**The deferred RFC3339 date fix landed**, in `weight.go`, `measurements.go` and `fitness.go`. That turned
+out to be a live defect rather than a theoretical one — `web/static/js/components/metrics.js:74` compares
+the returned date against a plain `YYYY-MM-DD`, so **the V1 weight box never pre-filled today's
+weigh-in** and quietly fell back to the last known value.
+
+**The series endpoints gained a range.** `GET /api/weight`, `GET /api/stats/calories`,
+`GET /api/stats/bank` and `GET /api/steps` all accept `from`/`to` (inclusive, 400-day cap, `400` on a
+malformed range), which is what decision 69's panning needs; both stats endpoints used to be anchored at
+`date('now')` with no way to ask for an earlier window. The legacy `days` parameter keeps its old,
+deliberately lenient behaviour, so V1 and the current React screen are untouched — with one correction:
+`days` now means exactly N days everywhere, where weight and steps previously returned N + 1 calendar
+days.
+
+**Drinks now count in both stats endpoints**, not just `/api/stats/calories`. Shipping one and not the
+other would have published a known inconsistency; `GET /api/bank` has counted drinks since Phase 12.
+
+One planned fix turned out not to be one, and is worth recording so nobody repeats the reasoning:
+`HandleGetBankStats` reads `bank_start_date` through a `COALESCE`, and because
+`sqlite3_column_decltype` is NULL for an expression the driver was **already** returning plain text.
+A probe against a real server confirmed it — `SELECT bank_start_date` scans as
+`2026-10-05T00:00:00Z` while `SELECT COALESCE(bank_start_date, …)` scans as `2026-10-05`. The
+`isoDate` stayed as a guard against someone dropping the `COALESCE`, and the handler comment now says
+that instead of claiming a repair that never happened. Two genuine leaks — `GET /api/users/me`'s
+`bank_start_date` and `GET /api/bank`'s `start_date` — are left alone on purpose; changing the wire
+shape is an open question, not a foundations slice.
+
+**Verification, in three layers.** `go vet ./...` and `go test ./...` clean, with 12 new handler tests (17 cases
+counting the validation subtests) in `internal/handlers/stats_test.go`; each was run against the
+pre-slice handlers and **confirmed to fail** with the expected message rather than merely passing after the change. 210 Vitest tests,
+including a new `mock-api/series-range.test.mjs` that pins the fixture to the same contract (it caught a
+real divergence: the fixture capped `days` where Go falls back to the default). And a real server driven
+over HTTP, where a day of 500 kcal food beside a 150 kcal drink reports **650** from
+`GET /api/stats/calories`, every weight/measurement/steps date is plain `YYYY-MM-DD`, a `from`/`to`
+window returns exactly the days asked for, a future `to` is clamped to today, and all six malformed
+ranges answer `400`.
+
+**No API field removed, no schema change, no migration, no image, no appdata operation.**
+
 ## 2026-10-05 — rc26 signed off; Phase 14 scoped into six slices (decisions 91–95)
 
 Two things, and **no code changed**.

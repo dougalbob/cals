@@ -740,6 +740,11 @@ export function dateOffset(daysAgo) {
   return iso(localNoon(daysAgo))
 }
 
+// Next calendar day, for walking an inclusive date range.
+export function nextDate(isoDate) {
+  return new Date(Date.parse(`${isoDate}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10)
+}
+
 // ---------------------------------------------------------------------------
 // Test/dev helper: restore seeded mutable data after mutations, so tests are
 // deterministic and the preview can be reset without a restart.

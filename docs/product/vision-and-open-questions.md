@@ -1024,24 +1024,31 @@ bank of `+133,184,631 kcal` — see the
 [rebuild log entry](../history/rebuild-log.md) and the fix in `internal/handlers/calendar.go`
 (shipping in `rc16`).
 
-The same pattern is still live in three handlers that select the bare column and scan it into a
-string, so their JSON carries `2026-09-07T00:00:00Z` rather than `2026-09-07`:
+~~The same pattern is still live in three handlers that select the bare column and scan it into a
+string, so their JSON carries `2026-09-07T00:00:00Z` rather than `2026-09-07`:~~
+**✅ Fixed in Phase 14 slice 14.1 (2026-10-05).** All three now select `date(date) AS day` and normalise
+with `isoDate`, pinned by `internal/handlers/stats_test.go`:
 
 | Handler | Query |
 |---|---|
-| `internal/handlers/fitness.go` | `SELECT date, steps FROM step_entries …` |
-| `internal/handlers/weight.go` | `SELECT id, user_id, date, weight_kg, created_at FROM weight_entries …` |
-| `internal/handlers/measurements.go` | `SELECT id, user_id, date, … FROM measurement_entries …` |
+| `internal/handlers/fitness.go` | ~~`SELECT date, steps FROM step_entries …`~~ now `SELECT date(date) AS day, steps …` |
+| `internal/handlers/weight.go` | ~~`SELECT id, user_id, date, weight_kg, created_at FROM weight_entries …`~~ now `SELECT id, user_id, date(date) AS day, …` |
+| `internal/handlers/measurements.go` | ~~`SELECT id, user_id, date, … FROM measurement_entries …`~~ now `SELECT id, user_id, date(date) AS day, …` |
+
+That also repaired a **live V1 defect**: `web/static/js/components/metrics.js:74` compares the returned
+date against a plain `YYYY-MM-DD`, so the weight box never pre-filled today's weigh-in.
 
 `users.bank_start_date` has the same shape; the legacy UI already works around it with
 `bank_start_date.split('T')[0]` (`web/static/js/app.js`).
 
-**Why it is deferred:** the legacy UI tolerates the suffix, and the React Metrics screen is still a
-spike. It only becomes a real defect when the metrics phase starts keying or grouping by those
-dates — exactly the mistake the calendar made.
-
-**What to do then:** select `date(date) AS day` (an expression has no declared type, so the driver
+**What was done:** select `date(date) AS day` (an expression has no declared type, so the driver
 returns plain text) and compare with `date(date) >= date(?)`, as `HandleGetBank` and the fixed
 calendar handler do; normalise anything scanned into a string with the `isoDate` helper in
-`internal/handlers/calendar.go`. Decide at the same time whether `GET /api/users/me` should return a
-plain `YYYY-MM-DD` `bank_start_date` — changing it would let the legacy UI drop its `split('T')`.
+`internal/handlers/calendar.go`.
+
+**Still open:** whether `GET /api/users/me` should return a plain `YYYY-MM-DD` `bank_start_date`.
+It still returns RFC3339 — verified 2026-10-05 against a real server: a direct
+`SELECT bank_start_date` scans as `2026-10-05T00:00:00Z`, while `SELECT COALESCE(bank_start_date, …)`
+scans as plain `2026-10-05` because `sqlite3_column_decltype` is NULL for an expression. The legacy UI
+tolerates it with `split('T')[0]` and the React app does not display it, so it is cosmetic; changing it
+would let the legacy UI drop that workaround. `GET /api/bank`'s `start_date` has the same shape.

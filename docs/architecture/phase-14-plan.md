@@ -151,6 +151,30 @@ The cheapest slice and the one everything else stands on.
 
 *Additive API only, no schema change, no migration, no appdata operation.*
 
+**Built 2026-10-05** — and four things came out of building it that the plan did not predict:
+
+- **Two small additions beyond the three planned items.** Drinks were added to `GET /api/stats/bank` as
+  well as `GET /api/stats/calories` (shipping one and not the other would have published a known
+  inconsistency), and `GET /api/steps` gained the same `from`/`to` parameters so every series endpoint
+  shares one contract.
+- **`days` now means exactly N days everywhere.** `GET /api/weight` and `GET /api/steps` filtered on
+  `date >= today − N days`, which is N + 1 calendar days, while the stats endpoints produced N. They
+  agree now; `TestWeightDaysMeansExactlyThatManyDays` pins it.
+- **One planned fix was not a fix.** `users.bank_start_date` in `HandleGetBankStats` is read through a
+  `COALESCE`, and `sqlite3_column_decltype` is NULL for an expression, so the driver was already
+  returning plain text — verified against a real server. The `isoDate` there is defensive, and the
+  handler comment now says so rather than claiming a repair that never happened.
+- **Two RFC3339 leaks are still open by choice:** `GET /api/users/me`'s `bank_start_date` and
+  `GET /api/bank`'s `start_date`. Both were verified still returning `2026-10-05T00:00:00Z`. The legacy
+  UI tolerates them and React does not display them; changing the wire shape is the open question in
+  the [deferred-issue section](../product/vision-and-open-questions.md#known-issue-deferred--rfc3339-dates-on-the-metrics-endpoints-2026-10-03),
+  not a slice-14.1 change.
+
+Verified on a real server, not just in unit tests: a logged day of 500 kcal food plus a 150 kcal drink
+reports **650** from `GET /api/stats/calories`, every date in the weight, measurement and steps payloads
+is plain `YYYY-MM-DD`, a `from`/`to` window returns exactly the days asked for, a future `to` is clamped
+to today, and the six malformed-range cases all answer `400`.
+
 ### 14.2 — The windowed bank *(decisions 66 and 42; crown-jewel maths)*
 
 The one slice that changes numbers the household looks at every day.
