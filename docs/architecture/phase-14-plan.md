@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **APPROVED for slices 14.1–14.3** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is ready to build**. **Q6–Q11 (§6) are still open** and gate 14.4–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **APPROVED for slices 14.1–14.3** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built (PR #65, 2026-10-05) and awaiting the owner's preview review**. **Q6–Q11 (§6) are still open** and gate 14.4–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -237,6 +237,22 @@ Two RFC3339 leaks remain open by choice (`GET /api/users/me`'s `bank_start_date`
 - **The trend is drawn only where it has at least three weigh-ins to average, and it is labelled with its method.** Points stay points; the moving average is taken over weigh-ins rather than calendar days (decision 95); it carries a visible "n-weigh-in moving average" label; and there is no forecast, ETA or plateau claim anywhere.
 - **The other Metrics surfaces keep their windows.** The pan moves the chart window only: the 30-day bank line and the measurements table are unchanged, and only the weigh-in and goal-vs-consumed charts share the pannable window.
 
+**Built 2026-10-05** (PR #65; the owner's preview review is this slice's acceptance gate). Four things building it taught, recorded here because 14.4–14.6 build on the same surfaces:
+
+- **The pan hook is a React event prop, not a ref callback.** The compiler-aware `react-hooks/refs`
+  lint rule rejects attaching listeners to a node handed back through a ref, so `usePanWindow` returns
+  `onPointerDown` for each chart to place directly, and runs the drag on `window` for its duration. The
+  callback-ref version lasted an hour and was deleted.
+- **The chart follows the finger like a map.** Dragging right slides the days right and reveals older
+  weigh-ins; dragging left comes back towards today, which is the clamp. Because today is the end of the
+  data, that is the only direction that can move on first use — panning the other way is a no-op.
+- **The trend starts at three weigh-ins as a point, not a line.** With exactly three observations the
+  moving average is a single value; drawing nothing until the fourth would contradict decision 95, so it
+  is drawn as an isolated dot, and a gap in the observations still breaks the line rather than bridging it.
+- **The y-axis needs a minimum span to stay honest.** The weigh-in chart passes a 2 kg floor to the chart
+  component, so a 0.4 kg wobble occupies a fifth of the plot rather than all of it — decision 70's second
+  trap, fixed in the component instead of by eye.
+
 ### 14.4 — Body-map measurements *(decision 67)*
 
 The biggest UI addition, and the only slice that must write.
@@ -298,7 +314,7 @@ the report both read their numbers.
 |---|---|---|
 | 14.1 | Go handler tests for date format, range params, drink inclusion; V1 metrics screen still renders | None needed — no visible change. Confirm `GET /api/weight` JSON dates read `YYYY-MM-DD` |
 | 14.2 | The seven bank regression tests plus a Calendar-vs-`/api/bank` agreement test | **Read the new bank figure on his and his wife's account at `/next/` and confirm it looks right** before anything builds on it — ✅ **done: owner signed off on Unraid 2026-10-05 ("all looks good")** |
-| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? (ready to build; no question gates it) |
+| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05, PR #65 | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Awaiting the owner's review in PR #65** |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
 | 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
 | 14.6 | Report maths tests, including excluded-day labelling | Does the report card answer "how did last week go"? |

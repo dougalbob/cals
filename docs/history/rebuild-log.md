@@ -14,6 +14,37 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14.3 rebuilt: the pannable metrics charts (PR #65)
+
+The 14.3 work lost with the previous session (see the entry below) was rebuilt from
+[`phase-14-plan.md`](../architecture/phase-14-plan.md) §14.3 and landed in **PR #65**: the weigh-in and
+goal-vs-consumed charts now pan one shared window, and the two additive pieces the slice promised — a
+per-user trend window and the 3–90 validation that stops a value nothing could draw — are in.
+
+**Built:** `usePanWindow` (drag the chart to move the *data window*, re-fetching through slice 14.1's
+`from`/`to`; touch pans on movement with one optional `navigator.vibrate` tick per day, a mouse needs a
+150 ms click-and-hold, the window rides in `?from=&to=` and clamps at today); a weigh-in chart that keeps
+raw weigh-ins as points with a dashed moving average, drawn from the third observation and labelled with
+its window, read from `GET /api/users/me`; a goal-vs-consumed chart with green/amber/red bands
+(decision 71) on the drink-inclusive stats; and the additive `users.weight_trend_days` column (default 7,
+`PUT /api/users/me` with no UI, values below 3 or above 90 are `400`s). The bank line and the
+measurements table keep their fixed windows; decision 94 held — hand-written SVG, no chart library
+(+5.5 kB raw, +2.3 kB gzip).
+
+**Four things building it taught**, now recorded in the plan beside 14.2's lessons: the pan hook has to
+be a React event prop rather than a ref callback (the compiler-aware `react-hooks/refs` rule rejects the
+ref plumbing); the chart follows the finger like a map, so dragging right reveals older days and left is
+the clamp; the trend's first value at three weigh-ins is a dot, not a line; and the weigh-in y-axis needs
+a 2 kg minimum span so a small wobble cannot fill the plot.
+
+**Evidence:** Go vet + tests green in the sandbox (new `users_test.go` covering the default, GET, PUT and
+both rejected bounds); 248 Vitest tests over 32 files (20 new); lint, typecheck, `build:go` and
+`build:preview` clean; the new `e2e/metrics.spec.ts` passes two real touch-drag tests locally at phone
+size, and `run-e2e` was applied so CI runs the full browser suite on the PR. The owner's preview review
+is the slice's acceptance gate.
+
+---
+
 ## 2026-10-05 — One session, one PR: the rule and the 14.3 rebuild
 
 The previous Arena session merged its PR (#64, the rc27 sign-off docs) and then carried on building Phase
