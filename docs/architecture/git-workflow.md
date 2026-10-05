@@ -193,6 +193,13 @@ Say so in the PR body — "adopts the work of branch `arena/<id>-cals` (PR #NN)"
 PR for it. A branch whose commits were never pushed is not adoptable: the work is gone and the slice is a
 rebuild, which is the outcome everything above exists to prevent.
 
+The **one exception** is the release-evidence follow-up. After a tag has been pushed, the release log in
+[`unraid-image-release.md`](./unraid-image-release.md) wants the run IDs, image digest and prerelease link, and
+GitHub only creates those *after* the merge and the tag. They are recorded in a focused docs-only PR — the pattern
+of PR #53, #57 and #63. It is narrow on purpose (release evidence only) and it cannot strand work: every value it
+records is already on GitHub from the moment the publish workflow finishes, so any later session could reconstruct
+it from the release page.
+
 **Handoff note format**, for a session that must end with work unfinished. Name the branch, its tip SHA
 and the next step — and only if the branch was actually pushed:
 

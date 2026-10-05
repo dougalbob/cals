@@ -26,8 +26,10 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
    are already lost. If work must cross sessions, the handoff is a pushed branch plus a short chat note
    naming the **branch and its tip SHA** — never a path inside the sandbox. If a previous session left work
    unmerged, the current session adopts it into its own PR (cherry-pick the tip, credit the original in the
-   PR body) rather than opening a second PR. See
-   [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) §5.
+   PR body) rather than opening a second PR. The one exception is the **release-evidence record for a release that has
+   just been tagged**: the digest and run IDs exist only after the tag has been built, so they land in a focused
+   docs-only follow-up PR. It cannot strand work — every value it records is already on GitHub the moment the
+   publish workflow finishes. See [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) §5.
 8. **Never touch live appdata.** V2 (`/mnt/user/appdata/cals-dev-v2`) is the household's live data since 2026-10-02 even though it began as a copy; the V1 directory (`/mnt/user/appdata/cals`) is stale, and neither may be used as a development data directory. The only disposable data is the `cals-dev-identity` copy. See `docs/architecture/data-copy-warning.md`.
 
 The local `pre-push` hook (`.githooks/pre-push`, installed with `./scripts/setup-git-hooks.sh`) blocks pushes to `main` as a backstop. Do not circumvent it with `--no-verify` or `ALLOW_MAIN_PUSH=1`.
