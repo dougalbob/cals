@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — rc28 published: the pannable metrics charts (PR #65, Phase 14.3)
+
+The owner approved 14.3 in the Arena preview ("looks good") and said to publish, so the checkpoint ran the
+documented loop: PR #65 merged to `cals-dev` as `e34e9a342c1706750594515349a7bcde871b32dc`, the annotated tag `v2.0.0-dev-rc28` pushed against
+exactly that commit, and the publish workflow passed its ancestry guard, build/push, prerelease creation and
+anonymous-pull check ([run 37312285484](https://github.com/dougalbob/cals/actions/runs/37312285484), digest `sha256:6d406d333f028febd77a1f0bf06d5bba68bbbbcfb04afe91caa6b7c179788a19`); the
+tagged browser suite ([37312285365](https://github.com/dougalbob/cals/actions/runs/37312285365)) passed too. The
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc28) carries the digest.
+
+**What it adds:** the weigh-in and goal-vs-consumed charts at `/next/metrics` pan one shared window (drag the
+chart and the range rides in `?from=&to=`, re-fetching through 14.1's range parameters); the trend is a moving
+average over the weigh-ins themselves, drawn from the third observation and labelled with its window read from
+`GET /api/users/me`; the goal chart bands green/amber/red at 10% over goal; and the additive
+`users.weight_trend_days` column (default 7, writable through `PUT /api/users/me`, no UI until Phase 15) lands with
+it. No chart library (decision 94). One additive migration, no data copy, no appdata operation.
+
+**One process note, recorded deliberately.** The release-evidence row above could only be written after the tag had
+been built — the digest and run IDs come from that run — so it landed in a focused docs-only follow-up PR, exactly
+as [`git-workflow.md`](../architecture/git-workflow.md) §5 prescribes and as PR #53, #57 and #63 did before it. That
+is the single exception to `AGENTS.md` rule 7's "one PR per session", and both documents now say so. It is narrow
+(release evidence only) and cannot strand work: its content is on GitHub from the moment the workflow finishes.
+
+**Status:** rc28 is the newest published checkpoint and awaits the owner's Force Update and road-test on
+`cals-dev-v2`; rc27 remains the last reported installation.
+
+---
+
 ## 2026-10-05 — Phase 14.3 rebuilt: the pannable metrics charts (PR #65)
 
 The 14.3 work lost with the previous session (see the entry below) was rebuilt from
