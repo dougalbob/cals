@@ -14,6 +14,36 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — rc31 published: the owner's road-test papercuts (PR #70, decisions 102–105)
+
+The owner reviewed the papercuts slice in the Arena preview — **"all looks good"** — and asked for it to be
+published, so PR #70 was merged into `cals-dev` as `33f554c1f52264b4187c953a559ad3347cc94425` and tagged
+`v2.0.0-dev-rc31` at exactly that commit. [Publish run 37353202360](https://github.com/dougalbob/cals/actions/runs/37353202360)
+passed the ancestry guard, built and pushed `ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc31` plus `dev-latest`
+(digest `sha256:b86b3c860d02395ea4b6b5672ab402019843ef9e12a2513ea6ee022784054d8a`), created the
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc31) and passed the anonymous-pull gate.
+No schema migration, data copy, appdata operation or template change. The tagged
+[browser suite 37353202025](https://github.com/dougalbob/cals/actions/runs/37353202025) passed **64 of 66**; the
+two failures are rc30's pre-existing `e2e/navigation.spec.ts` specs.
+
+**rc30's publication record, which never landed, is recorded here and in the release log in the same pass.**
+`v2.0.0-dev-rc30` (Phase 14.5 — the Nutrition screen, drink calories in the nutrition total, the target-weight
+editor and the nav Back/More change; PR #69) was published at `1660342d` on 2026-10-05, [publish run
+37346042746](https://github.com/dougalbob/cals/actions/runs/37346042746) succeeded, digest
+`sha256:4d8d419b4e6afc5212ebd81853942e86b6ac0034791ffa3ebbaec6e46d610903`, and its tagged [browser suite
+37346042700](https://github.com/dougalbob/cals/actions/runs/37346042700) failed the same two nav tests. The nav
+diagnosis (a stale `Show earlier navigation destinations` label in the arrow spec, and the new **More** overlay
+swallowing a swipe that starts at the bar's right edge) is in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 and the
+decision log; fixing it is a small, unstarted nav follow-up.
+
+**One Force Update now carries four checkpoints** — rc28's charts, rc29's body map, rc30's Nutrition screen and
+rc31's papercuts. The Unraid road-test in CURRENT_STATE §3 item 10 is the remaining acceptance gate for all four.
+The owner also confirmed two items should not be chased: crop stays deferred (decision 82) and the FatSecret
+decimal-rounding complaint was withdrawn for a future session. The panned-charts flashing remains a diagnosed,
+unstarted follow-up slice.
+
+---
+
 ## 2026-10-05 — Owner road-test pass: non-local foods and mobile papercuts (decisions 102–105)
 
 The owner reviewed the React app on a phone and sent a batch of issues. This session took the slice it could
