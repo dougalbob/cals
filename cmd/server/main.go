@@ -159,9 +159,12 @@ func main() {
 	mux.Handle("POST /api/weight", withAuth(http.HandlerFunc(handlers.HandleCreateWeightEntry)))
 	mux.Handle("DELETE /api/weight/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteWeightEntry)))
 
-	// Measurements routes
+	// Measurements routes. Slice 14.4 added the per-part update path (decision
+	// 96) and the latest-per-part lookup the body map's pop-up reads.
 	mux.Handle("GET /api/measurements", withAuth(http.HandlerFunc(handlers.HandleGetMeasurements)))
+	mux.Handle("GET /api/measurements/latest", withAuth(http.HandlerFunc(handlers.HandleGetLatestMeasurements)))
 	mux.Handle("POST /api/measurements", withAuth(http.HandlerFunc(handlers.HandleCreateMeasurement)))
+	mux.Handle("PUT /api/measurements/{id}", withAuth(http.HandlerFunc(handlers.HandleUpdateMeasurement)))
 	mux.Handle("DELETE /api/measurements/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteMeasurement)))
 
 	// Stats routes

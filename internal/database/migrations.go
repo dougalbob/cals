@@ -333,6 +333,14 @@ func RunMigrations() error {
 		// handler: a trend over fewer than three weigh-ins is never drawn
 		// (decision 95), so such a window could never do anything.
 		`ALTER TABLE users ADD COLUMN weight_trend_days INTEGER NOT NULL DEFAULT 7`,
+
+		// Phase 14 slice 14.4 (decision 97): which silhouette the Metrics
+		// body map draws. Additive and nullable — NULL means "not chosen yet",
+		// and the map offers a one-off Female / Male pick the first time it
+		// opens, saved through PUT /api/users/me. The female outline carries
+		// the Bust point and the male outline the Chest point (decision 98),
+		// keeping both measurement columns meaningful.
+		`ALTER TABLE users ADD COLUMN body_outline TEXT`,
 	}
 
 	for _, migration := range migrations {

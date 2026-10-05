@@ -601,6 +601,8 @@ export const users = [
     bank_window_days: 14,
     // The slice-14.3 trend window, counted in weigh-ins (decision 95).
     weight_trend_days: 7,
+    // Decision 97: null means "not chosen yet" — the body map asks once.
+    body_outline: null,
     target_weight_kg: 85,
     // Decision 89: the Admin role is declared in the server's .env.
     is_admin: true,
@@ -617,6 +619,9 @@ export const users = [
     bank_start_date: iso(localNoon(20)),
     bank_window_days: 14,
     weight_trend_days: 10,
+    // She picked the female outline when the map first asked (decision 97),
+    // so swapping to her account shows the bust points without a picker.
+    body_outline: 'female',
     target_weight_kg: 68,
     is_admin: false,
     created_at: '2025-02-14T09:00:00Z',
@@ -673,6 +678,31 @@ weightEntries.push({
   weight_kg: 70.4,
   created_at: `${iso(localNoon(2))}T07:05:00Z`,
 })
+
+// Her measurement sessions (bust rather than chest — decision 98), roughly
+// the 3–4 week cadence decision 87 describes.
+{
+  let herMeasurementId = measurements.reduce((max, m) => Math.max(max, m.id), 0)
+  for (const [back, bust, waist, hips, thigh] of [
+    [84, 96.0, 84.5, 102.0, 58.0],
+    [63, 95.2, 83.4, 101.2, 57.6],
+    [42, 94.6, 82.2, 100.5, 57.1],
+    [21, 93.8, 81.0, 99.8, 56.8],
+    [3, 93.1, 80.2, 99.2, 56.5],
+  ]) {
+    const date = iso(localNoon(back))
+    measurements.push({
+      id: ++herMeasurementId,
+      user_id: 2,
+      date,
+      bust_cm: bust,
+      waist_cm: waist,
+      hips_cm: hips,
+      thigh_cm: thigh,
+      created_at: `${date}T07:10:00Z`,
+    })
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Derived helpers used by the fixture API
@@ -786,7 +816,10 @@ const initialFoods = foods.map((food) => ({
   servings: food.servings.map((serving) => ({ ...serving })),
 }))
 const initialDiaryEntriesDeep = diaryEntries.map((e) => ({ ...e }))
+const initialMeasurements = measurements.map((m) => ({ ...m }))
 const initialUserWindows = users.map((u) => u.bank_window_days)
+const initialUserTrendWindows = users.map((u) => u.weight_trend_days)
+const initialUserOutlines = users.map((u) => u.body_outline ?? null)
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 const initialFoodIdSeq = foodIdSeq
@@ -817,8 +850,12 @@ export function resetFixtures() {
     const initial = initialRecipeContent.get(recipe.id)
     Object.assign(recipe, JSON.parse(JSON.stringify(initial)))
   }
+  measurements.length = 0
+  measurements.push(...initialMeasurements.map((m) => ({ ...m })))
   users.forEach((account, index) => {
     account.bank_window_days = initialUserWindows[index]
+    account.weight_trend_days = initialUserTrendWindows[index]
+    account.body_outline = initialUserOutlines[index]
   })
   recipeIdSeq = initialRecipeIdSeq
   drinkEntryId = initialDrinkEntryId

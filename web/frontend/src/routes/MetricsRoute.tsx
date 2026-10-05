@@ -1,26 +1,47 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { apiGet, queryKeys } from '../api/client'
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiGet, apiPut, queryKeys } from '../api/client'
 import type {
+  BodyOutline,
   DailyBank,
   DailyCalories,
   MeasurementEntry,
+  MeasurementLatest,
+  MeasurementPartKey,
   TrafficLight,
   User,
   WeeklyAnalysis,
   WeightEntry,
 } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
+import { BodyMap } from '../components/BodyMap'
+import { MeasurementSheet } from '../components/MeasurementSheet'
+import { MeasurementEditSheet } from '../components/MeasurementEditSheet'
 import { usePanWindow } from '../hooks/usePanWindow'
 import { bankWindowPhrase } from '../lib/bank'
 import { movingAverageOverWeighIns } from '../lib/trend'
-import { formatKg, formatNumber, formatShortDate, formatStonesPounds, kgToStonesPounds } from '../lib/format'
+import {
+  addDays,
+  formatKg,
+  formatNumber,
+  formatShortDate,
+  formatStonesPounds,
+  kgToStonesPounds,
+  todayIso,
+} from '../lib/format'
+import {
+  MEASUREMENT_OVERDUE_DAYS,
+  daysBetweenIso,
+  labelFor,
+  latestMeasurementDate,
+} from '../lib/measurements'
 
 export function MetricsRoute() {
   // The weigh-in chart and the goal-vs-consumed chart share one pannable
-  // window (decision 69); the bank line and the measurements table below keep
-  // their own fixed windows (decision 95's third implementation note).
+  // window (decision 69); the bank line and the measurements section below
+  // keep their own fixed windows (decision 95's third implementation note).
   const pan = usePanWindow(30)
+  const queryClient = useQueryClient()
 
   // The summary tiles always describe now, so they keep the fixed 90-day
   // fetch even when the chart above them has been panned into the past.
@@ -44,9 +65,18 @@ export function MetricsRoute() {
     queryFn: () => apiGet<DailyBank[]>('/api/stats/bank?days=30'),
   })
 
+  // The history table asks for the widest window the endpoint allows; the
+  // body map's pop-up reads the dedicated latest-per-part lookup instead,
+  // which no row limit can defeat (slice 14.4).
+  const historyFrom = addDays(todayIso(), -399)
   const measurements = useQuery<MeasurementEntry[]>({
-    queryKey: queryKeys.measurements,
-    queryFn: () => apiGet<MeasurementEntry[]>('/api/measurements'),
+    queryKey: queryKeys.measurementsRange(historyFrom, todayIso()),
+    queryFn: () => apiGet<MeasurementEntry[]>(`/api/measurements?from=${historyFrom}&to=${todayIso()}`),
+  })
+
+  const measurementLatest = useQuery<MeasurementLatest>({
+    queryKey: queryKeys.measurementsLatest,
+    queryFn: () => apiGet<MeasurementLatest>('/api/measurements/latest'),
   })
 
   const nutrition = useQuery<WeeklyAnalysis>({
@@ -57,6 +87,16 @@ export function MetricsRoute() {
   const user = useQuery<User>({
     queryKey: queryKeys.user,
     queryFn: () => apiGet<User>('/api/users/me'),
+  })
+
+  const [recordingPart, setRecordingPart] = useState<MeasurementPartKey | null>(null)
+  const [editingEntry, setEditingEntry] = useState<MeasurementEntry | null>(null)
+
+  const chooseOutline = useMutation({
+    mutationFn: (outline: BodyOutline) => apiPut<User>('/api/users/me', { body_outline: outline }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.user })
+    },
   })
 
   // API returns newest-first; charts want oldest-first.
@@ -70,7 +110,7 @@ export function MetricsRoute() {
   const monthAgo = weightAsc.find((entry) => entry.date >= addDaysIso(weightAsc.at(-1)?.date ?? '', -30))
   const change = latest && monthAgo ? latest.weight_kg - monthAgo.weight_kg : 0
 
-  const latestMeasurement = measurements.data?.[0]
+  const latestWaist = measurementLatest.data?.waist_cm ?? null
   const target = user.data?.target_weight_kg
   // Every bank figure is a rolling window (decisions 66, 92); this chart prints
   // one per day, so it says which window those balances are computed over.
@@ -87,6 +127,12 @@ export function MetricsRoute() {
   const trendDrawn = inView.length >= 3
   const hasCalories = (calories.data ?? []).some((day) => day.calories > 0)
 
+  const outline = user.data?.body_outline ?? null
+  const lastMeasured = measurementLatest.data ? latestMeasurementDate(measurementLatest.data) : null
+  const daysSinceMeasured = lastMeasured ? daysBetweenIso(lastMeasured, todayIso()) : null
+  const overdue = daysSinceMeasured !== null && daysSinceMeasured > MEASUREMENT_OVERDUE_DAYS
+  const weeksSince = daysSinceMeasured === null ? null : Math.floor(daysSinceMeasured / 7)
+
   return (
     <div className="flex flex-col gap-4">
       <section className="rounded-2xl bg-card p-4 shadow-card">
@@ -102,8 +148,8 @@ export function MetricsRoute() {
           <Stat label="Target" value={target ? formatStonesPounds(target) : 'Not set'} sub={target ? formatKg(target) : ''} />
           <Stat
             label="Waist"
-            value={latestMeasurement?.waist_cm ? `${latestMeasurement.waist_cm.toFixed(1)} cm` : '—'}
-            sub={latestMeasurement ? formatShortDate(latestMeasurement.date) : ''}
+            value={latestWaist ? `${latestWaist.value.toFixed(1)} cm` : '—'}
+            sub={latestWaist ? formatShortDate(latestWaist.date) : ''}
           />
         </div>
 
@@ -202,41 +248,115 @@ export function MetricsRoute() {
       </section>
 
       <section className="rounded-2xl bg-card p-4 shadow-card">
-        <h2 className="m-0 mb-3 text-base font-semibold">📏 Measurements</h2>
+        <h2 className="m-0 mb-1 text-base font-semibold">📏 Measurements</h2>
+
+        {lastMeasured === null ? (
+          <p data-testid="measurement-staleness" className="m-0 mb-3 text-xs text-ink-muted">
+            No measurements logged yet — tap a point on the map to record your first.
+          </p>
+        ) : (
+          <p
+            data-testid="measurement-staleness"
+            className={`m-0 mb-3 text-xs ${overdue ? 'font-medium text-amber-600' : 'text-ink-muted'}`}
+          >
+            Last measured {formatShortDate(lastMeasured)}
+            {weeksSince !== null &&
+              (weeksSince === 0
+                ? ' · this week'
+                : ` · ${weeksSince} week${weeksSince === 1 ? '' : 's'} ago`)}
+            {overdue && ' — measurements are best taken every 3–4 weeks'}
+          </p>
+        )}
+
+        {outline === null ? (
+          // Decision 97: the outline is a per-user preference with no assumed
+          // default — the first visit asks once, then remembers.
+          <div data-testid="outline-picker" className="flex flex-col gap-2 py-2">
+            <p className="m-0 text-sm text-ink-light">
+              Choose the outline that fits you — it decides which points the body map shows.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                data-testid="outline-female"
+                onClick={() => chooseOutline.mutate('female')}
+                disabled={chooseOutline.isPending}
+                className="min-h-11 flex-1 cursor-pointer rounded-xl border border-line bg-card text-sm font-semibold text-ink"
+              >
+                Female outline
+              </button>
+              <button
+                type="button"
+                data-testid="outline-male"
+                onClick={() => chooseOutline.mutate('male')}
+                disabled={chooseOutline.isPending}
+                className="min-h-11 flex-1 cursor-pointer rounded-xl border border-line bg-card text-sm font-semibold text-ink"
+              >
+                Male outline
+              </button>
+            </div>
+          </div>
+        ) : measurementLatest.data ? (
+          <>
+            <BodyMap outline={outline} latest={measurementLatest.data} onPick={setRecordingPart} />
+            <p className="m-0 mt-2 text-center text-xs text-ink-muted">
+              Tap a point to record or check that measurement. Filled dots have a value; hollow ones
+              have never been measured.
+            </p>
+          </>
+        ) : null}
+
+        <h3 className="m-0 mt-4 mb-2 text-sm font-semibold text-ink-light">History</h3>
         {measurements.isPending ? (
           <p className="text-sm text-ink-light">Loading…</p>
         ) : (measurements.data ?? []).length === 0 ? (
           <p className="text-sm text-ink-muted m-0">No measurements logged.</p>
         ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-left text-xs text-ink-light">
-                <th className="font-medium pb-1">Date</th>
-                <th className="font-medium pb-1 text-right">Waist</th>
-                <th className="font-medium pb-1 text-right">Chest</th>
-                <th className="font-medium pb-1 text-right">Hips</th>
-                <th className="font-medium pb-1 text-right">Neck</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(measurements.data ?? []).slice(0, 6).map((row) => (
-                <tr key={row.date} className="border-t border-line-light">
-                  <td className="py-1.5">{formatShortDate(row.date)}</td>
-                  <td className="py-1.5 text-right tabular-nums">{cm(row.waist_cm)}</td>
-                  <td className="py-1.5 text-right tabular-nums">{cm(row.chest_cm)}</td>
-                  <td className="py-1.5 text-right tabular-nums">{cm(row.hips_cm)}</td>
-                  <td className="py-1.5 text-right tabular-nums">{cm(row.neck_cm)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0" data-testid="measurement-history">
+            {(measurements.data ?? []).map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  data-testid="measurement-history-row"
+                  onClick={() => setEditingEntry(row)}
+                  aria-label={`Edit measurements recorded ${formatShortDate(row.date)}`}
+                  className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-line-light bg-surface px-3 py-2 text-left text-sm"
+                >
+                  <span className="font-medium text-ink">{formatShortDate(row.date)}</span>
+                  {PART_ORDER.filter((key) => row[key] !== null).map((key) => (
+                    <span key={key} className="text-xs text-ink-light tabular-nums">
+                      {labelFor(key)} {(row[key] as number).toFixed(1)}
+                    </span>
+                  ))}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
+
+      {recordingPart && measurementLatest.data && (
+        <MeasurementSheet
+          part={recordingPart}
+          latest={measurementLatest.data[recordingPart]}
+          onClose={() => setRecordingPart(null)}
+        />
+      )}
+      {editingEntry && <MeasurementEditSheet entry={editingEntry} onClose={() => setEditingEntry(null)} />}
     </div>
   )
 }
 
-const cm = (value: number | null) => (value == null ? '—' : `${value.toFixed(1)}`)
+/** History rows list parts top-down, whichever outline recorded them. */
+const PART_ORDER = [
+  'neck_cm',
+  'chest_cm',
+  'bust_cm',
+  'waist_cm',
+  'upper_arm_cm',
+  'hips_cm',
+  'thigh_cm',
+] as const
 
 function addDaysIso(iso: string, delta: number): string {
   if (!iso) return iso

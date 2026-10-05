@@ -2,17 +2,18 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **APPROVED for slices 14.1–14.3** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built, owner-approved in the Arena preview and published as `v2.0.0-dev-rc28` (PR #65, 2026-10-05), awaiting the owner's Unraid road-test**. **Q6–Q11 (§6) are still open** and gate 14.4–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **APPROVED for slices 14.1–14.4** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), and Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05) — including a third option for Q6 and a bundle of extras beyond this plan. **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built, owner-approved in the Arena preview and published as `v2.0.0-dev-rc28` (PR #65, 2026-10-05), awaiting the owner's Unraid road-test**; **14.4 (the body-map measurement picker) is built and owner-approved in the Arena preview on 2026-10-05 ("looks good"), now also carrying decision 101's route-level code splitting; PR #67 is ready to merge and publish**. **Q10–Q11 (§6) are still open** and gate 14.5–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
 | **Related** | [`frontend-strategy.md`](frontend-strategy.md) §7 (the phase table), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions 42, 44, 46, 47, 66–71, 87), [`../product/metrics-evidence.md`](../product/metrics-evidence.md) (research on charts, trends and measurement cadence), [`testing.md`](testing.md) |
 
 > Q1–Q5 were settled by the owner on 2026-10-05 and are recorded as
-> [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05);
-> §6 below keeps the question and the answer together so the reasoning stays readable. Q6–Q11 are still
-> open and must be answered before slices 14.4–14.6 start; they get promoted into the same numbered log
-> when they are.
+> [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05),
+> and Q6–Q9 the same day as
+> [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05);
+> §6 below keeps each question with its answer so the reasoning stays readable. Q10–Q11 are still open
+> and must be answered before slices 14.5–14.6 start.
 
 ---
 
@@ -267,6 +268,42 @@ The biggest UI addition, and the only slice that must write.
    ("Measurement hasn't changed — is this correct?").
 4. Lives on Metrics; the existing table stays underneath as history.
 
+**Built 2026-10-05** — with Q6–Q9 settled by the owner as
+[decisions 96–99](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05)
+and the extras bundle as decision 100. Six things building it taught:
+
+- **Q6's answer was a third option.** The plan offered (a) patch-the-latest-entry or (b) resend-everything
+  through POST; the owner picked the agent's recommendation instead — the map's save **merges into today's
+  row** (POST upserts per part, delete-then-insert is gone), and a new `PUT /api/measurements/{id}` patches
+  any past entry from the history table. Measuring today never rewrites history; correcting last month's
+  waist never invents a measurement.
+- **Two live defects were verified against a real server before building.** POST wiped same-day parts
+  (reproduced with two curls), and GET serialised `sql.NullFloat64` objects that no client type declared —
+  which crashed the rc28 Metrics screen on any account with measurements. The slice normalises the wire
+  shape to `number | null` and updates the one legacy reader in the same PR (the 14.1 precedent).
+- **The latest lookup is its own endpoint.** `GET /api/measurements/latest` returns the newest non-null
+  value per part plus the value before it (the pop-up's "was 99.4 cm" context); the list keeps V1's exact
+  no-parameter contract and gains the 14.1 `from`/`to` window for the history table (decision 100).
+- **The outline asks once.** `users.body_outline` is nullable (decision 97); NULL shows a one-off
+  Female / Male picker on the map, saved through `PUT /api/users/me`. The female outline carries Bust,
+  the male Chest (decision 98); the other five parts sit on both.
+- **Tap points are HTML buttons over the SVG**, not SVG nodes: the 44 px hit area, keyboard focus and
+  accessible labels come for free, and the visible dot stays the small red point decision 67 described —
+  filled when measured, hollow when not.
+- **The bundle grew ~20 kB** (508 → 529 kB) and the owner asked whether that was metrics-specific
+  before more metrics work lands. It was not — a module-level audit found ~72% fixed framework
+  overhead shared by every page — so it was settled the same day as **decision 101: route-level
+  code splitting**, delivered inside this PR. Every route now lazy-loads its own chunk (Home stays
+  eager as the landing page) behind one Suspense fallback in the shell: the main chunk is 339 kB
+  (the >500 kB Vite warning is gone) and Metrics is its own 28 kB chunk, so future metrics growth
+  stays inside the metrics chunk. Decision 94's no-chart-library choice stands.
+
+Verification: `go vet`/`go test` with 7 new handler tests (wire shape, no-wipe, PUT patch/clear/move,
+latest-vs-20-row-window, legacy limit and window validation, outline round-trip) — each run against the
+built server over HTTP as well; 27 new Vitest tests; 4 new Playwright phone tests (outline choice, save
+preserving history, both confirmations, history correction), full suite **66 passed**; lint, typecheck,
+`build:go` and `build:preview` clean.
+
 ### 14.5 — Nutrition view *(parity, without decision 47's settings)*
 
 A proper Nutrition screen matching what V1 already does — macro status, protein and fibre against their
@@ -325,7 +362,9 @@ the report both read their numbers.
 
 Q1–Q5 gated slices 14.1–14.3 and were settled by the owner on 2026-10-05; each is recorded as a numbered
 decision in [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05).
-Q6–Q11 are still open and gate 14.4–14.6.
+Q6–Q9 gated 14.4 and were settled the same day, recorded as
+[decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05).
+Q10–Q11 are still open and gate 14.5–14.6.
 
 ### Settled — decisions 91–95 (2026-10-05)
 
@@ -373,25 +412,32 @@ Phase 15 Settings/profile work**, beside the bank window (decision 93) and the r
 therefore follows the same column-now-control-later pattern: `users.weight_trend_days` defaults to 7 in 14.3,
 is readable and writable through `PUT /api/users/me`, and gets no UI until Phase 15.
 
+### Settled on 2026-10-05 — decisions 96–100
+
+Q6–Q9 gated 14.4 and were settled with the owner the day the slice was built; each is a numbered decision
+in [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05).
+
+**Q6 — Where does a body-map save write to? ✅ Decision 96: a third option.** Neither of the plan's two
+options was chosen. The map's save **merges the tapped part into today's row** (POST became an upsert — the
+verified delete-then-insert wipe bug is gone), and a new `PUT /api/measurements/{id}` patches past entries
+from the history table, keeping their date and their other parts. The plan's option (a) would have rewritten
+the latest entry when simply measuring today; option (b)'s resend-everything contract is unused.
+
+**Q7 — Does the outline preference get its column now? ✅ Decision 97: yes, with a one-time picker.** The
+additive nullable `users.body_outline` landed in 14.4 as the narrow exception recommended; NULL means "not
+chosen yet" and the map asks once (Female / Male) the first time it opens. No assumed default for either
+account.
+
+**Q8 — Bust on the female outline, chest on the male? ✅ Decision 98: yes.** Both columns stay meaningful;
+the other five parts appear on both outlines.
+
+**Q9 — Stepper increment? ✅ Decision 99: 0.5 cm**, with typed 0.1 cm values still accepted.
+
+The owner also approved the extras bundle as **decision 100**: the staleness line with decision 87's amber
+cue, the pop-up's previous-value context and live delta, the all-parts tappable history, the `from`/`to`
+window on `GET /api/measurements`, the dedicated latest-per-part lookup, and the wire-shape normalisation.
+
 ### Still open
-
-Needed before 14.4:
-
-**Q6 — Where does a body-map save write to?** (a) a new per-part update endpoint patching the latest entry's
-own date, or (b) the existing `POST`, writing today's row and resending every part to keep.
-*Recommendation:* **(a)** — it preserves history and the recorded date, and it is the only option that makes
-"correct last month's waist" possible without inventing a new measurement.
-
-**Q7 — Does the outline preference get its column now?** The body map needs a shape, but the per-user outline
-preference is currently written into Phase 15.
-*Recommendation:* pull the single additive column into 14.4 as a narrow, tested exception — without it the map
-either cannot differ per person or has to store the choice in the browser, which the plan rules out.
-
-**Q8 — Bust on the female outline, chest on the male?** *Recommendation:* yes, as the decision 67 notes
-suggest — it keeps both columns meaningful and asks nobody to choose between them.
-
-**Q9 — Stepper increment, 0.5 cm or 1 cm?** *Recommendation:* **0.5 cm**, with the field still accepting a
-typed 0.1 cm value.
 
 Needed before 14.5 / 14.6:
 

@@ -14,6 +14,50 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — 14.4 preview approved; bundle audit and route-level code splitting (decision 101)
+
+The owner reviewed the Phase 14.4 Arena preview — **"looks good"** — closing CURRENT_STATE §3 item 9's
+preview half, and said he would road-test properly once the rc is published. Before publication he asked
+whether the **529 kB bundle was metrics-specific**, since more metrics work is coming. A module-level audit
+(rollup-plugin-visualizer on the production build) showed it was not: **~72% of the single chunk was fixed
+framework overhead** — React + ReactDOM + scheduler ~48%, react-router v8 ~18%, @tanstack/react-query ~6% —
+with every page sharing that one chunk; the 14.4 metrics code was ~38 kB, roughly **3.5% of the bundle**.
+Future metrics additions grow only the small app-code slice, but the shared-chunk design meant every visit
+paid for every page and Vite's >500 kB warning would keep firing.
+
+Settled with the owner as **decision 101**: route-level code splitting, delivered inside PR #67 the same
+day. Every route lazy-loads its own chunk (`web/frontend/src/router.tsx`, named-export adapters keep the
+existing import style); Home stays eager as the landing page; one `<Suspense>` fallback wraps `<Outlet />`
+in the app shell (`data-testid="route-loading"`). Result: **main chunk 529 → 339 kB, Metrics its own
+28 kB chunk**, Vite's warning gone, and the shared vendor chunk caches once across navigations — so future
+metrics growth stays inside the metrics chunk. No backend or Go-serving change: `cmd/server/frontend.go`
+serves `assets/` from disk with immutable caching. Re-verified after the split: typecheck, lint,
+**276 Vitest**, `build:go` + `build:preview`, full Playwright suite **66 passed** (56.2 s), doc-link
+checker, and the live preview served the new chunks over HTTP. The owner chose to land this in PR #67
+rather than a follow-up. The rc publication is the next step, then the owner's Unraid road-test.
+
+---
+
+## 2026-10-05 — Phase 14.4 built: the body-map measurement picker (decisions 96–100)
+
+The session settled the four questions gating 14.4 with the owner — **decision 96** (the map's save merges
+into today's row; corrections go through the new `PUT /api/measurements/{id}`, a third option beyond the
+plan's (a)/(b)), **97** (the `users.body_outline` column lands in-slice with a one-time Female/Male picker),
+**98** (Bust on the female outline, Chest on the male) and **99** (0.5 cm stepper, typed 0.1 values) — and
+approved the extras bundle as **decision 100**: the staleness line with decision 87's amber cue, the pop-up's
+previous-value context and live delta, the all-parts tappable history with two-step delete, the `from`/`to`
+window on the list, `GET /api/measurements/latest`, and the wire-shape normalisation.
+
+Before building, two defects were reproduced against a real server: the same-day wipe (posting hips deleted
+the morning's waist) and the `sql.NullFloat64` wire shape that crashed the rc28 Metrics screen on any account
+with measurements. Both are fixed and pinned — Go handler tests (7 new), 27 new Vitest tests, 4 new
+Playwright phone tests, full suite 66 passed; lint, typecheck, `build:go`, `build:preview` and the
+live-server curl pass all green. One additive migration, no data copy or appdata operation; the bundle grew
+508 → 529 kB. The slice is open as PR #67 (Docker and Go checks green) and waits for the owner's Arena-preview approval (CURRENT_STATE §3 item 9), then
+merges and publishes as the next rc.
+
+---
+
 ## 2026-10-05 — rc28 published: the pannable metrics charts (PR #65, Phase 14.3)
 
 The owner approved 14.3 in the Arena preview ("looks good") and said to publish, so the checkpoint ran the

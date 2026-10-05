@@ -9,7 +9,8 @@
  * Mapped:  /api/version, /api/users/me, /api/recipes (GET/POST/detail, content + favourite + metadata + archive PUT),
  *          /api/recipes/{id}/image (POST), /api/images/recipes/{id}/{type} (GET),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
- *          /api/bank, /api/calendar, /api/drinks, /api/weight, /api/measurements,
+ *          /api/bank, /api/calendar, /api/drinks, /api/weight,
+ *          /api/measurements (+ GET latest, POST merge, PUT/DELETE by id),
  *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
  * Supported mutations include Diary/drink demos, recipe create/content/favourite/metadata/archive
  * edits, uncropped photo upload/replacement, and dependent nutrition refreshes. Unsupported
@@ -259,6 +260,15 @@ export function handle(method, url, body, headers = {}) {
       }
       account.weight_trend_days = weighIns
     }
+    // Slice 14.4 (decision 97): the body map's silhouette preference. Only the
+    // two known shapes are accepted, exactly as internal/handlers/users.go.
+    if (body && Object.prototype.hasOwnProperty.call(body, 'body_outline')) {
+      const outline = body.body_outline
+      if (outline !== 'female' && outline !== 'male') {
+        return err(400, 'body_outline must be "female" or "male"')
+      }
+      account.body_outline = outline
+    }
     return json(account)
   }
 
@@ -451,12 +461,18 @@ export function handle(method, url, body, headers = {}) {
     )
   }
 
+  // Measurements — mirrors internal/handlers/measurements.go since slice 14.4.
+  // No parameters: V1's exact contract, the newest 20 rows whatever their age.
+  // A window (from/to or days): every row inside it, same 400-day bound and
+  // strict 400s as the other series endpoints.
   if (pathname === '/api/measurements' && method === 'GET') {
-    return json(
+    const mine = () =>
       [...measurements]
         .filter((m) => m.user_id === actingUserId)
-        .sort((a, b) => b.date.localeCompare(a.date))
+        .sort((a, b) => (b.date === a.date ? b.id - a.id : b.date.localeCompare(a.date)))
         .map((m) => ({
+          id: m.id,
+          user_id: m.user_id,
           date: m.date,
           bust_cm: m.bust_cm ?? null,
           chest_cm: m.chest_cm ?? null,
@@ -465,8 +481,115 @@ export function handle(method, url, body, headers = {}) {
           upper_arm_cm: m.upper_arm_cm ?? null,
           thigh_cm: m.thigh_cm ?? null,
           neck_cm: m.neck_cm ?? null,
-        })),
-    )
+          created_at: m.created_at,
+        }))
+
+    if (!searchParams.get('from') && !searchParams.get('to') && !searchParams.get('days')) {
+      return json(mine().slice(0, 20))
+    }
+    const range = resolveSeriesRange(searchParams, 20, MAX_SERIES_SPAN)
+    if (range.error) return err(400, range.error)
+    return json(mine().filter((m) => m.date >= range.from && m.date <= range.to))
+  }
+
+  // Per-part latest values for the body map's pop-up — no row limit can hide
+  // them, and each carries the value before it.
+  if (pathname === '/api/measurements/latest' && method === 'GET') {
+    const parts = ['neck_cm', 'chest_cm', 'bust_cm', 'waist_cm', 'upper_arm_cm', 'hips_cm', 'thigh_cm']
+    const rows = [...measurements]
+      .filter((m) => m.user_id === actingUserId)
+      .sort((a, b) => (b.date === a.date ? b.id - a.id : b.date.localeCompare(a.date)))
+    const out = {}
+    for (const part of parts) {
+      const seen = rows.filter((m) => m[part] != null).slice(0, 2)
+      out[part] =
+        seen.length === 0
+          ? null
+          : {
+              value: seen[0][part],
+              date: seen[0].date,
+              previous: seen[1] ? { value: seen[1][part], date: seen[1].date, previous: null } : null,
+            }
+    }
+    return json(out)
+  }
+
+  // Decision 96: merge the posted parts into the day's row rather than
+  // delete-and-reinsert — committing one part must not wipe the others.
+  if (pathname === '/api/measurements' && method === 'POST') {
+    if (!body || typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+      return err(400, 'Date must be YYYY-MM-DD')
+    }
+    const parts = ['neck_cm', 'chest_cm', 'bust_cm', 'waist_cm', 'upper_arm_cm', 'hips_cm', 'thigh_cm']
+    const provided = {}
+    for (const part of parts) {
+      const value = body[part]
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) provided[part] = value
+    }
+    if (Object.keys(provided).length === 0) return err(400, 'At least one measurement is required')
+
+    const existing = measurements.find((m) => m.user_id === actingUserId && m.date === body.date)
+    if (existing) {
+      Object.assign(existing, provided)
+      return json({ id: existing.id }, 200)
+    }
+    const id = measurements.reduce((max, m) => Math.max(max, m.id), 0) + 1
+    measurements.push({ id, user_id: actingUserId, date: body.date, created_at: `${body.date}T07:10:00Z`, ...provided })
+    return json({ id }, 201)
+  }
+
+  const measurementMatch = pathname.match(/^\/api\/measurements\/(\d+)$/)
+  if (measurementMatch) {
+    const id = Number.parseInt(measurementMatch[1], 10)
+    const entry = measurements.find((m) => m.id === id && m.user_id === actingUserId)
+
+    // Decision 96's correction path: patch one entry. Absent keys stay,
+    // explicit null clears, a positive number sets, anything else is a 400.
+    if (method === 'PUT') {
+      if (!entry) return err(404, 'Entry not found')
+      const parts = ['neck_cm', 'chest_cm', 'bust_cm', 'waist_cm', 'upper_arm_cm', 'hips_cm', 'thigh_cm']
+      const keys = Object.keys(body ?? {})
+      for (const key of keys) {
+        if (key !== 'date' && !parts.includes(key)) return err(400, `Unknown field: ${key}`)
+      }
+      if (keys.length === 0) return err(400, 'No fields to update')
+      for (const key of keys) {
+        if (key === 'date') {
+          if (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+            return err(400, 'date must be YYYY-MM-DD')
+          }
+          entry.date = body.date
+          continue
+        }
+        const value = body[key]
+        if (value === null) {
+          entry[key] = null
+        } else if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+          entry[key] = value
+        } else {
+          return err(400, `${key} must be greater than zero (send null to clear it)`)
+        }
+      }
+      return json({
+        id: entry.id,
+        user_id: entry.user_id,
+        date: entry.date,
+        bust_cm: entry.bust_cm ?? null,
+        chest_cm: entry.chest_cm ?? null,
+        waist_cm: entry.waist_cm ?? null,
+        hips_cm: entry.hips_cm ?? null,
+        upper_arm_cm: entry.upper_arm_cm ?? null,
+        thigh_cm: entry.thigh_cm ?? null,
+        neck_cm: entry.neck_cm ?? null,
+        created_at: entry.created_at,
+      })
+    }
+
+    if (method === 'DELETE') {
+      if (!entry) return err(404, 'Entry not found')
+      measurements.splice(measurements.indexOf(entry), 1)
+      return { status: 204, body: '', contentType: 'application/json' }
+    }
   }
 
   // Calories are food **and** drink, mirroring internal/handlers/stats.go: a
