@@ -820,6 +820,7 @@ const initialMeasurements = measurements.map((m) => ({ ...m }))
 const initialUserWindows = users.map((u) => u.bank_window_days)
 const initialUserTrendWindows = users.map((u) => u.weight_trend_days)
 const initialUserOutlines = users.map((u) => u.body_outline ?? null)
+const initialUserTargetWeights = users.map((u) => u.target_weight_kg ?? null)
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 const initialFoodIdSeq = foodIdSeq
@@ -856,6 +857,7 @@ export function resetFixtures() {
     account.bank_window_days = initialUserWindows[index]
     account.weight_trend_days = initialUserTrendWindows[index]
     account.body_outline = initialUserOutlines[index]
+    account.target_weight_kg = initialUserTargetWeights[index]
   })
   recipeIdSeq = initialRecipeIdSeq
   drinkEntryId = initialDrinkEntryId

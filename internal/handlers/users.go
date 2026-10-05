@@ -36,13 +36,14 @@ const maxWeightTrendDays = 90
 func GetOrCreateUser(email string) (*models.User, error) {
 	var user models.User
 	var bankStartDate sql.NullString
+	var targetWeightKg sql.NullFloat64
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &user.IsAdmin,
+		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -84,6 +85,10 @@ func GetOrCreateUser(email string) (*models.User, error) {
 	if bankStartDate.Valid {
 		user.BankStartDate = bankStartDate.String
 	}
+	if targetWeightKg.Valid {
+		v := targetWeightKg.Float64
+		user.TargetWeightKG = &v
+	}
 
 	return &user, nil
 }
@@ -93,6 +98,16 @@ func boolToInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+// nullableFloat64 turns a *float64 into a value suitable for a nullable REAL
+// column: nil becomes NULL (sql.NullFloat64{Valid:false}), non-nil is the value.
+// database/sql's Exec accepts a sql.NullFloat64 directly.
+func nullableFloat64(p *float64) sql.NullFloat64 {
+	if p == nil {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{Float64: *p, Valid: true}
 }
 
 // HandleGetCurrentUser returns the current authenticated user
@@ -128,14 +143,15 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates struct {
-		Name             *string `json:"name"`
-		DailyCalorieGoal *int    `json:"daily_calorie_goal"`
-		DailyWaterGoalML *int    `json:"daily_water_goal_ml"`
-		WeightUnit       *string `json:"weight_unit"`
-		BankStartDate    *string `json:"bank_start_date"`
-		BankWindowDays   *int    `json:"bank_window_days"`
-		WeightTrendDays  *int    `json:"weight_trend_days"`
-		BodyOutline      *string `json:"body_outline"`
+		Name             *string   `json:"name"`
+		DailyCalorieGoal *int      `json:"daily_calorie_goal"`
+		DailyWaterGoalML *int      `json:"daily_water_goal_ml"`
+		WeightUnit       *string   `json:"weight_unit"`
+		BankStartDate    *string   `json:"bank_start_date"`
+		BankWindowDays   *int      `json:"bank_window_days"`
+		WeightTrendDays  *int      `json:"weight_trend_days"`
+		BodyOutline      *string   `json:"body_outline"`
+		TargetWeightKG   **float64 `json:"target_weight_kg"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -194,11 +210,18 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		}
 		user.BodyOutline = updates.BodyOutline
 	}
+	if updates.TargetWeightKG != nil {
+		// Slice 14.5: target_weight_kg can be set or cleared (null = no target).
+		// The field is an additive column that no query selected until now, so
+		// Target on the Weight card was permanently "Not set"; wiring it
+		// through PUT lets the user set it from the Metrics screen.
+		user.TargetWeightKG = *updates.TargetWeightKG
+	}
 
 	_, err = database.DB.Exec(`
-		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, body_outline = ?, updated_at = CURRENT_TIMESTAMP
+		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, body_outline = ?, target_weight_kg = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.BodyOutline, user.ID)
+	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.BodyOutline, nullableFloat64(user.TargetWeightKG), user.ID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -225,7 +248,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, target_weight_kg, is_admin, created_at, updated_at
 		FROM users ORDER BY name, email
 	`)
 	if err != nil {
@@ -238,9 +261,10 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var user models.User
 		var bankStartDate sql.NullString
+		var targetWeightKg sql.NullFloat64
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &user.IsAdmin,
+			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &targetWeightKg, &user.IsAdmin,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
@@ -249,6 +273,10 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		if bankStartDate.Valid {
 			user.BankStartDate = bankStartDate.String
+		}
+		if targetWeightKg.Valid {
+			v := targetWeightKg.Float64
+			user.TargetWeightKG = &v
 		}
 		users = append(users, user)
 	}

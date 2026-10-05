@@ -8,7 +8,7 @@
  * with the same data the preview shows.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
@@ -50,23 +50,23 @@ afterEach(() => {
 })
 
 describe('MetricsRoute', () => {
-  it('renders weight, calorie, bank, nutrition and measurement sections', async () => {
+  it('renders weight, calorie, bank, nutrition link and measurement sections', async () => {
     renderRoute(<MetricsRoute />)
 
     expect(await screen.findByText('⚖️ Weight')).toBeTruthy()
     expect(screen.getByText('🔥 Daily goal vs consumed')).toBeTruthy()
     expect(screen.getByText('🏦 Calorie bank (30 days)')).toBeTruthy()
-    expect(screen.getByText('🥗 Nutrition — 7 day rolling')).toBeTruthy()
+    // Slice 14.5: the inline four-card nutrition summary is replaced by a link
+    // card that opens the dedicated /nutrition route.
+    const link = screen.getByTestId('nutrition-link')
+    expect(link).toBeTruthy()
+    expect(link.textContent).toContain('🥗 Nutrition')
     expect(screen.getByText('📏 Measurements')).toBeTruthy()
 
     // Current weight is rendered in stones and pounds, from the latest seeded
     // entry (it appears twice: the "Current" tile and the chart's last-point label).
     const latest = [...seed.weightEntries].sort((a, b) => b.date.localeCompare(a.date))[0]
     expect((await screen.findAllByText(formatStonesPounds(latest.weight_kg))).length).toBeGreaterThan(0)
-
-    // The protein traffic light renders its value and per-kg target
-    const protein = screen.getByText('Protein').closest('div') as HTMLElement
-    expect(within(protein).getByText(/g\/kg \(goal /)).toBeTruthy()
   })
 })
 

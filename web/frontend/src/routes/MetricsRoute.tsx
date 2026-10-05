@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPut, queryKeys } from '../api/client'
 import type {
@@ -8,9 +9,7 @@ import type {
   MeasurementEntry,
   MeasurementLatest,
   MeasurementPartKey,
-  TrafficLight,
   User,
-  WeeklyAnalysis,
   WeightEntry,
 } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
@@ -79,11 +78,6 @@ export function MetricsRoute() {
     queryFn: () => apiGet<MeasurementLatest>('/api/measurements/latest'),
   })
 
-  const nutrition = useQuery<WeeklyAnalysis>({
-    queryKey: queryKeys.nutrition(7),
-    queryFn: () => apiGet<WeeklyAnalysis>('/api/nutrition/weekly?days=7'),
-  })
-
   const user = useQuery<User>({
     queryKey: queryKeys.user,
     queryFn: () => apiGet<User>('/api/users/me'),
@@ -91,6 +85,9 @@ export function MetricsRoute() {
 
   const [recordingPart, setRecordingPart] = useState<MeasurementPartKey | null>(null)
   const [editingEntry, setEditingEntry] = useState<MeasurementEntry | null>(null)
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [targetInput, setTargetInput] = useState('')
+  const [targetUnit, setTargetUnit] = useState<'st' | 'kg'>('st')
 
   const chooseOutline = useMutation({
     mutationFn: (outline: BodyOutline) => apiPut<User>('/api/users/me', { body_outline: outline }),
@@ -98,6 +95,57 @@ export function MetricsRoute() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.user })
     },
   })
+
+  // Slice 14.5: target_weight_kg is now read/written through PUT /api/users/me
+  // so the Target tile is no longer permanently "Not set" (the column existed
+  // but no SELECT included it and no handler wrote it). Clearing sends null.
+  const saveTarget = useMutation({
+    mutationFn: (targetKg: number | null) => apiPut<User>('/api/users/me', { target_weight_kg: targetKg }),
+    onSuccess: () => {
+      setEditingTarget(false)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.user })
+    },
+  })
+
+  const openTargetEditor = () => {
+    const current = user.data?.target_weight_kg
+    setTargetUnit(user.data?.weight_unit === 'kg' ? 'kg' : 'st')
+    if (current != null) {
+      if (user.data?.weight_unit === 'kg') {
+        setTargetInput(current.toFixed(1))
+      } else {
+        const { stones, pounds } = kgToStonesPounds(current)
+        setTargetInput(`${stones} st ${pounds} lb`)
+      }
+    } else {
+      setTargetInput('')
+    }
+    setEditingTarget(true)
+  }
+
+  const parseAndSaveTarget = () => {
+    // Accept "11.5" (kg), "78" (kg), "12 st 4" (stones + pounds, lb rounded
+    // to 0.1), "12st4lb", etc. Empty input clears the target.
+    const raw = targetInput.trim()
+    if (raw === '') {
+      saveTarget.mutate(null)
+      return
+    }
+    let kg: number
+    const stMatch = raw.match(/(\d+(?:\.\d+)?)\s*st(?:one)?s?\s*(?:(\d+(?:\.\d+)?)\s*(?:lb|pounds?)?)?/i)
+    if (stMatch) {
+      const st = parseFloat(stMatch[1])
+      const lb = stMatch[2] ? parseFloat(stMatch[2]) : 0
+      kg = st * 6.35029 + lb * 0.453592
+    } else {
+      const n = parseFloat(raw)
+      if (!Number.isFinite(n) || n <= 0) return
+      kg = targetUnit === 'kg' ? n : n * 0.453592
+    }
+    if (kg > 20 && kg < 300) {
+      saveTarget.mutate(Math.round(kg * 10) / 10)
+    }
+  }
 
   // API returns newest-first; charts want oldest-first.
   const weightAsc = useMemo(() => [...(weight.data ?? [])].sort((a, b) => a.date.localeCompare(b.date)), [weight.data])
@@ -145,7 +193,18 @@ export function MetricsRoute() {
             sub={`${change <= 0 ? '' : '+'}${change.toFixed(1)} kg`}
             tone={change <= 0 ? 'success' : 'danger'}
           />
-          <Stat label="Target" value={target ? formatStonesPounds(target) : 'Not set'} sub={target ? formatKg(target) : ''} />
+          <div className="rounded-xl border border-line-light px-3 py-2">
+            <p className="m-0 text-xs text-ink-light">Target</p>
+            <button
+              type="button"
+              onClick={openTargetEditor}
+              className="m-0 w-full cursor-pointer bg-transparent p-0 text-left font-semibold text-ink hover:text-primary"
+              aria-label={target ? `Edit target weight (currently ${formatStonesPounds(target)})` : 'Set target weight'}
+            >
+              {target ? formatStonesPounds(target) : 'Set target'}
+            </button>
+            <p className="m-0 text-xs text-ink-light">{target ? formatKg(target) : 'Tap to set'}</p>
+          </div>
           <Stat
             label="Waist"
             value={latestWaist ? `${latestWaist.value.toFixed(1)} cm` : '—'}
@@ -230,22 +289,21 @@ export function MetricsRoute() {
         </p>
       </section>
 
-      <section className="rounded-2xl bg-card p-4 shadow-card">
-        <h2 className="m-0 mb-1 text-base font-semibold">🥗 Nutrition — 7 day rolling</h2>
-        <p className="m-0 mb-3 text-xs text-ink-light">
-          {nutrition.data ? `${nutrition.data.days_with_data} days with data · avg ${formatNumber(nutrition.data.averages.calories)} kcal/day` : ''}
-        </p>
-        {nutrition.isPending ? (
-          <p className="text-sm text-ink-light">Loading…</p>
-        ) : nutrition.data ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Light label="Protein" light={nutrition.data.status.protein} value={`${nutrition.data.averages.protein.toFixed(0)} g`} sub={`${nutrition.data.averages.protein_per_kg.toFixed(1)} g/kg (goal ${nutrition.data.settings.protein_goal_per_kg})`} />
-            <Light label="Carbs" light={nutrition.data.status.carbs} value={`${nutrition.data.averages.carbs_percent.toFixed(0)}%`} sub={`target ${nutrition.data.settings.carb_min_percent}–${nutrition.data.settings.carb_max_percent}%`} />
-            <Light label="Fat" light={nutrition.data.status.fat} value={`${nutrition.data.averages.fat_percent.toFixed(0)}%`} sub={`max ${nutrition.data.settings.fat_max_percent}%`} />
-            <Light label="Fibre" light={nutrition.data.status.fibre} value={`${nutrition.data.averages.fibre.toFixed(0)} g`} sub={`goal ${nutrition.data.settings.fibre_goal} g`} />
+      <Link
+        to="/nutrition"
+        className="block rounded-2xl bg-card p-4 shadow-card no-underline text-ink hover:shadow-card-hover"
+        data-testid="nutrition-link"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="m-0 text-base font-semibold">🥗 Nutrition</h2>
+            <p className="m-0 mt-0.5 text-xs text-ink-light">
+              7-day rolling macro status, protein & fibre trends, and daily breakdown — 7 day averages, goals configurable.
+            </p>
           </div>
-        ) : null}
-      </section>
+          <span aria-hidden className="text-xl text-ink-light">›</span>
+        </div>
+      </Link>
 
       <section className="rounded-2xl bg-card p-4 shadow-card">
         <h2 className="m-0 mb-1 text-base font-semibold">📏 Measurements</h2>
@@ -343,6 +401,62 @@ export function MetricsRoute() {
         />
       )}
       {editingEntry && <MeasurementEditSheet entry={editingEntry} onClose={() => setEditingEntry(null)} />}
+      {editingTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-t-2xl bg-card p-4 shadow-xl sm:rounded-2xl" data-testid="target-weight-editor">
+            <h3 className="m-0 mb-3 text-base font-semibold">Target weight</h3>
+            <p className="m-0 mb-3 text-xs text-ink-light">
+              Enter in {targetUnit === 'st' ? 'stones and pounds (e.g. 12 st 4) or a single number as kg' : 'kilograms'}. Leave empty to clear.
+            </p>
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTargetUnit('st')}
+                className={`min-h-9 cursor-pointer rounded-lg px-3 py-1 text-sm ${targetUnit === 'st' ? 'bg-primary text-white' : 'border border-line bg-card text-ink'}`}
+              >
+                Stones / lb
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetUnit('kg')}
+                className={`min-h-9 cursor-pointer rounded-lg px-3 py-1 text-sm ${targetUnit === 'kg' ? 'bg-primary text-white' : 'border border-line bg-card text-ink'}`}
+              >
+                Kilograms
+              </button>
+            </div>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={targetInput}
+              onChange={(e) => setTargetInput(e.target.value)}
+              placeholder={targetUnit === 'st' ? 'e.g. 12 st 4' : 'e.g. 76.2'}
+              aria-label="Target weight"
+              className="w-full rounded-lg border border-line px-3 py-2 text-base"
+              autoFocus
+            />
+            {saveTarget.error instanceof Error && (
+              <p className="m-0 mt-2 text-sm text-danger">{saveTarget.error.message}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingTarget(false)}
+                className="min-h-11 cursor-pointer rounded-xl border border-line px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={parseAndSaveTarget}
+                disabled={saveTarget.isPending}
+                className="min-h-11 cursor-pointer rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {saveTarget.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -371,21 +485,6 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub: 
     <div className="rounded-xl border border-line-light px-3 py-2">
       <p className="m-0 text-xs text-ink-light">{label}</p>
       <p className={`m-0 font-semibold ${toneClass}`}>{value}</p>
-      <p className="m-0 text-xs text-ink-light">{sub}</p>
-    </div>
-  )
-}
-
-function Light({ label, light, value, sub }: { label: string; light: TrafficLight; value: string; sub: string }) {
-  const dot = light === 'green' ? 'bg-success' : light === 'amber' ? 'bg-warning' : 'bg-danger'
-  return (
-    <div className="rounded-xl border border-line-light px-3 py-2">
-      <p className="m-0 text-xs text-ink-light flex items-center gap-1.5">
-        <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} aria-hidden />
-        {label}
-        <span className="sr-only">{light}</span>
-      </p>
-      <p className="m-0 font-semibold">{value}</p>
       <p className="m-0 text-xs text-ink-light">{sub}</p>
     </div>
   )
