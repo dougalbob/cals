@@ -108,14 +108,14 @@ describe('AppLayout primary navigation', () => {
 
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
-    // 7 destinations (slice 14.5 added Nutrition). On page 1, Nutrition slides
+    // 8 destinations (Settings joins the existing overflow items). On page 1, Metrics slides
     // under the left Back overlay as peek context, so no spacer slot is
-    // needed — Foods/Recipes land in the remaining visible slots.
+    // needed — Foods, Recipes and Settings land in the remaining visible slots.
     const links = within(scroller).getAllByRole('link')
-    expect(links.length).toBe(7)
+    expect(links.length).toBe(8)
     expect(links.every((link) => link.className.includes('w-1/5'))).toBe(true)
     expect(nav.className).toContain('z-40')
-    expect(nav.textContent).toContain('Swipe horizontally or use the arrow to reveal Foods and Recipes')
+    expect(nav.textContent).toContain('Swipe horizontally or use the arrow to reveal Foods, Recipes and Settings')
 
     // Overlay controls sit outside the scroller — More on the right when on
     // page 0 (owner niggle, 2026-10-05: the Back arrow must always be at the
@@ -123,10 +123,10 @@ describe('AppLayout primary navigation', () => {
     expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
 
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    // 7 destinations @ w-1/5 each = 7 * 100px = 700px. Page 1 scrolls by
-    // three slots so Metrics sits under the Back overlay and Foods/Recipes
+    // 8 destinations @ w-1/5 each = 8 * 100px = 800px. Page 1 scrolls by
+    // three slots so Metrics sits under the Back overlay and Foods/Recipes/Settings
     // land ≥50% in the visible slots.
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
     scroller.scrollLeft = 80 // past half-an-item → page 1 (Back visible)
     fireEvent.scroll(scroller)
     expect(vibrate).toHaveBeenCalledTimes(1)
@@ -140,23 +140,23 @@ describe('AppLayout primary navigation', () => {
     expect(vibrate).toHaveBeenCalledTimes(2)
   })
 
-  it('uses an overlay › More on the far right to reveal Foods/Recipes and a ‹ Back on the far left to return', async () => {
+  it('uses an overlay › More on the far right to reveal overflow routes and a ‹ Back on the far left to return', async () => {
     renderApp(false)
 
     const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
     const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
     Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
-    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 700 })
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
 
     const links = within(scroller).getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Nutrition', '🍲Foods', '🍽️Recipes']))
+    expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Nutrition', '🍲Foods', '🍽️Recipes', '⚙️Settings']))
 
     // Page 0: More sits at the far right, no Back button.
     const moreButton = within(nav).getByTestId('primary-navigation-more')
     expect(within(nav).queryByTestId('primary-navigation-back')).toBeNull()
     fireEvent.click(moreButton)
     // Scroll to page 1 shifts by three item widths so Metrics sits under the
-    // Back overlay and Foods/Recipes land ≥50% in viewport (matching the e2e
+    // Back overlay and Foods/Recipes/Settings land ≥50% in viewport (matching the e2e
     // toBeInViewport({ratio:0.5}) expectations).
     expect(scroller.scrollLeft).toBe(300)
     // After scrolling, Back is on the far left.

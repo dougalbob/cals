@@ -14,6 +14,30 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
+
+The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
+increment. The owner checked the Arena preview, said it looked good and asked to publish. Settings
+persists profile/targets, bank-window presets and custom values, independent surplus/deficit ring display
+limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
+limits are additive user columns, each defaulting to 2,000 kcal; they only scale the outer arc and never
+change bank arithmetic. Theme and haptics remain device-local. Decision-47 tracked-nutrient preferences
+and the missing-data audit stay deferred until their open choices are settled.
+
+The React PWA has its own manifest and icons, with `start_url` and worker scope `/next/`; it does not
+reuse the legacy root app's assets. Its worker has no fetch handler or cache behavior: no offline logging,
+queued writes, cached API/data promise or push notifications. The install guidance requires a connection.
+**Phase 16 still has to retarget and retest installability at `/`.** The migration is additive; no data
+copy, reset or appdata operation occurred.
+
+Verification: 311 Vitest tests over 40 files, lint/typecheck/doc links, Go tests/vet, `build:go` and
+`build:preview` passed. The phone Playwright run passed 69/70; its one remaining failure is the already
+deferred bottom-navigation horizontal swipe. The new Settings journey and all three PWA checks passed.
+The PWA build emits a non-blocking `inlineDynamicImports` deprecation warning. The tracked-nutrient
+slice (15.2) remains deferred pending decision 47.
+
+---
+
 ## 2026-10-05 — Phase 14.6 built: the weekly report (decisions 46, 107–109)
 
 The last slice of Phase 14. Before anything was written the owner settled its three shape questions, now

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { Drink, DrinkEntry } from '../api/types'
 import { chunkRows, drinkExtras, isWaterDrink, sugarLabel, varyCalories, type SugarAmount } from '../lib/drinkCatalog'
 import { formatNumber } from '../lib/format'
+import { vibrate as haptic } from '../lib/preferences'
 import { Modal } from './Modal'
 
 /**
@@ -273,16 +274,6 @@ export function QuickDrinks({
       )}
     </div>
   )
-}
-
-function haptic(ms: number) {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    try {
-      navigator.vibrate(ms)
-    } catch {
-      // ignore
-    }
-  }
 }
 
 function VaryDrinkSheet({

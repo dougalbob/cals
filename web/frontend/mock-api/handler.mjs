@@ -256,6 +256,17 @@ export function handle(method, url, body, headers = {}) {
   // silent no-op, matching internal/handlers/users.go.
   if (pathname === '/api/users/me' && method === 'PUT') {
     const account = currentUser()
+    const hasSurplusLimit = body && Object.prototype.hasOwnProperty.call(body, 'bank_ring_surplus_limit_kcal')
+    const hasDeficitLimit = body && Object.prototype.hasOwnProperty.call(body, 'bank_ring_deficit_limit_kcal')
+    if (hasSurplusLimit && (!Number.isInteger(body.bank_ring_surplus_limit_kcal) || body.bank_ring_surplus_limit_kcal <= 0)) {
+      return err(400, 'bank_ring_surplus_limit_kcal must be greater than 0')
+    }
+    if (hasDeficitLimit && (!Number.isInteger(body.bank_ring_deficit_limit_kcal) || body.bank_ring_deficit_limit_kcal <= 0)) {
+      return err(400, 'bank_ring_deficit_limit_kcal must be greater than 0')
+    }
+    if (hasSurplusLimit) account.bank_ring_surplus_limit_kcal = body.bank_ring_surplus_limit_kcal
+    if (hasDeficitLimit) account.bank_ring_deficit_limit_kcal = body.bank_ring_deficit_limit_kcal
+
     if (body && Object.prototype.hasOwnProperty.call(body, 'bank_window_days')) {
       const days = body.bank_window_days
       if (!Number.isInteger(days) || days < 0) {

@@ -103,6 +103,61 @@ func TestUpdateCurrentUserWeightTrendDays(t *testing.T) {
 	}
 }
 
+// The Phase 15 outer-ring scales are independent per-user presentation
+// settings, default to the existing ±2,000 kcal display, and reject a zero
+// value so the ring can never divide by zero.
+func TestUpdateCurrentUserBankRingLimits(t *testing.T) {
+	setupHandlerDB(t)
+
+	email := "rings@example.com"
+	createTestUser(t, email, "2026-09-01", 2000)
+
+	get := func() *models.User {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		HandleGetCurrentUser(recorder, authedRequest(t, http.MethodGet, "/api/users/me", "", email))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("GET user status = %d, body = %s", recorder.Code, recorder.Body.String())
+		}
+		var result models.User
+		if err := json.NewDecoder(recorder.Body).Decode(&result); err != nil {
+			t.Fatalf("decoding user: %v", err)
+		}
+		return &result
+	}
+
+	if user := get(); user.BankRingSurplusLimitKcal != 2000 || user.BankRingDeficitLimitKcal != 2000 {
+		t.Fatalf("new ring limits = (%d, %d), want (2000, 2000)", user.BankRingSurplusLimitKcal, user.BankRingDeficitLimitKcal)
+	}
+
+	request := httptest.NewRecorder()
+	HandleUpdateCurrentUser(request, authedRequest(t, http.MethodPut, "/api/users/me", `{"bank_ring_surplus_limit_kcal":3500,"bank_ring_deficit_limit_kcal":1250}`, email))
+	if request.Code != http.StatusOK {
+		t.Fatalf("PUT ring limits status = %d, body = %s", request.Code, request.Body.String())
+	}
+	var updated models.User
+	if err := json.NewDecoder(request.Body).Decode(&updated); err != nil {
+		t.Fatalf("decoding updated user: %v", err)
+	}
+	if updated.BankRingSurplusLimitKcal != 3500 || updated.BankRingDeficitLimitKcal != 1250 {
+		t.Fatalf("response ring limits = (%d, %d), want (3500, 1250)", updated.BankRingSurplusLimitKcal, updated.BankRingDeficitLimitKcal)
+	}
+
+	// Both values survive a fresh read, and a rejected partial update changes
+	// neither the requested field nor its independently configured counterpart.
+	if user := get(); user.BankRingSurplusLimitKcal != 3500 || user.BankRingDeficitLimitKcal != 1250 {
+		t.Fatalf("persisted ring limits = (%d, %d), want (3500, 1250)", user.BankRingSurplusLimitKcal, user.BankRingDeficitLimitKcal)
+	}
+	request = httptest.NewRecorder()
+	HandleUpdateCurrentUser(request, authedRequest(t, http.MethodPut, "/api/users/me", `{"bank_ring_surplus_limit_kcal":0}`, email))
+	if request.Code != http.StatusBadRequest {
+		t.Fatalf("PUT zero ring limit status = %d, want 400", request.Code)
+	}
+	if user := get(); user.BankRingSurplusLimitKcal != 3500 || user.BankRingDeficitLimitKcal != 1250 {
+		t.Fatalf("ring limits after rejected update = (%d, %d), want (3500, 1250)", user.BankRingSurplusLimitKcal, user.BankRingDeficitLimitKcal)
+	}
+}
+
 func storedTrendWindow(t *testing.T, email string) int {
 	t.Helper()
 	var stored int

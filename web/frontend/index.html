@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#4a90d9" />
+    <script>
+      (() => {
+        const themes = ['default', 'ocean', 'forest', 'sunset', 'berry', 'dark', 'midnight', 'matrix']
+        const colors = { default: '#4a90d9', ocean: '#0984e3', forest: '#00b894', sunset: '#e17055', berry: '#a55eea', dark: '#74b9ff', midnight: '#a29bfe', matrix: '#008f11' }
+        try {
+          const stored = localStorage.getItem('cals.theme')
+          const theme = themes.includes(stored) ? stored : 'default'
+          document.documentElement.dataset.theme = theme
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors[theme])
+        } catch {
+          document.documentElement.dataset.theme = 'default'
+        }
+      })()
+    </script>
     <title>cals — spike</title>
   </head>
   <body>

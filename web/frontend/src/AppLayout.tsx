@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, queryKeys } from './api/client'
 import type { SessionResponse, VersionResponse } from './api/types'
 import { SwapUserSheet } from './components/SwapUserSheet'
+import { vibrate } from './lib/preferences'
 
 const NAV = [
   { to: '/', label: 'Today', icon: '🏠', end: true },
@@ -13,26 +14,18 @@ const NAV = [
   { to: '/nutrition', label: 'Nutrition', icon: '🥗', end: false },
   { to: '/foods', label: 'Foods', icon: '🍲', end: false },
   { to: '/recipes', label: 'Recipes', icon: '🍽️', end: false },
+  { to: '/settings', label: 'Settings', icon: '⚙️', end: false },
 ]
 
 /**
- * Number of slots visible at a time in the bottom nav. With 7 destinations the
+ * Number of slots visible at a time in the bottom nav. With 8 destinations the
  * first page shows Today/Diary/Calendar/Metrics/Nutrition; the › button on the
- * right reveals Foods/Recipes, and a ‹ Back button at the far left returns.
+ * right reveals Foods/Recipes/Settings, and a ‹ Back button at the far left returns.
  * The back button sits on the far left of the bar as an overlay (owner
  * niggle, session 2026-10-05) so it never lands in the middle of the row.
  */
 const VISIBLE_NAV_ITEMS = 5
 
-
-function vibrateForNavigationChange() {
-  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return
-  try {
-    navigator.vibrate(10)
-  } catch {
-    // Haptics are optional; navigation must work even when the browser blocks vibration.
-  }
-}
 
 function NavigationLink({ item }: { item: (typeof NAV)[number] }) {
   return (
@@ -59,7 +52,7 @@ export function AppLayout() {
   const navRef = useRef<HTMLDivElement>(null)
   const navPageRef = useRef(0)
   // Page 0 (default, five slots visible) shows the › More overlay on the far
-  // right; page 1 (scrolled to reveal Foods/Recipes) shows ‹ Back on the far
+  // right; page 1 (scrolled to reveal Foods/Recipes/Settings) shows ‹ Back on the far
   // left (owner niggle, 2026-10-05 — Back must never land in the middle of
   // the bar).
   const [navOnPage1, setNavOnPage1] = useState(false)
@@ -97,9 +90,9 @@ export function AppLayout() {
     navPageRef.current = page
   }, [])
 
-  // If a route change lands on an overflow item (Foods/Recipes), scroll the
+  // If a route change lands on an overflow item (Foods/Recipes/Settings), scroll the
   // nav so the Back overlay appears and the item is in view. Page 0 (default)
-  // shows the first five; page 1 reveals Foods/Recipes with a ‹ Back on the
+  // shows the first five; page 1 reveals Foods/Recipes/Settings with a ‹ Back on the
   // far left.
   useEffect(() => {
     const nav = navRef.current
@@ -110,7 +103,7 @@ export function AppLayout() {
     )
     if (destinationIndex < 0) return
 
-    // Destinations at index ≥ VISIBLE_NAV_ITEMS live on page 1 (Foods/Recipes).
+    // Destinations at index ≥ VISIBLE_NAV_ITEMS live on page 1 (Foods/Recipes/Settings).
     // Nutrition is at index 4 (last visible slot), so it stays on page 0.
     const wantPage = destinationIndex >= VISIBLE_NAV_ITEMS ? 1 : 0
 
@@ -139,20 +132,20 @@ export function AppLayout() {
     const nextPage = nav.scrollLeft > itemWidth / 2 ? 1 : 0
     if (nextPage === navPageRef.current) return
     setPage(nextPage)
-    vibrateForNavigationChange()
+    vibrate(10)
   }
 
   const handleMoreClick = () => {
     const nav = navRef.current
     if (!nav || nav.clientWidth === 0) return
     const itemWidth = nav.clientWidth / VISIBLE_NAV_ITEMS
-    // Scroll to page 1: items shift left three slots so Foods/Recipes land
+    // Scroll to page 1: items shift left three slots so Foods/Recipes/Settings land
     // in the middle of the five-slot viewport, both ≥50% visible (e2e
     // requires it). The Back overlay covers the first slot, where Metrics
     // sits as peek context.
     nav.scrollLeft = 3 * itemWidth
     setPage(1)
-    vibrateForNavigationChange()
+    vibrate(10)
   }
 
   const handleBackClick = () => {
@@ -160,7 +153,7 @@ export function AppLayout() {
     if (!nav) return
     nav.scrollLeft = 0
     setPage(0)
-    vibrateForNavigationChange()
+    vibrate(10)
   }
 
   return (
@@ -259,9 +252,9 @@ export function AppLayout() {
             onScroll={handleNavScroll}
             className="scrollbar-hidden flex snap-x snap-mandatory touch-pan-x overflow-x-auto overscroll-x-contain"
           >
-            {/* Seven destinations at w-1/5. On page 1 we scroll by three item
+            {/* Eight destinations at w-1/5. On page 1 we scroll by three item
                 widths so Metrics sits under the left Back overlay (peek
-                context) and Foods/Recipes land in the visible slots — both
+                context) and Foods/Recipes/Settings land in the visible slots — both
                 ≥50% in viewport as the nav e2e requires. */}
             {NAV.map((item) => (
               <NavigationLink key={item.to} item={item} />
@@ -274,8 +267,8 @@ export function AppLayout() {
             <button
               type="button"
               data-testid="primary-navigation-more"
-              aria-label="Show Foods and Recipes"
-              title="Show Foods and Recipes"
+              aria-label="Show Foods, Recipes and Settings"
+              title="Show Foods, Recipes and Settings"
               onClick={handleMoreClick}
               className="absolute right-0 top-0 bottom-0 flex w-[20%] cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-card py-2 text-xs font-medium text-ink-light hover:text-ink"
             >
@@ -298,7 +291,7 @@ export function AppLayout() {
           )}
         </div>
         <span id="primary-navigation-hint" className="sr-only">
-          Swipe horizontally or use the arrow to reveal Foods and Recipes. Haptic feedback is used when supported.
+          Swipe horizontally or use the arrow to reveal Foods, Recipes and Settings. Haptic feedback is used when supported.
         </span>
       </nav>
     </div>

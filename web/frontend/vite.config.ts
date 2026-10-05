@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { fixtureApi } from './mock-api/vite-plugin.mjs'
 
 /**
@@ -19,10 +20,60 @@ const apiTarget = process.env.VITE_API_TARGET
 
 export default defineConfig(({ mode }) => {
   const goBuild = mode === 'go'
+  // The standalone review bundle must mirror production's temporary mount point
+  // so its manifest, worker and install URL are tested at /next/ too.
+  const previewBuild = process.env.VITE_PREVIEW === '1'
+  const appBase = goBuild || previewBuild ? '/next/' : '/'
 
   return {
-    base: goBuild ? '/next/' : '/',
-    plugins: [react(), tailwindcss(), ...(apiTarget ? [] : [fixtureApi()])],
+    base: appBase,
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
+        injectRegister: 'inline',
+        scope: appBase,
+        includeManifestIcons: false,
+        manifest: {
+          id: appBase,
+          name: 'cals — calorie diary',
+          short_name: 'cals',
+          description: 'A personal calorie and nutrition diary.',
+          start_url: appBase,
+          scope: appBase,
+          display: 'standalone',
+          background_color: '#f5f7fa',
+          theme_color: '#4a90d9',
+          categories: ['health', 'lifestyle'],
+          icons: [
+            {
+              src: `${appBase}pwa/icon-192.png`,
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+            {
+              src: `${appBase}pwa/icon-512.png`,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+          ],
+        },
+        // Installability only: an inert, network-only worker with no fetch
+        // handler. The injected manifest is deliberately never cached.
+        injectManifest: {
+          globPatterns: [],
+          injectionPoint: 'self.__WB_MANIFEST',
+          minify: false,
+        },
+        devOptions: { enabled: false },
+      }),
+      ...(apiTarget ? [] : [fixtureApi()]),
+    ],
     server: {
       // Bind all interfaces so the sandbox preview proxy can reach the dev server.
       host: '0.0.0.0',

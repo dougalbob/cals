@@ -7,33 +7,38 @@ import (
 
 // User represents an authenticated user
 type User struct {
-	ID               int64     `json:"id"`
-	Email            string    `json:"email"`
-	Name             string    `json:"name"`
-	DailyCalorieGoal int       `json:"daily_calorie_goal"`
-	DailyWaterGoalML int       `json:"daily_water_goal_ml"`
-	WeightUnit       string    `json:"weight_unit"`
-	BankStartDate    string    `json:"bank_start_date"`
+	ID               int64  `json:"id"`
+	Email            string `json:"email"`
+	Name             string `json:"name"`
+	DailyCalorieGoal int    `json:"daily_calorie_goal"`
+	DailyWaterGoalML int    `json:"daily_water_goal_ml"`
+	WeightUnit       string `json:"weight_unit"`
+	BankStartDate    string `json:"bank_start_date"`
 	// BankWindowDays is the rolling window the calorie bank is computed over:
 	// the previous N completed calendar days (decisions 66, 92). 0 means "all
 	// time" — no length limit, still excluding unlogged days (decision 91). The
 	// column defaults to 14 (decision 93) and has no UI until Phase 15.
-	BankWindowDays   int       `json:"bank_window_days"`
+	BankWindowDays int `json:"bank_window_days"`
+	// BankRingSurplusLimitKcal and BankRingDeficitLimitKcal are independent
+	// per-user display scales for the outer calorie-bank ring. They only change
+	// where the arc saturates; they never affect bank arithmetic (decision 27).
+	BankRingSurplusLimitKcal int `json:"bank_ring_surplus_limit_kcal"`
+	BankRingDeficitLimitKcal int `json:"bank_ring_deficit_limit_kcal"`
 	// WeightTrendDays is the moving-average window for the weigh-in chart's
 	// trend line, counted in weigh-ins rather than calendar days (decision 95).
 	// The column defaults to 7 and has no UI until Phase 15; the handler
 	// rejects windows below 3 because a trend over fewer than three weigh-ins
 	// is never drawn.
-	WeightTrendDays  int       `json:"weight_trend_days"`
+	WeightTrendDays int `json:"weight_trend_days"`
 	// BodyOutline is which silhouette the Metrics body map draws: "female" or
 	// "male" (decision 97). NULL until the user picks one the first time they
 	// open the map — the column landed in slice 14.4 as the narrow exception
 	// the plan's Q7 recommended, written through PUT /api/users/me.
-	BodyOutline      *string   `json:"body_outline"`
-	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
-	IsAdmin          bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	BodyOutline    *string   `json:"body_outline"`
+	TargetWeightKG *float64  `json:"target_weight_kg,omitempty"`
+	IsAdmin        bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // Food represents a food item

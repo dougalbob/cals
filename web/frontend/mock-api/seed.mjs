@@ -665,6 +665,8 @@ export const users = [
     bank_start_date: iso(localNoon(20)),
     // The additive default from decision 93; 0 would mean "all time".
     bank_window_days: 14,
+    bank_ring_surplus_limit_kcal: 2000,
+    bank_ring_deficit_limit_kcal: 2000,
     // The slice-14.3 trend window, counted in weigh-ins (decision 95).
     weight_trend_days: 7,
     // Decision 97: null means "not chosen yet" — the body map asks once.
@@ -684,6 +686,8 @@ export const users = [
     weight_unit: 'stones',
     bank_start_date: iso(localNoon(20)),
     bank_window_days: 14,
+    bank_ring_surplus_limit_kcal: 2000,
+    bank_ring_deficit_limit_kcal: 2000,
     weight_trend_days: 10,
     // She picked the female outline when the map first asked (decision 97),
     // so swapping to her account shows the bust points without a picker.
@@ -884,6 +888,8 @@ const initialFoods = foods.map((food) => ({
 const initialDiaryEntriesDeep = diaryEntries.map((e) => ({ ...e }))
 const initialMeasurements = measurements.map((m) => ({ ...m }))
 const initialUserWindows = users.map((u) => u.bank_window_days)
+const initialUserRingSurplusLimits = users.map((u) => u.bank_ring_surplus_limit_kcal)
+const initialUserRingDeficitLimits = users.map((u) => u.bank_ring_deficit_limit_kcal)
 const initialUserTrendWindows = users.map((u) => u.weight_trend_days)
 const initialUserOutlines = users.map((u) => u.body_outline ?? null)
 const initialUserTargetWeights = users.map((u) => u.target_weight_kg ?? null)
@@ -921,6 +927,8 @@ export function resetFixtures() {
   measurements.push(...initialMeasurements.map((m) => ({ ...m })))
   users.forEach((account, index) => {
     account.bank_window_days = initialUserWindows[index]
+    account.bank_ring_surplus_limit_kcal = initialUserRingSurplusLimits[index]
+    account.bank_ring_deficit_limit_kcal = initialUserRingDeficitLimits[index]
     account.weight_trend_days = initialUserTrendWindows[index]
     account.body_outline = initialUserOutlines[index]
     account.target_weight_kg = initialUserTargetWeights[index]

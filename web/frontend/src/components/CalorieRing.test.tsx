@@ -13,8 +13,13 @@ const ANTICLOCKWISE = `translate(190 0) scale(-1 1) ${CLOCKWISE}`
 
 afterEach(cleanup)
 
-function renderRing(bankBalance: number, consumed = 1_500, goal = 2_000) {
-  const view = render(<CalorieRing bankBalance={bankBalance} consumed={consumed} goal={goal} />)
+function renderRing(
+  bankBalance: number,
+  consumed = 1_500,
+  goal = 2_000,
+  limits: { bankSurplusLimitKcal?: number; bankDeficitLimitKcal?: number } = {},
+) {
+  const view = render(<CalorieRing bankBalance={bankBalance} consumed={consumed} goal={goal} {...limits} />)
   const image = screen.getByRole('img')
   const circles = image.querySelectorAll('circle')
   const outerProgress = circles[1]
@@ -87,7 +92,7 @@ describe('CalorieRing', () => {
     positive.unmount()
     const aboveLimit = renderRing(3_250)
     expect(aboveLimit.fraction).toBeCloseTo(1, 6)
-    expect(aboveLimit.image.getAttribute('aria-label')).toContain('100% of its plus or minus 2,000 kcal')
+    expect(aboveLimit.image.getAttribute('aria-label')).toContain('100% of its plus 2,000 kcal surplus or minus 2,000 kcal deficit')
     expect(screen.getByText('+3,750')).toBeTruthy()
 
     aboveLimit.unmount()
@@ -96,6 +101,26 @@ describe('CalorieRing', () => {
     expect(deficit.outerProgress.getAttribute('stroke')).toBe(RED)
     expect(deficit.transform).toBe(ANTICLOCKWISE)
     expect(deficit.image.getAttribute('aria-label')).toContain('Bank balance -4,460 kcal in deficit')
+  })
+
+  it('uses independent per-user surplus and deficit display limits', () => {
+    const limits = { bankSurplusLimitKcal: 1_500, bankDeficitLimitKcal: 1_000 }
+    const surplus = renderRing(750, 1_500, 2_000, limits)
+    expect(surplus.fraction).toBeCloseTo(0.5, 6)
+    expect(surplus.image.getAttribute('aria-label')).toContain('plus 1,500 kcal surplus or minus 1,000 kcal deficit')
+
+    surplus.unmount()
+    const deficit = renderRing(-500, 1_500, 2_000, limits)
+    expect(deficit.fraction).toBeCloseTo(0.5, 6)
+    expect(deficit.outerProgress.getAttribute('stroke')).toBe(RED)
+
+    deficit.unmount()
+    // Changing only the positive scale leaves the negative arc on its own limit.
+    const independentDeficit = renderRing(-750, 1_500, 2_000, {
+      bankSurplusLimitKcal: 3_000,
+      bankDeficitLimitKcal: 1_000,
+    })
+    expect(independentDeficit.fraction).toBeCloseTo(0.75, 6)
   })
 
   it('keeps a zero balance neutral and keeps the inner ring on the daily goal', () => {

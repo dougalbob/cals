@@ -14,6 +14,9 @@ export interface User {
   bank_start_date: string
   /** The calorie bank's rolling window in completed calendar days; 0 = all time (decisions 66, 93). */
   bank_window_days: number
+  /** Independent display-only scales for the bank ring (decision 27). */
+  bank_ring_surplus_limit_kcal: number
+  bank_ring_deficit_limit_kcal: number
   /**
    * The weigh-in chart's trend window, counted in weigh-ins rather than
    * calendar days (decision 95). Defaults to 7; set through PUT /api/users/me

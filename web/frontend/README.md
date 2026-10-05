@@ -1,41 +1,23 @@
-# cals React frontend — Phase 11 foundation and UI spike
+# cals React frontend — app rebuild and UI notes
 
-**Status: 🟡 Phase 11 foundation and Phase 12 Diary are implemented. Phase 13's six earlier
-increments run through `v2.0.0-dev-rc18`; rc19 added safe editing of existing recipe content
-(decisions 55–58) and transactional food-correction refresh of dependent recipe definitions
-(decisions 60–61); rc21 shipped the Phase 13 polish slice (decisions 68, 72–78); and rc22 added the
-shared orange **Own creation** marker (decision 79), the mobile Diary Edit-sheet fix, the removal of
-hydration actions from Today and the original 5% meal fills. Decision 83 later sets Today to 25% while
-keeping Diary at 5%; decisions 84–85 add the recipe-details Own creation checkbox and Diary delete
-confirmation. The **rc23 stabilisation checkpoint** (PR #52,
-2026-10-04) added the milestone browser suite, disposable-database container smoke, portion-sheet
-footer fix and phone tick-box fix. The preceding checkpoint, **`v2.0.0-dev-rc24`** (PR #54), adds
-no-photo recipe creation at `/recipes/new` and transactional `POST /api/recipes`; there is **no schema
-migration**. The owner reports rc24 is installed on Unraid and new recipe creation works well. The
-latest checkpoint, **`v2.0.0-dev-rc25`** (PR #56, published 2026-10-04), includes decisions 82–85:
-uncropped photo upload/replacement, Today/Diary fill distinction, the Own creation detail-filter
-checkbox, and Diary meal-entry delete confirmation. The owner signed off all published RC candidates through rc25 on 2026-10-04, tested rc26 on Unraid,
-then Force Updated to **rc27** and road-tested the windowed bank the same day ("all looks good").
-rc27 is the last reported installation; Phase 13 is accepted, and Phase 14.3 (the pannable metrics
-charts) was published in rc28 and is awaiting the Unraid road-test alongside the later candidates.
-Cropping is deferred. Exact image/release evidence is in the
-[release log](../../docs/architecture/unraid-image-release.md#release-log). Phase 13 sign-off and last-reported installation status are in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md) §3. See
-[`../../docs/architecture/testing.md`](../../docs/architecture/testing.md). The existing
-additive `recipes.is_own_creation` field defaults false and is applied at startup; no data copy or
-reset. Earlier increments cover the photo-led catalogue, per-user favourites, shared
-structured tags and filters, named gram-backed food measures, recipe-to-Diary portion logging with
-each user's remembered usual, archive/restore, Diary meal-card recipe hand-off and the Calendar/rc18
-refinements. The legacy Mealie importer is not being pursued or ported to React. The Diary/Metrics/Foods
-screens began as a spike; Metrics gained the windowed bank in rc27, the pannable weigh-in and
-goal-vs-consumed charts in rc28 (Phase 14.3), the body-map measurement picker in rc29 (Phase 14.4)
-and the **weekly report card** on this branch (Phase 14.6, decisions 46, 107–109) — the latter
-awaiting the owner's preview review before publication. Research for Phase 14 is in
-[`../../docs/product/metrics-evidence.md`](../../docs/product/metrics-evidence.md); the existing vanilla UI is still the default.
-The Go app serves the React shell only under the temporary `/next/` path. Nothing is cut over by this
-phase. UI/UX improvement is a headline acceptance gate for the later screen phases; see
-[`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
+**Status: 🟡 Phase 15 is underway.** Phase 11's React shell, Phase 12's Diary, Phase 13's Foods +
+Recipes, and Phase 14's Metrics + Nutrition are implemented in the development line. This branch
+adds the **Settings foundation** and **installability-only PWA** for review at `/next/`: account-level
+targets and preferences are saved through `/api/users/me`, while themes and haptics are saved on the
+device. The two bank-ring display limits are independent and do not change bank arithmetic. Decision
+47's tracked-nutrient controls and missing-data audit remain deferred until their coverage and nutrient
+choices are settled.
 
-Background and the full proposal: [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
+The Go production build and fixture preview mount React at **`/next/`**. The legacy vanilla app,
+manifest, service worker and root assets remain untouched; Phase 16 owns the move to `/`. The React
+manifest, icons and inert network-only service worker are separate. **Installation is not offline
+support:** there is no offline logging, queued saving, API/data caching or cached-data promise.
+
+The last reported Unraid installation is `v2.0.0-dev-rc27`; this branch has not been published and
+must not be used against live appdata. Release and acceptance status lives in
+[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the plan is
+[`../../docs/architecture/phase-15-plan.md`](../../docs/architecture/phase-15-plan.md). The broader
+frontend proposal is [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 ---
 
@@ -47,6 +29,7 @@ Background and the full proposal: [`../../docs/architecture/frontend-strategy.md
 | Diary | `/diary` and `/diary/:date` | Calorie ring (consumed vs goal + bank), banked/deficit tile, food/drink split, four meal sections with **edit weight / delete (with confirmation)**, drinks summary, hydration/Quick drinks card, add-food modal with debounced search, 📅 button opening the calendar on this week, and **+ Add recipe** that hands over to the Recipes tab with the meal and viewed date carried in the URL (decision 40, refined by decision 64). Meal fills use 5% color alpha. The Edit quantity sheet keeps Cancel/Save pinned while its content scrolls (rc22); re-check it with the recipe portion sheet on a phone in the next accumulated checkpoint review |
 | Calendar | `/calendar`, `/calendar/month/:yyyy-mm`, `/calendar/week/:yyyy-mm-dd` | Month grid (compact cells, calorie bar, hydration pip, bank figure, today highlight) and week cards (phone-friendly per-meal kcal, hydration ml and bank), toggled by a Month/Week segmented control; arrows page by month/week, Today jumps back, and tapping a day opens `/diary/:date` (decision 49 follow-up). Day cells are classified against the selected month, not the first padded grid date: dates inside the month stay fully visible, while padded dates outside it remain muted. Over-goal days have a green bar split at the goal with a proportional red tail (decision 62). The calendar stops at Today — the forward arrow is disabled on the current month/week, future URLs are clamped back, and future dates remain muted and non-clickable (decision 63). The shared card is labelled **💧 Hydration** rather than "Water", since tea/coffee/squash etc. contribute to the daily target. |
 | My drinks | `/drinks` | Catalog picker, per-tap glass size, usual milk/sugar. Feeds the Diary Quick drinks selector. Not a fifth tab |
+| Settings | `/settings` | Per-user profile, daily calorie/water targets, weight unit, bank start date and bank-window presets/custom days; independent ring display limits, weigh-in trend window and body-map outline. Eight theme choices and the haptics toggle are device-local. Links to My drinks/Nutrition, an install prompt/instructions and version footer are included. Tracked-nutrient settings remain deferred by decision 47. |
 | Metrics | `/metrics` | Weight (stones & lb + kg), 30-day change, target, waist (read from the latest-per-part lookup); pannable weigh-in chart with the labelled moving-average trend and pannable goal-vs-consumed chart (Phase 14.3); the **weekly report card** (Phase 14.6): a week picker (‹ ›, opening on the current week so far) with a **Custom** free date range, showing calories vs goal and the average over logged days, how the bank moved, water, weight change, the four traffic lights for the range, the best and worst day against the goal, and the days **excluded as unlogged** (decision 42) named; the window lives in `report_*` URL parameters so the charts' own `from`/`to` window is untouched. While a new date range loads, the last charts remain visible; URL/query commits are throttled during a drag, superseded reads are cancellable, and touch haptics tick every five days (a user setting remains Phase 15); 30-day bank line; 7-day nutrition traffic lights; **the body-map measurement picker (Phase 14.4, decision 67)**: a one-time Female/Male outline choice (decision 97, female shows Bust, male Chest — decision 98), red tap points with 44 px hit areas (filled = measured, hollow = never), a pop-up pre-filled with the last value, 0.5 cm stepper (decision 99), the unsaved-discard and unchanged-save confirmations (decision 67), saving into today's row by per-part merge (decision 96); a staleness line with an amber cue after four weeks (decision 87); and the all-parts history whose rows open for correction via `PUT /api/measurements/{id}` with a two-step delete |
 | Foods | `/foods` | Debounced search over local foods, plus the "my foods" list (`is_edited = true`); create, edit and delete custom foods with named gram-backed measures (`1 bag` = 25 g) beside FatSecret's own options. The editor rounds pre-filled per-100 g calories and nutrition to whole numbers, including imported FatSecret values; saving a food correction refreshes its dependent recipe definitions and invalidates recipe queries, while saved Diary nutrition stays unchanged |
 | Recipes | `/recipes`, `/recipes/new` and `/recipes/:id` | **Create recipe** opens a full-page authoring form for the fixed name, description, matched cals Food ingredients and grams, optional text ingredients, serves, manual or calculated cooked yield, instructions, a live nutrition estimate and shared classification; a successful create opens its detail page and preserves the catalogue/Diary query context. Photo upload/replacement shipped in rc25; cropping is deferred. Photo-led catalogue with search, per-user favourites and recipe log-count badges, occasion/dish/key-food filters, including an **Own creation** checkbox beside Dish type — and **tap-to-filter tags**: tapping a tag on a card narrows the list, each further tag narrows it again (every selected tag must match), and the selection rides in `?tags=` so it survives reload, back and a trip into a recipe. Detail logs portions using whole-recipe fractions (¼, ½, ¾, all) or direct grams, with live gram + kcal feedback and the user's remembered usual. Shared tags and optional total minutes can be edited below ingredients; the orange **Own creation** checkbox above the key-food choices is a shared recipe-origin field whose tag filters the catalogue (decision 79). **Edit recipe** opens a content editor for description, known cals Food ingredients and grams, text ingredients, serves, method and manual cooked weight; the name is visibly fixed and is also enforced by the server. Definition edits change future logs only. A tag on detail opens the catalogue filtered by it. **Archive/restore (decision 59):** the detail page ends with *Retire this recipe → Archive recipe* (inline two-step confirm; there is no Delete). Archived recipes leave the list, and a heart **Favourites** toggle and an archive-box **Archived** toggle share one row in the filter card (Archived is disabled at 0 and its tooltip carries the count), and Archived reveals them in a separate *Archived recipes* section whose cards show an *Archived* badge and a **Restore** button instead of the favourite heart. An archived recipe still opens by link, shows an *archived* banner with **Restore recipe**, and cannot be added to the Diary until restored. Reached from a Diary meal card, the tab doubles as that meal's recipe picker (`?add-to=&on=`): a banner names the meal and day, each card gains **🍽 Add to Breakfast**-style action opening the portion sheet pre-filled with the carried meal and date, *Done* returns to `/diary/:date#<meal>`, and the intent survives the filters, a reload and a detour into a recipe (decision 64) |
@@ -58,7 +41,9 @@ opaque; it does not lower opacity for the whole meal card.
 
 The shared `CalorieRing` anchors every arc at 12 o'clock and shows its sign by sweep direction
 (owner decision 28, 2026-10-03). The **outer** arc is the bank: a surplus sweeps clockwise in green,
-a deficit anticlockwise in red, saturating at ±2,000 kcal. The **inner** arc is today's allowance and
+a deficit anticlockwise in red, saturating at independent per-user display limits (2,000 kcal each by
+default). The exact bank figure remains visible, and these caps never change bank arithmetic. The
+**inner** arc is today's allowance and
 follows the same convention (owner request, 2026-10-03): a green clockwise countdown while there is
 allowance left, then red anticlockwise growth once the day is overspent, scaled against another full
 day's goal. Both use a reflected SVG transform (`arcTransform`) rather than a negative
@@ -89,11 +74,13 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 
 ## What's deliberately missing
 
-Recipe cropping, Google Fit, settings, themes, the PWA/service worker, per-user food measures
-(measures are shared per food for now), and most remaining mutations are not implemented. Recipe
-authoring is available at `/recipes/new`; uncropped photo selection/upload and replacement on existing
-recipe detail shipped in rc25 (they are not part of rc24). Existing recipes can also be edited safely in place, and food corrections refresh dependent recipe
-definitions without rewriting Diary snapshots. The existing Mealie search/import is
+Recipe cropping, Google Fit, the decision-47 tracked-nutrient settings/missing-data audit, offline
+logging, queued writes, and per-user food measures (measures are shared per food for now) remain
+unimplemented or deferred. The PWA does **not** promise offline use; its `/next/` worker has no fetch
+handler or data cache. Recipe authoring is available at `/recipes/new`; uncropped photo
+selection/upload and replacement on existing recipe detail shipped in rc25 (they are not part of
+rc24). Existing recipes can also be edited safely in place, and food corrections refresh dependent
+recipe definitions without rewriting Diary snapshots. The existing Mealie search/import is
 legacy-only and is intentionally not part of the React migration; see the product decisions. The React
 Diary supports adding, **editing the logged weight** and deleting entries; deleting a food or recipe
 from a populated meal slot requires explicit confirmation. Editing rescales the entry's
@@ -115,9 +102,11 @@ process does not survive and `node_modules/` is not snapshotted.
 
 The default path is deliberately **dependency-free**. The app is served from the pre-built
 `preview/` directory by [`serve-preview.mjs`](serve-preview.mjs), a plain Node HTTP server (no npm
-packages) that also mounts the fixture API on the same origin. That directory is **not** in the
-sandbox's snapshot-exclusion list, so it survives between turns — so restarting the preview takes
-about **120 ms** and works even with `node_modules` deleted:
+packages) that also mounts the fixture API on the same origin. Open **`/next/`** in the preview; the
+server redirects extension-less root routes there so existing review links still work. The bundle,
+manifest, icons and worker all use the production `/next/` paths. The directory is **not** in the
+sandbox's snapshot-exclusion list, so it survives between turns — restarting the preview takes about
+**120 ms** and works even with `node_modules` deleted:
 
 ```
 $ rm -rf node_modules && ./scripts/serve-frontend-preview.sh

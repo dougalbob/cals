@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { Drink, DrinkEntry } from '../api/types'
 import { isWaterDrink } from '../lib/drinkCatalog'
 import { formatNumber } from '../lib/format'
+import { vibrate } from '../lib/preferences'
 import { QuickDrinks } from './QuickDrinks'
 import { WaterGlass } from './WaterGlass'
 
@@ -83,13 +84,7 @@ export function FluidsCard({
     timerRef.current = setTimeout(() => {
       didLongPressRef.current = true
       setHoldingGlass(false)
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        try {
-          navigator.vibrate(40)
-        } catch {
-          // ignore
-        }
-      }
+      vibrate(40)
       onDeleteDrinkEntry(latestWaterId, waterDrink.name)
     }, 550)
   }
