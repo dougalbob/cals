@@ -19,6 +19,12 @@ type User struct {
 	// time" — no length limit, still excluding unlogged days (decision 91). The
 	// column defaults to 14 (decision 93) and has no UI until Phase 15.
 	BankWindowDays   int       `json:"bank_window_days"`
+	// WeightTrendDays is the moving-average window for the weigh-in chart's
+	// trend line, counted in weigh-ins rather than calendar days (decision 95).
+	// The column defaults to 7 and has no UI until Phase 15; the handler
+	// rejects windows below 3 because a trend over fewer than three weigh-ins
+	// is never drawn.
+	WeightTrendDays  int       `json:"weight_trend_days"`
 	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
 	IsAdmin          bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
 	CreatedAt        time.Time `json:"created_at"`

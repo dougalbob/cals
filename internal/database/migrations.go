@@ -321,6 +321,18 @@ func RunMigrations() error {
 		// calculation and writable through PUT /api/users/me; the Settings
 		// control itself is Phase 15 (decision 93).
 		`ALTER TABLE users ADD COLUMN bank_window_days INTEGER NOT NULL DEFAULT 14`,
+
+		// Phase 14 slice 14.3 (decisions 70, 95): the weigh-in chart's trend is
+		// a moving average over the weigh-ins themselves, not over calendar
+		// days, and its window is a per-user preference. Additive with a
+		// default of 7, so every existing account keeps working with no data
+		// operation. Read by the Metrics chart through GET /api/users/me and
+		// writable through PUT /api/users/me; the Settings control itself is
+		// Phase 15 (decision 95), the same "column now, control later" pattern
+		// as bank_window_days (decision 93). Values below 3 are rejected by the
+		// handler: a trend over fewer than three weigh-ins is never drawn
+		// (decision 95), so such a window could never do anything.
+		`ALTER TABLE users ADD COLUMN weight_trend_days INTEGER NOT NULL DEFAULT 7`,
 	}
 
 	for _, migration := range migrations {
