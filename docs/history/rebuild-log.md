@@ -54,7 +54,7 @@ logging — is a one-line change if the owner prefers it.
 **Verification.** `go build ./...`, `go vet ./...` and `go test ./...`; 13 new bank/window tests plus
 four updated Calendar/stats expectations, and the new tests were run against a simulated pre-slice
 calculation to prove they fail without the change (the old rule reports 2500 where a two-day window over
-five logged days says 1500, and 1870 where the Calendar says 370). A real Go server was driven over
+five logged days says 1000, and 1870 where the Calendar says 370). A real Go server was driven over
 HTTP: a three-day window over controlled data returns 1350 where the pre-slice rule returned a
 since-day-one figure, changing the window moves it (2 days → 700, all time → 1950), a negative window is
 a `400`, and every Calendar and `GET /api/stats/bank` row equals `GET /api/bank?date=<day + 1>`.
