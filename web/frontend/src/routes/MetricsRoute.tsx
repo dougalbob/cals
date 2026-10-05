@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPut, queryKeys } from '../api/client'
 import type {
   BodyOutline,
@@ -51,12 +51,15 @@ export function MetricsRoute() {
 
   const weightWindow = useQuery<WeightEntry[]>({
     queryKey: queryKeys.weightRange(pan.from, pan.to),
-    queryFn: () => apiGet<WeightEntry[]>(`/api/weight?from=${pan.from}&to=${pan.to}`),
+    queryFn: ({ signal }) => apiGet<WeightEntry[]>(`/api/weight?from=${pan.from}&to=${pan.to}`, { signal }),
+    // Keep the last window on screen while the newly requested range loads.
+    placeholderData: keepPreviousData,
   })
 
   const calories = useQuery<DailyCalories[]>({
     queryKey: queryKeys.calorieStatsRange(pan.from, pan.to),
-    queryFn: () => apiGet<DailyCalories[]>(`/api/stats/calories?from=${pan.from}&to=${pan.to}`),
+    queryFn: ({ signal }) => apiGet<DailyCalories[]>(`/api/stats/calories?from=${pan.from}&to=${pan.to}`, { signal }),
+    placeholderData: keepPreviousData,
   })
 
   const bank = useQuery<DailyBank[]>({
