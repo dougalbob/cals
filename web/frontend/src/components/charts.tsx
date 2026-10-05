@@ -225,7 +225,17 @@ export function BarChart({
         {goal !== undefined && goal > 0 && (
           <>
             <line x1={pad.left} x2={WIDTH - pad.right} y1={y(goal)} y2={y(goal)} stroke="#b2bec3" strokeWidth={1} strokeDasharray="4 3" />
-            <text x={WIDTH - pad.right} y={y(goal) - 3} fontSize={9} fill="#636e72" textAnchor="end">
+            {/* A white halo keeps the label readable where a bar crosses the line. */}
+            <text
+              x={WIDTH - pad.right}
+              y={y(goal) - 3}
+              fontSize={9}
+              fill="#636e72"
+              stroke="#ffffff"
+              strokeWidth={2.5}
+              paintOrder="stroke"
+              textAnchor="end"
+            >
               goal {Math.round(goal).toLocaleString('en-GB')}
             </text>
           </>

@@ -19,11 +19,11 @@ let trendDays = 7
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 
-function renderMetrics() {
+function renderMetrics(path = '/metrics') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/metrics']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/metrics" element={<MetricsRoute />} />
         </Routes>
@@ -93,6 +93,16 @@ describe('MetricsRoute — 14.3 charts', () => {
     const bankCalls = calls.filter((call) => call.startsWith('/api/stats/bank'))
     expect(bankCalls.length).toBeGreaterThan(0)
     expect(bankCalls.every((call) => call.includes('days=30'))).toBe(true)
+  })
+
+  it('says so when a panned window predates the diary, rather than drawing flat bars', async () => {
+    // Deep-link a window ~200 days back, well before the fixture's diary.
+    const today = new Date()
+    const iso = (offset: number) => new Date(today.getTime() + offset * 86_400_000).toISOString().slice(0, 10)
+    renderMetrics(`/metrics?from=${iso(-230)}&to=${iso(-201)}`)
+
+    expect(await screen.findByText(/Nothing logged in this window/)).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'Daily totals' })).toBeNull()
   })
 
   it('keeps the summary tiles on the fixed 90-day fetch while the chart pans', async () => {

@@ -85,6 +85,7 @@ export function MetricsRoute() {
     [inView, trendWindow],
   )
   const trendDrawn = inView.length >= 3
+  const hasCalories = (calories.data ?? []).some((day) => day.calories > 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -149,13 +150,17 @@ export function MetricsRoute() {
         >
           {calories.isPending ? (
             <p className="text-sm text-ink-light">Loading…</p>
-          ) : (
+          ) : hasCalories ? (
             <BarChart
               points={(calories.data ?? []).map((day) => ({ label: formatShortDate(day.date), value: day.calories }))}
               goal={calories.data?.[0]?.goal}
               accent="#26de81"
               bands
             />
+          ) : (
+            // Panned back past the start of the diary this says so, rather than
+            // drawing a row of invisible zero-height bars.
+            <p className="text-sm text-ink-muted">Nothing logged in this window — keep panning forward.</p>
           )}
         </div>
         <p className="m-0 mt-1 text-xs text-ink-muted">
