@@ -120,9 +120,11 @@ func TestCalendarReportsPerDayTotals(t *testing.T) {
 		t.Error("HasData = false, want true for a day with entries")
 	}
 
-	// Two completed days (28th, 29th) at 1500 = 3000 budget, 1130 consumed.
-	if day.BankBalance != 1870 {
-		t.Errorf("BankBalance = %d, want 1870", day.BankBalance)
+	// Slice 14.2: a cell's balance is the windowed bank as of the next morning
+	// (GET /api/bank?date=2026-09-30), where the 28th is unlogged and so adds
+	// neither budget nor spend (decision 42). One logged day: 1500 − 1130 = 370.
+	if day.BankBalance != 370 {
+		t.Errorf("BankBalance = %d, want 370 (only the logged 29th contributes)", day.BankBalance)
 	}
 
 	empty := calendarDay(t, response, "2026-09-28")
@@ -160,15 +162,18 @@ func TestCalendarNormalisesTimestampedDates(t *testing.T) {
 	if day.Meals["lunch"] != 500 {
 		t.Errorf("Meals[lunch] = %d, want 500", day.Meals["lunch"])
 	}
-	// 2 completed days × 1500 − 500 consumed.
-	if day.BankBalance != 2500 {
-		t.Errorf("BankBalance = %d, want 2500", day.BankBalance)
+	// Slice 14.2: a cell's balance is the windowed bank as of the next morning,
+	// so the 29th's 500 kcal is the one logged day in the window for the 30th:
+	// 1500 − 500 = 1000. (The 28th is unlogged and adds no budget — decision 42.)
+	if day.BankBalance != 1000 {
+		t.Errorf("BankBalance = %d, want 1000 (windowed, 28th excluded as unlogged)", day.BankBalance)
 	}
 }
 
-// A window that starts after the bank start date must carry the earlier
-// consumption forward rather than restarting the running total.
-func TestCalendarSeedsRunningTotalBeforeWindow(t *testing.T) {
+// Consumption from before the requested range must still reach the window: a
+// day's balance is computed from its own window, not from the range's first
+// day. The window here is floored at bank_start_date rather than the range.
+func TestCalendarCountsDaysBeforeTheRequestedRange(t *testing.T) {
 	setupHandlerDB(t)
 
 	userID := createTestUser(t, "owner@example.com", "2026-09-01", 2000)
@@ -185,8 +190,10 @@ func TestCalendarSeedsRunningTotalBeforeWindow(t *testing.T) {
 	response := getCalendarRange(t, "owner@example.com", "2026-09-03", "2026-09-04")
 	day := calendarDay(t, response, "2026-09-03")
 
-	// 3 completed days × 2000 = 6000 budget, 3000 consumed on the 1st and 2nd.
-	if day.BankBalance != 3000 {
-		t.Errorf("BankBalance = %d, want 3000 (earlier days carried forward)", day.BankBalance)
+	// The 3rd's closing balance is the bank as of the 4th: the window is floored
+	// at the bank start (1st), the 1st and 2nd are logged and the 3rd is not, so
+	// 2 × 2000 − 3000 = 1000.
+	if day.BankBalance != 1000 {
+		t.Errorf("BankBalance = %d, want 1000 (the 1st and 2nd are inside the window)", day.BankBalance)
 	}
 }

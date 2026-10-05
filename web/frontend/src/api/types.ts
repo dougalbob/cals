@@ -12,6 +12,8 @@ export interface User {
   daily_water_goal_ml: number
   weight_unit: string
   bank_start_date: string
+  /** The calorie bank's rolling window in completed calendar days; 0 = all time (decisions 66, 93). */
+  bank_window_days: number
   target_weight_kg?: number
   /** Admin/Standard role (decisions 45, 89): declared in the server's .env and reconciled at start-up. */
   is_admin: boolean
@@ -264,12 +266,29 @@ export interface DiaryResponse {
   totals: DailyTotals
 }
 
+/**
+ * GET /api/bank — the calorie bank.
+ *
+ * The first five fields are the original contract; the four window fields are
+ * additive (slice 14.2) and are what make the figure auditable and labelable.
+ * The bank is the sum of (daily goal − consumed) over the previous N completed
+ * calendar days, the as-of date excluded, floored at `start_date`, and counting
+ * only days that have logging at all (decisions 42, 66, 91, 92).
+ */
 export interface BankResponse {
   daily_goal: number
   bank_balance: number
   today_available: number
   start_date: string
   as_of_date: string
+  /** Window length in completed calendar days; 0 means "all time". */
+  window_days: number
+  /** First day inside the window after the start-date floor; empty when no bank has started. */
+  window_start_date: string
+  /** Days inside the window that had logging, and so contributed budget. */
+  days_counted: number
+  /** Days inside the window excluded because nothing was logged at all. */
+  days_unlogged: number
 }
 
 export interface WeightEntry {
@@ -434,6 +453,8 @@ export interface CalendarResponse {
   to: string
   daily_goal: number
   bank_start: string
+  /** The window each cell's end-of-day balance was computed over; 0 = all time (slice 14.2). */
+  bank_window_days: number
   days: CalendarDay[]
 }
 

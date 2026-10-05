@@ -86,3 +86,13 @@ describe('FoodsRoute', () => {
     expect(screen.queryByText('Searching…')).toBeNull()
   })
 })
+
+describe('MetricsRoute — bank window label', () => {
+  it('says which window the bank chart is computed over', async () => {
+    renderRoute(<MetricsRoute />)
+
+    // The caption is rendered before the user query resolves, so wait for the
+    // window field to arrive rather than reading the first frame.
+    expect(await screen.findByText(/computed over the last 14 days/)).toBeTruthy()
+  })
+})

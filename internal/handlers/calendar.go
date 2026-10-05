@@ -34,7 +34,11 @@ type calendarResponse struct {
 	To        string        `json:"to"`
 	DailyGoal int           `json:"daily_goal"`
 	BankStart string        `json:"bank_start"`
-	Days      []CalendarDay `json:"days"`
+	// BankWindowDays is the window each cell's end-of-day balance was computed
+	// over; 0 means "all time" (decisions 66, 91, 92). Additive in slice 14.2
+	// so the cells can be labelled with the window they cover.
+	BankWindowDays int           `json:"bank_window_days"`
+	Days           []CalendarDay `json:"days"`
 }
 
 // HandleGetCalendar returns per-day summaries for a date range, used by the
@@ -190,94 +194,50 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 		d.HasData = d.Calories > 0 || d.HydrationMl > 0
 	}
 
-	// Bank balance at end-of-day for each date. Mirrors HandleGetBank: for a
-	// given date D the closing balance is
-	//     completed_days_from_start_to_D * goal − total_consumed_in_that_window
-	// which is equivalent to GET /api/bank?date=D+1. For days before startDate
-	// the bank is 0 (no bank started yet).
-	startT, startErr := time.Parse("2006-01-02", startDate)
-	if startDate != "" && startErr == nil {
-		// Per-day consumption totals (food + drink) from startDate to to.
-		daily := make(map[string]float64)
-
-		foodRows, err := database.DB.Query(`
-			SELECT date(date) AS day, COALESCE(SUM(calories), 0)
-			FROM diary_entries
-			WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
-			GROUP BY day
-		`, user.ID, startDate, toStr)
-		if err != nil {
-			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
+	// Bank balance at end-of-day for each date, computed by the same windowed
+	// rule as GET /api/bank (decisions 42, 66, 91, 92) so the Calendar cannot
+	// disagree with Today or the Diary — the class of bug the RFC3339 incident
+	// came from. For a date D the closing balance is the bank as of D+1, i.e.
+	// the figure available to spend on D+1, which is not the same date but is
+	// the same rule and the same helper (computeBankWindow).
+	bank := bankWindow{Goal: goal, Days: user.BankWindowDays, StartDate: startDate}
+	if startDate != "" {
+		consumedByDay := map[string]float64{}
+		// The earliest day that can contribute to any cell is the window start
+		// for the earliest day that has a balance at all: the day after
+		// max(from, bank_start_date), since a cell's balance is the bank as of
+		// the following morning and days before the bank started are zero.
+		firstDay := fromStr
+		if firstDay < startDate {
+			firstDay = startDate
 		}
-		for foodRows.Next() {
-			var datestr string
-			var kcal float64
-			if err := foodRows.Scan(&datestr, &kcal); err != nil {
-				continue
+		if firstDay <= toStr {
+			if windowStart := bank.windowStartDate(addDaysUTC(firstDay, 1)); windowStart != "" {
+				consumedByDay, err = loadBankDayTotals(user.ID, windowStart, toStr)
+				if err != nil {
+					http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
-			daily[isoDate(datestr)] += kcal
 		}
-		foodRows.Close()
-
-		drinkCRows, err := database.DB.Query(`
-			SELECT date(date) AS day, COALESCE(SUM(calories), 0)
-			FROM drink_entries
-			WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
-			GROUP BY day
-		`, user.ID, startDate, toStr)
-		if err != nil {
-			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		for drinkCRows.Next() {
-			var datestr string
-			var kcal float64
-			if err := drinkCRows.Scan(&datestr, &kcal); err != nil {
-				continue
-			}
-			daily[isoDate(datestr)] += kcal
-		}
-		drinkCRows.Close()
-
-		var running float64
-		// Seed running total with any consumption between startDate and the day
-		// before fromStr, so the balance is correct when the window starts mid-run.
-		if fromStr > startDate {
-			beforeFrom := from.AddDate(0, 0, -1).Format("2006-01-02")
-			var seedFood, seedDrink float64
-			database.DB.QueryRow(`
-				SELECT COALESCE(SUM(calories), 0)
-				FROM diary_entries
-				WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
-			`, user.ID, startDate, beforeFrom).Scan(&seedFood)
-			database.DB.QueryRow(`
-				SELECT COALESCE(SUM(calories), 0)
-				FROM drink_entries
-				WHERE user_id = ? AND date(date) >= date(?) AND date(date) <= date(?)
-			`, user.ID, startDate, beforeFrom).Scan(&seedDrink)
-			running = seedFood + seedDrink
-		}
-
 		for i := range days {
 			d := &days[i]
 			if d.Date < startDate {
 				d.BankBalance = 0
 				continue
 			}
-			running += daily[d.Date]
-			completedDays := daysBetweenInclusive(startT, d.Date)
-			d.BankBalance = completedDays*goal - int(running+0.5)
+			d.BankBalance = computeBankWindow(bank, addDaysUTC(d.Date, 1), consumedByDay).Balance
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(calendarResponse{
-		From:      fromStr,
-		To:        toStr,
-		DailyGoal: goal,
-		BankStart: startDate,
-		Days:      days,
+		From:           fromStr,
+		To:             toStr,
+		DailyGoal:      goal,
+		BankStart:      startDate,
+		BankWindowDays: user.BankWindowDays,
+		Days:           days,
 	})
 }
 
@@ -295,21 +255,4 @@ func isoDate(s string) string {
 		return s[:10]
 	}
 	return s
-}
-
-// daysBetweenInclusive returns the number of days from a to b, inclusive,
-// treating both as UTC dates. Same-day returns 1.
-//
-// Both ends are guarded: a zero `a` (a failed parse upstream) would otherwise
-// overflow time.Duration — Sub saturates at ~292 years — and produce an
-// absurd day count that then gets multiplied by the daily goal.
-func daysBetweenInclusive(a time.Time, bIso string) int {
-	if a.IsZero() {
-		return 0
-	}
-	bt, err := time.Parse("2006-01-02", isoDate(bIso))
-	if err != nil {
-		return 0
-	}
-	return int(bt.Sub(a).Hours()/24) + 1
 }

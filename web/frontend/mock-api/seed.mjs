@@ -597,6 +597,8 @@ export const users = [
     // Matches the start of the seeded diary history, so the bank figure is
     // meaningful rather than crediting days that have no logged food.
     bank_start_date: iso(localNoon(20)),
+    // The additive default from decision 93; 0 would mean "all time".
+    bank_window_days: 14,
     target_weight_kg: 85,
     // Decision 89: the Admin role is declared in the server's .env.
     is_admin: true,
@@ -611,6 +613,7 @@ export const users = [
     daily_water_goal_ml: 1800,
     weight_unit: 'stones',
     bank_start_date: iso(localNoon(20)),
+    bank_window_days: 14,
     target_weight_kg: 68,
     is_admin: false,
     created_at: '2025-02-14T09:00:00Z',
@@ -714,6 +717,23 @@ export function drinkCaloriesBetween(startDate, endDateExclusive, userId = 1) {
   )
 }
 
+/**
+ * Per-day calorie totals for every day in [fromIso, toIso] that has logging in
+ * either ledger. A day present in the map has entries — the marker decision 42
+ * needs — even when its total is 0 (a logged glass of water).
+ *
+ * Mirrors loadBankDayTotals in internal/handlers/bank.go.
+ */
+export function loggedDayTotals(fromIso, toIso, userId = 1) {
+  const totals = new Map()
+  for (const entry of [...diaryEntries, ...drinkEntries]) {
+    if (entry.user_id !== userId) continue
+    if (entry.date < fromIso || entry.date > toIso) continue
+    totals.set(entry.date, (totals.get(entry.date) ?? 0) + entry.calories)
+  }
+  return totals
+}
+
 export function waterFor(date, userId = 1) {
   const waterDrinkIds = new Set(
     drinks.filter((d) => d.user_id === userId && d.counts_toward_water).map((d) => d.id),
@@ -763,6 +783,7 @@ const initialFoods = foods.map((food) => ({
   servings: food.servings.map((serving) => ({ ...serving })),
 }))
 const initialDiaryEntriesDeep = diaryEntries.map((e) => ({ ...e }))
+const initialUserWindows = users.map((u) => u.bank_window_days)
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 const initialFoodIdSeq = foodIdSeq
@@ -793,6 +814,9 @@ export function resetFixtures() {
     const initial = initialRecipeContent.get(recipe.id)
     Object.assign(recipe, JSON.parse(JSON.stringify(initial)))
   }
+  users.forEach((account, index) => {
+    account.bank_window_days = initialUserWindows[index]
+  })
   recipeIdSeq = initialRecipeIdSeq
   drinkEntryId = initialDrinkEntryId
   drinkIdSeq = initialDrinkIdSeq

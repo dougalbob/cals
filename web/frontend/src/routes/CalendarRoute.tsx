@@ -22,6 +22,7 @@ import {
   weekRange,
   type CalendarView,
 } from '../lib/calendar'
+import { bankWindowLabel, bankWindowPhrase } from '../lib/bank'
 import { formatNumber } from '../lib/format'
 
 /**
@@ -115,6 +116,10 @@ export function CalendarRoute() {
       ? formatMonthLabel(monthKey)
       : formatWeekRangeLabel(range.from, range.to)
 
+  // Each cell prints the end-of-day bank, so the grid has to name the window
+  // those figures cover (decisions 66, 92): "Last 14 days", or "All time".
+  const bankWindowDays = calendar.data?.bank_window_days
+
   return (
     <div className="flex flex-col gap-3">
       <header className="flex items-center justify-between gap-2">
@@ -164,10 +169,19 @@ export function CalendarRoute() {
       )}
 
       {calendar.data && view === 'month' && (
-        <MonthGrid days={buildGrid(range.from, range.to, dayByDate)} month={monthKey} today={today} />
+        <MonthGrid
+          days={buildGrid(range.from, range.to, dayByDate)}
+          month={monthKey}
+          today={today}
+          bankWindowDays={bankWindowDays}
+        />
       )}
       {calendar.data && view === 'week' && (
-        <WeekList days={buildWeek(range.from, range.to, dayByDate)} today={today} />
+        <WeekList
+          days={buildWeek(range.from, range.to, dayByDate)}
+          today={today}
+          bankWindowDays={bankWindowDays}
+        />
       )}
     </div>
   )
@@ -245,11 +259,13 @@ function MonthGrid({
   days,
   month,
   today,
+  bankWindowDays,
 }: {
   days: CalendarDay[]
   /** The requested month, not the month of the first padded grid date. */
   month: string
   today: string
+  bankWindowDays: number | undefined
 }) {
   return (
     <section className="rounded-2xl bg-card p-3 shadow-card">
@@ -265,15 +281,26 @@ function MonthGrid({
             day={day}
             inMonth={day.date.slice(0, 7) === month}
             future={isFutureDay(day.date, today)}
+            bankWindowDays={bankWindowDays}
           />
         ))}
       </div>
-      <Legend />
+      <Legend bankWindowDays={bankWindowDays} />
     </section>
   )
 }
 
-function MonthCell({ day, inMonth, future }: { day: CalendarDay; inMonth: boolean; future: boolean }) {
+function MonthCell({
+  day,
+  inMonth,
+  future,
+  bankWindowDays,
+}: {
+  day: CalendarDay
+  inMonth: boolean
+  future: boolean
+  bankWindowDays: number | undefined
+}) {
   const hydr = hydrationRatio(day.hydration_ml, day.hydration_target_ml)
   const classes = [
     'relative min-h-[72px] rounded-lg border p-1.5 text-left text-ink transition-colors',
@@ -282,7 +309,8 @@ function MonthCell({ day, inMonth, future }: { day: CalendarDay; inMonth: boolea
     // A day that has not happened has no diary to open, so it is inert.
     future ? 'opacity-40' : 'no-underline cursor-pointer hover:border-primary',
   ].join(' ')
-  const label = `${day.date}: ${formatNumber(Math.round(day.calories))} kcal of ${formatNumber(day.goal)}, bank ${day.bank_balance >= 0 ? '+' : ''}${formatNumber(day.bank_balance)} kcal`
+  const bankWindow = bankWindowPhrase(bankWindowDays)
+  const label = `${day.date}: ${formatNumber(Math.round(day.calories))} kcal of ${formatNumber(day.goal)}, bank ${day.bank_balance >= 0 ? '+' : ''}${formatNumber(day.bank_balance)} kcal${bankWindow ? ` over ${bankWindow}` : ''}`
 
   const content = (
     <>
@@ -326,13 +354,21 @@ function MonthCell({ day, inMonth, future }: { day: CalendarDay; inMonth: boolea
   )
 }
 
-function WeekList({ days, today }: { days: CalendarDay[]; today: string }) {
+function WeekList({
+  days,
+  today,
+  bankWindowDays,
+}: {
+  days: CalendarDay[]
+  today: string
+  bankWindowDays: number | undefined
+}) {
   return (
     <div className="flex flex-col gap-2">
       {days.map((day) => (
         <WeekDayCard key={day.date} day={day} future={isFutureDay(day.date, today)} />
       ))}
-      <Legend />
+      <Legend bankWindowDays={bankWindowDays} />
     </div>
   )
 }
@@ -449,13 +485,16 @@ function bankLabel(balance: number): string {
   return `${sign}${formatNumber(Math.abs(balance))} kcal`
 }
 
-function Legend() {
+function Legend({ bankWindowDays }: { bankWindowDays: number | undefined }) {
+  const bankWindow = bankWindowLabel(bankWindowDays)
   return (
     <p className="m-0 mt-2 text-[0.65rem] text-ink-muted leading-relaxed">
       <span className="inline-block h-1.5 w-4 align-middle rounded-full bg-success mr-1" /> within goal
       <span className="mx-1.5">·</span>
       <span className="inline-block h-1.5 w-1.5 align-middle rounded-full bg-danger mr-1" /> the red
       tail is the overspend
+      <span className="mx-1.5">·</span>
+      {bankWindow ? `bank: ${bankWindow}` : 'bank figure shown per day'}
       <span className="mx-1.5">·</span>
       tap any past day to open its diary
     </p>

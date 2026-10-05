@@ -14,6 +14,63 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14 slice 14.2 built: the windowed bank
+
+**The bank stopped being a running total.** `GET /api/bank` now sums the previous N **completed
+calendar days** — the as-of date is excluded, because today is always in progress — and decision 42
+finally bites inside that window: a day with no logging contributes neither its budget nor its spend,
+so a fortnight with two unlogged days budgets twelve days, not fourteen (decision 66, settled by
+91–92). `bank_start_date` is now the window's floor rather than its starting point, and "All time"
+removes only the length limit — it still excludes unlogged days (decision 91).
+
+**The household's numbers move twice over**, which is exactly why the slice carries the checkpoint: a
+window is smaller than an accumulation from day one, and an unlogged day no longer adds a free day's
+budget. The owner reads the new figure on both accounts at `/next/` before anything builds on it.
+
+**The figure is auditable and labelable.** Four additive response fields — `window_days`,
+`window_start_date`, `days_counted`, `days_unlogged` — ship with it, and every React surface that
+prints the balance now names its window ("Last 14 days" / "All time"): the Banked/Deficit tile, the
+ring's accessible label, the Diary header, the Calendar legend and cell labels, and the Metrics bank
+chart. The chart's `🏦 Calorie bank (30 days)` heading was left alone on purpose: 30 is the chart's own
+range, not the bank's window.
+
+**The window is per person, on the user record** (decision 93): an additive migration adds
+`users.bank_window_days INTEGER NOT NULL DEFAULT 14`, read by the calculation and writable through
+`PUT /api/users/me` (0 = all time; a negative value is a `400`). There is deliberately no control until
+Phase 15.
+
+**One rule, three surfaces.** The Calendar's per-day closing balance and `GET /api/stats/bank` were
+cumulative and food-only; both now call the same `computeBankWindow` helper as `/api/bank`, so they
+cannot drift. A single rounding rule (half away from zero, applied once per window) replaces the
+Calendar's round-half-up and the bank's truncation, which could previously disagree by a calorie on
+fractional grams.
+
+**The one judgement call worth the owner's eye:** a day counts as logged when *either* ledger has an
+entry for it, so a day whose only entry is a zero-calorie glass of water still contributes a full day's
+budget. That is the literal reading of decision 42 ("a day with no logging at all"), and it matters here
+because water is logged most days; the stricter reading — only a calorie-bearing entry counts as
+logging — is a one-line change if the owner prefers it.
+
+**Verification.** `go build ./...`, `go vet ./...` and `go test ./...`; 13 new bank/window tests plus
+four updated Calendar/stats expectations, and the new tests were run against a simulated pre-slice
+calculation to prove they fail without the change (the old rule reports 2500 where a two-day window over
+five logged days says 1500, and 1870 where the Calendar says 370). A real Go server was driven over
+HTTP: a three-day window over controlled data returns 1350 where the pre-slice rule returned a
+since-day-one figure, changing the window moves it (2 days → 700, all time → 1950), a negative window is
+a `400`, and every Calendar and `GET /api/stats/bank` row equals `GET /api/bank?date=<day + 1>`.
+`npx vitest run` (28 files, 228 tests, including a new `bank-window.test.mjs` pinning the fixture API to
+the Go rule), `npm run lint`, `npm run typecheck`, `npm run build:go`, `npm run build:preview` and
+`node scripts/check-doc-links.mjs`, and the full Playwright browser suite (**60 tests passed**, phone and
+desktop) — its hydration spec pins the invariant this slice must not break: a +94 kcal drink leaves
+today's bank untouched and drops tomorrow's balance and `today_available` by exactly 94, which holds
+because today sits inside tomorrow's window. `start_date` still returns its raw RFC3339 shape on purpose
+— the wire-format question is untouched.
+
+**State:** built on the Arena branch, reviewed at `/next/`, not merged, no image built. 14.3 and the
+Phase 15 window control wait on the owner's read of the figure.
+
+---
+
 ## 2026-10-05 — Phase 14 slice 14.1 built: the metrics backend foundations
 
 The first slice of the newly scoped Phase 14, and deliberately the one with **no owner-visible change**:

@@ -149,9 +149,10 @@ func TestBankStatsCarriesPlainDates(t *testing.T) {
 	}
 }
 
-// The bank series is still the cumulative figure from bank_start_date; the
-// windowed bank replaces that in the next slice. What must not survive is the
-// disagreement with GET /api/bank, which has counted drinks since Phase 12.
+// The bank series is the windowed figure, mirroring GET /api/bank rather than
+// re-implementing it (slice 14.2). Before that it was cumulative from
+// bank_start_date, so this row would have read 3350 instead of 1350; drinks
+// were already included from slice 14.1.
 func TestBankStatsIncludesDrinkCalories(t *testing.T) {
 	setupHandlerDB(t)
 
@@ -170,11 +171,10 @@ func TestBankStatsIncludesDrinkCalories(t *testing.T) {
 			continue
 		}
 		found = true
-		// Two complete days of budget (the start date and the day after) minus
-		// everything consumed since the start date, drinks included. Before
-		// this change the handler summed diary_entries alone and reported 3500.
-		if want := 2*2000 - 650.0; day.Balance != want {
-			t.Errorf("balance on %s = %v, want %v (food 500 + drink 150)", twoDaysAgo, day.Balance, want)
+		// The 2nd-to-last day's closing balance is the bank as of yesterday: the
+		// window (14 days by default) holds one logged day, 500 food + 150 drink.
+		if want := 2000.0 - 650.0; day.Balance != want {
+			t.Errorf("balance on %s = %v, want %v (food 500 + drink 150 on the one logged day)", twoDaysAgo, day.Balance, want)
 		}
 	}
 	if !found {

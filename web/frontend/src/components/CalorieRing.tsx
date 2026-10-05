@@ -1,3 +1,4 @@
+import { bankWindowPhrase } from '../lib/bank'
 import { formatNumber } from '../lib/format'
 
 /** Fixed display scale until the per-user limits are added in Phase 15 Settings. */
@@ -56,10 +57,13 @@ export function CalorieRing({
   consumed,
   bankBalance,
   goal,
+  bankWindowDays,
 }: {
   consumed: number
   bankBalance: number
   goal: number
+  /** The bank's rolling window, so the accessible label names it (decision 66). */
+  bankWindowDays?: number
 }) {
   const size = 190
   const stroke = 16
@@ -97,12 +101,16 @@ export function CalorieRing({
         ? `${formatNumber(consumed)} kcal consumed today, ${formatNumber(overBy)} kcal over the ${formatNumber(goal)} kcal daily goal, with the inner red arc growing anticlockwise from 12 o'clock.`
         : `${formatNumber(consumed)} of ${formatNumber(goal)} kcal consumed today, ${formatNumber(allowanceLeft)} kcal of the daily goal left, with the inner green arc counting down clockwise.`
       : `${formatNumber(consumed)} kcal consumed today; no daily calorie goal is set.`
+  // The bank is a rolling window (decisions 66, 92), and the ring is one of the
+  // surfaces that prints it, so the accessible label has to name that window.
+  const bankWindow = bankWindowPhrase(bankWindowDays)
+  const overWindow = bankWindow ? ` over ${bankWindow}` : ''
   const bankSummary =
     bankBalance > 0
-      ? `Bank balance ${signedBankBalance} kcal in surplus, with the green arc filling clockwise from 12 o'clock.`
+      ? `Bank balance ${signedBankBalance} kcal in surplus${overWindow}, with the green arc filling clockwise from 12 o'clock.`
       : bankBalance < 0
-        ? `Bank balance ${signedBankBalance} kcal in deficit, with the red arc filling anticlockwise from 12 o'clock.`
-        : 'Bank balance 0 kcal, with no surplus or deficit and no arc.'
+        ? `Bank balance ${signedBankBalance} kcal in deficit${overWindow}, with the red arc filling anticlockwise from 12 o'clock.`
+        : `Bank balance 0 kcal${overWindow}, with no surplus or deficit and no arc.`
   const availableSummary =
     goal > 0 ? ` Total available including today: ${signedKcal(totalAvailable)} kcal.` : ''
   const summary = `${bankSummary} The outer ring shows ${bankPercentLabel} of its plus or minus ${formatNumber(BANK_RING_LIMIT_KCAL)} kcal display scale. ${dailySummary}${availableSummary}`

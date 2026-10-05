@@ -167,3 +167,20 @@ describe('HomeRoute', () => {
     ).toBeTruthy()
   })
 })
+
+describe('HomeRoute — bank window label', () => {
+  it('names the rolling window beside the banked figure and in the ring label', async () => {
+    renderHome()
+
+    const bank = handle('GET', new URL(`http://localhost/api/bank?date=${seed.TODAY}`), null)
+    const windowDays = (bank?.body as { window_days: number }).window_days
+    expect(windowDays).toBe(14)
+
+    // The Banked/Deficit tile carries the window (decision 66's labelling rule)…
+    expect(await screen.findByText('Last 14 days')).toBeTruthy()
+    // …and so does the ring's accessible label, so a windowed balance cannot be
+    // read as an all-time one.
+    const ring = screen.getByRole('img', { name: /Bank balance/ })
+    expect(ring.getAttribute('aria-label')).toContain('over the last 14 days')
+  })
+})

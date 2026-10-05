@@ -513,3 +513,18 @@ describe('DiaryRoute', () => {
     await waitFor(() => expect(locationHref()).toBe(startRecipePickHref('breakfast', past)))
   })
 })
+
+describe('DiaryRoute — bank window label', () => {
+  it('names the rolling window in the header and on the Banked/Deficit tile', async () => {
+    renderDiary(`/diary/${seed.TODAY}`)
+
+    // The header line is the visible one; the tile hint repeats it beside the
+    // figure, and the ring's accessible label names it too (decision 66).
+    const note = await screen.findByTestId('bank-window-note')
+    expect(note.textContent).toBe('Bank: Last 14 days')
+    expect(screen.getAllByText('Last 14 days').length).toBeGreaterThan(0)
+    expect(screen.getByRole('img', { name: /Bank balance/ }).getAttribute('aria-label')).toContain(
+      'over the last 14 days',
+    )
+  })
+})
