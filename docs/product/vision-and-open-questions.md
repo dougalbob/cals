@@ -428,6 +428,12 @@ shareable/printable; and whether it waits for the tracked-nutrients work (decisi
 non-macro lines. Recommendation: build it with today's nutrients, and let enabled nutrients appear
 automatically.
 
+**Settled 2026-10-05 — decisions 107–109** (the pass that built slice 14.6): the report is a **week
+picker with a free date range** as a secondary mode, it **opens on the current week so far**, and its
+"best" and "worst" days are the logged days **closest to and furthest from the daily goal**. The
+nutrient lines were built with 14.5's nutrients and are rendered from a map, so enabled nutrients
+appear automatically. Shareable/printable remains open and was not requested.
+
 ### Tracked nutrients and the missing-data audit (2026-10-03)
 
 **Owner's direction:** the full set of nutrients should be available, but the individual values must
@@ -1062,6 +1068,31 @@ with `placeholderData: keepPreviousData`, throttles URL/range commits to 150 ms 
 on release, forwards TanStack Query's `AbortSignal` so superseded reads can stop, and reduces haptic ticks
 to at least five days of net movement. The haptics setting itself remains Phase 15. The fix is frontend-only,
 with no API or schema change.
+
+## The weekly report — decisions 107–109 (2026-10-05)
+
+Slice 14.6 (decision 46) was built on 2026-10-05. Its three shape questions were settled with the
+owner before anything was written; the slice definition, guardrails and verification are in
+[`../architecture/phase-14-plan.md`](../architecture/phase-14-plan.md) §14.6.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 107 | 2026-10-05 | **The report shows one week at a time, with a free date range one tap away.** The default mode is a week, paged with ‹ › exactly as the Calendar pages a month (decision 63's clamp included — the card never moves past the current week), and a **Custom** mode accepts any `from`/`to` pair the API allows (400 days, `to` clamped to today). The chosen window rides in the URL under `report`, `report_anchor`, `report_from` and `report_to` — *not* `from`/`to`, which already drive the pannable charts on the same route (decision 69) — so a reload or a deep link reopens the same report without disturbing the charts. | Owner (week picker plus the free range) |
+| 108 | 2026-10-05 | **The report opens on the current week so far, not the last completed week.** Monday through today, labelled "· so far", with the previous week one tap away. It matches the Calendar, which also refuses to look forward (decision 63), and it makes the card useful the moment it is opened. | Owner |
+| 109 | 2026-10-05 | **"Best" and "worst" day are the logged days closest to and furthest from the daily goal, either side**, each labelled with its kcal and its ± delta. Best is not "lowest intake" and worst is not "biggest blowout": a 1,990 kcal day against a 2,000 goal is the best day, and a 1,100 kcal day is as much a worst-day candidate as a 2,900 kcal one. Unlogged days are excluded from both, as from every other figure (decision 42). | Owner (chose the agent's recommendation) |
+
+What the card reports, so the shape is unambiguous: total calories against `goal × logged days`, the
+average over logged days, over/under/on-goal counts, **how the bank moved** (the closing balance on the
+last day minus the closing balance on the day before the range, each computed by the same
+`computeBankWindow` every other bank surface uses), hydration (litres, and how many logged days met the
+target), the weigh-in change carried forward from the last weigh-in at each end of the period, the four
+nutrition traffic lights for the range, the best and worst days, and **the days excluded as unlogged,
+named** — decision 42's rule made visible rather than quiet, which is the point the report was asked for.
+
+Two additive API changes support it, both in the 14.1 style: `GET /api/nutrition/weekly` gains the
+explicit `from`/`to` pair beside the unchanged legacy `days` parameter (the same strict validation the
+metrics series endpoints share), and the fixture API mirrors it so the Arena preview shows real numbers.
+No schema change, migration, data copy or appdata operation.
 
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 

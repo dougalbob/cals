@@ -107,3 +107,52 @@ describe('fixture metrics series endpoints', () => {
     expect(get('/api/stats/calories?days=500').body).toHaveLength(14)
   })
 })
+
+/**
+ * Slice 14.6 — the weekly report's date-range picker.
+ *
+ * The Go handler shares resolveSeriesRange with the metrics endpoints, so the
+ * fixture mirrors the same contract here: an explicit window answers for
+ * exactly those calendar days, the legacy `days` window still ends today, and a
+ * malformed range is a 400 rather than a silently narrowed window.
+ */
+describe('fixture nutrition weekly range', () => {
+  it('answers for exactly the requested days, in ascending order', () => {
+    const from = seed.dateOffset(9)
+    const to = seed.dateOffset(3)
+    const { status, body } = get(`/api/nutrition/weekly?from=${from}&to=${to}`)
+
+    expect(status).toBe(200)
+    expect(body.start_date).toBe(from)
+    expect(body.end_date).toBe(to)
+    expect(body.daily_data).toHaveLength(7)
+    expect(body.daily_data[0].date).toBe(from)
+    expect(body.daily_data.at(-1).date).toBe(to)
+
+    // Each day's calories are the drink-inclusive figure the ring and the
+    // goal-vs-consumed chart use, so the report can never disagree with them.
+    const stats = get(`/api/stats/calories?from=${from}&to=${to}`).body
+    for (const day of body.daily_data) {
+      const statsDay = stats.find((row) => row.date === day.date)
+      expect(statsDay, `stats row for ${day.date}`).toBeTruthy()
+      expect(day.calories).toBe(statsDay.calories)
+    }
+  })
+
+  it('clamps a future `to` to today and rejects a malformed range', () => {
+    const clampy = get(`/api/nutrition/weekly?from=${seed.dateOffset(1)}&to=${seed.nextDate(seed.TODAY)}`)
+    expect(clampy.status).toBe(200)
+    expect(clampy.body.end_date).toBe(seed.TODAY)
+
+    expect(get(`/api/nutrition/weekly?from=${seed.dateOffset(6)}`).status).toBe(400)
+    expect(get(`/api/nutrition/weekly?to=${seed.TODAY}`).status).toBe(400)
+    expect(get('/api/nutrition/weekly?from=01/01/2026&to=2026-01-02').status).toBe(400)
+    expect(get(`/api/nutrition/weekly?from=${seed.dateOffset(3)}&to=${seed.dateOffset(5)}`).status).toBe(400)
+  })
+
+  it('keeps the legacy days window ending today', () => {
+    const { body } = get('/api/nutrition/weekly?days=7')
+    expect(body.daily_data).toHaveLength(7)
+    expect(body.end_date).toBe(seed.TODAY)
+  })
+})

@@ -147,4 +147,6 @@ export const queryKeys = {
   calorieStatsRange: (from: string, to: string) => ['stats', 'calories', 'range', from, to] as const,
   bankStats: (days: number) => ['stats', 'bank', days] as const,
   nutrition: (days: number) => ['nutrition', 'weekly', days] as const,
+  /** The report's chosen range — keyed by the range it is showing (slice 14.6). */
+  nutritionRange: (from: string, to: string) => ['nutrition', 'range', from, to] as const,
 }

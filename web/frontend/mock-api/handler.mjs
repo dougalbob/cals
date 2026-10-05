@@ -125,11 +125,18 @@ function bank(asOfDate) {
 // ---------------------------------------------------------------------------
 
 function nutritionAnalysis(days = 7) {
+  return nutritionAnalysisRange(seed.dateOffset(days - 1), seed.TODAY)
+}
+
+// The same analysis over an explicit inclusive range — the weekly report's
+// date-range picker (slice 14.6). The Go handler shares resolveSeriesRange
+// with the metrics series endpoints, so from/to is strict there; here the
+// caller has already validated the range.
+function nutritionAnalysisRange(from, to) {
   const daily = []
   let daysWithData = 0
 
-  for (let back = days - 1; back >= 0; back--) {
-    const date = seed.dateOffset(back)
+  for (let date = from; date <= to; date = seed.nextDate(date)) {
     const t = seed.totalsFor(date)
     const drinkCal = seed.drinkEntriesFor(date).reduce((acc, e) => acc + e.calories, 0)
     const totalCal = t.calories + drinkCal
@@ -671,6 +678,13 @@ export function handle(method, url, body, headers = {}) {
   if (pathname === '/api/nutrition/settings' && method === 'GET') return json(nutritionSettings)
 
   if (pathname === '/api/nutrition/weekly' && method === 'GET') {
+    // Slice 14.6: an explicit from/to pair (the weekly report's picker) wins;
+    // otherwise the legacy `days` window ending today, exactly as before.
+    if (searchParams.get('from') || searchParams.get('to')) {
+      const range = resolveSeriesRange(searchParams, 7, MAX_SERIES_SPAN)
+      if (range.error) return err(400, range.error)
+      return json(nutritionAnalysisRange(range.from, range.to))
+    }
     const days = clampDays(searchParams.get('days'), 7)
     return json(nutritionAnalysis(days))
   }

@@ -14,6 +14,7 @@ import type {
 } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
 import { BodyMap } from '../components/BodyMap'
+import { WeeklyReport } from '../components/WeeklyReport'
 import { MeasurementSheet } from '../components/MeasurementSheet'
 import { MeasurementEditSheet } from '../components/MeasurementEditSheet'
 import { usePanWindow } from '../hooks/usePanWindow'
@@ -291,6 +292,8 @@ export function MetricsRoute() {
           {bankWindow ? `Each day is that day's closing balance, computed over ${bankWindow}.` : "Each day is that day's closing balance."}
         </p>
       </section>
+
+      <WeeklyReport />
 
       <Link
         to="/nutrition"

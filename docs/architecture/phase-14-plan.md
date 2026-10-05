@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **APPROVED for slices 14.1–14.4** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), and Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05) — including a third option for Q6 and a bundle of extras beyond this plan. **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 is built, owner-approved in the Arena preview and published as `v2.0.0-dev-rc28` (PR #65, 2026-10-05), awaiting the owner's Unraid road-test**; **14.4 (the body-map measurement picker) was owner-approved in the Arena preview on 2026-10-05 ("looks good"), merged (PR #67) and **published as `v2.0.0-dev-rc29`** with decision 101's route-level code splitting; it awaits the owner's Unraid road-test (CURRENT_STATE §3 item 10, which also covers 14.3's)**. **Q10–Q11 (§6) are still open** and gate 14.5–14.6. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **ALL SIX SLICES BUILT** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30 and the rc31/rc32 follow-ups after them — all awaiting the single accumulated Unraid Force Update in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05 and awaits the owner's Arena-preview review and the accumulated road-test**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -12,8 +12,10 @@
 > [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05),
 > and Q6–Q9 the same day as
 > [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05);
-> §6 below keeps each question with its answer so the reasoning stays readable. Q10–Q11 are still open
-> and must be answered before slices 14.5–14.6 start.
+> §6 below keeps each question with its answer so the reasoning stays readable. **Q10 is answered by how
+> 14.5 was built** (enabled nutrients appear automatically; decision 47's checkboxes move to Phase 15 with
+> Settings), and **Q11 was settled on 2026-10-05 as decisions 107–109** — a week picker with a free range,
+> opening on the current week. No slice is now blocked by an open question.
 
 ---
 
@@ -30,7 +32,7 @@ Phase 14 is **Metrics + Nutrition**. From the plan and the decision log it owns:
 | **30-day pannable weigh-in chart with a trend line** | decision 70 |
 | **Daily-goal-vs-consumed chart** with green / amber / red bands | decision 71 |
 | A **weekly report** in place of general notifications | decision 46 |
-| **Tracked-nutrients settings + missing-data audit** | decision 47 (see Q10 — recommendation is to move this to Phase 15) |
+| **Tracked-nutrients settings + missing-data audit** | decision 47 — **moved to Phase 15** with the Settings screen (Q10, settled 2026-10-05); 14.5 was built so enabled nutrients appear automatically |
 | The deferred **RFC3339 date fix** on the metrics endpoints | [known issue, deferred](../product/vision-and-open-questions.md#known-issue-deferred--rfc3339-dates-on-the-metrics-endpoints-2026-10-03) — "pick this up at the start of the metrics phase" |
 
 Explicitly **not** Phase 14 (it stays where the plan puts it):
@@ -321,6 +323,27 @@ An in-app report card in Metrics for a chosen week: calories against goal, how t
 change, the traffic lights, best and worst days, and **which days were excluded as unlogged** so decision 42's
 exclusions are never quietly unexplained. In-app only — no email, no push.
 
+**Built 2026-10-05**, with the three shape questions settled by the owner before anything was written and
+recorded as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05).
+Four things worth carrying forward:
+
+- **The report owns its own URL parameters.** The card's window rides as `report` / `report_anchor` /
+  `report_from` / `report_to` because `from`/`to` on `/metrics` already drive the pannable charts
+  (decision 69). It also means the merged-picker option was dropped on measurement: one control over one
+  route's worth of dates, with the charts' window untouched underneath, is the cleaner reading of
+  decision 107, and it keeps a deep-linked report from moving somebody's chart.
+- **Nothing re-derives the bank.** The estimate for a day's bank movement comes from the Calendar
+  endpoint's per-day closing balances — the same `computeBankWindow` every other bank surface calls —
+  so the card cannot disagree with the tile. Its range starts one day before the report's first day,
+  because a closing balance is the bank as of the *next* morning (slice 14.2's rule).
+- **`GET /api/nutrition/weekly` gained the 14.1 `from`/`to` contract**, sharing `resolveSeriesRange`
+  with the metrics endpoints (strict 400s, `to` clamped to today, 400-day cap) while the legacy `days`
+  parameter keeps its exact old contract — V1 and the Nutrition screen are untouched. Without this the
+  card's traffic lights would have described a window ending today, not the week on screen.
+- **The fixture API had to follow**, or the Arena preview would have shown an empty report: the mock
+  handler gained the same range path, pinned by its own contract tests and cross-checked against its
+  `/api/stats/calories` rows so the two fixture numbers cannot drift.
+
 **Suggested order:** 14.1 → 14.2 → 14.3 → 14.4 → 14.5 → 14.6. 14.5 and 14.6 are the two that could be dropped
 or pushed back if the owner wants to reach Phase 15/16 sooner; 14.1 and 14.2 cannot be, because the charts and
 the report both read their numbers.
@@ -354,7 +377,7 @@ the report both read their numbers.
 | 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good"); the rc28 Force Update and road-test is the remaining gate** |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
 | 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
-| 14.6 | Report maths tests, including excluded-day labelling | Does the report card answer "how did last week go"? |
+| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 | Does the report card at `/next/metrics` answer "how did last week go"? **Awaiting the owner's Arena-preview review, then one accumulated Unraid Force Update with rc28–rc32's changes (CURRENT_STATE §3)** |
 
 ---
 
@@ -364,7 +387,9 @@ Q1–Q5 gated slices 14.1–14.3 and were settled by the owner on 2026-10-05; ea
 decision in [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05).
 Q6–Q9 gated 14.4 and were settled the same day, recorded as
 [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05).
-Q10–Q11 are still open and gate 14.5–14.6.
+Q10 was answered by 14.5 as built and Q11 by
+[decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05)
+when 14.6 was built, so **no slice is still gated**.
 
 ### Settled — decisions 91–95 (2026-10-05)
 
@@ -437,18 +462,19 @@ The owner also approved the extras bundle as **decision 100**: the staleness lin
 cue, the pop-up's previous-value context and live delta, the all-parts tappable history, the `from`/`to`
 window on `GET /api/measurements`, the dedicated latest-per-part lookup, and the wire-shape normalisation.
 
-### Still open
+### Settled — decisions 107–109 (2026-10-05), closing Q10 and Q11
 
-Needed before 14.5 / 14.6:
+**Q10 — Does decision 47 (tracked nutrients + missing-data audit) stay in Phase 14?** ✅ Answered by how 14.5
+was built: the Nutrition screen renders its traffic lights from a map and enabled nutrients appear
+automatically, so decision 47's checkbox sheet and audit move to **Phase 15**, where Settings lives.
 
-**Q10 — Does decision 47 (tracked nutrients + missing-data audit) stay in Phase 14?** It is currently listed
-there, but its UI is "a Settings sheet of checkboxes" and Settings is Phase 15.
-*Recommendation:* **move it to Phase 15** and build 14.5 so enabled nutrients appear automatically. Otherwise
-Phase 14 builds a settings sheet that Phase 15 immediately replaces.
-
-**Q11 — Weekly report shape: a fixed "last week" card, or a date-range picker?**
-*Recommendation:* a week picker defaulting to the current week with the previous one a tap away — the same
-segmented-control pattern the Calendar already uses.
+**Q11 — Weekly report shape: a fixed "last week" card, or a date-range picker?** ✅ Settled the other way
+round from the recommendation: **decision 107 — a week picker (‹ ›, opening on the current week) with a free
+`from`/`to` range as a second mode.** The owner's addition was the free range; the pair was implemented as one
+popover-free segmented control beside the week arrows. **Decision 108** fixes the default week as the current
+one (Monday through today, "· so far"), and **decision 109** defines the best day as the logged day closest
+to the daily goal and the worst as the one furthest from it, either side. Reasoning and the built shape are in
+[decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05).
 
 ---
 
@@ -462,8 +488,10 @@ Re-based 2026-10-05 after 14.1 and 14.2 landed and were signed off:
 | 14.2 | **Medium-large** | Small diff, high risk. Most of the effort is tests and the two mirrors. **Built and signed off** — the two mirrors were the substance, plus one rounding rule and the logged-day rule (§14.2) |
 | 14.3 | Medium | Two charts plus the shared pan hook and one additive column. Decision 94 keeps the hand-written SVG components, so the Chart.js path is closed and the bundle does not grow a chart library |
 | 14.4 | **Large** | New SVG surface, new endpoint, migration, accessibility |
-| 14.5 | Medium | Mostly porting a screen V1 already has |
-| 14.6 | Small-medium | Presentation over data the other slices already produce |
+| 14.5 | Medium | Mostly porting a screen V1 already has. **Built** — shipped in rc30 |
+| 14.6 | Small-medium | Presentation over data the other slices already produce. **Built 2026-10-05** — the work was the report maths, the `from`/`to` range on the nutrition endpoint and its fixture mirror (§14.6) |
 
-Phase 14 is realistically **several working sessions**, not one; two of the six slices are done. Nothing
-in it needs a decision about cutover, and nothing in it moves the household off `/`.
+Phase 14 is realistically **several working sessions**, not one; **all six slices are now built** — 14.1/14.2
+signed off on Unraid, 14.3–14.5 and the rc31/rc32 follow-ups published and awaiting the accumulated Force
+Update, and 14.6 awaiting its preview review. Nothing in it needs a decision about cutover, and nothing in it
+moves the household off `/`.
