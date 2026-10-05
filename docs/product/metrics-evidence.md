@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | **Status** | 🟡 **WORKING RESEARCH** — an evidence ledger and evolving design brief, not a final implementation specification or clinical guideline |
-| **Last reviewed** | 2026-10-04 |
+| **Last reviewed** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Build an auditable basis for where cals metrics come from, how they are calculated, and how their uncertainty and units should be shown in the UI |
 | **Related** | [`../CURRENT_STATE.md`](../CURRENT_STATE.md), [`vision-and-open-questions.md`](vision-and-open-questions.md) (product decisions), [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md) (phase plan) |
@@ -12,9 +12,11 @@
 >
 > cals is a personal tracking tool, not a diagnostic or dietetic service. A chart can describe the values entered; it cannot infer an individual's health or body composition from circumference or weight alone.
 >
-> **Priority note (2026-10-04):** by decision 88, the next session is focused on production roles and
-> in-app Admin user switching before Phase 14 Metrics implementation. This file remains a research
-> brief; see [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4 for the current work order.
+> **Priority note (2026-10-05):** decision 88's role and user-switching work is complete, published as
+> `v2.0.0-dev-rc26` and signed off by the owner. Phase 14 is next and is scoped into six slices in
+> [`../architecture/phase-14-plan.md`](../architecture/phase-14-plan.md); **decision 95 settles the weigh-in
+> trend** this file researches in §4. Everything else here remains a research brief, not a specification — see
+> [`../CURRENT_STATE.md`](../CURRENT_STATE.md) §4 for the current work order.
 
 ---
 
@@ -151,6 +153,15 @@ A seven-day moving average is a candidate historical smoother, not an establishe
 
 **Issues to test before selecting a smoother:** weigh-ins can be sparse or irregular; a seven-calendar-day window may have too few observations; a centered average needs future points near the chart edge; a trailing average lags direction changes. Never interpolate unlogged days into apparent measurements. Compare a trailing/centered moving average with other simple smoothers against real-looking sparse data, and label the method in the UI.
 
+> **✅ Settled by decision 95 (2026-10-05).** Phase 14 ships a **7-day moving average taken over weigh-ins
+> rather than calendar days** — which is exactly the sparsity objection above: a calendar window comes up empty
+> when nobody weighs in daily — drawn only where at least three points exist, labelled with its method, and
+> never extrapolated into a date or a plateau. **The window is not final:** the owner records that 7 may prove
+> wrong and that **10 or 14 days are the likely alternatives**, so it becomes a per-user setting in the Phase 15
+> Settings/profile work (`users.weight_trend_days`, defaulting to 7 in Phase 14 with no control). The questions
+> this file raises about *which* smoother is best, about baseline semantics and about uncertainty remain open;
+> the target-weight ETA in §5 remains out of scope.
+
 ---
 
 ## 5. Target-weight ETA: review of the proposed model claims
@@ -218,7 +229,7 @@ Sources are evidence for the limited claims described here, not endorsements of 
 2. Is the baseline earliest-ever, user-selected, or a shared measurement session? What should happen when the API's current 20-row limit omits it?
 3. Should a site's index use its own first recorded value, or should all displayed series require a common baseline date?
 4. What chart window/default should body measurements use, and how does it interact with pan and indexed baseline?
-5. What trend smoother is understandable and stable for cals' actual weigh-in frequency? How much data is enough to draw it?
+5. ~~What trend smoother is understandable and stable for cals' actual weigh-in frequency? How much data is enough to draw it?~~ **Partly answered by decision 95: a moving average over weigh-ins, three points minimum, 7-day window defaulting per user.** Still open: whether a centred or trailing average reads better on sparse data, and whether the household wants the window at 10 or 14 days once the Phase 15 setting exists.
 6. Is a target-weight ETA worth the additional assumptions and risk of false precision? If yes, which published model can be validly parameterized from data cals actually has?
 7. How should uncertainty be communicated and calibrated, not merely illustrated?
 8. What counts as a measurement session for reminder timing, and how should an overdue reminder repeat or be dismissed?
