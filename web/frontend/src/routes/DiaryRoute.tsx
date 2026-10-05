@@ -17,6 +17,7 @@ import { QuantityPicker } from '../components/QuantityPicker'
 import { useBank, useDiary, useDrinkDefinitions, useDrinkEntries, useWater } from '../hooks/useDiaryData'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
+import { bankWindowLabel } from '../lib/bank'
 import { addDays, formatGrams, formatNumber, todayIso } from '../lib/format'
 import { caloriesPer100g, nutritionForGrams, scaleEntryToGrams } from '../lib/diary'
 import { defaultServing, servingChoices } from '../lib/foodServings'
@@ -132,6 +133,9 @@ export function DiaryRoute() {
   )
   const consumed = Math.round(foodCalories + drinkCalories)
   const bankBalance = bank.data?.bank_balance ?? 0
+  // The bank is a rolling window (decisions 66, 92). Both the header line and
+  // the Banked/Deficit tile name it, because this figure is read on both.
+  const bankWindow = bankWindowLabel(bank.data?.window_days)
 
   const waterDrink = pickWaterDrink(drinkDefinitions.data ?? [])
 
@@ -184,6 +188,11 @@ export function DiaryRoute() {
           <p className="m-0 text-xs text-ink-light">
             {new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
           </p>
+          {bankWindow && (
+            <p data-testid="bank-window-note" className="m-0 text-[0.65rem] text-ink-muted">
+              Bank: {bankWindow}
+            </p>
+          )}
         </div>
         <Link
           to={date === today ? '/calendar' : `/calendar/week/${date}`}
@@ -205,7 +214,12 @@ export function DiaryRoute() {
 
       {/* Ring + bank ---------------------------------------------------- */}
       <section className="rounded-2xl bg-card p-4 shadow-card flex flex-col sm:flex-row items-center gap-4">
-        <CalorieRing consumed={consumed} bankBalance={bankBalance} goal={bank.data?.daily_goal ?? 0} />
+        <CalorieRing
+          consumed={consumed}
+          bankBalance={bankBalance}
+          goal={bank.data?.daily_goal ?? 0}
+          bankWindowDays={bank.data?.window_days}
+        />
         <div className="flex-1 w-full grid grid-cols-2 gap-3">
           <Tile label="Daily goal" value={formatNumber(bank.data?.daily_goal ?? 0)} unit="kcal" />
           <Tile
@@ -213,6 +227,7 @@ export function DiaryRoute() {
             value={`${bankBalance >= 0 ? '+' : ''}${formatNumber(bankBalance)}`}
             unit="kcal"
             tone={bankBalance >= 0 ? 'success' : 'danger'}
+            hint={bankWindow ?? undefined}
           />
           <Tile label="Food" value={formatNumber(foodCalories)} unit="kcal" />
           <Tile

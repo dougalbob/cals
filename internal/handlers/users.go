@@ -11,17 +11,22 @@ import (
 	"cals/internal/models"
 )
 
+// defaultBankWindowDays is the rolling window every account starts with — the
+// additive users.bank_window_days default (decision 93). 0 would mean "all
+// time", which is an explicit preset rather than a default (decisions 66, 91).
+const defaultBankWindowDays = 14
+
 // GetOrCreateUser ensures user exists and returns their record
 func GetOrCreateUser(email string) (*models.User, error) {
 	var user models.User
 	var bankStartDate sql.NullString
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, is_admin, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.IsAdmin,
+		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.IsAdmin,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -33,9 +38,9 @@ func GetOrCreateUser(email string) (*models.User, error) {
 		today := time.Now().Format("2006-01-02")
 		isAdmin := IsConfiguredAdmin(email)
 		result, err := database.DB.Exec(`
-			INSERT INTO users (email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, is_admin)
-			VALUES (?, '', 2000, 2000, 'stones', ?, ?)
-		`, email, today, boolToInt(isAdmin))
+			INSERT INTO users (email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, is_admin)
+			VALUES (?, '', 2000, 2000, 'stones', ?, ?, ?)
+		`, email, today, defaultBankWindowDays, boolToInt(isAdmin))
 		if err != nil {
 			return nil, err
 		}
@@ -47,6 +52,7 @@ func GetOrCreateUser(email string) (*models.User, error) {
 		user.DailyWaterGoalML = 2000
 		user.WeightUnit = "stones"
 		user.BankStartDate = today
+		user.BankWindowDays = defaultBankWindowDays
 		user.IsAdmin = isAdmin
 		user.CreatedAt = time.Now()
 		user.UpdatedAt = time.Now()
@@ -110,6 +116,7 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		DailyWaterGoalML *int    `json:"daily_water_goal_ml"`
 		WeightUnit       *string `json:"weight_unit"`
 		BankStartDate    *string `json:"bank_start_date"`
+		BankWindowDays   *int    `json:"bank_window_days"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -134,11 +141,23 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 	if updates.BankStartDate != nil {
 		user.BankStartDate = *updates.BankStartDate
 	}
+	if updates.BankWindowDays != nil {
+		// 0 is a real value — the "all time" preset (decisions 66, 91) — so the
+		// guard is against negatives, and it is an error rather than a silent
+		// no-op: a window that is quietly ignored is worse than a 400 for a
+		// setting the owner will change by hand until Phase 15 draws the
+		// control (decision 93).
+		if *updates.BankWindowDays < 0 {
+			http.Error(w, "bank_window_days must be 0 (all time) or a number of days", http.StatusBadRequest)
+			return
+		}
+		user.BankWindowDays = *updates.BankWindowDays
+	}
 
 	_, err = database.DB.Exec(`
-		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, updated_at = CURRENT_TIMESTAMP
+		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.ID)
+	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.ID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -165,7 +184,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, is_admin, created_at, updated_at
 		FROM users ORDER BY name, email
 	`)
 	if err != nil {
@@ -180,7 +199,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 		var bankStartDate sql.NullString
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.IsAdmin,
+			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.IsAdmin,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {

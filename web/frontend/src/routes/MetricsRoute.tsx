@@ -11,6 +11,7 @@ import type {
   WeightEntry,
 } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
+import { bankWindowPhrase } from '../lib/bank'
 import { formatKg, formatNumber, formatShortDate, formatStonesPounds, kgToStonesPounds } from '../lib/format'
 
 export function MetricsRoute() {
@@ -53,6 +54,9 @@ export function MetricsRoute() {
 
   const latestMeasurement = measurements.data?.[0]
   const target = user.data?.target_weight_kg
+  // Every bank figure is a rolling window (decisions 66, 92); this chart prints
+  // one per day, so it says which window those balances are computed over.
+  const bankWindow = bankWindowPhrase(user.data?.bank_window_days)
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,6 +114,9 @@ export function MetricsRoute() {
             valueLabel={(value) => `${value >= 0 ? '+' : ''}${formatNumber(value)} kcal`}
           />
         )}
+        <p data-testid="bank-window-note" className="m-0 mt-1 text-xs text-ink-muted">
+          {bankWindow ? `Each day is that day's closing balance, computed over ${bankWindow}.` : "Each day is that day's closing balance."}
+        </p>
       </section>
 
       <section className="rounded-2xl bg-card p-4 shadow-card">

@@ -14,6 +14,11 @@ type User struct {
 	DailyWaterGoalML int       `json:"daily_water_goal_ml"`
 	WeightUnit       string    `json:"weight_unit"`
 	BankStartDate    string    `json:"bank_start_date"`
+	// BankWindowDays is the rolling window the calorie bank is computed over:
+	// the previous N completed calendar days (decisions 66, 92). 0 means "all
+	// time" — no length limit, still excluding unlogged days (decision 91). The
+	// column defaults to 14 (decision 93) and has no UI until Phase 15.
+	BankWindowDays   int       `json:"bank_window_days"`
 	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
 	IsAdmin          bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
 	CreatedAt        time.Time `json:"created_at"`

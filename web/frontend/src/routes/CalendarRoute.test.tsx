@@ -47,11 +47,17 @@ function renderCalendar(path: string) {
  * here keeps the tests honest without depending on which day of the month the
  * fixture happens to be generated for.
  */
-function stubbedFetch(days: CalendarDay[]) {
+function stubbedFetch(days: CalendarDay[], bankWindowDays?: number) {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     if (url.pathname === '/api/calendar') {
-      return new Response(JSON.stringify({ from: url.searchParams.get('from'), to: url.searchParams.get('to'), days }), {
+      const payload = {
+        from: url.searchParams.get('from'),
+        to: url.searchParams.get('to'),
+        days,
+        ...(bankWindowDays === undefined ? {} : { bank_window_days: bankWindowDays }),
+      }
+      return new Response(JSON.stringify(payload), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -267,5 +273,25 @@ describe('CalendarRoute', () => {
     expect(typeof day.meals.breakfast).toBe('number')
     expect(typeof day.hydration_ml).toBe('number')
     expect(day.calories).toBeGreaterThan(0)
+  })
+})
+
+describe('CalendarRoute — bank window label', () => {
+  it('names the window the per-day bank figures cover', async () => {
+    vi.stubGlobal('fetch', stubbedFetch([dayOf({ date: seed.TODAY, is_today: true })], 14))
+    renderCalendar('/calendar')
+
+    // The legend sits with the cells, and each cell's accessible label says the
+    // figure is over that window rather than all time (decisions 66, 92).
+    expect(await screen.findByText(/bank: Last 14 days/)).toBeTruthy()
+    expect(screen.getAllByLabelText(/over the last 14 days/).length).toBeGreaterThan(0)
+  })
+
+  it('reads the all-time preset as All time', async () => {
+    vi.stubGlobal('fetch', stubbedFetch([dayOf({ date: seed.TODAY, is_today: true })], 0))
+    renderCalendar('/calendar')
+
+    expect(await screen.findByText(/bank: All time/)).toBeTruthy()
+    expect(screen.getAllByLabelText(/over all time/).length).toBeGreaterThan(0)
   })
 })

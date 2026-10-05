@@ -5,6 +5,7 @@ import { apiGet, queryKeys } from '../api/client'
 import { MEALS, type User } from '../api/types'
 import { CalorieRing } from '../components/CalorieRing'
 import { useBank, useDiary, useDrinkEntries } from '../hooks/useDiaryData'
+import { bankWindowLabel } from '../lib/bank'
 import { formatLongDate, formatNumber, todayIso } from '../lib/format'
 
 function greeting(hour: number): string {
@@ -39,6 +40,9 @@ export function HomeRoute() {
   )
   const consumed = Math.round(foodCalories + drinkCalories)
   const bankBalance = bank.data?.bank_balance ?? 0
+  // The bank is a rolling window (decisions 66, 92): the tile must name it, so
+  // the figure cannot be mistaken for the old since-day-one accumulation.
+  const bankWindow = bankWindowLabel(bank.data?.window_days)
 
   const mealSummaries = useMemo(
     () =>
@@ -81,7 +85,12 @@ export function HomeRoute() {
         <h2 className="m-0 text-base font-semibold">{formatLongDate(date)}</h2>
 
         <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center">
-          <CalorieRing consumed={consumed} bankBalance={bankBalance} goal={bank.data?.daily_goal ?? 0} />
+          <CalorieRing
+            consumed={consumed}
+            bankBalance={bankBalance}
+            goal={bank.data?.daily_goal ?? 0}
+            bankWindowDays={bank.data?.window_days}
+          />
 
           <div className="w-full flex-1 grid grid-cols-2 gap-3">
             <Tile label="Daily goal" value={formatNumber(bank.data?.daily_goal ?? 0)} unit="kcal" />
@@ -90,6 +99,7 @@ export function HomeRoute() {
               value={`${bankBalance >= 0 ? '+' : ''}${formatNumber(bankBalance)}`}
               unit="kcal"
               tone={bankBalance >= 0 ? 'success' : 'danger'}
+              hint={bankWindow ?? undefined}
             />
             <Tile label="Food" value={formatNumber(foodCalories)} unit="kcal" />
             <Tile label="Drinks" value={formatNumber(drinkCalories)} unit="kcal" hint="counts towards the bank" />

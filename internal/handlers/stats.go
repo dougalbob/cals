@@ -188,10 +188,15 @@ func HandleGetCalorieStats(w http.ResponseWriter, r *http.Request) {
 // HandleGetBankStats returns the end-of-day bank balance for each day in the
 // window.
 //
-// The figure is still the cumulative balance from bank_start_date; the windowed
-// bank (decision 66) replaces that calculation in the next slice. What changes
-// here is that drinks are included, so this series cannot disagree with
-// GET /api/bank.
+// Each figure is the closing balance for that day — the bank as of the next
+// morning, i.e. GET /api/bank?date=<day + 1> — computed with the same windowed
+// rule as HandleGetBank and the Calendar (decisions 42, 66, 91, 92). It used to
+// be cumulative from bank_start_date and food-only, which would have put this
+// series on different numbers from the tile, the ring and the Calendar.
+//
+// The series still starts at bank_start_date, and still defaults a missing
+// start date to 30 days ago, exactly as before: only the numbers change, no day
+// appears or disappears from the response.
 //
 // The isoDate on bank_start_date is belt-and-braces rather than a fix. The
 // COALESCE already returns plain text — sqlite3_column_decltype is NULL for an
@@ -211,7 +216,8 @@ func HandleGetBankStats(w http.ResponseWriter, r *http.Request) {
 	var userID int64
 	var dailyGoal int
 	var bankStartDate string
-	err := database.DB.QueryRow(`SELECT id, daily_calorie_goal, COALESCE(bank_start_date, date('now', '-30 days')) FROM users WHERE email = ?`, email).Scan(&userID, &dailyGoal, &bankStartDate)
+	var bankWindowDays int
+	err := database.DB.QueryRow(`SELECT id, daily_calorie_goal, COALESCE(bank_start_date, date('now', '-30 days')), bank_window_days FROM users WHERE email = ?`, email).Scan(&userID, &dailyGoal, &bankStartDate, &bankWindowDays)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
@@ -223,52 +229,35 @@ func HandleGetBankStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := database.DB.Query(`
-		WITH RECURSIVE dates(day) AS (
-			SELECT date(?)
-			UNION ALL
-			SELECT date(day, '+1 day')
-			FROM dates
-			WHERE day < date(?)
-		),
-		daily_totals AS (
-			SELECT
-				d.day,
-				COALESCE((SELECT SUM(calories) FROM diary_entries
-					WHERE user_id = ? AND date(date) = d.day), 0)
-				+ COALESCE((SELECT SUM(calories) FROM drink_entries
-					WHERE user_id = ? AND date(date) = d.day), 0) AS calories
-			FROM dates d
-			WHERE d.day >= date(?)
-		)
-		SELECT
-			day,
-			(julianday(day) - julianday(date(?)) + 1) * ? -
-			(SELECT COALESCE(SUM(calories), 0) FROM diary_entries
-				WHERE user_id = ? AND date(date) <= daily_totals.day AND date(date) >= date(?)) -
-			(SELECT COALESCE(SUM(calories), 0) FROM drink_entries
-				WHERE user_id = ? AND date(date) <= daily_totals.day AND date(date) >= date(?)) AS balance
-		FROM daily_totals
-		ORDER BY day ASC
-	`, from, to,
-		userID, userID, bankStartDate,
-		bankStartDate, dailyGoal,
-		userID, bankStartDate,
-		userID, bankStartDate)
-	if err != nil {
-		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		return
+	window := bankWindow{Goal: dailyGoal, Days: bankWindowDays, StartDate: bankStartDate}
+
+	// Load every day that can contribute to any balance in the series. The first
+	// emitted day is max(from, bank_start_date); its as-of date is the next day,
+	// and that window's start is the earliest day any balance can reach back to.
+	// The latest consumption that matters is the last day itself.
+	firstDay := from
+	if firstDay < bankStartDate {
+		firstDay = bankStartDate
 	}
-	defer rows.Close()
+	consumedByDay := map[string]float64{}
+	if firstDay <= to {
+		if windowStart := window.windowStartDate(addDaysUTC(firstDay, 1)); windowStart != "" {
+			consumedByDay, err = loadBankDayTotals(userID, windowStart, to)
+			if err != nil {
+				http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 
 	var stats []DailyBank
-	for rows.Next() {
-		var s DailyBank
-		if err := rows.Scan(&s.Date, &s.Balance); err != nil {
+	for day := from; day <= to; day = addDaysUTC(day, 1) {
+		// The series has always begun at the bank's start date.
+		if day < bankStartDate {
 			continue
 		}
-		s.Date = isoDate(s.Date)
-		stats = append(stats, s)
+		result := computeBankWindow(window, addDaysUTC(day, 1), consumedByDay)
+		stats = append(stats, DailyBank{Date: day, Balance: float64(result.Balance)})
 	}
 
 	if stats == nil {

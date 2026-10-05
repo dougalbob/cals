@@ -51,25 +51,72 @@ const num = (v) => (Number.isFinite(v) ? round1(v) : 0)
 let recipeImageVersionSeq = 0
 
 // ---------------------------------------------------------------------------
-// Bank maths — copied from internal/handlers/bank.go so the numbers agree
+// Bank maths — mirrors internal/handlers/bank.go so the numbers agree
+// (decisions 42, 66, 91, 92)
 // ---------------------------------------------------------------------------
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const shiftIsoDate = (isoDate, days) =>
+  new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)
+
+// Go's math.Round rounds halves away from zero; Math.round rounds halves towards
+// +Infinity, so a −0.5 balance would round differently on the two sides.
+const roundHalfAwayFromZero = (n) => (n < 0 ? -Math.round(-n) : Math.round(n))
+
+// The first day that can contribute for an as-of date: the previous N completed
+// calendar days, as-of excluded and floored at the bank's start date. Null when
+// there is no window at all. Mirrors bankWindow.windowStartDate in bank.go.
+function bankWindowStart(asOfDate, startDate, windowDays) {
+  if (!startDate || asOfDate <= startDate) return null
+  if (windowDays > 0) {
+    const limit = shiftIsoDate(asOfDate, -windowDays)
+    return limit > startDate ? limit : startDate
+  }
+  return startDate
+}
+
 function bank(asOfDate) {
-  const dailyGoal = currentUser().daily_calorie_goal
-  const startDate = currentUser().bank_start_date
-  const base = { daily_goal: dailyGoal, bank_balance: 0, today_available: dailyGoal, start_date: startDate, as_of_date: asOfDate }
+  const account = currentUser()
+  const dailyGoal = account.daily_calorie_goal
+  const startDate = account.bank_start_date
+  const windowDays = account.bank_window_days ?? 14
 
-  if (!startDate || asOfDate <= startDate) return base
+  const response = {
+    daily_goal: dailyGoal,
+    bank_balance: 0,
+    today_available: dailyGoal,
+    start_date: startDate,
+    as_of_date: asOfDate,
+    window_days: windowDays,
+    window_start_date: '',
+    days_counted: 0,
+    days_unlogged: 0,
+  }
 
-  const dayCount = seed.daysBetween(startDate, asOfDate)
-  if (dayCount <= 0) return base
+  const windowStart = bankWindowStart(asOfDate, startDate, windowDays)
+  if (!windowStart) {
+    // An as-of date on the bank's first day still names the window's start; an
+    // account with no bank started has no window to name.
+    if (startDate && asOfDate <= startDate) response.window_start_date = startDate
+    return response
+  }
+  response.window_start_date = windowStart
 
-  // Drinks count towards the bank (mirrors internal/handlers/bank.go).
-  const consumed =
-    seed.caloriesBetween(startDate, asOfDate, actingUserId) +
-    seed.drinkCaloriesBetween(startDate, asOfDate, actingUserId)
-  const bankBalance = dayCount * dailyGoal - Math.trunc(consumed)
-  return { ...base, bank_balance: bankBalance, today_available: dailyGoal + bankBalance }
+  // Decision 42: only days that have logging contribute; a day with no entries
+  // at all adds neither the day's budget nor its spend. Food and drinks share
+  // one ledger per day (decision 1).
+  const lastDay = shiftIsoDate(asOfDate, -1)
+  const totals = seed.loggedDayTotals(windowStart, lastDay, actingUserId)
+  let consumed = 0
+  for (const kcal of totals.values()) {
+    response.days_counted += 1
+    consumed += kcal
+  }
+  response.days_unlogged = seed.daysBetween(windowStart, asOfDate) - response.days_counted
+  response.bank_balance = roundHalfAwayFromZero(response.days_counted * dailyGoal - consumed)
+  response.today_available = dailyGoal + response.bank_balance
+  return response
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +237,21 @@ export function handle(method, url, body, headers = {}) {
 
   // --- read endpoints ------------------------------------------------------
   if (pathname === '/api/users/me' && method === 'GET') return json(currentUser())
+
+  // PUT /api/users/me — bank_window_days is the slice-14.2 addition (decision
+  // 93). 0 means "all time"; a negative window is a 400 rather than a silent
+  // no-op, matching internal/handlers/users.go.
+  if (pathname === '/api/users/me' && method === 'PUT') {
+    const account = currentUser()
+    if (body && Object.prototype.hasOwnProperty.call(body, 'bank_window_days')) {
+      const days = body.bank_window_days
+      if (!Number.isInteger(days) || days < 0) {
+        return err(400, 'bank_window_days must be 0 (all time) or a number of days')
+      }
+      account.bank_window_days = days
+    }
+    return json(account)
+  }
 
   // Session: who is signed in and whose data is on screen. Mirrors
   // internal/handlers/actinguser.go, including the rule that the Admin flag
@@ -420,9 +482,14 @@ export function handle(method, url, body, headers = {}) {
   if (pathname === '/api/stats/bank' && method === 'GET') {
     const range = resolveSeriesRange(searchParams, 14)
     if (range.error) return err(400, range.error)
+    const bankStart = currentUser().bank_start_date
     const out = []
     for (let date = range.from; date <= range.to; date = seed.nextDate(date)) {
-      out.push({ date, balance: bank(date).bank_balance })
+      // Each row is that day's closing balance — the bank as of the next
+      // morning, exactly as internal/handlers/stats.go computes it — and the
+      // series begins on the bank's start day.
+      if (bankStart && date < bankStart) continue
+      out.push({ date, balance: bank(seed.nextDate(date)).bank_balance })
     }
     return json(out)
   }
@@ -453,16 +520,7 @@ export function handle(method, url, body, headers = {}) {
     const waterDrinkIds = new Set(drinks.filter((d) => d.counts_toward_water).map((d) => d.id))
     const isoFromMs = (ms) => new Date(ms).toISOString().slice(0, 10)
     const addDays = (isoDate, n) => isoFromMs(Date.parse(`${isoDate}T00:00:00Z`) + n * 24 * 60 * 60 * 1000)
-    let runningConsumed = 0
-    // Seed running total from bank_start_date up to day before `from` so balances
-    // stay correct when the window starts mid-run.
     const bankStart = currentUser().bank_start_date
-    if (bankStart && from > bankStart) {
-      const dayBeforeFrom = addDays(from, -1)
-      runningConsumed =
-        seed.caloriesBetween(bankStart, addDays(dayBeforeFrom, 1), actingUserId) +
-        seed.drinkCaloriesBetween(bankStart, addDays(dayBeforeFrom, 1), actingUserId)
-    }
 
     for (let i = 0; i < dayCount; i++) {
       const date = isoFromMs(startMs + i * 24 * 60 * 60 * 1000)
@@ -482,14 +540,10 @@ export function handle(method, url, body, headers = {}) {
         .reduce((acc, e) => acc + e.volume_ml, 0)
       const totalCal = foodCal + drinkCal
 
-      // End-of-day bank balance: completed days from bankStart through `date`
-      // times goal, minus total consumption in that window.
-      let bankBalance = 0
-      if (bankStart && date >= bankStart) {
-        runningConsumed += totalCal
-        const completed = seed.daysBetween(bankStart, addDays(date, 1))
-        bankBalance = completed * currentUser().daily_calorie_goal - Math.trunc(runningConsumed)
-      }
+      // End-of-day bank balance: the same windowed rule as GET /api/bank, for
+      // the next morning (decisions 42, 66, 91, 92) — so a cell can never
+      // disagree with the tile on Today.
+      const bankBalance = bankStart && date >= bankStart ? bank(addDays(date, 1)).bank_balance : 0
 
       days.push({
         date,
@@ -511,6 +565,7 @@ export function handle(method, url, body, headers = {}) {
       to,
       daily_goal: currentUser().daily_calorie_goal,
       bank_start: bankStart,
+      bank_window_days: currentUser().bank_window_days ?? 14,
       days,
     })
   }

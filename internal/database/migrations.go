@@ -311,6 +311,16 @@ func RunMigrations() error {
 		// ADMIN_EMAILS / STANDARD_EMAILS in /app/data/.env, reconciled into this
 		// column at start-up; see internal/handlers/roles.go.
 		`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`,
+
+		// Phase 14 slice 14.2 (decisions 66, 91, 92, 93): the bank is a rolling
+		// window of the previous N completed calendar days rather than an
+		// accumulation since bank_start_date. Additive with a default of 14, so
+		// every existing account keeps working with no data operation. 0 means
+		// "all time" — no length limit, still bounded below by bank_start_date
+		// and still excluding unlogged days (decision 91). Read by every bank
+		// calculation and writable through PUT /api/users/me; the Settings
+		// control itself is Phase 15 (decision 93).
+		`ALTER TABLE users ADD COLUMN bank_window_days INTEGER NOT NULL DEFAULT 14`,
 	}
 
 	for _, migration := range migrations {
