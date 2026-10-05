@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md), [`metrics-evidence.md`](metrics-evidence.md) (working research for Phase 14 Metrics) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–88). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–100). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -874,14 +874,14 @@ wording (the owner left it to the implementation session):
   support — the same narrow, tested exception to the frontend-only boundary that Phase 15's ring
   limits and lookback window already require.
 
-**Design points left open:** whether the female outline exposes **bust** and the male outline
-**chest** (recommended — it keeps both columns meaningful and avoids asking a person to pick between
-them), or whether both points appear on both outlines; where the outline sits (the Metrics screen
-owns measurements, so it belongs there, with the existing table kept for history); whether the
-up/down stepper is 0.5 cm or 1 cm; and how the pop-up behaves for a part never measured (recommended:
-open empty with the save action creating the first value). Accessibility is not optional here: the
-dots need labels and keyboard focus, and the 44 px touch-target rule means the invisible hit area is
-larger than the visible dot — the same technique `RecipeTags` already uses.
+**Design points settled when the slice was built (2026-10-05):** the female outline exposes **bust**
+and the male outline **chest** (decision 98); the stepper is **0.5 cm** with typed 0.1 cm values
+(decision 99); a never-measured part **opens empty and the save creates the first value**; the map
+lives on the Metrics screen with the history table underneath (now showing every part of every
+session and opening rows for correction — decision 100). The write target and the outline preference
+are decisions 96 and 97. Accessibility is not optional here: the dots need labels and keyboard focus,
+and the 44 px touch-target rule means the invisible hit area is larger than the visible dot — the same
+technique `RecipeTags` already uses.
 
 ### The Diary meal-card back fill (decision 68)
 
@@ -1012,6 +1012,23 @@ Decisions 91 and 92 mean **the household's bank figures will move when Phase 14 
 window alone explains: a windowed figure is smaller than a since-day-one figure, and decision 42 also removes
 the day's budget that unlogged days currently add. That is why the windowed bank is its own published
 checkpoint with its own owner review before anything is built on top of it.
+
+## The body-map measurement picker — decisions 96–100 (2026-10-05)
+
+Slice 14.4's gating questions Q6–Q9 were settled with the owner on 2026-10-05, together with a bundle of
+agent-proposed improvements beyond the plan document. Before building, the session also verified two live
+defects against a real server: `POST /api/measurements` deleted the day's row before re-inserting it (posting
+one body part wiped the others recorded that day), and `GET /api/measurements` serialised part values as raw
+`sql.NullFloat64` objects (`{"Float64": 98.2, "Valid": true}`) — a shape no client type ever declared, which
+crashed the rc28 React Metrics screen on any account with measurements. Both are fixed by this slice.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 96 | 2026-10-05 | **The body map's save records a measurement for *today*; corrections of the past go through a separate patch.** Settles Q6 with a third option rather than the plan's (a)/(b): `POST /api/measurements` now **merges** the posted parts into the row for that date — creating it when needed, never deleting it — so committing one part can never wipe the others recorded the same day (the verified wipe bug). `PUT /api/measurements/{id}` is the correction path: it patches one entry in place, keeping its date and untouched parts, with an explicit null clearing a part, so "correct last month's waist" no longer invents a new measurement. The plan's option (a) would have rewritten the latest entry when simply measuring today; option (b)'s resend-everything contract is not used. | Owner (chose the agent's recommendation over the plan's two options) |
+| 97 | 2026-10-05 | **The outline preference gets its column in 14.4, with a one-time picker instead of an assumed default.** Settles Q7 as the plan recommended — a narrow, tested additive exception (`users.body_outline`, nullable) — and adds the first-use behaviour: NULL means "not chosen yet", and the map offers a one-off Female / Male choice the first time it opens, saved through `PUT /api/users/me` (only `"female"` and `"male"` are accepted). Neither household account is defaulted by the migration. | Owner |
+| 98 | 2026-10-05 | **The female outline carries the Bust point and the male outline the Chest point.** Settles Q8 as recommended: both measurement columns stay meaningful, and nobody is asked to choose between them. The other five parts (neck, waist, upper arm, hips, thigh) appear on both outlines. | Owner |
+| 99 | 2026-10-05 | **The stepper moves 0.5 cm; the field still accepts a typed 0.1 cm value.** Settles Q9 as recommended. The stepper never moves a value to zero or below. | Owner |
+| 100 | 2026-10-05 | **The 14.4 extras the owner approved:** (1) a staleness line on the measurements card — "Last measured …" with an amber cue after four weeks, decision 87's cadence made informational (no reminder is built); (2) the pop-up shows the previous value with its date and the live delta against the last measurement; (3) the history table lists **every** part recorded in a session (it previously showed 4 of the 7 and only 6 rows) and each row opens for correction through decision 96's PUT, with a two-step delete (decision 86's pattern); (4) `GET /api/measurements` gains the slice-14.1 `from`/`to` window contract (400-day cap, strict 400s) while its no-parameter behaviour stays exactly V1's newest-20; (5) `GET /api/measurements/latest` returns the newest non-null value per part plus the value before it, immune to the 20-row window; (6) the wire shape is normalised to plain `number \| null`, with the one legacy reader updated in the same PR (the 14.1 precedent). | Owner (approved the full bundle) |
 
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 

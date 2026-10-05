@@ -128,7 +128,11 @@ export const queryKeys = {
   weight: (days: number) => ['weight', days] as const,
   /** Panned window — keyed by the range the chart is showing (decision 69). */
   weightRange: (from: string, to: string) => ['weight', 'range', from, to] as const,
+  /** Prefix key: invalidating it refreshes the history table and latest values alike. */
   measurements: ['measurements'] as const,
+  measurementsRange: (from: string, to: string) => ['measurements', 'range', from, to] as const,
+  /** Per-part latest values for the body map's pop-up (slice 14.4). */
+  measurementsLatest: ['measurements', 'latest'] as const,
   calorieStats: (days: number) => ['stats', 'calories', days] as const,
   /** Panned window — keyed by the range the chart is showing (decision 69). */
   calorieStatsRange: (from: string, to: string) => ['stats', 'calories', 'range', from, to] as const,

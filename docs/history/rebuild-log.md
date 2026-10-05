@@ -14,6 +14,26 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14.4 built: the body-map measurement picker (decisions 96–100)
+
+The session settled the four questions gating 14.4 with the owner — **decision 96** (the map's save merges
+into today's row; corrections go through the new `PUT /api/measurements/{id}`, a third option beyond the
+plan's (a)/(b)), **97** (the `users.body_outline` column lands in-slice with a one-time Female/Male picker),
+**98** (Bust on the female outline, Chest on the male) and **99** (0.5 cm stepper, typed 0.1 values) — and
+approved the extras bundle as **decision 100**: the staleness line with decision 87's amber cue, the pop-up's
+previous-value context and live delta, the all-parts tappable history with two-step delete, the `from`/`to`
+window on the list, `GET /api/measurements/latest`, and the wire-shape normalisation.
+
+Before building, two defects were reproduced against a real server: the same-day wipe (posting hips deleted
+the morning's waist) and the `sql.NullFloat64` wire shape that crashed the rc28 Metrics screen on any account
+with measurements. Both are fixed and pinned — Go handler tests (7 new), 27 new Vitest tests, 4 new
+Playwright phone tests, full suite 66 passed; lint, typecheck, `build:go`, `build:preview` and the
+live-server curl pass all green. One additive migration, no data copy or appdata operation; the bundle grew
+508 → 529 kB. The slice now waits for the owner's Arena-preview approval (CURRENT_STATE §3 item 9), then
+merges and publishes as the next rc.
+
+---
+
 ## 2026-10-05 — rc28 published: the pannable metrics charts (PR #65, Phase 14.3)
 
 The owner approved 14.3 in the Arena preview ("looks good") and said to publish, so the checkpoint ran the

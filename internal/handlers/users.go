@@ -38,11 +38,11 @@ func GetOrCreateUser(email string) (*models.User, error) {
 	var bankStartDate sql.NullString
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, is_admin, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.IsAdmin,
+		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &user.IsAdmin,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -135,6 +135,7 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		BankStartDate    *string `json:"bank_start_date"`
 		BankWindowDays   *int    `json:"bank_window_days"`
 		WeightTrendDays  *int    `json:"weight_trend_days"`
+		BodyOutline      *string `json:"body_outline"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -183,11 +184,21 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		}
 		user.WeightTrendDays = *updates.WeightTrendDays
 	}
+	if updates.BodyOutline != nil {
+		// The body map's silhouette (decision 97). Only the two known shapes
+		// are accepted; an empty string or anything else is an error rather
+		// than a silent no-op, matching the other settings on this endpoint.
+		if *updates.BodyOutline != "female" && *updates.BodyOutline != "male" {
+			http.Error(w, `body_outline must be "female" or "male"`, http.StatusBadRequest)
+			return
+		}
+		user.BodyOutline = updates.BodyOutline
+	}
 
 	_, err = database.DB.Exec(`
-		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, updated_at = CURRENT_TIMESTAMP
+		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, body_outline = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.ID)
+	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.BodyOutline, user.ID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -214,7 +225,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, body_outline, is_admin, created_at, updated_at
 		FROM users ORDER BY name, email
 	`)
 	if err != nil {
@@ -229,7 +240,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 		var bankStartDate sql.NullString
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.IsAdmin,
+			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.BodyOutline, &user.IsAdmin,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {

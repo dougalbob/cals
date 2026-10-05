@@ -381,13 +381,15 @@ const Metrics = {
 
         container.innerHTML = '<h4>History</h4>' + measurements.slice(0, 5).map(m => {
             const values = [];
-            if (m.bust_cm?.Valid) values.push(`Bust: ${m.bust_cm.Float64}`);
-            if (m.chest_cm?.Valid) values.push(`Chest: ${m.chest_cm.Float64}`);
-            if (m.waist_cm?.Valid) values.push(`Waist: ${m.waist_cm.Float64}`);
-            if (m.hips_cm?.Valid) values.push(`Hips: ${m.hips_cm.Float64}`);
-            if (m.upper_arm_cm?.Valid) values.push(`Arm: ${m.upper_arm_cm.Float64}`);
-            if (m.thigh_cm?.Valid) values.push(`Thigh: ${m.thigh_cm.Float64}`);
-            if (m.neck_cm?.Valid) values.push(`Neck: ${m.neck_cm.Float64}`);
+            // Since Phase 14.4 the API returns a plain number or null per
+            // part (it used to be a {Float64, Valid} object).
+            if (m.bust_cm != null) values.push(`Bust: ${m.bust_cm}`);
+            if (m.chest_cm != null) values.push(`Chest: ${m.chest_cm}`);
+            if (m.waist_cm != null) values.push(`Waist: ${m.waist_cm}`);
+            if (m.hips_cm != null) values.push(`Hips: ${m.hips_cm}`);
+            if (m.upper_arm_cm != null) values.push(`Arm: ${m.upper_arm_cm}`);
+            if (m.thigh_cm != null) values.push(`Thigh: ${m.thigh_cm}`);
+            if (m.neck_cm != null) values.push(`Neck: ${m.neck_cm}`);
 
             return `
                 <div class="measurement-entry">

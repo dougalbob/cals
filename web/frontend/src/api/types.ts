@@ -20,6 +20,11 @@ export interface User {
    * with no UI until Phase 15.
    */
   weight_trend_days: number
+  /**
+   * Which silhouette the body map draws (decision 97). Null until the user
+   * picks one the first time they open the map; written via PUT /api/users/me.
+   */
+  body_outline: BodyOutline | null
   target_weight_kg?: number
   /** Admin/Standard role (decisions 45, 89): declared in the server's .env and reconciled at start-up. */
   is_admin: boolean
@@ -305,7 +310,21 @@ export interface WeightEntry {
   created_at: string
 }
 
+/** The two silhouettes the Metrics body map can draw (decision 97). */
+export type BodyOutline = 'female' | 'male'
+
+/** Every circumference the app tracks — the JSON keys of the API. */
+export type MeasurementPartKey =
+  | 'neck_cm'
+  | 'chest_cm'
+  | 'bust_cm'
+  | 'waist_cm'
+  | 'upper_arm_cm'
+  | 'hips_cm'
+  | 'thigh_cm'
+
 export interface MeasurementEntry {
+  id: number
   date: string
   bust_cm: number | null
   chest_cm: number | null
@@ -314,7 +333,18 @@ export interface MeasurementEntry {
   upper_arm_cm: number | null
   thigh_cm: number | null
   neck_cm: number | null
+  created_at?: string
 }
+
+/** One part's newest recorded value, plus the one before it (for "was 99.4"). */
+export interface MeasurementPoint {
+  value: number
+  date: string
+  previous: MeasurementPoint | null
+}
+
+/** Per-part latest values; null for a part never measured. */
+export type MeasurementLatest = Record<MeasurementPartKey, MeasurementPoint | null>
 
 export interface DailyCalories {
   date: string

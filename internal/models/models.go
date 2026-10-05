@@ -25,6 +25,11 @@ type User struct {
 	// rejects windows below 3 because a trend over fewer than three weigh-ins
 	// is never drawn.
 	WeightTrendDays  int       `json:"weight_trend_days"`
+	// BodyOutline is which silhouette the Metrics body map draws: "female" or
+	// "male" (decision 97). NULL until the user picks one the first time they
+	// open the map — the column landed in slice 14.4 as the narrow exception
+	// the plan's Q7 recommended, written through PUT /api/users/me.
+	BodyOutline      *string   `json:"body_outline"`
 	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
 	IsAdmin          bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
 	CreatedAt        time.Time `json:"created_at"`
@@ -160,19 +165,26 @@ type WeightEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// MeasurementEntry represents body measurements
+// MeasurementEntry represents body measurements.
+//
+// The part values are pointers so the JSON carries a plain number or null.
+// They were sql.NullFloat64 until slice 14.4, which serialised them as
+// {"Float64": 98.2, "Valid": true} — a shape no client type ever declared, and
+// the one that crashed the React Metrics screen on real data. Scanning a NULL
+// column into *float64 yields nil, so the wire shape is now exactly what
+// web/frontend/src/api/types.ts says.
 type MeasurementEntry struct {
-	ID         int64           `json:"id"`
-	UserID     int64           `json:"user_id"`
-	Date       string          `json:"date"`
-	BustCM     sql.NullFloat64 `json:"bust_cm,omitempty"`
-	ChestCM    sql.NullFloat64 `json:"chest_cm,omitempty"`
-	WaistCM    sql.NullFloat64 `json:"waist_cm,omitempty"`
-	HipsCM     sql.NullFloat64 `json:"hips_cm,omitempty"`
-	UpperArmCM sql.NullFloat64 `json:"upper_arm_cm,omitempty"`
-	ThighCM    sql.NullFloat64 `json:"thigh_cm,omitempty"`
-	NeckCM     sql.NullFloat64 `json:"neck_cm,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`
+	Date       string    `json:"date"`
+	BustCM     *float64  `json:"bust_cm"`
+	ChestCM    *float64  `json:"chest_cm"`
+	WaistCM    *float64  `json:"waist_cm"`
+	HipsCM     *float64  `json:"hips_cm"`
+	UpperArmCM *float64  `json:"upper_arm_cm"`
+	ThighCM    *float64  `json:"thigh_cm"`
+	NeckCM     *float64  `json:"neck_cm"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // WeightGoal represents a monthly weight loss target
