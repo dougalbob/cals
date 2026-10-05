@@ -14,6 +14,51 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14.6 built: the weekly report (decisions 46, 107–109)
+
+The last slice of Phase 14. Before anything was written the owner settled its three shape questions, now
+recorded as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05):
+
+- **107 — one week at a time, with a free range one tap away.** The plan's recommendation was a week picker
+  defaulting to the current week; the owner took that and added a **Custom** mode for any `from`/`to` pair the
+  API allows. The report's window rides in the URL as `report`/`report_anchor`/`report_from`/`report_to`,
+  because `from`/`to` on `/metrics` already belong to the pannable charts (decision 69) — so a deep-linked
+  report cannot move somebody's chart, and the default view leaves the clean `/metrics` URL alone.
+- **108 — it opens on the current week so far**, Monday through today, labelled "· so far", with the previous
+  week one tap back. It matches the Calendar, which also refuses to look forward (decision 63).
+- **109 — "best" and "worst" mean closest to and furthest from the daily goal**, either side, each labelled
+  with its kcal and ± delta; not "lowest intake" and not "biggest blowout". Unlogged days are excluded from
+  both, as from every other figure (decision 42).
+
+The card in Metrics reports calories against `goal × logged days` (with the average over logged days and
+over/under/on-goal counts), **how the bank moved**, water, weight change, the four nutrition traffic lights
+for the range, the best and worst days, and **the days excluded as unlogged, named** — decision 42's rule made
+visible rather than quiet, which is why the report was asked for. A day's bank movement comes from the
+Calendar's closing balances, computed by the same `computeBankWindow` every other bank surface calls, so the
+card cannot disagree with the tile; its range starts one day before the report's first day, because a closing
+balance is the bank as of the *next* morning (slice 14.2's rule). The weigh-in change is carried forward from
+the last weigh-in at each end of the period, never fabricated for a day without one.
+
+`GET /api/nutrition/weekly` gained the same `from`/`to` contract slice 14.1 gave the metrics endpoints —
+shared `resolveSeriesRange`, strict `400`s, 400-day cap, `to` clamped to today — while the legacy `days`
+parameter keeps its exact old contract, so V1 and the Nutrition screen are untouched. The fixture API mirrors
+that range path, cross-checked against its own `/api/stats/calories` rows so the Arena preview's numbers match
+the app's. **No schema change, migration, data copy or appdata operation.**
+
+Verified with `go vet ./...` and `go test ./...` (a new `nutrition_test.go`: exact window and contiguity,
+drink-inclusive calories agreeing with the ring, clamping, six malformed ranges, the unchanged `days`
+contract, and a range reaching before `bank_start_date`) — every new test run against a simulated pre-slice
+handler and confirmed to fail there; the real Go server driven over HTTP on a fresh database (a 7-day window
+returned exactly 7 days including a day before the bank start, 500 food + 180 drink reported as 500/180/0 on
+their days with an average of 445 over the 4 logged days, `?days=7` unchanged, every malformed range a `400`,
+a future `to` clamped); 305 Vitest tests (13 new report-maths, 4 new report-card, 3 new fixture-contract);
+lint/typecheck/`build:go`; and the full Playwright suite — 68 tests, 66 passed, the two failures being the
+known, owner-deferred `e2e/navigation.spec.ts` specs, with the slice's own two new phone tests passing. The
+slice awaits the owner's Arena-preview review; on approval it is published as the next `rc` and joins the
+accumulated Unraid road-test (CURRENT_STATE §3 items 10 and 12).
+
+---
+
 ## 2026-10-05 — rc32 published: food-editor precision and metric panning polish (decision 106, PR #72)
 
 The owner reviewed the Arena preview and asked to publish this frontend-only follow-up. PR #72 merged into

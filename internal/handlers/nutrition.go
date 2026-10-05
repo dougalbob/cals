@@ -10,9 +10,12 @@ import (
 	"cals/internal/database"
 )
 
-// maxNutritionWindow bounds the days parameter for GET /api/nutrition/weekly so
-// the endpoint cannot be asked to compute arbitrarily large ranges. It matches
-// the cap already used on the stats endpoints (slice 14.1).
+// maxNutritionWindow bounds the legacy `days` parameter for
+// GET /api/nutrition/weekly so the endpoint cannot be asked to compute
+// arbitrarily large ranges. It matches the cap already used on the stats
+// endpoints (slice 14.1). An explicit from/to pair is bounded by
+// resolveSeriesRange's maxSeriesSpan (400 days) instead, exactly as the stats
+// series endpoints are (slice 14.6).
 const maxNutritionWindow = 90
 
 // NutritionSettings represents user's nutrition goals
@@ -273,22 +276,35 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 	// Get current weight
 	weightKg := getCurrentWeightKg(userID)
 
-	// Window length: optional `days` query parameter (default 7, matching V1
-	// and the current React call site); bounded so the endpoint cannot be
-	// asked to compute arbitrarily large ranges. The endpoint stays anchored
-	// at today; the 14.6 weekly report is what adds a date-range picker.
-	days := 7
-	if ds := r.URL.Query().Get("days"); ds != "" {
-		n, err := strconv.Atoi(ds)
-		if err != nil || n < 1 || n > maxNutritionWindow {
-			http.Error(w, "days must be between 1 and 90", http.StatusBadRequest)
+	// Window: an explicit `from`/`to` pair wins (slice 14.6 — the weekly report's
+	// date-range picker), otherwise the legacy `days` parameter counts back from
+	// today exactly as before, so V1 and the Nutrition screen are untouched.
+	//
+	// The from/to path is strict and shared with the metrics series endpoints
+	// (a malformed or half-given range is a 400, `to` is clamped to today so a
+	// future row cannot be fabricated); `days` keeps its old contract, where an
+	// out-of-range value is still a 400 rather than a silent fallback.
+	var startISO, endISO string
+	if r.URL.Query().Get("from") != "" || r.URL.Query().Get("to") != "" {
+		from, to, ok := resolveSeriesRange(w, r, 7, maxNutritionWindow, true)
+		if !ok {
 			return
 		}
-		days = n
+		startISO, endISO = from, to
+	} else {
+		days := 7
+		if ds := r.URL.Query().Get("days"); ds != "" {
+			n, err := strconv.Atoi(ds)
+			if err != nil || n < 1 || n > maxNutritionWindow {
+				http.Error(w, "days must be between 1 and 90", http.StatusBadRequest)
+				return
+			}
+			days = n
+		}
+		endDate := time.Now()
+		startDate := endDate.AddDate(0, 0, -(days - 1))
+		startISO, endISO = startDate.Format("2006-01-02"), endDate.Format("2006-01-02")
 	}
-
-	endDate := time.Now()
-	startDate := endDate.AddDate(0, 0, -(days - 1))
 
 	// Food entries contribute calories + macros; drink entries contribute
 	// calories only (drink schema has no macro columns) — decisions 1 and
@@ -327,7 +343,7 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN food_totals f ON f.date = d.date
 		LEFT JOIN drink_totals dr ON dr.date = d.date
 		ORDER BY d.date ASC
-	`, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), userID, userID)
+	`, startISO, endISO, userID, userID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -391,8 +407,8 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 	status := calculateStatus(averages, settings)
 
 	analysis := WeeklyAnalysis{
-		StartDate:       startDate.Format("2006-01-02"),
-		EndDate:         endDate.Format("2006-01-02"),
+		StartDate:       startISO,
+		EndDate:         endISO,
 		DailyData:       dailyData,
 		Averages:        averages,
 		Status:          status,

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPut, queryKeys } from '../api/client'
-import type { NutritionSettings, TrafficLight, WeeklyAnalysis } from '../api/types'
+import type { NutritionSettings, WeeklyAnalysis } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
 import { DonutChart } from '../components/DonutChart'
 import { Modal } from '../components/Modal'
+import { StatusLight } from '../components/StatusLight'
 import { formatNumber, formatShortDate } from '../lib/format'
 
 /**
@@ -99,25 +100,25 @@ export function NutritionRoute() {
           {formatNumber(averages.calories)} kcal/day
         </p>
             <div className="grid grid-cols-2 gap-3">
-              <Light
+              <StatusLight
                 label="Protein"
                 light={data.status.protein}
                 value={`${averages.protein.toFixed(0)} g`}
                 sub={`${averages.protein_per_kg.toFixed(2)} g/kg · goal ${settings.protein_goal_per_kg}`}
               />
-              <Light
+              <StatusLight
                 label="Carbs"
                 light={data.status.carbs}
                 value={`${averages.carbs_percent.toFixed(0)}%`}
                 sub={`target ${settings.carb_min_percent}–${settings.carb_max_percent}%`}
               />
-              <Light
+              <StatusLight
                 label="Fat"
                 light={data.status.fat}
                 value={`${averages.fat_percent.toFixed(0)}%`}
                 sub={`max ${settings.fat_max_percent}%`}
               />
-              <Light
+              <StatusLight
                 label="Fibre"
                 light={data.status.fibre}
                 value={`${averages.fibre.toFixed(0)} g`}
@@ -399,21 +400,6 @@ function LegendRow({ color, label, value, hint }: { color: string; label: string
       <span className="font-medium">{label}:</span>
       <span className="tabular-nums">{value}</span>
       <span className="ml-auto text-xs text-ink-muted">{hint}</span>
-    </div>
-  )
-}
-
-function Light({ label, light, value, sub }: { label: string; light: TrafficLight; value: string; sub: string }) {
-  const dot = light === 'green' ? 'bg-success' : light === 'amber' ? 'bg-warning' : 'bg-danger'
-  return (
-    <div className="rounded-xl border border-line-light px-3 py-2">
-      <p className="m-0 flex items-center gap-1.5 text-xs text-ink-light">
-        <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} aria-hidden />
-        {label}
-        <span className="sr-only">{light}</span>
-      </p>
-      <p className="m-0 font-semibold">{value}</p>
-      <p className="m-0 text-xs text-ink-light">{sub}</p>
     </div>
   )
 }
