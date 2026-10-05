@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DRINK_CATALOG,
   catalogTypeForName,
+  drinkExtras,
   extrasCalories,
   usualCalories,
   varyCalories,
@@ -53,6 +54,35 @@ describe('drink catalog', () => {
     expect(varyCalories(drink, true, '0')).toBe(17)
     expect(varyCalories(drink, false, '0')).toBe(2)
     expect(varyCalories(drink, true, '1')).toBe(33)
+  })
+
+  it('falls back to the type for a legacy row whose extras flags were never set', () => {
+    // The additive migration defaulted accepts_milk/accepts_sugar to 0 on rows
+    // that predate them; the drink's type still decides what it can take.
+    const legacyTea: Drink = {
+      id: 1,
+      user_id: 1,
+      name: 'Tea',
+      icon: '🫖',
+      volume_ml: 250,
+      calories: 2,
+      counts_toward_water: true,
+      accepts_milk: false,
+      accepts_sugar: false,
+      usual_milk: false,
+      usual_sugar: '0',
+    }
+    expect(drinkExtras(legacyTea)).toMatchObject({ acceptsMilk: true, acceptsSugar: true })
+
+    // A row that has been configured keeps what it says.
+    expect(drinkExtras({ ...legacyTea, accepts_sugar: false, accepts_milk: true })).toMatchObject({
+      acceptsMilk: true,
+      acceptsSugar: true,
+    })
+
+    // A type that takes neither stays button-free.
+    const juice: Drink = { ...legacyTea, name: 'Juice' }
+    expect(drinkExtras(juice)).toMatchObject({ acceptsMilk: false, acceptsSugar: false })
   })
 
   it('resolves common aliases onto catalog types', () => {

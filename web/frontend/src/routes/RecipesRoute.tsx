@@ -634,7 +634,7 @@ function RecipeCard({
       </div>
 
       <div className="p-4">
-        <h3 className="m-0 truncate text-base font-semibold">
+        <h3 className="m-0 break-words text-base font-semibold [overflow-wrap:anywhere]">
           <Link to={detailHref} className="text-ink no-underline hover:underline">
             {recipe.name}
           </Link>

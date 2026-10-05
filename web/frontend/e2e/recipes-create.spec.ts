@@ -105,6 +105,27 @@ test.describe('Create recipe', () => {
 
   test('the form stays clear and its actions remain above fixed navigation on a short phone', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 640 })
+    // Selecting a photo adds a third control to the picker row (take / change /
+    // remove). None of them may push the row past its card: horizontal overflow
+    // makes Chromium mobile shrink the whole page to fit, which the owner would
+    // see as a zoomed-out, cut-off form.
+    await page.getByLabel('Choose recipe photo').setInputFiles({
+      name: 'layout.png', mimeType: 'image/png', buffer: Buffer.from('fixture image bytes'),
+    })
+    const overflows = await page.evaluate(() => {
+      const section = document.querySelector('section[aria-label="Recipe photo"]')!
+      const row = document.querySelector('[data-testid="recipe-photo-actions"]')!
+      const sr = section.getBoundingClientRect()
+      const rr = row.getBoundingClientRect()
+      return {
+        rowRight: rr.right - sr.right,
+        rowLeft: sr.left - rr.left,
+        docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    expect(overflows.rowRight).toBeLessThanOrEqual(0.5)
+    expect(overflows.rowLeft).toBeLessThanOrEqual(0.5)
+    expect(overflows.docOverflow).toBeLessThanOrEqual(1)
 
     const description = await page.getByRole('textbox', { name: 'Description' }).boundingBox()
     const create = page.getByRole('button', { name: 'Create recipe' })

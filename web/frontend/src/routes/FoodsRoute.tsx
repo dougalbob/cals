@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
-import { createFood, deleteFood, getCustomFoods, updateFood } from '../api/foods'
+import { createFood, deleteFood, getCustomFoods, getFood, updateFood } from '../api/foods'
 import type { Food, FoodInput, FoodServingInput } from '../api/types'
 import { Modal } from '../components/Modal'
 import { useDebounced } from '../hooks/useDebounced'
@@ -12,6 +12,10 @@ export function FoodsRoute() {
   const [term, setTerm] = useState('')
   const [editing, setEditing] = useState<Food | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Food | null>(null)
+  // A FatSecret hit has no local row yet; saving it caches the food and its
+  // measures, then opens the editor so its values can be corrected.
+  const [savingFromFatSecret, setSavingFromFatSecret] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const debounced = useDebounced(term, 250)
 
@@ -41,6 +45,28 @@ export function FoodsRoute() {
     },
   })
 
+  /**
+   * Save a FatSecret result into the local catalogue and open it for editing.
+   * The GET is the cache: it writes the food and its FatSecret measures, then
+   * the editor lets the household correct the values and add its own measures.
+   */
+  const saveFromFatSecret = async (food: Food) => {
+    setResolveError(null)
+    setSavingFromFatSecret(String(food.id))
+    try {
+      const saved = await getFood(food.id)
+      if (typeof saved.id !== 'number') {
+        throw new Error('That food could not be saved to your list.')
+      }
+      invalidateFoods()
+      setEditing(saved)
+    } catch (caught) {
+      setResolveError((caught as Error).message)
+    } finally {
+      setSavingFromFatSecret(null)
+    }
+  }
+
   const showSearch = debounced.trim().length >= 2
 
   return (
@@ -60,9 +86,21 @@ export function FoodsRoute() {
             {search.isFetching && <p className="text-sm text-ink-light mt-2 mb-0">Searching…</p>}
             <ul className="list-none m-0 p-0 mt-2">
               {(search.data ?? []).map((food) => (
-                <FoodRow key={String(food.id)} food={food} onEdit={setEditing} />
+                <FoodRow
+                  key={String(food.id)}
+                  food={food}
+                  onEdit={setEditing}
+                  onSaveFromFatSecret={(hit) => void saveFromFatSecret(hit)}
+                  savingFromFatSecret={savingFromFatSecret === String(food.id)}
+                  savingDisabled={savingFromFatSecret !== null}
+                />
               ))}
             </ul>
+            {resolveError && (
+              <p role="alert" className="m-0 mt-2 text-sm text-danger">
+                {resolveError}
+              </p>
+            )}
             {!search.isFetching && (search.data ?? []).length === 0 && (
               <p className="text-sm text-ink-muted mt-2 mb-0">No matches.</p>
             )}
@@ -159,19 +197,27 @@ function FoodRow({
   food,
   onEdit,
   onDelete,
+  onSaveFromFatSecret,
+  savingFromFatSecret = false,
+  savingDisabled = false,
 }: {
   food: Food
   onEdit: (food: Food) => void
   onDelete?: () => void
+  /** Present on search results: saves a FatSecret hit into the local catalogue. */
+  onSaveFromFatSecret?: (food: Food) => void
+  savingFromFatSecret?: boolean
+  savingDisabled?: boolean
 }) {
   const editable = typeof food.id === 'number'
+  const fromFatSecret = typeof food.id === 'string'
   const measures = servingChoices(food)
 
   return (
     <li className="py-2.5 border-b border-line-light last:border-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="m-0 text-sm font-medium truncate">
+          <p className="m-0 text-sm font-medium break-words">
             {food.name}
             {food.brand ? <span className="text-ink-light font-normal"> · {food.brand}</span> : null}
           </p>
@@ -185,11 +231,27 @@ function FoodRow({
               {measures.map((choice) => `${choice.label} (${formatNumber(choice.grams, 1)} g)`).join(' · ')}
             </p>
           )}
-          {typeof food.id === 'string' && (
-            <p className="m-0 mt-1 text-xs text-ink-muted">FatSecret result — open it in search to cache it first.</p>
+          {fromFatSecret && onSaveFromFatSecret && (
+            <p className="m-0 mt-1 text-xs text-ink-muted">
+              FatSecret result — save it to your foods to correct its values or add your own measures.
+            </p>
+          )}
+          {!fromFatSecret && food.fatsecret_id && (
+            <p className="m-0 mt-1 text-xs text-ink-muted">From FatSecret — edits are kept in your own catalogue.</p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {fromFatSecret && onSaveFromFatSecret ? (
+            <button
+              type="button"
+              disabled={savingDisabled}
+              onClick={() => onSaveFromFatSecret(food)}
+              className="min-h-11 rounded-lg border border-primary px-3 text-sm font-medium text-primary-dark disabled:opacity-50"
+              aria-label={`Save ${food.name} to your foods and edit it`}
+            >
+              {savingFromFatSecret ? 'Saving…' : 'Save & edit'}
+            </button>
+          ) : null}
           {editable && (
             <button
               type="button"
@@ -328,6 +390,13 @@ function FoodEditorModal({
   return (
     <Modal open title={food ? `Edit ${food.name}` : 'New food'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {food?.fatsecret_id && (
+          <p className="m-0 rounded-xl bg-surface px-3 py-2 text-xs text-ink-light">
+            Saved from FatSecret. Corrections and measures you add here are kept in your own catalogue and used
+            everywhere this food is logged from now on.
+          </p>
+        )}
+
         <label className="flex flex-col gap-1 text-sm font-medium">
           Name *
           <input

@@ -111,6 +111,72 @@ export function findFood(id) {
 }
 
 /**
+ * FatSecret hits the fixture has not cached yet. The real server returns these
+ * from `/api/foods/search` as `fs_<id>` rows and writes a local food row when
+ * `/api/foods/fs_<id>` is fetched — which is exactly what picking one in the
+ * Diary or saving one in Foods does. Names are deliberately long enough to
+ * exercise mobile wrapping.
+ */
+export const uncachedFatSecretFoods = [
+  {
+    fatsecret_id: '2001',
+    name: 'Sliced white bread, thick toast',
+    brand: 'Kingsmill',
+    calories_per_100g: 254,
+    protein_per_100g: 8.5,
+    carbs_per_100g: 46.1,
+    fat_per_100g: 3.4,
+    fibre_per_100g: 2.7,
+    servings: [
+      { description: '1 thick slice', grams: 60, fatsecret_serving_id: 'fs-serving-1' },
+      { description: '1 medium slice', grams: 40, fatsecret_serving_id: 'fs-serving-2' },
+    ],
+  },
+  {
+    fatsecret_id: '2002',
+    name: 'Chicken and bacon pasta bake, family tray',
+    brand: '',
+    calories_per_100g: 168.4,
+    protein_per_100g: 11.2,
+    carbs_per_100g: 17.6,
+    fat_per_100g: 6.1,
+    fibre_per_100g: 1.3,
+    servings: [{ description: '1 portion', grams: 350, fatsecret_serving_id: 'fs-serving-3' }],
+  },
+]
+
+/** Mirrors GET /api/foods/fs_<id>: caches the hit into the local catalogue once. */
+export function cacheFatSecretFood(fatsecretId) {
+  const existing = foods.find((food) => String(food.fatsecret_id ?? '') === String(fatsecretId))
+  if (existing) return existing
+
+  const hit = uncachedFatSecretFoods.find((food) => String(food.fatsecret_id) === String(fatsecretId))
+  if (!hit) return null
+
+  const id = nextFoodId()
+  const food = {
+    id,
+    fatsecret_id: hit.fatsecret_id,
+    name: hit.name,
+    ...(hit.brand ? { brand: hit.brand } : {}),
+    calories_per_100g: hit.calories_per_100g,
+    protein_per_100g: hit.protein_per_100g,
+    carbs_per_100g: hit.carbs_per_100g,
+    fat_per_100g: hit.fat_per_100g,
+    fibre_per_100g: hit.fibre_per_100g,
+    is_edited: false,
+    servings: hit.servings.map((serving) => ({
+      id: nextFoodServingId(),
+      food_id: id,
+      ...serving,
+    })),
+  }
+  foods.push(food)
+  foodById.set(id, food)
+  return food
+}
+
+/**
  * A diary entry's food measures, read from the food definition at response
  * time exactly as the Go GET /api/diary handler does.
  */

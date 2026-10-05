@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
@@ -150,6 +150,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
   const [resolutionError, setResolutionError] = useState<string | null>(null)
   const [resolvingFood, setResolvingFood] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const cookedWeightHintId = useId()
 
   // Creation shares the same controlled classification vocabulary as Add tag
   // and Edit recipe. These are household recipe fields, not user preferences.
@@ -423,9 +424,9 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
         ) : (
           <ul className="m-0 mt-2 list-none divide-y divide-line-light p-0">
             {ingredients.map((ingredient, index) => (
-              <li key={ingredient.key} className="flex items-end gap-2 py-2">
+              <li key={ingredient.key} className="flex flex-wrap items-end gap-2 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="m-0 truncate text-sm font-medium">{ingredient.food_name}</p>
+                  <p className="m-0 break-words text-sm font-medium">{ingredient.food_name}</p>
                   <label className="mt-1 flex items-center gap-2 text-xs text-ink-light">
                     <span>Weight (g)</span>
                     <input
@@ -440,14 +441,10 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
                     />
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeFoodLine(ingredient)}
-                  aria-label={`Remove ${ingredient.food_name}`}
-                  className="min-h-10 rounded-lg border border-line px-3 text-sm text-ink-light"
-                >
-                  Remove
-                </button>
+                <IngredientRemoveButton
+                  label={`Remove ${ingredient.food_name}`}
+                  onRemove={() => removeFoodLine(ingredient)}
+                />
               </li>
             ))}
           </ul>
@@ -526,7 +523,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
         ) : (
           <ul className="m-0 mt-2 list-none p-0">
             {textIngredients.map((ingredient, index) => (
-              <li key={ingredient.key} className="flex items-center gap-2 py-1">
+              <li key={ingredient.key} className="flex flex-wrap items-center gap-2 py-1">
                 <input
                   aria-label={`Text ingredient ${index + 1}`}
                   value={ingredient.description}
@@ -534,14 +531,12 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
                   placeholder="For example, a pinch of salt"
                   className="min-h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => setTextIngredients((current) => current.filter((item) => item.key !== ingredient.key))}
-                  aria-label={`Remove text ingredient ${index + 1}`}
-                  className="min-h-10 rounded-lg border border-line px-3 text-sm text-ink-light"
-                >
-                  Remove
-                </button>
+                <IngredientRemoveButton
+                  label={`Remove text ingredient ${index + 1}`}
+                  onRemove={() =>
+                    setTextIngredients((current) => current.filter((item) => item.key !== ingredient.key))
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -583,8 +578,14 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
               inputMode="decimal"
               value={manualWeight}
               onChange={(event) => setManualWeight(event.target.value)}
+              aria-describedby={cookedWeightHintId}
               className="min-h-11 rounded-xl border border-line bg-card px-3 text-base"
             />
+            <p id={cookedWeightHintId} className="m-0 mt-2 text-xs font-normal text-ink-light">
+              The foods in this recipe add up to{' '}
+              <span className="font-semibold tabular-nums text-ink">{formatNumber(calculatedWeight, 1)} g</span>.
+              If nothing was lost in cooking, type that figure in — it is a hint, never saved by itself.
+            </p>
           </label>
         ) : (
           <p className="m-0 text-sm text-ink-light">
@@ -742,3 +743,45 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
     </form>
   )
 }
+
+/**
+ * Ingredient removal asks first, in place — the same two-button check the
+ * Archive recipe button uses. A slip while editing a recipe must not drop an
+ * ingredient (and, with it, a key food) without confirmation.
+ */
+function IngredientRemoveButton({ label, onRemove }: { label: string; onRemove: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        aria-label={label}
+        className="min-h-10 shrink-0 rounded-lg border border-line px-3 text-sm text-ink-light"
+      >
+        Remove
+      </button>
+    )
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-2" role="group" aria-label={`Confirm ${label.toLowerCase()}`}>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="min-h-10 rounded-lg bg-danger px-3 text-sm font-semibold text-white"
+      >
+        Yes, remove
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium"
+      >
+        Keep
+      </button>
+    </span>
+  )
+}
+

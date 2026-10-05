@@ -31,7 +31,7 @@ test.describe('Recipe detail', () => {
   })
 
   test('replaces a recipe photo without cropping', async ({ page, request }) => {
-    await page.getByLabel('Recipe photo').setInputFiles({
+    await page.getByLabel('Choose recipe photo').setInputFiles({
       name: 'replacement.webp',
       mimeType: 'image/webp',
       buffer: Buffer.from('fixture image bytes'),

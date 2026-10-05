@@ -88,7 +88,9 @@ test.describe('Edit recipe', () => {
     await page.getByLabel('Description').fill('Batch-cooked Friday curry — updated.')
     await page.getByRole('button', { name: '+ Add text ingredient' }).click()
     await page.getByRole('textbox', { name: 'Text ingredient 4' }).fill('a squeeze of lime')
+    // Removing asks first (decision 105), so the check is two taps.
     await page.getByRole('button', { name: 'Remove text ingredient 2' }).click()
+    await page.getByRole('button', { name: 'Yes, remove' }).click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
     await expect(page.getByRole('dialog')).toHaveCount(0)

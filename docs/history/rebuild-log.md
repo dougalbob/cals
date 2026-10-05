@@ -14,7 +14,53 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
-## 2026-10-05 — rc29 published: the body-map measurement picker (PR #67, Phase 14.4 + decision 101)
+## 2026-10-05 — Owner road-test pass: non-local foods and mobile papercuts (decisions 102–105)
+
+The owner reviewed the React app on a phone and sent a batch of issues. This session took the slice it could
+finish well: **FatSecret (non-local) foods are no longer read-only, and six small mobile papercuts are
+fixed** — decisions 102–105. Frontend only: no Go change, no schema migration, no data copy and no appdata
+operation.
+
+- **Diary:** picking a FatSecret result resolves `GET /api/foods/fs_<id>` (which caches the food and its
+  FatSecret measures, exactly as the legacy Add sheet did) and only then opens the quantity sheet, with a
+  "saving to your food list" row state and a saved-from-FatSecret note. Meal-entry food/recipe names wrap
+  instead of truncating, so "Sliced white bread, thick toast" reads in full (decision 102).
+- **Foods:** a FatSecret search result gains **Save & edit** — the food is cached, the list is refreshed and
+  the editor opens with a provenance note so its per-100 g values and household measures can be corrected
+  (decision 102).
+- **Quick drinks:** the ⋯ button had disappeared from Tea and Coffee because the additive extras migration
+  defaulted legacy rows to `accepts_milk = 0, accepts_sugar = 0` and the UI trusted those zeros; `drinkExtras()`
+  now ORs the row's flags with the drink type's, and the drink editor's volume/calories fields no longer write a
+  literal leading zero when cleared and retyped (decisions 103).
+- **Recipes:** the photo picker gains a **Take photo** camera input beside the gallery picker; the manual
+  cooked-weight box shows the sum of the food ingredients as a display-only hint; and removing a food or text
+  ingredient asks first with the same two-button check as *Archive recipe* (decisions 104–105).
+- **Chart panning:** the owner's report is recorded with a code-level diagnosis in the decision log (per-day
+  `setSearchParams`, no keep-previous-data so ranges flash `Loading…`, per-day haptics, full-route re-render;
+  visited ranges are cached, which is why it improves) and is planned as its own small follow-up slice.
+
+Verification on this branch: `npm test` — 36 files, 282 tests, all passing (six new behavioural tests:
+FatSecret pick-and-log in the Diary, Save & edit in Foods, a legacy Tea row's ⋯, the retyped drink volume, and
+the recipe hint/confirmation/camera inputs); `npx tsc --noEmit`, `npm run lint --max-warnings 0` and
+`npm run build:go` clean; the fixture API now mirrors the real `fs_` search/caching contract so those flows are
+tested against the same shapes the Go server returns.
+
+The browser suite **did** run in the sandbox this time, via `scripts/run-playwright-in-sandbox.sh` (the npm-fetched
+Chromium): **64 passed, 2 failed**, the two failures being the pre-existing `e2e/navigation.spec.ts` ones inherited
+from rc30 (see below). The suite earned its keep by catching a real layout bug in this slice: once a photo was
+selected, the recipe-photo picker's action row (take / change / remove) was wider than its card at 412 px, and
+Chromium's mobile emulation responded by shrinking the whole page to fit — a zoomed-out, cut-off form that also made
+the click target land on the wrong element. The status line now sits above the buttons and the buttons wrap, pinned by
+a new assertion in `e2e/recipes-create.spec.ts` that measures the row against its card with a photo selected. Two
+specs were updated for intended behaviour: the photo input is addressed as **Choose recipe photo** (the camera input's
+own label made the old substring match ambiguous) and the editor's remove-a-note check now taps **Yes, remove**.
+
+**The two rc30 nav failures are diagnosed** (test-side and app-side, neither touched by this branch): the arrow test
+still asks for `Show earlier navigation destinations`, but PR #69 renamed the overlay to `Show main navigation`
+(visible text **Back**); and the swipe test's touch gesture starts at the far right of the nav, where the rc30 **More**
+overlay (a 20%-wide button at `right-0`) swallows it, so the scroller never moves. The arrow itself works. Fixing the
+overlay's swipe-through (or narrowing it) is a small follow-up for whoever picks up the nav.
+
 
 The owner approved the Arena preview ("looks good") and the code-split fix, so PR #67 was merged into
 `cals-dev` as `3c54b824f7bfb8818a70f327b073e10b42e34a14` and tagged `v2.0.0-dev-rc29` at exactly that

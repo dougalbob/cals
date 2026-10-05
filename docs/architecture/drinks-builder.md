@@ -55,7 +55,7 @@ If the user has no Water drink yet, the glass is inert and the card points them 
 | Chevron / ⋯ on the tile | Only on types that accept milk and/or sugar. Opens a small sheet for **this log only**. Does not change the usual. |
 | Long-press | Unchanged: confirm, then delete the latest entry of that drink. |
 
-Juice, milk-as-a-drink, squash, soft drink, beer, wine have no chevron — they cannot take milk or sugar, which is how the “orange juice problem” is solved. The type carries `accepts_milk` / `accepts_sugar`; the sheet is simply not offered.
+Juice, milk-as-a-drink, squash, soft drink, beer, wine have no chevron — they cannot take milk or sugar, which is how the “orange juice problem” is solved. The type carries `accepts_milk` / `accepts_sugar`; the sheet is simply not offered. **The type decides even when a row's columns were never set** (decision 103): the additive extras migration defaulted every pre-existing row to 0, so `drinkExtras()` ORs the stored flags with the catalog type's rather than trusting `false` alone — otherwise legacy Tea and Coffee rows lose the button. Only the *accepts* pair is widened: the row's own usual milk/sugar (and its calories) are what the editor saves, and saving from *My drinks* persists the type's flags onto the row.
 
 **Vary sheet (decision 24):** milk = none / with milk; sugar = 0 / 1 / 2 / sweetener. Prefills the user’s usual. Calories use household medians (same spirit as decision 2 — not a beverage database):
 
