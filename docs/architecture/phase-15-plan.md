@@ -90,7 +90,7 @@ These questions do **not** block 15.1 or 15.3.
 
 ## 6. Implementation and preview review
 
-**15.1 Settings foundation and 15.3 installability are built on this branch.** The Settings screen saves
+**15.1 Settings foundation and 15.3 installability were built and published in rc34.** The Settings screen saves
 profile and target values, the bank window, the independent surplus/deficit display limits, the weigh-in
 trend window and body-outline choice to the acting user's account. The two new ring limits are additive
 SQLite columns, both defaulting to 2,000 kcal; the ring scale remains presentation-only. Theme and
@@ -103,10 +103,27 @@ sets the expectation that an internet connection is required. **Phase 16 must se
 retest installability at `/`.**
 
 The owner reviewed the Arena preview on 2026-10-05, said it looked good and asked to publish this
-increment. Verification on the branch: 40 Vitest files / 311 tests; lint, typecheck, doc-link check,
-Go tests/vet, `build:go` and `build:preview` passed. The full phone+desktop Playwright suite now passes
-72/72. To clear its known swipe failure without changing the visual navigation design, the More/Back
-overlay buttons forward a finger-drag to the scroller and only suppress the synthetic click when the
-swipe stays on the same page; the browser test now verifies swiping in both directions. The new
-Settings browser test, all three `/next/` PWA tests and both desktop smoke tests pass. Vite emits a
-non-blocking `inlineDynamicImports` deprecation warning during the PWA build.
+increment. PR #76 merged into `cals-dev` as `40f1e171e21c7a77bdb7050a05d635d3a85fb504` and was
+published as **`v2.0.0-dev-rc34`**. Publish run [37387169202](https://github.com/dougalbob/cals/actions/runs/37387169202)
+passed the `cals-dev` ancestry guard, image build/push, prerelease and anonymous-pull checks; image
+digest `sha256:1eba3145aa8adafdd6b03445a1082ff92ad77576f13a24b6450880acdb44e173`,
+[prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc34). Final PR checks on
+`6be0c20` passed: Docker/runtime [37386887916](https://github.com/dougalbob/cals/actions/runs/37386887916),
+Go [37386887936](https://github.com/dougalbob/cals/actions/runs/37386887936) and Playwright
+[37386887922](https://github.com/dougalbob/cals/actions/runs/37386887922), with **72/72** browser tests.
+The tagged phone+desktop suite [37387169333](https://github.com/dougalbob/cals/actions/runs/37387169333)
+also passed **72/72**.
+
+Verification on the branch: 40 Vitest files / 311 tests; lint, typecheck, doc-link check, Go tests/vet,
+`build:go` and `build:preview` passed. To clear the prior swipe failure without changing the visual
+navigation design, the More/Back overlay buttons forward a finger-drag to the scroller and only suppress
+the synthetic click when the swipe stays on the same page; the browser test verifies both directions.
+The new Settings browser test, all three `/next/` PWA tests and both desktop smoke tests pass. The two
+ring-limit fields are additive `users` columns defaulting to 2,000 kcal; no data copy, appdata operation
+or template change. Vite emits a non-blocking `inlineDynamicImports` deprecation warning during the
+PWA build.
+
+**Unraid road-test target (still pending):** Force Update the existing `cals-dev-v2` container on port
+`8151`, keeping its current image tag, `ghcr.io/dougalbob/cals-dev-v2:dev-latest` (now resolves to
+rc34). One update carries rc28–rc34; no template or appdata change is required. Follow the accumulated
+phone-size checklist in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 item 10.
