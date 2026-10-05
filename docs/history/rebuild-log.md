@@ -17,9 +17,10 @@ at the decision numbers and PRs rather than restating the documents.
 ## 2026-10-05 — Phase 15 Settings + PWA built; preview approved
 
 The Settings foundation (15.1) and installability at `/next/` (15.3) are built as the next reviewable
-increment. The owner checked the Arena preview, said it looked good and asked to publish. Settings
-persists profile/targets, bank-window presets and custom values, independent surplus/deficit ring display
-limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
+increment. The owner checked the Arena preview, said it looked good and asked to publish. [PR #76](https://github.com/dougalbob/cals/pull/76) is open against `cals-dev`; Docker/runtime and Go validation are pending.
+
+Settings persists profile/targets, bank-window presets and custom values, independent surplus/deficit
+ring display limits, the weigh-in trend window and body-outline preference to the acting user's account. The two ring
 limits are additive user columns, each defaulting to 2,000 kcal; they only scale the outer arc and never
 change bank arithmetic. Theme and haptics remain device-local. Decision-47 tracked-nutrient preferences
 and the missing-data audit stay deferred until their open choices are settled.
