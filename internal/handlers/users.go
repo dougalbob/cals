@@ -16,17 +16,33 @@ import (
 // time", which is an explicit preset rather than a default (decisions 66, 91).
 const defaultBankWindowDays = 14
 
+// defaultWeightTrendDays is the moving-average window every account starts
+// with for the weigh-in trend (decision 95). 7 is the Phase 14 value; the
+// owner expects 10 or 14 may prove better, which is why it is a column and not
+// a constant in the chart.
+const defaultWeightTrendDays = 7
+
+// minWeightTrendDays is the smallest trend window the API accepts. The chart
+// only draws a trend where at least three weigh-ins exist (decision 95), so a
+// smaller window could never be drawn — an error is clearer than a value that
+// silently does nothing.
+const minWeightTrendDays = 3
+
+// maxWeightTrendDays bounds the preference at the longest range the metrics
+// endpoints will return in one request, mirroring maxSeriesSpan in stats.go.
+const maxWeightTrendDays = 90
+
 // GetOrCreateUser ensures user exists and returns their record
 func GetOrCreateUser(email string) (*models.User, error) {
 	var user models.User
 	var bankStartDate sql.NullString
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, is_admin, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.IsAdmin,
+		&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.IsAdmin,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -53,6 +69,7 @@ func GetOrCreateUser(email string) (*models.User, error) {
 		user.WeightUnit = "stones"
 		user.BankStartDate = today
 		user.BankWindowDays = defaultBankWindowDays
+		user.WeightTrendDays = defaultWeightTrendDays
 		user.IsAdmin = isAdmin
 		user.CreatedAt = time.Now()
 		user.UpdatedAt = time.Now()
@@ -117,6 +134,7 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		WeightUnit       *string `json:"weight_unit"`
 		BankStartDate    *string `json:"bank_start_date"`
 		BankWindowDays   *int    `json:"bank_window_days"`
+		WeightTrendDays  *int    `json:"weight_trend_days"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -153,11 +171,23 @@ func HandleUpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 		}
 		user.BankWindowDays = *updates.BankWindowDays
 	}
+	if updates.WeightTrendDays != nil {
+		// The chart draws a trend only where at least three weigh-ins exist
+		// (decision 95), so a smaller window could never do anything; and the
+		// metrics endpoints return at most 90 days in one request, so a larger
+		// one would be clipped by the data before it was used. Both are errors
+		// rather than silent no-ops, for the same reason as bank_window_days.
+		if *updates.WeightTrendDays < minWeightTrendDays || *updates.WeightTrendDays > maxWeightTrendDays {
+			http.Error(w, "weight_trend_days must be between 3 and 90 weigh-ins", http.StatusBadRequest)
+			return
+		}
+		user.WeightTrendDays = *updates.WeightTrendDays
+	}
 
 	_, err = database.DB.Exec(`
-		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, updated_at = CURRENT_TIMESTAMP
+		UPDATE users SET name = ?, daily_calorie_goal = ?, daily_water_goal_ml = ?, weight_unit = ?, bank_start_date = ?, bank_window_days = ?, weight_trend_days = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.ID)
+	`, user.Name, user.DailyCalorieGoal, user.DailyWaterGoalML, user.WeightUnit, user.BankStartDate, user.BankWindowDays, user.WeightTrendDays, user.ID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -184,7 +214,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, is_admin, created_at, updated_at
+		SELECT id, email, name, daily_calorie_goal, daily_water_goal_ml, weight_unit, bank_start_date, bank_window_days, weight_trend_days, is_admin, created_at, updated_at
 		FROM users ORDER BY name, email
 	`)
 	if err != nil {
@@ -199,7 +229,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 		var bankStartDate sql.NullString
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.Name, &user.DailyCalorieGoal,
-			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.IsAdmin,
+			&user.DailyWaterGoalML, &user.WeightUnit, &bankStartDate, &user.BankWindowDays, &user.WeightTrendDays, &user.IsAdmin,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {

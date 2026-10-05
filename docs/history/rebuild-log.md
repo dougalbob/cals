@@ -14,6 +14,63 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — Phase 14.3 rebuilt: the pannable metrics charts (PR #65)
+
+The 14.3 work lost with the previous session (see the entry below) was rebuilt from
+[`phase-14-plan.md`](../architecture/phase-14-plan.md) §14.3 and landed in **PR #65**: the weigh-in and
+goal-vs-consumed charts now pan one shared window, and the two additive pieces the slice promised — a
+per-user trend window and the 3–90 validation that stops a value nothing could draw — are in.
+
+**Built:** `usePanWindow` (drag the chart to move the *data window*, re-fetching through slice 14.1's
+`from`/`to`; touch pans on movement with one optional `navigator.vibrate` tick per day, a mouse needs a
+150 ms click-and-hold, the window rides in `?from=&to=` and clamps at today); a weigh-in chart that keeps
+raw weigh-ins as points with a dashed moving average, drawn from the third observation and labelled with
+its window, read from `GET /api/users/me`; a goal-vs-consumed chart with green/amber/red bands
+(decision 71) on the drink-inclusive stats; and the additive `users.weight_trend_days` column (default 7,
+`PUT /api/users/me` with no UI, values below 3 or above 90 are `400`s). The bank line and the
+measurements table keep their fixed windows; decision 94 held — hand-written SVG, no chart library
+(+5.5 kB raw, +2.3 kB gzip).
+
+**Four things building it taught**, now recorded in the plan beside 14.2's lessons: the pan hook has to
+be a React event prop rather than a ref callback (the compiler-aware `react-hooks/refs` rule rejects the
+ref plumbing); the chart follows the finger like a map, so dragging right reveals older days and left is
+the clamp; the trend's first value at three weigh-ins is a dot, not a line; and the weigh-in y-axis needs
+a 2 kg minimum span so a small wobble cannot fill the plot.
+
+**Evidence:** Go vet + tests green in the sandbox (new `users_test.go` covering the default, GET, PUT and
+both rejected bounds); 248 Vitest tests over 32 files (20 new); lint, typecheck, `build:go` and
+`build:preview` clean; the new `e2e/metrics.spec.ts` passes two real touch-drag tests locally at phone
+size, and `run-e2e` was applied so CI runs the full browser suite on the PR. The owner's preview review
+is the slice's acceptance gate.
+
+---
+
+## 2026-10-05 — One session, one PR: the rule and the 14.3 rebuild
+
+The previous Arena session merged its PR (#64, the rc27 sign-off docs) and then carried on building Phase
+14.3 on the same branch — as several sessions had done before, opening a second, follow-up PR (PR #63
+followed #62; PR #55 followed #54). This time it could not: GitHub access failed mid-session and never
+returned, so three finished 14.3 commits stayed local to a sandbox that is not shared with any other
+session. The workspace was per-session, the handoff file it wrote lived in that sandbox, and the branch on
+the remote still points at the pre-14.3 `9496e8a`. Nothing pushed, nothing recoverable.
+
+The lesson is now a working rule, not folklore. [`AGENTS.md`](../../AGENTS.md) §0 rule 7 makes it a hard
+rule — **one PR per session, a merged PR ends the session, and work is pushed as it is done** — and
+[`git-workflow.md`](../architecture/git-workflow.md) §5 carries the detail: why the sandbox is not
+durable, how to adopt a previous session's unmerged branch by cherry-picking it into the current PR, and
+what a real handoff note contains (a pushed branch and a tip SHA, never a sandbox path).
+
+Two things made the loss avoidable and are worth repeating. First, the durable medium is the remote: a
+branch pushed before the merge would have been recoverable by any later session, and a cherry-pick onto a
+fresh branch is minutes of work. Second, the sandbox is not a shared folder — the previous session's plan
+("the next session will find the repo at `aa6d6dc` with the files on disk") was never true. What survives
+between sessions is GitHub and the owner's chat transcript.
+
+14.3 itself was never merged and is rebuilt from the approved plan
+([`phase-14-plan.md`](../architecture/phase-14-plan.md) §14.3) in the session that recorded this rule.
+
+---
+
 ## 2026-10-05 — rc27 installed and signed off; Phase 14.3 ready to build (docs pass)
 
 The owner Force Updated `cals-dev-v2` to `v2.0.0-dev-rc27` on Unraid and road-tested it on 2026-10-05.

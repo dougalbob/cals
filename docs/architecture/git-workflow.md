@@ -162,6 +162,43 @@ gh pr create --base cals-dev --fill
   > 3. Open the PR against `cals-dev`, never `main`.
   > 4. Read `AGENTS.md` and `docs/README.md` first; update the relevant document under `docs/` as part of the work. (`ai_contextual_docs/context.txt` is legacy — do not rely on it or append to it.)
 
+#### One PR per session, and never leave work only in the sandbox
+
+A session gets one branch and one pull request. Merging that PR is the end of the session's mandate —
+nothing new is started afterwards. That is our own deliberate rule (Arena has allowed a second PR from
+the same branch, but the audit trail is cleaner without it), and what makes it necessary is that the
+sandbox is not durable:
+
+- **A workspace belongs to the session that made it.** The next session receives a fresh clone. It does
+  not see the previous session's working tree, its stashes, its unpushed commits, or any file written
+  outside the repository — a handoff note that says "read `/home/user/some-file`" is not a handoff.
+- **GitHub access is not guaranteed for the life of a session.** It can fail part-way through and does not
+  come back. A session that has pushed can be picked up by any later session from the branch; one that has
+  not pushed cannot be recovered at all, whatever it wrote down.
+
+So **commit and push as the work is done, not at the end.** The pushed branch *is* the handoff.
+
+#### Adopting a previous session's unmerged work
+
+If an earlier session left a branch ahead of `cals-dev` with no PR, or with a PR still open, the current
+session folds that work into its own PR:
+
+```bash
+git fetch origin refs/heads/<old-branch>:refs/remotes/origin/<old-branch>
+git cherry-pick <tip-sha>            # prefer this to merging the old branch
+```
+
+Cherry-picking keeps the current session's PR a clean sequence and leaves the old branch safe to delete.
+Say so in the PR body — "adopts the work of branch `arena/<id>-cals` (PR #NN)" — and do not open a second
+PR for it. A branch whose commits were never pushed is not adoptable: the work is gone and the slice is a
+rebuild, which is the outcome everything above exists to prevent.
+
+**Handoff note format**, for a session that must end with work unfinished. Name the branch, its tip SHA
+and the next step — and only if the branch was actually pushed:
+
+> Branch `arena/01a10bcd-cals` @ `aa6d6dc` (pushed). Three commits on top of `9496e8a`: the 14.3 charts.
+> Next: fetch the branch, open a PR against `cals-dev` with the `run-e2e` label.
+
 ### “Lets publish” — the owner's end-to-end delivery directive
 
 Owner decision 20 (2026-10-03): when the owner says **“Lets publish”** (or “Lets cut a release”), the

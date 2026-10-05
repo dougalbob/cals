@@ -126,8 +126,12 @@ export const queryKeys = {
   /** Calendar range — keyed by (from, to). */
   calendar: (from: string, to: string) => ['calendar', from, to] as const,
   weight: (days: number) => ['weight', days] as const,
+  /** Panned window — keyed by the range the chart is showing (decision 69). */
+  weightRange: (from: string, to: string) => ['weight', 'range', from, to] as const,
   measurements: ['measurements'] as const,
   calorieStats: (days: number) => ['stats', 'calories', days] as const,
+  /** Panned window — keyed by the range the chart is showing (decision 69). */
+  calorieStatsRange: (from: string, to: string) => ['stats', 'calories', 'range', from, to] as const,
   bankStats: (days: number) => ['stats', 'bank', days] as const,
   nutrition: (days: number) => ['nutrition', 'weekly', days] as const,
 }

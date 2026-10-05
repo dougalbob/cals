@@ -11,18 +11,32 @@ import type {
   WeightEntry,
 } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
+import { usePanWindow } from '../hooks/usePanWindow'
 import { bankWindowPhrase } from '../lib/bank'
+import { movingAverageOverWeighIns } from '../lib/trend'
 import { formatKg, formatNumber, formatShortDate, formatStonesPounds, kgToStonesPounds } from '../lib/format'
 
 export function MetricsRoute() {
+  // The weigh-in chart and the goal-vs-consumed chart share one pannable
+  // window (decision 69); the bank line and the measurements table below keep
+  // their own fixed windows (decision 95's third implementation note).
+  const pan = usePanWindow(30)
+
+  // The summary tiles always describe now, so they keep the fixed 90-day
+  // fetch even when the chart above them has been panned into the past.
   const weight = useQuery<WeightEntry[]>({
     queryKey: queryKeys.weight(90),
     queryFn: () => apiGet<WeightEntry[]>('/api/weight?days=90'),
   })
 
+  const weightWindow = useQuery<WeightEntry[]>({
+    queryKey: queryKeys.weightRange(pan.from, pan.to),
+    queryFn: () => apiGet<WeightEntry[]>(`/api/weight?from=${pan.from}&to=${pan.to}`),
+  })
+
   const calories = useQuery<DailyCalories[]>({
-    queryKey: queryKeys.calorieStats(14),
-    queryFn: () => apiGet<DailyCalories[]>('/api/stats/calories?days=14'),
+    queryKey: queryKeys.calorieStatsRange(pan.from, pan.to),
+    queryFn: () => apiGet<DailyCalories[]>(`/api/stats/calories?from=${pan.from}&to=${pan.to}`),
   })
 
   const bank = useQuery<DailyBank[]>({
@@ -47,6 +61,10 @@ export function MetricsRoute() {
 
   // API returns newest-first; charts want oldest-first.
   const weightAsc = useMemo(() => [...(weight.data ?? [])].sort((a, b) => a.date.localeCompare(b.date)), [weight.data])
+  const inView = useMemo(
+    () => [...(weightWindow.data ?? [])].sort((a, b) => a.date.localeCompare(b.date)),
+    [weightWindow.data],
+  )
 
   const latest = weightAsc.at(-1)
   const monthAgo = weightAsc.find((entry) => entry.date >= addDaysIso(weightAsc.at(-1)?.date ?? '', -30))
@@ -57,6 +75,17 @@ export function MetricsRoute() {
   // Every bank figure is a rolling window (decisions 66, 92); this chart prints
   // one per day, so it says which window those balances are computed over.
   const bankWindow = bankWindowPhrase(user.data?.bank_window_days)
+
+  // The trend window is read from the user record, never hard-coded: Phase 15
+  // will expose it in Settings, and a chart that ignored the column would make
+  // that control look broken (decision 95).
+  const trendWindow = user.data?.weight_trend_days ?? 7
+  const trend = useMemo(
+    () => movingAverageOverWeighIns(inView.map((entry) => entry.weight_kg), trendWindow),
+    [inView, trendWindow],
+  )
+  const trendDrawn = inView.length >= 3
+  const hasCalories = (calories.data ?? []).some((day) => day.calories > 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -78,29 +107,65 @@ export function MetricsRoute() {
           />
         </div>
 
-        <div className="mt-4">
-          {weight.isPending ? (
+        <div
+          data-testid="weight-pan"
+          onPointerDown={pan.onPointerDown}
+          className={`mt-4 touch-pan-y select-none ${pan.panning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
+          {weightWindow.isPending ? (
             <p className="text-sm text-ink-light">Loading…</p>
           ) : (
             <LineChart
-              points={weightAsc.map((entry) => ({ label: formatShortDate(entry.date), value: entry.weight_kg }))}
+              points={inView.map((entry) => ({ label: formatShortDate(entry.date), value: entry.weight_kg }))}
               valueLabel={(value) => formatStonesPounds(value)}
+              // Points stay points and the trend is a separate, labelled
+              // average (decision 95); 2 kg of y-axis keeps a small wobble
+              // from filling the chart (decision 70).
+              dots
+              trend={trendDrawn ? trend : undefined}
+              minSpan={2}
+              ariaLabel="Weigh-ins with trend"
             />
           )}
-          <p className="m-0 mt-1 text-xs text-ink-muted">Last 90 days, carried forward from the real weight_entries table.</p>
         </div>
+        <p data-testid="weight-window" className="m-0 mt-1 text-xs text-ink-muted">
+          Showing {formatShortDate(pan.from)} – {formatShortDate(pan.to)} · drag the chart to move the window.
+        </p>
+        <p data-testid="weight-trend-note" className="m-0 mt-0.5 text-xs text-ink-muted">
+          {trendDrawn
+            ? `Dots are individual weigh-ins; the dashed line is a ${trendWindow}-weigh-in moving average.`
+            : `A trend needs at least three weigh-ins in view; keep panning back for older ones.`}
+        </p>
       </section>
 
       <section className="rounded-2xl bg-card p-4 shadow-card">
-        <h2 className="m-0 mb-3 text-base font-semibold">🔥 Daily calories (14 days)</h2>
-        {calories.isPending ? (
-          <p className="text-sm text-ink-light">Loading…</p>
-        ) : (
-          <BarChart
-            points={(calories.data ?? []).map((day) => ({ label: formatShortDate(day.date), value: day.calories }))}
-            goal={calories.data?.[0]?.goal}
-          />
-        )}
+        <h2 className="m-0 mb-1 text-base font-semibold">🔥 Daily goal vs consumed</h2>
+        <p data-testid="goal-window" className="m-0 mb-3 text-xs text-ink-muted">
+          {formatShortDate(pan.from)} – {formatShortDate(pan.to)} · green below goal, amber to 10% over, red beyond. Drag to pan.
+        </p>
+        <div
+          data-testid="goal-pan"
+          onPointerDown={pan.onPointerDown}
+          className={`touch-pan-y select-none ${pan.panning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
+          {calories.isPending ? (
+            <p className="text-sm text-ink-light">Loading…</p>
+          ) : hasCalories ? (
+            <BarChart
+              points={(calories.data ?? []).map((day) => ({ label: formatShortDate(day.date), value: day.calories }))}
+              goal={calories.data?.[0]?.goal}
+              accent="#26de81"
+              bands
+            />
+          ) : (
+            // Panned back past the start of the diary this says so, rather than
+            // drawing a row of invisible zero-height bars.
+            <p className="text-sm text-ink-muted">Nothing logged in this window — keep panning forward.</p>
+          )}
+        </div>
+        <p className="m-0 mt-1 text-xs text-ink-muted">
+          Food and drink calories together, so the bars agree with today's ring.
+        </p>
       </section>
 
       <section className="rounded-2xl bg-card p-4 shadow-card">
