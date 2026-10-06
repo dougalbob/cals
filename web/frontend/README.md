@@ -1,23 +1,26 @@
 # cals React frontend — app rebuild and UI notes
 
-**Status: 🟡 Phase 15 is underway.** Phase 11's React shell, Phase 12's Diary, Phase 13's Foods +
-Recipes, and Phase 14's Metrics + Nutrition are implemented in the development line. This branch
-adds the **Settings foundation** and **installability-only PWA** for review at `/next/`: account-level
-targets and preferences are saved through `/api/users/me`, while themes and haptics are saved on the
-device. The two bank-ring display limits are independent and do not change bank arithmetic. Decision
-47's tracked-nutrient controls and missing-data audit remain deferred until their coverage and nutrient
-choices are settled.
+**Status: 🟢 Phase 15 (Settings + `/next/` PWA) is published as `v2.0.0-dev-rc34` and installed on
+Unraid**, where the owner checked the Settings work and confirmed it behaves as intended. Phase 11's
+React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's Metrics + Nutrition are all in
+the development line. Settings saves account-level targets and preferences through `/api/users/me`,
+while themes and haptics stay on the device; the two bank-ring display limits are independent and do
+not change bank arithmetic. **Phone PWA installation is still untested** — the audit in
+[`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) found Chromium
+withholds the Android install prompt while the worker has no fetch handler (§6 Q2), and that no
+Cloudflare change is needed. Decision 47's tracked-nutrient controls and missing-data audit are
+deferred by the owner.
 
 The Go production build and fixture preview mount React at **`/next/`**. The legacy vanilla app,
 manifest, service worker and root assets remain untouched; Phase 16 owns the move to `/`. The React
 manifest, icons and inert network-only service worker are separate. **Installation is not offline
 support:** there is no offline logging, queued saving, API/data caching or cached-data promise.
 
-The last reported Unraid installation is `v2.0.0-dev-rc27`; this branch has not been published and
-must not be used against live appdata. Release and acceptance status lives in
-[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the plan is
-[`../../docs/architecture/phase-15-plan.md`](../../docs/architecture/phase-15-plan.md). The broader
-frontend proposal is [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
+The last reported Unraid installation is **`v2.0.0-dev-rc34`** (owner Force Update, 2026-10-05). Release
+and acceptance status lives in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the cutover
+plan is [`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) and
+Phase 15's plan is [`../../docs/architecture/phase-15-plan.md`](../../docs/architecture/phase-15-plan.md).
+The broader frontend proposal is [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
 
 ---
 

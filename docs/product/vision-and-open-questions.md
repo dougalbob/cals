@@ -294,9 +294,10 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > uncropped photo upload/replacement and decisions 83–85 (Today/Diary fill alpha 25%/5%, Own creation
 > recipe-details filter checkbox, and Diary meal-entry delete confirmation) were published in
 > `v2.0.0-dev-rc25` (PR #56). The owner signed off all published RC candidates through rc25 on
-> 2026-10-04, closing Phase 13 acceptance. The last reported Unraid installation is now **rc27**
-> (installed and signed off on 2026-10-05), so every published checkpoint is installed; cropping
-> remains deferred. Current status is tracked in
+> 2026-10-04, closing Phase 13 acceptance. The last reported Unraid installation is now **rc34**
+> (Force Updated on 2026-10-05; the Settings check is confirmed and behaves as intended, while the
+> rest of the rc28–rc34 phone review and the phone PWA install are not), so every published
+> checkpoint is installed; cropping remains deferred. Current status is tracked in
 > [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).

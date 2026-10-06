@@ -6,7 +6,7 @@
 | **Date raised** | 2026-10-03 (decision 45); mechanism settled 2026-10-04 (decision 89) |
 | **Decision owner** | @dougalbob |
 | **Scope** | `internal/config/` (role lists), `internal/handlers/roles.go` (reconciliation and authorization), `internal/handlers/actinguser.go` (the switch), `internal/auth/` (the two identity context keys), `internal/database/migrations.go` (the `users.is_admin` column), `cmd/server/main.go` (middleware order, routes, start-up logging), `web/frontend/src/components/SwapUserSheet.tsx` and `AppLayout.tsx` (the control and the banner) |
-| **Related** | [`dev-identity-switch.md`](./dev-identity-switch.md) (the *development* identity picker — a different feature), [`local-development.md`](./local-development.md) (`DEV_MODE`), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions 45, 88, 89) |
+| **Related** | [`dev-identity-switch.md`](./dev-identity-switch.md) (the *development* identity picker — a different feature), [`local-development.md`](./local-development.md) (`DEV_MODE`), [`phase-16-plan.md`](./phase-16-plan.md) (§3 reviews this document's §9 PWA-bypass note), [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) (decisions 45, 88, 89) |
 
 ---
 
@@ -178,7 +178,16 @@ the real app.
 ## 9. Not built / open
 
 - Whether a Standard user is ever told that an Admin edited their data (decision 45 leans: no).
-- A Cloudflare Access application for the **PWA bypass** path, so the app can be installed on a
-  phone. Deferred by the owner; it is a Zero Trust configuration change, not cals code.
+- ~~A Cloudflare Access application for the **PWA bypass** path, so the app can be installed on a
+  phone.~~ **Reviewed 2026-10-05 (Phase 16 audit): no bypass is needed, and none is proposed.** The
+  manifest, icons, worker, shell and assets are same-origin requests that carry the `CF_Authorization`
+  cookie, so the PWA installs, launches and tests fine under the current rules through the Cloudflare
+  hostname. A bypass covering `/next/*` (today) or `/*` (after cutover) would let unauthenticated
+  requests reach the SPA shell and bundle and would remove Cloudflare's outer policy — identity
+  provider, MFA, device/IP rules, rate limiting, Access logging — for the app's entry point. Household
+  data would still be refused (`/api/*` stays behind the Go JWT middleware), so the loss is
+  defence-in-depth and a wider future routing exposure, for no install benefit. See
+  [`phase-16-plan.md`](./phase-16-plan.md) §3; Phase 16 changes no Access, Tunnel, DNS or
+  authentication setting.
 - Role management in the UI. Roles come from `.env` only; there is no in-app promotion control, by
   design — the off-switch lives in appdata, not behind the thing it switches off.

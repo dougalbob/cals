@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **IN PROGRESS** — Settings and `/next/` installability are built and the owner-approved preview is ready to publish; tracked-nutrient settings remain deferred pending decision 47 |
+| **Status** | 🟢 **15.1 (Settings) and 15.3 (PWA at `/next/`) are built, published as `v2.0.0-dev-rc34` and deployed on Unraid; the owner checked Settings and it behaves as intended.** **Phone PWA installation is still untested** and the retarget to `/` is Phase 16's ([`phase-16-plan.md`](phase-16-plan.md)). **15.2 — tracked nutrients and the missing-data audit — is deferred by the owner** (weight control is the app's purpose; the added complexity is not currently judged worth it) |
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Deliver independently reviewable Settings and PWA increments, with the temporary `/next/` path handled explicitly |
@@ -123,7 +123,12 @@ ring-limit fields are additive `users` columns defaulting to 2,000 kcal; no data
 or template change. Vite emits a non-blocking `inlineDynamicImports` deprecation warning during the
 PWA build.
 
-**Unraid road-test target (still pending):** Force Update the existing `cals-dev-v2` container on port
-`8151`, keeping its current image tag, `ghcr.io/dougalbob/cals-dev-v2:dev-latest` (now resolves to
-rc34). One update carries rc28–rc34; no template or appdata change is required. Follow the accumulated
-phone-size checklist in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 item 10.
+**Deployment status (2026-10-05).** The owner Force Updated the existing `cals-dev-v2` container on
+port `8151` to rc34 and checked the Settings work: **it behaves as intended.** That is the only
+confirmed item of the accumulated rc28–rc34 road-test; the rest of the checklist is unconfirmed.
+**Phone PWA installation is still untested** — test through the Cloudflare hostname (LAN HTTP cannot
+register a worker or install), where Android Chrome will offer **Add to Home screen** rather than the
+install prompt while the worker has no fetch handler, and iOS uses **Share → Add to Home Screen**. No
+Cloudflare Access/bypass/Tunnel/DNS/authentication change is needed or proposed
+([`phase-16-plan.md`](phase-16-plan.md) §3, §6 Q2); no template or appdata change was required. Follow
+the accumulated phone-size checklist in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 item 10.
