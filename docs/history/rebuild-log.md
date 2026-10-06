@@ -14,6 +14,26 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## `v2.0.0-dev-rc35` published — the Phase 16 cutover retarget (2026-10-06)
+
+The owner reviewed the Arena preview and approved publication. PR #79 was merged into `cals-dev` as
+`b539637dfc63dd99186559c7e2fc5301b7eeaa59` and tagged `v2.0.0-dev-rc35`; the publish workflow
+[37501237100](https://github.com/dougalbob/cals/actions/runs/37501237100) passed the `cals-dev` ancestry
+guard, image build/push, prerelease creation and anonymous-pull gate, with digest
+`sha256:ac864954feea19ff9c3218a0f7c09294e1db947f3e1df49bef1a779b68ca8b8e`
+([prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc35)). `dev-latest` moved with it.
+The tagged [browser suite](https://github.com/dougalbob/cals/actions/runs/37501237025) passed; its exact
+test count could not be read because the Actions log endpoint returned EOF, so the pass is confirmed but
+the number is not.
+
+Contents are exactly the 16.2 entry below — no schema migration, no data copy, no appdata operation, no
+Unraid template change and no Cloudflare change. **rc35 is not yet installed:** it awaits the owner's
+Force Update, then the cutover check over the Cloudflare hostname and the phone install test. rc34 remains
+what the household runs until then, and rollback is exact (re-pin rc34 and restart), with `/legacy/` as a
+second, independent way back.
+
+---
+
 ## Phase 16.2 — React retargeted to `/`, legacy UI kept as a lifeboat (2026-10-06)
 
 Stage 16.2 of [`../architecture/phase-16-plan.md`](../architecture/phase-16-plan.md), built and verified
