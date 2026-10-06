@@ -1102,6 +1102,29 @@ explicit `from`/`to` pair beside the unchanged legacy `days` parameter (the same
 metrics series endpoints share), and the fixture API mirrors it so the Arena preview shows real numbers.
 No schema change, migration, data copy or appdata operation.
 
+## The cutover to the root — decisions 110–115 (2026-10-06)
+
+Phase 16's audit ([`../architecture/phase-16-plan.md`](../architecture/phase-16-plan.md) §6) left six
+questions for the owner. He delegated them rather than answering one by one — *"How you get there and
+what safety checks you employ to ensure a safe passage is up to you"* — and named the outcome: **the
+React front end at `/` rather than `/next/`, and PWA support.** Each decision below is the
+recommendation the audit already made, taken because it serves that outcome. All of them are
+**stage 16.2** — built and verified on the branch, **not published**; the household keeps running rc34
+until the owner approves the cutover release (16.3).
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 110 | 2026-10-06 | **The retired `/next/` mount gets policy A, minus the Settings line.** `/next` and `/next/*` answer **308** onto the same path with the prefix stripped and the query preserved, so bookmarks, deep links, the Unraid template's `WebUI` link and any `/next/` home-screen start URL keep working; and on boot the app idempotently unregisters the legacy `/public/sw.js` and the retired `/next/sw.js` registrations and deletes the legacy `cals-v*` caches. Policy A's third element — a permanent Settings line telling anyone with an old install to remove and reinstall it — was **not** built: the population is empty (no `/next/` install has ever been reported), the failure mode is benign (an old icon follows the redirect and works), and the 308 happens server-side so a fresh install cannot be distinguished from an old one. The guidance lives in the plan and the cutover checklist instead. | Owner (delegated) · agent recommendation |
+| 111 | 2026-10-06 | **The worker gets a network-only pass-through fetch handler.** `event.respondWith(fetch(event.request))` — nothing cached, no offline fallback, no rewriting, so decision 53 is unchanged. The reason is **not** the one the audit gave: Chromium removed the fetch-handler requirement for installing from the browser menu in Chrome 108 (mobile) / 112 (desktop), so rc34's inert worker was never reduced to a shortcut. What still needs a fetch handler is the **`beforeinstallprompt`** event, and cals has an in-app **Install app** button on Settings driven by exactly that event — without the handler it is dead code on Android. | Owner (delegated) · agent recommendation |
+| 112 | 2026-10-06 | **The legacy vanilla UI stays served, unlinked, at `/legacy/`.** Reversibility without a rebuild: the old UI is one URL away if the cutover misbehaves, independently of re-pinning the image tag. Deleting it stays stage 16.4 with its own approval. | Owner (delegated) · agent recommendation |
+| 113 | 2026-10-06 | **An existing legacy `/` shortcut or iOS home-screen entry simply opens React from now on.** There is no WebAPK identity to migrate — the legacy worker's scope was `/public/` and never controlled `/`, so it produced a shortcut at most. The one-time cleanup (decision 110) retires its worker and caches. To be confirmed on the phone in 16.3. | Owner (delegated) · agent recommendation |
+| 114 | 2026-10-06 | **The Cloudflare checks stay the owner's, and no Cloudflare change is made or proposed.** They are read-only Zero Trust dashboard checks, not code. Note the root is definitionally covered by the Access application already: the household reaches `/` daily through the Cloudflare hostname. If a check ever showed otherwise, stop and propose the minimal change for approval first. | Owner |
+| 115 | 2026-10-06 | **`/next/…` redirects are permanent (308), not temporary.** The old scope is genuinely retired rather than temporarily moved, and 308 preserves the method. Asserted in the Go route-table test, the browser suite and the runtime smoke script. | Owner (delegated) · agent recommendation |
+
+**Authorisation boundaries unchanged.** Phase 16 involves **no** schema, migration, API contract, data,
+appdata, Unraid template or Cloudflare change. Nothing in stage 16.2 is visible to the household: no
+image was published and `dev-latest` did not move.
+
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 
 **Not a bug the household can see today. Pick this up at the start of the metrics phase.**

@@ -147,7 +147,7 @@ This is the documented installation. There is no Compose step and no source buil
 3. **Create the container from the template.** The template pre-fills everything: container name `cals-dev-v2`, image `ghcr.io/dougalbob/cals-dev-v2:dev-latest`, bridge networking, port `8151:8151/tcp`, volume `/mnt/user/appdata/cals-dev-v2` → `/app/data` (rw), variables `PORT=8151` and `TZ=Europe/London`. Start the container.
 4. **Verify**
    - `curl -s http://localhost:8151/health` (from an SSH session on Unraid) succeeds. This is the container-level check and needs nothing else.
-   - The WebUI link opens the React shell at `http://<unraid-host>:8151/next/`. **Expect an empty screen with "401" errors in the browser console when opening it over plain LAN HTTP**: `/next/` itself is public, but every `/api/*` route requires a Cloudflare Access JWT, and a LAN request has none. That is the design, not a broken container — data appears when the page is opened through Cloudflare (below), or in local development via `DEV_MODE`. Direct LAN access cannot substitute: `DEV_MODE` needs a loopback/private bind address, so it does not apply to the container.
+   - The WebUI link opens the React shell. **On the installed rc34 that is `http://<unraid-host>:8151/next/`; from the Phase 16 cutover release onward it is `/`, with `/next/*` answering 308 onto the same path** (the template's `/next/` link keeps working either way — updating the XML is a separately approved change, stage 16.4). **Expect an empty screen with "401" errors in the browser console when opening it over plain LAN HTTP**: the shell itself is public, but every `/api/*` route requires a Cloudflare Access JWT, and a LAN request has none. That is the design, not a broken container — data appears when the page is opened through Cloudflare (below), or in local development via `DEV_MODE`. Direct LAN access cannot substitute: `DEV_MODE` needs a loopback/private bind address, so it does not apply to the container.
    - If V2 is reached through Cloudflare Tunnel, add/update the V2 origin/hostname to route to port `8151`; changing Docker's port mapping alone does not change the tunnel configuration. Then the full app works — the diary loads for the signed-in Cloudflare identity.
    - Data persists: restart the container and confirm the database in appdata survives.
    - V1 on `8150` is unaffected.
@@ -168,7 +168,7 @@ This is the documented installation. There is no Compose step and no source buil
 
 1. The publishing workflow moves `dev-latest` to the new candidate (and pushes the exact RC tag).
 2. In Unraid, apply the container update for `cals-dev-v2` — Unraid pulls the image now behind `dev-latest` and restarts the container. No XML change is needed per RC; the template itself only changes when the XML changes (then refresh it via its `TemplateURL` / CA, or copy the new file over).
-3. Re-run the verification steps above (health, `/next/`, persistence).
+3. Re-run the verification steps above (health, the app shell, persistence). From the Phase 16 cutover release onward also check `/legacy/` still opens the old UI and that `/next/…` redirects onto the matching path.
 
 ## GHCR visibility
 
@@ -190,7 +190,10 @@ The source repository was made public on 2026-10-02 as a prerequisite of this pu
 - Keep V2's appdata separate from V1 while both are installed. Do not have both containers open the same SQLite database. Copy only the configuration values you need into the V2 `.env`; plan any database migration separately.
 - The template container sits on Unraid's default bridge network. For integrations that are reached by container hostname (for example `MEALIE_BASE_URL=http://mealie:9000` on a shared network), use a routable address from the template container instead — typically `http://<unraid-host-ip>:9000` — or put both containers on a named Docker network via `ExtraParams` (`--network <name>`) if you deliberately want hostname resolution.
 
-The XML currently opens the React shell at `/next/`, where the Phase 11 foundation is served during migration. Update its `WebUI` path when the eventual V2 cutover changes the frontend's public route.
+The XML opens the React shell at `/next/`. Phase 16 retargets the app to `/`, but the template does **not**
+have to change with it: `/next/*` answers 308 onto the same path with the prefix stripped, so the existing
+link keeps working. Refreshing the `WebUI` path to `/` and the Overview wording is stage **16.4**, and is a
+**separately approved template change** — no template change is authorised or required before then.
 
 ## Part 2 — publish the first V2 image (complete; rc34 is current)
 

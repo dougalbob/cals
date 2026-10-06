@@ -50,7 +50,9 @@ check() {
     # curl prints the status even when it fails to connect; keep the last three
     # digits so 000 never becomes 000000.
     status="${status: -3}"
-    body="$(head -c 400 "$TMP_BODY" | tr '\n' ' ')"
+    # Strip NULs as well as newlines: a binary asset (an icon, say) otherwise
+    # makes bash warn about a null byte in command substitution.
+    body="$(head -c 400 "$TMP_BODY" | tr '\0\n' '  ')"
 
     if [ "$status" != "$expected" ]; then
         printf '  %-4s %-34s %s (expected %s)\n' 'FAIL' "$label" "$status" "$expected"
@@ -78,11 +80,22 @@ echo "   mode: $mode"
 echo
 
 # Unprotected routes: both modes must serve these.
-check 'GET /health'                 '/health'                 200 'OK'
-check 'GET /api/version'            '/api/version'            200 '"version"'
-check 'GET / (legacy shell)'        '/'                       200 '<html'
-check 'GET /next/ (React shell)'    '/next/'                  200 '/next/assets/'
-check 'GET /next/diary (deep link)' '/next/diary'             200 '/next/assets/'
+#
+# Since the Phase 16 cutover the React app owns /, the legacy vanilla UI is the
+# unlinked lifeboat at /legacy/, and the retired /next/ mount redirects onto the
+# root with its prefix stripped. curl is deliberately not given -L: the 308s are
+# the contract, and following them would hide a redirect that had gone wrong.
+check 'GET /health'                    '/health'                    200 'OK'
+check 'GET /api/version'               '/api/version'               200 '"version"'
+check 'GET / (React shell)'            '/'                          200 '/assets/'
+check 'GET /diary (React deep link)'   '/diary'                     200 '/assets/'
+check 'GET /manifest.webmanifest'      '/manifest.webmanifest'      200 '"start_url":"/"'
+check 'GET /sw.js (worker)'            '/sw.js'                     200 'addEventListener'
+check 'GET /pwa/icon-192.png'          '/pwa/icon-192.png'          200
+check 'GET /legacy/ (lifeboat)'        '/legacy/'                   200 '<html'
+check 'GET /next (retired -> 308)'     '/next'                      308
+check 'GET /next/ (retired -> 308)'    '/next/'                     308
+check 'GET /next/diary (308, stripped)' '/next/diary'               308
 
 echo
 if [ "$expect_auth" = "yes" ]; then

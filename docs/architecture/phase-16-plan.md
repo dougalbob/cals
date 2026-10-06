@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **PROPOSED — audited and estimated 2026-10-05 against the code; not started.** Implementation waits for the owner's answers in §6 and for his explicit approval of the cutover. |
+| **Status** | 🟢 **16.2 BUILT — retargeted on the branch, preview only.** Stage 16.1 (this audit) is done; **16.2 is implemented and verified but not published**: `/` serves React, `/legacy/` is the lifeboat, `/next/*` 308s onto the root, and the worker has the pass-through handler. **16.3 (the cutover release) and 16.4 (legacy deletion) are not started and each still need explicit owner approval.** The owner delegated the §6 decisions on 2026-10-06 ("How you get there and what safety checks you employ … is up to you"); they are recorded in §6 with his stated goal — React at `/`, PWA support — as the requirement they serve. One audit claim was found to be out of date and is corrected in §2.4. |
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Retarget and retest installability at `/`, make React the default, handle the existing `/next/` install deliberately — in reversible steps, with no legacy deletion and no Cloudflare change |
@@ -70,6 +70,24 @@ Two consequences worth knowing:
 | Chromium installability | **Not met:** Chromium requires a worker that controls the page and the manifest's `start_url`, and `/public/sw.js` has scope `/public/` — it does not control `/`. The legacy app is at most an **Add to Home screen shortcut** on Android (iOS A2HS does not require a worker) | Manifest, icons and scope are right, but Chromium also requires a **fetch handler**, which the inert worker deliberately lacks — so Android Chrome withholds the **Install app** prompt and offers only a shortcut. iOS A2HS works |
 
 **This is the audit's one substantive gap:** Phase 15 delivered installability at the asset level, but on Android it is not the real install experience until the worker has a fetch handler. A **network-only, pass-through fetch handler** (no caching, no offline fallback) would satisfy the criterion without adding offline capability or contradicting decision 53 — but it puts the worker in the path of every same-origin request, so it is a decision, not an implementation detail (§6, Q2).
+
+> **Correction, 2026-10-06 (found while implementing 16.2).** The table row above
+> and this paragraph overstate the problem. Chromium **removed** the
+> service-worker-with-fetch-handler requirement for installing **from the
+> browser menu** in Chrome 108 on mobile and 112 on desktop, and shipped a
+> default offline page for sites that do not provide one — see
+> [Revisiting Chrome's installability criteria](https://developer.chrome.com/blog/update-install-criteria).
+> So rc34's inert worker did **not** reduce Android to a shortcut: a real
+> WebAPK install was already available from the ⋮ menu.
+>
+> What still requires a fetch handler is the **automatic install prompt** —
+> the `beforeinstallprompt` event. That matters here specifically, because
+> cals has an in-app **Install app** button on Settings
+> (`src/lib/pwaInstall.ts` → `SettingsRoute.tsx`) driven by exactly that event.
+> Without a fetch handler the event never fires and the button is dead code on
+> Android. **Q2's recommendation is therefore unchanged, but for this reason
+> rather than the one originally given.** The `§3` caveat 2 wording ("expect a
+> shortcut rather than the install prompt") should be read the same way.
 
 The `/next/` install question is otherwise cheap: **no phone install has been reported**, the owner has not installed the React PWA yet, and any `/next/` registration that does exist is **inert** — it cannot cache, intercept or break anything. Nor could `/next/` ever have produced a real Android WebAPK (the same missing fetch handler applies): the residue is an Android shortcut that simply opens `/next/` (and will follow the redirect to `/`), or an iOS home-screen app that launches standalone and lands on React, where removing and re-adding refreshes its icon and name.
 
@@ -153,6 +171,27 @@ If any check shows the root is *not* already covered by an Access application, s
 
 **No migration, no new API fields, no route-shape change, no new screen.** The substance of this phase is which handler owns `/` — which is exactly why the risk is in verification, not in volume.
 
+> **As built, 2026-10-06 — two rows came out smaller than estimated, one bigger.**
+>
+> - **`e2e/**` was one spec, not 72.** The audit expected 72 specs to be
+>   re-based onto `/`. In fact 71 of them already used *relative* URLs
+>   (`goto('/diary')`) and it was `serve-preview.mjs`'s redirect that put them
+>   under `/next/`. Only `pwa.spec.ts` named `/next/` absolutely, so it is the
+>   only spec that was rewritten. The 72-spec re-basing risk in §8 did not
+>   materialise.
+> - **The "legacy-shell-alive" browser spec became a Go test instead.** The
+>   fixture preview server does not serve the legacy templates or its
+>   `/static/`+`/public/` assets, so a browser spec there would have tested an
+>   emulation rather than the code that ships. `legacyShellHandler` and the
+>   `/legacy/` route are covered in `cmd/server/frontend_test.go`, and the smoke
+>   script asserts `/legacy/` against the real server.
+> - **The route table was extracted and is now tested.** Not in the original
+>   inventory. `registerFrontendRoutes` puts the real `ServeMux` under test,
+>   because a wrong pattern there is the outage this phase is most capable of
+>   causing. This also caught a real behaviour change: the old catch-all
+>   answered *every* method — including `POST` to paths with no handler — with
+>   the legacy shell and a `200`. It is now `GET`-only and answers `405`.
+
 ---
 
 ## 5. Staged, reversible plan
@@ -161,13 +200,43 @@ If any check shows the root is *not* already covered by an Access application, s
 
 This document, plus the status correction in [`../CURRENT_STATE.md`](../CURRENT_STATE.md). No code, no deployment, no configuration. **Gate:** the owner answers §6 Q1–Q6; 16.2 does not start until he does.
 
-### 16.2 — Retarget on the branch, preview only (no publish)
+### 16.2 — Retarget on the branch, preview only (no publish) — **BUILT 2026-10-06**
 
 Everything in §4 plus the test and doc sweep, delivered as a branch and an **Arena preview served at `/`** (the preview's fixture server is switched to the root mount so the review is faithful). Nothing is published, so the household sees no change and `dev-latest` does not move.
 
-- **Recommendation carried out here unless Q2 says otherwise:** the inert worker stays as-is if the owner prefers shortcut installs; otherwise the pass-through handler goes in with a test that a request still reaches the server and that no cache is created.
-- **Recommended `/next/` handling (policy A):** 308-strip redirect + the one-time in-app unregister + a Settings line telling anyone with an old `/next/` install to remove and reinstall it. Policies B (keep `/next/` served in parallel for one release) and C (leave it forever) are rejected: B keeps two installable scopes and two base builds alive for no benefit; C leaves a second scope and a stale manifest permanently.
-- **Exit:** owner reviews React at `/` at phone size in the preview; Vitest, Go vet/tests, Playwright, Docker validation, smoke script and doc-link checks green; **no publish**.
+- **Worker:** the pass-through handler is in, per Q2, with a browser test that a request still reaches the server and that Cache Storage stays empty.
+- **`/next/` handling (policy A):** 308-strip redirect + the one-time in-app unregister, minus the Settings line — see the deviation note in §6. Policies B (keep `/next/` served in parallel for one release) and C (leave it forever) remain rejected: B keeps two installable scopes and two base builds alive for no benefit; C leaves a second scope and a stale manifest permanently.
+
+**What was verified, and how.** Baseline first, then the same suites after the
+change, so "nothing regressed" is a comparison rather than an assertion:
+
+| Check | Baseline (before) | After 16.2 |
+|---|---|---|
+| `npm run lint` | clean | clean |
+| `npm run typecheck` | clean | clean |
+| `npm test` (Vitest) | 311 passed / 40 files | **320 passed / 41 files** |
+| Playwright (phone + desktop) | 72 passed | **75 passed** |
+| `go vet ./...` | clean | clean |
+| `go test ./...` | all packages ok | all packages ok, **+ route-table, lifeboat and redirect tests** |
+| `scripts/smoke-app-routes.sh` against the **real Go server** serving the **real `build:go` bundle** | n/a | **16/16** in dev-mode, **15/15** in production-like (`/api/*` still 401) |
+| `node scripts/check-doc-links.mjs` | clean | clean |
+
+The smoke run is the strongest check available in the sandbox and is worth
+naming precisely: the production bundle was built with `npm run build:go`, the
+real `cmd/server` binary was compiled and started against a **disposable**
+database in `/tmp`, and the script asserted `/` React, `/diary` deep link,
+`/manifest.webmanifest`, `/sw.js`, `/pwa/icon-192.png`, `/legacy/`, and the three
+`/next` 308s. Household data was not touched at any point. Docker itself cannot
+run here, so the image build is verified by the PR's `Docker build (validation)`
+workflow — the `Dockerfile` needed no change, since it already copies both
+`web/dist` and the whole `web/` tree.
+
+**Not verified here, and why it does not matter yet:** the phone install test.
+It needs a real device over the Cloudflare hostname, which is 16.3's step 4.
+Nothing in 16.2 is visible to the household, so there is nothing to test on a
+phone until 16.3 is approved.
+
+- **Exit:** owner reviews React at `/` at phone size in the preview — **this is the remaining 16.2 gate**; everything else above is green. **No publish.**
 - **Rollback:** nothing to roll back — no published artifact and no deployed change.
 
 ### 16.3 — Cutover release and the Cloudflare phone test (owner-gated)
@@ -186,14 +255,41 @@ Only after the owner confirms the cutover has bedded in. Delete `web/static/**`,
 
 ## 6. Decisions needed before implementation
 
-| # | Question | Recommendation |
-|---|---|---|
-| **Q1** | Is there any `/next/` install on any device (phone or desktop) today? Either way, is "308-strip redirect + in-app cleanup + remove/reinstall guidance" an acceptable policy for one? | **Yes** — no install has been reported, and the residue can only be a shortcut or an iOS entry whose URL follows the redirect |
-| **Q2** | Android install prompt: accept shortcut-only installs (inert worker, exactly as shipped in rc34), or add a **network-only pass-through fetch handler** so Chrome offers the real install prompt? | **Add the pass-through handler** — it is what makes "installability" true on Android, caches nothing and does not weaken decision 53 |
-| **Q3** | Keep the legacy UI served unlinked at `/legacy/` as the lifeboat until you approve deletion? | **Yes** — reversibility without a rebuild; deletion stays 16.4 |
-| **Q4** | If a phone has a legacy `/` shortcut or iOS home-screen app, is it fine that it simply opens React from now on, with the old worker and caches cleaned up once? | **Yes** — there is no WebAPK identity to migrate (the legacy worker's scope never controlled `/`); verify it on the phone |
-| **Q5** | Anything in the §3 read-only Cloudflare checks you would rather run yourself — or any indication the root is not already covered by the Access application? | **Informational**; if the root is not covered, stop and propose the minimal change for approval |
-| **Q6** | Redirect status for `/next/…`: permanent (308) or temporary (307/302) for one release? | **308** — deep links and the template's WebUI link keep working, and the old scope is genuinely retired |
+**All six were settled on 2026-10-06.** The owner delegated them rather than
+answering one by one — *"How you get there and what safety checks you employ to
+ensure a safe passage is up to you"* — and named the outcome he wanted: **the
+React front end at `/` rather than `/next/`, and PWA support.** Each decision
+below is the recommendation the audit already made, taken because it serves that
+outcome. They are recorded as decisions 110–115 in
+[`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md)
+so the reasoning survives.
+
+| # | Question | Recommendation | Decision, 2026-10-06 |
+|---|---|---|---|
+| **Q1** | Is there any `/next/` install on any device (phone or desktop) today? Either way, is "308-strip redirect + in-app cleanup + remove/reinstall guidance" an acceptable policy for one? | **Yes** — no install has been reported, and the residue can only be a shortcut or an iOS entry whose URL follows the redirect | **Policy A**, with one deviation: the 308-strip redirect and the in-app cleanup are built, but the permanent Settings line was **not** added — see the note below the table |
+| **Q2** | Android install prompt: accept shortcut-only installs (inert worker, exactly as shipped in rc34), or add a **network-only pass-through fetch handler** so Chrome offers the real install prompt? | **Add the pass-through handler** — it is what makes "installability" true on Android, caches nothing and does not weaken decision 53 | **Added**, for the corrected reason in §2.4: it is what makes the in-app **Install app** button work at all. Nothing is cached and no offline promise is made |
+| **Q3** | Keep the legacy UI served unlinked at `/legacy/` as the lifeboat until you approve deletion? | **Yes** — reversibility without a rebuild; deletion stays 16.4 | **Yes** — `/legacy/` is served and covered by a Go test and by the smoke script |
+| **Q4** | If a phone has a legacy `/` shortcut or iOS home-screen app, is it fine that it simply opens React from now on, with the old worker and caches cleaned up once? | **Yes** — there is no WebAPK identity to migrate (the legacy worker's scope never controlled `/`); verify it on the phone | **Yes** — the one-time cleanup is built (`src/lib/legacyServiceWorker.ts`); the phone check stays in 16.3 |
+| **Q5** | Anything in the §3 read-only Cloudflare checks you would rather run yourself — or any indication the root is not already covered by the Access application? | **Informational**; if the root is not covered, stop and propose the minimal change for approval | **Owner's to run** — they are Zero Trust dashboard checks, not code. Note the root is definitionally covered today: the household already reaches `/` daily through the Cloudflare hostname. Still to be confirmed, and **no** Cloudflare change is made or proposed |
+| **Q6** | Redirect status for `/next/…`: permanent (308) or temporary (307/302) for one release? | **308** — deep links and the template's WebUI link keep working, and the old scope is genuinely retired | **308**, asserted in the Go route-table test, the browser suite and the smoke script |
+
+### The one deviation from policy A: no permanent Settings line
+
+Policy A's third element was a Settings line telling anyone holding an old
+`/next/` install to remove and reinstall it. **It was not built**, deliberately:
+
+- The population it addresses is empty. No `/next/` install has ever been
+  reported, and the owner has not installed the PWA yet (§2.4).
+- The failure mode it prevents is benign. An old shortcut or iOS home-screen
+  entry pointing at `/next/` follows the 308 to `/` and works; only its icon and
+  name stay stale until it is re-added.
+- It cannot be targeted precisely. The 308 happens server-side, so by the time
+  React runs the URL is already `/` and a fresh install is indistinguishable
+  from an old one — the line would be permanent clutter telling new installs to
+  reinstall themselves.
+
+The guidance lives here and in the cutover checklist instead: **if an old cals
+icon is found on a device after 16.3, remove it and install again from `/`.**
 
 ---
 

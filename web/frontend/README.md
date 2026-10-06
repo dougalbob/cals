@@ -1,20 +1,29 @@
 # cals React frontend — app rebuild and UI notes
 
-**Status: 🟢 Phase 15 (Settings + `/next/` PWA) is published as `v2.0.0-dev-rc34` and installed on
-Unraid**, where the owner checked the Settings work and confirmed it behaves as intended. Phase 11's
+**Status: 🟢 Phase 15 (Settings + PWA installability) is published as `v2.0.0-dev-rc34` and installed
+on Unraid**, where the owner checked the Settings work and confirmed it behaves as intended. **Phase 16
+stage 16.2 — the move to `/` — is built and verified on the branch but not published**, so the
+household still runs rc34 at `/next/`. Phase 11's
 React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's Metrics + Nutrition are all in
 the development line. Settings saves account-level targets and preferences through `/api/users/me`,
 while themes and haptics stay on the device; the two bank-ring display limits are independent and do
-not change bank arithmetic. **Phone PWA installation is still untested** — the audit in
-[`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) found Chromium
-withholds the Android install prompt while the worker has no fetch handler (§6 Q2), and that no
-Cloudflare change is needed. Decision 47's tracked-nutrient controls and missing-data audit are
+not change bank arithmetic. **Phone PWA installation is still untested** — it needs a real device over the Cloudflare hostname,
+which is a step of the cutover (16.3), not of this branch. The audit in
+[`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) found that no
+Cloudflare change is needed to install or test. Its §2.4 claim that Chromium withholds the Android
+install prompt without a fetch handler is **out of date** (menu install has not needed one since Chrome
+109/112); the fetch handler matters because it drives the in-app **Install app** button, and 16.2 adds
+one. Decision 47's tracked-nutrient controls and missing-data audit are
 deferred by the owner.
 
-The Go production build and fixture preview mount React at **`/next/`**. The legacy vanilla app,
-manifest, service worker and root assets remain untouched; Phase 16 owns the move to `/`. The React
-manifest, icons and inert network-only service worker are separate. **Installation is not offline
-support:** there is no offline logging, queued saving, API/data caching or cached-data promise.
+The Go production build and the fixture preview both mount React at **`/`**. One constant
+(`APP_BASE` in [`vite.config.ts`](vite.config.ts)) drives Vite's base and the manifest's
+`id`/`start_url`/`scope` and icon URLs, and `spaHandler("/", …)` in
+[`../../cmd/server/frontend.go`](../../cmd/server/frontend.go) derives the matching worker scope, so the
+preview bundle and the production bundle cannot drift. `/next/*` 308s onto the same path with the prefix
+stripped, and the legacy vanilla app is served unchanged and unlinked at **`/legacy/`** as a lifeboat
+until its deletion is separately approved. **Installation is not offline support:** there is no offline
+logging, queued saving, API/data caching or cached-data promise.
 
 The last reported Unraid installation is **`v2.0.0-dev-rc34`** (owner Force Update, 2026-10-05). Release
 and acceptance status lives in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the cutover
@@ -79,8 +88,8 @@ Query (one query key per resource, mutations invalidate), Tailwind v4 with the e
 
 Recipe cropping, Google Fit, the decision-47 tracked-nutrient settings/missing-data audit, offline
 logging, queued writes, and per-user food measures (measures are shared per food for now) remain
-unimplemented or deferred. The PWA does **not** promise offline use; its `/next/` worker has no fetch
-handler or data cache. Recipe authoring is available at `/recipes/new`; uncropped photo
+unimplemented or deferred. The PWA does **not** promise offline use; its worker at `/sw.js` has a
+network-only pass-through fetch handler and no data cache. Recipe authoring is available at `/recipes/new`; uncropped photo
 selection/upload and replacement on existing recipe detail shipped in rc25 (they are not part of
 rc24). Existing recipes can also be edited safely in place, and food corrections refresh dependent
 recipe definitions without rewriting Diary snapshots. The existing Mealie search/import is
@@ -105,9 +114,9 @@ process does not survive and `node_modules/` is not snapshotted.
 
 The default path is deliberately **dependency-free**. The app is served from the pre-built
 `preview/` directory by [`serve-preview.mjs`](serve-preview.mjs), a plain Node HTTP server (no npm
-packages) that also mounts the fixture API on the same origin. Open **`/next/`** in the preview; the
-server redirects extension-less root routes there so existing review links still work. The bundle,
-manifest, icons and worker all use the production `/next/` paths. The directory is **not** in the
+packages) that also mounts the fixture API on the same origin. Open **`/`** in the preview; the server
+also mirrors the production `/next/*` → root 308, so an old review link behaves as it does against Go.
+The bundle, manifest, icons and worker all use the production root paths. The directory is **not** in the
 sandbox's snapshot-exclusion list, so it survives between turns — restarting the preview takes about
 **120 ms** and works even with `node_modules` deleted:
 
@@ -216,7 +225,7 @@ npm run lint         # ESLint on the typed frontend
 npm run typecheck     # tsc --noEmit, strict
 npm test              # vitest: domain maths + screen render tests
 npm run build         # tsc --noEmit && vite build → web/dist/ (default base)
-npm run build:go      # production shell for the Go /next/ route → web/dist/
+npm run build:go      # production shell for the Go server at / → web/dist/
 npm run test:e2e      # Playwright browser suite (builds the preview bundle first)
 ```
 
@@ -243,15 +252,18 @@ workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testi
 
 ## Phase 11 Go integration
 
-`npm run build:go` writes the production bundle to the git-ignored `web/dist/` with `/next/` as its
-asset and router base. The Go server serves that shell and client-side deep links at `/next/`, gives
-hashed assets immutable caching, and uses `no-store` for the shell; `/` continues to serve the legacy
-UI. Docker builds this bundle in a Node 22 stage and copies only the built files into the Go image.
+`npm run build:go` writes the production bundle to the git-ignored `web/dist/` with `/` as its asset
+and router base. The Go server serves that shell and client-side deep links at `/`, gives hashed assets
+immutable caching, and uses `no-store` for the shell; the legacy UI is served unchanged at `/legacy/`
+and `/next/*` redirects onto the root. Docker builds this bundle in a Node 22 stage and copies only the
+built files into the Go image.
 
-In the Arena sandbox, the Go server was built and run against a temporary database; `/next/`, a Diary
-deep link, the legacy root and a hashed asset all returned successfully with the expected cache
-headers. `go test ./...` and `go vet ./...` pass. **Docker is unavailable in this sandbox**, so run
-`docker build` on a machine with Docker before merging the Phase 11 PR.
+In the Arena sandbox the Go server was built and run against a **disposable** database in `/tmp`, and
+`scripts/smoke-app-routes.sh` passed against it: `/` and a Diary deep link served the React shell,
+`/manifest.webmanifest`, `/sw.js` and `/pwa/icon-192.png` resolved, `/legacy/` served the legacy shell,
+and the three `/next` paths answered 308 — in both dev-mode and production-like runs, the latter
+confirming `/api/*` still returns 401. `go test ./...` and `go vet ./...` pass. **Docker is unavailable
+in this sandbox**, so the image build is verified by the PR's `Docker build (validation)` workflow.
 
 ## Findings from this spike
 
@@ -278,8 +290,9 @@ headers. `go test ./...` and `go vet ./...` pass. **Docker is unavailable in thi
 
 ## Phase 11 and what follows
 
-The owner has authorized Phase 11. It wires a typed API foundation and build into the Go app under
-`/next/`, while leaving the existing UI as the default. Fixtures remain available for the Arena
+The owner has authorized Phase 11. It wired a typed API foundation and build into the Go app under a
+temporary `/next/` route, leaving the existing UI as the default; Phase 16 has since retargeted it to
+`/`. Fixtures remain available for the Arena
 preview and tests; `VITE_API_TARGET` provides the real-server loop. Phase 11 need not change the
 visible screens, but it must leave the project ready for user-facing phases.
 
