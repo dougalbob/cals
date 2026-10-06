@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ALL SIX SLICES BUILT AND PUBLISHED** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30, the rc31/rc32 follow-ups after them and 14.6 in rc33 — all awaiting the single accumulated Unraid Force Update in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05, approved in the Arena preview and published as `v2.0.0-dev-rc33` (PR #74)**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **ALL SIX SLICES BUILT AND PUBLISHED** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30, the rc31/rc32 follow-ups after them and 14.6 in rc33 — all installed via the rc34 Unraid Force Update on 2026-10-05, with the remaining rc28–rc34 phone road-test unconfirmed in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05, approved in the Arena preview and published as `v2.0.0-dev-rc33` (PR #74)**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -240,7 +240,7 @@ Two RFC3339 leaks remain open by choice (`GET /api/users/me`'s `bank_start_date`
 - **The trend is drawn only where it has at least three weigh-ins to average, and it is labelled with its method.** Points stay points; the moving average is taken over weigh-ins rather than calendar days (decision 95); it carries a visible "n-weigh-in moving average" label; and there is no forecast, ETA or plateau claim anywhere.
 - **The other Metrics surfaces keep their windows.** The pan moves the chart window only: the 30-day bank line and the measurements table are unchanged, and only the weigh-in and goal-vs-consumed charts share the pannable window.
 
-**Built 2026-10-05** (PR #65; published as `v2.0.0-dev-rc28`, owner-approved in the Arena preview — the Unraid road-test is the remaining acceptance gate). Four things building it taught, recorded here because 14.4–14.6 build on the same surfaces:
+**Built 2026-10-05** (PR #65; published as `v2.0.0-dev-rc28`, owner-approved in the Arena preview and installed via the rc34 Force Update — its phone road-test is the remaining acceptance gate). Four things building it taught, recorded here because 14.4–14.6 build on the same surfaces:
 
 - **The pan hook is a React event prop, not a ref callback.** The compiler-aware `react-hooks/refs`
   lint rule rejects attaching listeners to a node handed back through a ref, so `usePanWindow` returns
@@ -374,10 +374,10 @@ the report both read their numbers.
 |---|---|---|
 | 14.1 | Go handler tests for date format, range params, drink inclusion; V1 metrics screen still renders | None needed — no visible change. Confirm `GET /api/weight` JSON dates read `YYYY-MM-DD` |
 | 14.2 | The seven bank regression tests plus a Calendar-vs-`/api/bank` agreement test | **Read the new bank figure on his and his wife's account at `/next/` and confirm it looks right** before anything builds on it — ✅ **done: owner signed off on Unraid 2026-10-05 ("all looks good")** |
-| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good"); the rc28 Force Update and road-test is the remaining gate** |
+| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good") and rc28 is installed via the rc34 Force Update; the phone road-test remains the gate** |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
 | 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
-| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc33` (PR #74) | Does the report card at `/next/metrics` answer "how did last week go"? **Owner-approved in the Arena preview; the accumulated Unraid Force Update with rc28–rc33's changes is the remaining gate (CURRENT_STATE §3 item 10)** |
+| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc33` (PR #74) | Does the report card at `/next/metrics` answer "how did last week go"? **Owner-approved in the Arena preview and installed via the rc34 Force Update; the phone road-test remains the gate (CURRENT_STATE §3 item 10)** |
 
 ---
 
@@ -491,7 +491,7 @@ Re-based 2026-10-05 after 14.1 and 14.2 landed and were signed off:
 | 14.5 | Medium | Mostly porting a screen V1 already has. **Built** — shipped in rc30 |
 | 14.6 | Small-medium | Presentation over data the other slices already produce. **Built and published 2026-10-05** — shipped in rc33; the work was the report maths, the `from`/`to` range on the nutrition endpoint and its fixture mirror (§14.6) |
 
-Phase 14 is realistically **several working sessions**, not one; **all six slices are now built and published**
-(rc27→rc33) — 14.1/14.2 signed off on Unraid, and 14.3–14.6 with the rc31/rc32 follow-ups awaiting the one
-accumulated Force Update. Nothing in it needs a decision about cutover, and nothing in it moves the household
-off `/`.
+Phase 14 is realistically **several working sessions**, not one; **all six slices are now built, published
+and installed** (rc27→rc33, delivered to Unraid by the rc34 Force Update on 2026-10-05) — 14.1/14.2 signed
+off on Unraid, and 14.3–14.6 with the rc31/rc32 follow-ups awaiting only their phone road-test. Nothing in it
+needs a decision about cutover, and nothing in it moves the household off `/`.

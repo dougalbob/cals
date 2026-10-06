@@ -14,6 +14,49 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 2026-10-05 — rc34 deployed, Settings checked; Phase 16 audited and staged (docs-only)
+
+**rc34 is installed on Unraid.** The owner Force Updated the existing `cals-dev-v2` container and checked
+the Settings work: **it behaves as intended.** That is the **only** part of the accumulated rc28–rc34
+road-test confirmed complete — the rest of the phone checklist (weekly report, charts, body map, Foods
+papercuts, ring limits, device-local theme/haptics) remains unconfirmed, and **PWA installation on a phone
+is still untested**. The earlier rc27 windowed-bank sign-off stands; nothing else is claimed.
+
+[`../architecture/phase-16-plan.md`](../architecture/phase-16-plan.md) was written against
+the code rather than a handoff. It records what Phase 16 actually has to change: one `appBase` constant in
+`web/frontend/vite.config.ts` controls Vite's `base` and the manifest's `id`/`start_url`/`scope`; the Go
+side mounts React at exactly one path (`nextFrontendHandler` with six subtests) while the root catch-all
+serves the legacy shell; the legacy UI has no client-side routing and uses absolute asset URLs, so it can
+be served unchanged from `/legacy/` as the lifeboat; the two PWAs have separate identities, and the React
+worker's lack of a fetch handler means **Chromium withholds the Android install prompt** (a Phase 15 goal
+not actually met on Android — a decision for the owner, not an access-policy problem); and the legacy
+app was never Chromium-installable (its worker's scope is `/public/`, which does not control `/`), so a
+legacy `/` shortcut or iOS home-screen app needs no identity migration — it will simply open React, with
+the old `/public/sw.js` registration cleaned up once. The audit also inventories the test/doc/template
+work: the preview server and 72 Playwright specs are `/next/`-based, the smoke script asserts `/` legacy
+and `/next/` React, `cals-dev-v2.xml`'s WebUI points at `/next/`, and ≈75 `/next/` references sit in 12
+files.
+
+**Cloudflare review ([`../architecture/admin-roles.md`](../architecture/admin-roles.md)
+§9):** the PWA can be installed, launched and tested with the **current** access rules — every manifest,
+icon, worker and shell request is same-origin and carries the `CF_Authorization` cookie — and the phone
+test must run over the Cloudflare HTTPS hostname (LAN HTTP cannot install). **No Access, bypass, Tunnel,
+DNS or authentication change is needed, and none is proposed.** Extending a bypass to `/next/` (or `/`)
+would expose the SPA shell and bundle unauthenticated and remove Cloudflare's outer policy for the app's
+entry point while `/api/*` still refused household data without a JWT — the defence-in-depth loss the
+earlier advice warned about, for no install benefit. The deferred item stays deferred.
+
+The plan proposes four reversible stages — decisions/audit (this session), a branch-only retarget with an
+Arena preview at `/` and **no publish**, the owner-approved cutover release plus the Cloudflare phone
+test, and legacy deletion only after a **separate** approval — with a `/next/…` 308-strip redirect that
+preserves deep links, an image-tag rollback, and no appdata, template, Cloudflare or schema change in any
+of them. It estimates ~2–3 focused sessions, smaller than any Phase 14/15 slice, and lists six questions
+(including the Android install prompt and the `/next/` install policy) for the owner to answer before
+implementation. **No code, appdata, template or Cloudflare change was made** — documentation only;
+`node scripts/check-doc-links.mjs` passes and the status pages were updated to match.
+
+---
+
 ## 2026-10-05 — Phase 15 published as `v2.0.0-dev-rc34` (PR #76)
 
 PR #76 merged into `cals-dev` as `40f1e171e21c7a77bdb7050a05d635d3a85fb504`, then was tagged and
