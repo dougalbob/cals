@@ -121,11 +121,11 @@ func main() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))).ServeHTTP(w, r)
 	})
 
-	// Temporary React frontend entrypoint. The legacy app remains the default at /.
-	mux.HandleFunc("GET /next", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/next/", http.StatusPermanentRedirect)
-	})
-	mux.Handle("GET /next/", nextFrontendHandler("web/dist"))
+	// Frontend serving: the React app at /, the legacy vanilla UI as an unlinked
+	// lifeboat at /legacy/, and the retired /next/ mount redirecting onto the
+	// root. Registered in one place so the route table that decides which UI owns
+	// which path is under test — see cmd/server/frontend.go.
+	registerFrontendRoutes(mux, "web/dist", "web/templates/index.html")
 
 	// API routes (protected)
 	// Users
@@ -220,15 +220,6 @@ func main() {
 	// Mealie integration
 	mux.Handle("GET /api/mealie/search", withAuth(http.HandlerFunc(handlers.HandleMealieSearch)))
 	mux.Handle("POST /api/mealie/import/{id}", withAuth(http.HandlerFunc(handlers.HandleMealieImport)))
-
-	// Index page - catch all for SPA
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			http.NotFound(w, r)
-			return
-		}
-		http.ServeFile(w, r, "web/templates/index.html")
-	})
 
 	log.Printf("Starting Cals v%s on %s", AppVersion, cfg.ListenAddress())
 	if err := http.ListenAndServe(cfg.ListenAddress(), mux); err != nil {

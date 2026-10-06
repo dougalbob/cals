@@ -126,29 +126,32 @@ const server = createServer(async (req, res) => {
     pathname = url.pathname
   }
 
-  // The app is deliberately reviewed at its production mount point. Keep the
-  // root app's manifest/worker paths untouched; extension-less links used by
-  // older Playwright specs redirect into the React app's /next/ basename.
-  if (pathname === '/next') {
-    res.writeHead(308, { Location: `/next/${url.search}` })
+  // The app is deliberately reviewed at its production mount point, which since
+  // the Phase 16 cutover is the root. The retired /next/ mount is mirrored here
+  // too, so a stale bookmark or an old /next/ start URL behaves in the preview
+  // exactly as it does against the Go server: 308, prefix stripped, query kept.
+  if (pathname === '/next' || pathname.startsWith('/next/')) {
+    const target = pathname.slice('/next'.length) || '/'
+    res.writeHead(308, { Location: `${target}${url.search}` })
     res.end()
     return
   }
-  if (!pathname.startsWith('/next/')) {
-    if (!extname(pathname)) {
-      res.writeHead(308, { Location: `/next${pathname}${url.search}` })
-      res.end()
-      return
-    }
+
+  // The legacy vanilla UI lives in web/templates + web/static + web/public and
+  // is served by the Go handler at /legacy/, which this fixture server does not
+  // emulate: cmd/server/frontend_test.go covers that handler instead, because a
+  // test against an emulation would not test the code that ships.
+  if (pathname === '/legacy' || pathname.startsWith('/legacy/')) {
     res.statusCode = 404
     res.setHeader('Content-Type', MIME['.txt'])
-    res.end('Not found')
+    res.end('The legacy lifeboat is served by the Go server, not this fixture preview.')
     return
   }
 
-  const relativePath = pathname.slice('/next/'.length)
+  const relativePath = pathname.replace(/^\/+/, '')
   const candidate = resolve(join(ROOT, relativePath))
-  if (relativePath === 'sw.js') res.setHeader('Service-Worker-Allowed', '/next/')
+  // Mirror the Go handler's Service-Worker-Allowed for the root worker.
+  if (relativePath === 'sw.js') res.setHeader('Service-Worker-Allowed', '/')
   // Refuse to serve anything outside the build directory.
   if (candidate !== ROOT && !candidate.startsWith(ROOT + sep)) {
     res.statusCode = 403
@@ -162,13 +165,20 @@ const server = createServer(async (req, res) => {
     // fall through to the SPA fallback below
   }
 
+  // Unknown file-like URLs are missing assets, not client-side routes — the same
+  // rule the Go handler applies, so a typo'd asset URL cannot be masked here.
+  if (extname(pathname)) {
+    res.statusCode = 404
+    res.setHeader('Content-Type', MIME['.txt'])
+    res.end('Not found')
+    return
+  }
+
   // SPA fallback: any extension-less path is a client-side route.
-  if (!extname(pathname)) {
-    try {
-      if (await sendFile(res, join(ROOT, 'index.html'), { method })) return
-    } catch {
-      // no build present
-    }
+  try {
+    if (await sendFile(res, join(ROOT, 'index.html'), { method })) return
+  } catch {
+    // no build present
   }
 
   res.statusCode = 404
@@ -178,7 +188,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`cals preview (static + fixtures) v${APP_VERSION}`)
-  console.log(`  http://localhost:${PORT}/next/`)
+  console.log(`  http://localhost:${PORT}/`)
   console.log(`  serving   ${ROOT}`)
   if (process.env.VITE_API_TARGET) {
     console.log(
