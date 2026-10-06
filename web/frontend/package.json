@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0-spike",
   "type": "module",
-  "description": "Phase 11 foundation for the React frontend rebuild (still non-default; production route is temporary /next/).",
+  "description": "The React frontend for cals. Since the Phase 16 cutover it is served at / (retargeted on the branch; not yet released).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

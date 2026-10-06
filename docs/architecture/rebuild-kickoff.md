@@ -90,10 +90,12 @@ Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7; curr
   points at Settings when there are none.
 - **Drink calories count towards the bank** (decision 1; regression-tested in
   `internal/handlers/bank_test.go`).
-- **The React UI stays under `/next/`** until the owner approves cutover. Parity is not success. Phase 16's
-  audited, staged plan is [`phase-16-plan.md`](phase-16-plan.md): it must not delete the legacy UI, the
-  cutover must not be performed, and no appdata, Unraid template or Cloudflare change may be made, without
-  the owner's explicit approval.
+- **The React UI is retargeted to `/` on the branch but not yet released.** Phase 16 stage 16.2 is built
+  and verified; `/next/*` 308s onto the root and the legacy UI is a lifeboat at `/legacy/`. Nothing is
+  published, so the household still runs rc34. Parity is not success. Phase 16's audited, staged plan is
+  [`phase-16-plan.md`](phase-16-plan.md): it must not delete the legacy UI, the cutover must not be
+  performed, and no appdata, Unraid template or Cloudflare change may be made, without the owner's explicit
+  approval.
 
 ## 4. Guardrails
 

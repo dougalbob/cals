@@ -14,6 +14,49 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Phase 16.2 — React retargeted to `/`, legacy UI kept as a lifeboat (2026-10-06)
+
+Stage 16.2 of [`../architecture/phase-16-plan.md`](../architecture/phase-16-plan.md), built and verified
+on the branch. **Nothing published**: no image, no `dev-latest` move, no container, appdata, template or
+Cloudflare change. The household still runs rc34.
+
+The owner delegated the phase — *"How you get there and what safety checks you employ to ensure a safe
+passage is up to you"* — and named the outcome: React at `/` rather than `/next/`, with PWA support. The
+six audit questions are settled as
+[decisions 110–115](../product/vision-and-open-questions.md#the-cutover-to-the-root--decisions-110115-2026-10-06).
+
+- **Serving:** `nextFrontendHandler` → mountable `spaHandler(mountPath, distDir)` at `/`; legacy UI
+  unchanged and unlinked at `/legacy/`; `/next*` answers **308** with the prefix stripped and the query
+  preserved. The route table moved into `registerFrontendRoutes` so the real `ServeMux` is under test.
+- **A real behaviour change, found by that extraction:** the old catch-all answered *every* method —
+  including `POST` to paths with no handler — with the legacy shell and a `200`. It is now `GET`-only and
+  answers `405`; unknown `/api/*` stays `404`.
+- **Build:** one `APP_BASE` constant (now `/`) drives Vite's base and the manifest's
+  `id`/`start_url`/`scope` and icon URLs, so preview and production cannot drift.
+- **PWA:** a network-only pass-through fetch handler. Nothing cached, no offline fallback, decision 53
+  unchanged. **The audit's §2.4 reasoning was out of date and is corrected in the plan:** menu installs
+  have not needed a fetch handler since Chrome 108 (mobile) / 112 (desktop), so rc34 was never reduced to
+  a shortcut; what still needs one is `beforeinstallprompt`, which drives the in-app **Install app**
+  button on Settings.
+- **Retirement:** `src/lib/legacyServiceWorker.ts` retires the `/public/sw.js` and `/next/sw.js`
+  registrations and the `cals-v*` caches on boot, idempotently, never touching the live worker.
+- **Deliberate deviation from policy A:** no permanent Settings "remove and reinstall" line — empty
+  population, benign failure mode, and a server-side 308 means a fresh install cannot be told apart from
+  an old one. The guidance lives in the plan and the 16.3 checklist.
+
+**Verification** (baseline taken before any edit, then the same suites after): lint and typecheck clean;
+Vitest **311 → 320**; Playwright **72 → 75**; `go vet` clean, `go test ./...` all packages ok with new
+route-table, lifeboat and redirect tests; `scripts/smoke-app-routes.sh` against the **real compiled
+`cmd/server`** serving the real `build:go` bundle on a disposable `/tmp` database — **16/16** dev-mode,
+**15/15** production-like (`/api/*` still `401`); `node scripts/check-doc-links.mjs` clean. Docker cannot
+run in the sandbox, so the image build is left to the PR's `Docker build (validation)` workflow; the
+`Dockerfile` needed no change.
+
+**Remaining 16.2 gate:** the owner's phone-size preview review of React at `/`. 16.3 (cutover release and
+the Cloudflare phone test) and 16.4 (legacy deletion) each still need explicit approval.
+
+---
+
 ## 2026-10-05 — rc34 deployed, Settings checked; Phase 16 audited and staged (docs-only)
 
 **rc34 is installed on Unraid.** The owner Force Updated the existing `cals-dev-v2` container and checked

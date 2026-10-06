@@ -6,6 +6,7 @@
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Deliver independently reviewable Settings and PWA increments, with the temporary `/next/` path handled explicitly |
+| **Read this first** | This is a **completed phase's record** and describes the app as it was at rc34. Its `/next/` mount, `nextFrontendHandler` and `/next/`-scoped manifest/worker have since been **retargeted to `/`** by Phase 16 stage 16.2 (on the branch, not yet published) — see [`phase-16-plan.md`](phase-16-plan.md). Where this document and the code disagree, the code wins. |
 | **Related** | [`frontend-strategy.md`](frontend-strategy.md) §7, [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) decisions 27, 47, 53, 66, 93, 95, 97 and 106; [`testing.md`](testing.md) |
 
 > **Phase 14 is complete in the development line.** Phase 15 can now expose the user controls for preferences whose storage and calculations already landed in Phase 14. The last reported Unraid road-test remains tracked separately in [`../CURRENT_STATE.md`](../CURRENT_STATE.md); Phase 15 must not modify live appdata.

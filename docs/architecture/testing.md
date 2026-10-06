@@ -14,7 +14,7 @@
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
 | **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 311 tests over 40 files (2026-10-05, including Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
-| **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production `/next/` bundle still builds |
+| **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
 | **Container runtime smoke** | part of `Docker build (validation)` | every PR | Starts the built image with a **disposable** database (no volume mounts), waits for `/health`, runs `scripts/smoke-app-routes.sh`, checks migrations created the expected tables, and checks a second container **without** `DEV_MODE` still answers `401` on protected routes |
@@ -65,8 +65,8 @@ web/frontend/e2e/metrics-report.spec.ts  the 14.6 weekly report: opening on the 
                                        backwards-range refusal)
 web/frontend/e2e/settings.spec.ts    phone flow from overflow navigation; saves the custom bank
                                        window and independent ring limits to the fixture account
-web/frontend/e2e/pwa.spec.ts          React-specific /next/ manifest and icons, inert network-only
-                                       worker, pre-paint theme and worker scope
+web/frontend/e2e/pwa.spec.ts          root manifest, icons and worker scope; the pass-through worker
+                                       caches nothing; the retired /next/ 308s; pre-paint theme
 web/frontend/e2e/desktop-smoke.spec.ts thin desktop render pass (tagged @desktop)
 web/frontend/e2e/support.ts            fixture reset + API/date helpers
 web/frontend/e2e/summarise-results.mjs short failure list for the job log/summary

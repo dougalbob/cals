@@ -47,7 +47,7 @@ The picker is a separate development page, not a dropdown inside the diary. The 
 **WebUI** shortcut points directly to the picker. Builds with the in-app convenience link
 also show **Switch user** in the app header, but the direct URL remains available in every
 build with the switch enabled. After choosing, select **Open cals** on the picker or use
-`/next/` for the React Diary preview.
+`/` for the React Diary.
 
 If the picker says no users were found, it is reading an empty `users` table from this
 container's mounted database. The picker never creates users. Confirm the container is using
@@ -112,7 +112,7 @@ ls -l /mnt/user/appdata/cals-dev-identity/cals.db
 > live household data, not a scratch copy.
 
 Unlike the Cloudflare-routed container, this one can be opened directly at
-`http://<unraid-lan-ip>:8152/` (the legacy UI) or `/next/` (the React spike) with no
+`http://<unraid-lan-ip>:8152/` (the React app) or `/legacy/` (the legacy UI) with no
 Cloudflare session, because `DEV_MODE` supplies the identity. That is exactly why it must
 stay on the LAN.
 
