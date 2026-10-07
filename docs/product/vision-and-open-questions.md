@@ -1162,7 +1162,7 @@ questions for the owner. He delegated them rather than answering one by one — 
 what safety checks you employ to ensure a safe passage is up to you"* — and named the outcome: **the
 React front end at `/` rather than `/next/`, and PWA support.** Each decision below is the
 recommendation the audit already made, taken because it serves that outcome. All of them are
-**stage 16.2** — built, verified and published as rc35 on 2026-10-06 (and included in rc36); neither candidate has been installed, so the household remains on rc34. The owner Force Update and 16.3 Cloudflare/phone checks remain open.
+**stage 16.2** — built, verified and published as rc35 on 2026-10-06 (and included in rc36 and rc37); none of those candidates has been installed, so the household remains on rc34. The owner Force Update and 16.3 Cloudflare/phone checks remain open.
 
 | # | Date | Decision | Source |
 |---|---|---|---|

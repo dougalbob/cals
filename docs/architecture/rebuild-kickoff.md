@@ -91,7 +91,7 @@ Phases 11–16 are in [`frontend-strategy.md`](./frontend-strategy.md) §7; curr
 - **Drink calories count towards the bank** (decision 1; regression-tested in
   `internal/handlers/bank_test.go`).
 - **The React UI's root-route retarget is published but not installed.** Phase 16 stage 16.2 shipped in
-  rc35 and is included in rc36; `/next/*` 308s onto the root and the legacy UI is a lifeboat at `/legacy/`.
+  rc35 and is included in rc36 and rc37; `/next/*` 308s onto the root and the legacy UI is a lifeboat at `/legacy/`.
   The household still runs rc34. Parity is not success. Phase 16's audited, staged plan is
   [`phase-16-plan.md`](phase-16-plan.md): do not delete the legacy UI, Force Update the household, or make
   an appdata, Unraid template or Cloudflare change without the owner's explicit approval.

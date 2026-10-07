@@ -14,6 +14,32 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## `v2.0.0-dev-rc37` published — the Nutrition insight prototype (2026-10-07)
+
+The owner-approved prototype (decision 120) shipped. [PR #85](https://github.com/dougalbob/cals/pull/85) merged into `cals-dev` as
+`a434c62becae38f01eb30e1abd0219cda1f92828`, and the annotated `v2.0.0-dev-rc37` tag points at exactly that commit; `dev-latest` moved with it.
+
+The [publish workflow](https://github.com/dougalbob/cals/actions/runs/37657719163) passed the `cals-dev` ancestry guard, GHCR login, image build, the exact-tag and `dev-latest`
+pushes, digest recording, prerelease creation and the anonymous-pull check (what Unraid does). Digest:
+`sha256:f5814ad1009653ae0d1e3384cd8d3c641048e85cc6e4cd67d882c38b56cd6c0a`; [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc37). The tag-triggered [browser suite](https://github.com/dougalbob/cals/actions/runs/37657719290) also completed successfully on every step.
+PR #85's own checks passed first — [Docker/runtime](https://github.com/dougalbob/cals/actions/runs/37656729065),
+[Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37656728967) and the `run-e2e`
+[Playwright run](https://github.com/dougalbob/cals/actions/runs/37656728720) — as did the post-merge `cals-dev` Go run
+[37657607048](https://github.com/dougalbob/cals/actions/runs/37657607048) before the tag was created.
+
+One evidence caveat, recorded rather than papered over: the CI log *text* is not downloadable from the Arena sandbox
+(`results-receiver.actions.githubusercontent.com` fails, which [`testing.md`](../architecture/testing.md) already documents), so the
+per-test counts of those two browser runs are not asserted from the runs themselves. The same suite is **81 tests** (79 phone +
+2 desktop) and passed in the sandbox on the tagged commit's content, including the new `e2e/nutrition-insights.spec.ts` at 360 px
+with `scrollWidth` ≤ 361.
+
+**No schema migration, data copy, appdata operation, Unraid template change or Cloudflare change**, and no live V2 data was read.
+**rc37 is published but not installed**: rc34 remains the last reported Unraid installation, and rc35's root-route retarget and
+rc36's Metrics follow-up ride along in this candidate, so one Force Update covers all three ([`../CURRENT_STATE.md`](../CURRENT_STATE.md)
+§3 items 10, 14 and 15).
+
+---
+
 ## Nutrition insight prototype — approved, adopted from PR #84 and cut as `v2.0.0-dev-rc37` (2026-10-07)
 
 The owner asked for exploratory Nutrition content, reviewed the 360 px phone preview and approved it:

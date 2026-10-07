@@ -110,7 +110,7 @@ This is real work for a working app, and it introduces Node into the *build* too
 
 ## 5. Target architecture
 
-The diagram below is the **post-cutover target**. Phase 16 stage 16.2 reached it in rc35, and the retarget is included in rc36: the candidate serves React at `/` and the vanilla app as an unlinked lifeboat at `/legacy/`. Neither release is installed, so the deployed household container remains on rc34, with React under `/next/` and the vanilla app as the default at `/` — see [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
+The diagram below is the **post-cutover target**. Phase 16 stage 16.2 reached it in rc35, and the retarget is included in rc36 and rc37: the candidate serves React at `/` and the vanilla app as an unlinked lifeboat at `/legacy/`. None of those releases is installed, so the deployed household container remains on rc34, with React under `/next/` and the vanilla app as the default at `/` — see [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
