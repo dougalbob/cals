@@ -13,6 +13,8 @@
  * (decision 71).
  */
 
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+
 export interface ChartPoint {
   label: string
   value: number
@@ -79,6 +81,7 @@ export function LineChart({
   dots = false,
   trendStroke = '#b2bec3',
   ariaLabel = 'Trend chart',
+  interactivePoints = false,
 }: {
   points: ChartPoint[]
   height?: number
@@ -96,7 +99,19 @@ export function LineChart({
   dots?: boolean
   trendStroke?: string
   ariaLabel?: string
+  /** Tap the chart to inspect the nearest dot; each dot is also keyboard reachable. */
+  interactivePoints?: boolean
 }) {
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
+  const dismissTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (dismissTimer.current !== null) window.clearTimeout(dismissTimer.current)
+    },
+    [],
+  )
+
   if (points.length < 2) {
     return <p className="text-sm text-ink-muted">Not enough data yet.</p>
   }
@@ -121,6 +136,36 @@ export function LineChart({
   const x = (i: number) => pad.left + (i / (points.length - 1)) * innerW
   const y = (v: number) => pad.top + (1 - (v - min) / span) * innerH
 
+  const selectPoint = (index: number) => {
+    if (!interactivePoints) return
+    const safeIndex = Math.max(0, Math.min(points.length - 1, index))
+    setSelectedPointIndex(safeIndex)
+    if (dismissTimer.current !== null) window.clearTimeout(dismissTimer.current)
+    dismissTimer.current = window.setTimeout(() => {
+      setSelectedPointIndex(null)
+      dismissTimer.current = null
+    }, 2500)
+  }
+
+  const handleChartClick = (event: ReactMouseEvent<SVGSVGElement>) => {
+    if (!interactivePoints) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    if (bounds.width <= 0 || bounds.height <= 0) return
+
+    const tapX = ((event.clientX - bounds.left) / bounds.width) * WIDTH
+    const tapY = ((event.clientY - bounds.top) / bounds.height) * height
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+    points.forEach((point, index) => {
+      const distance = (tapX - x(index)) ** 2 + (tapY - y(point.value)) ** 2
+      if (distance < nearestDistance) {
+        nearestIndex = index
+        nearestDistance = distance
+      }
+    })
+    selectPoint(nearestIndex)
+  }
+
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ')
   const baseline = pad.top + innerH
   const area = `${line} L${x(points.length - 1).toFixed(1)},${baseline} L${pad.left},${baseline} Z`
@@ -129,17 +174,53 @@ export function LineChart({
   const last = points[points.length - 1]
   const first = points[0]
   const middle = points[Math.floor(points.length / 2)]
+  const selectedPoint = selectedPointIndex === null ? null : points[selectedPointIndex] ?? null
+  const selectedLabel = selectedPoint
+    ? `${selectedPoint.label} · ${valueLabel ? valueLabel(selectedPoint.value) : selectedPoint.value}`
+    : ''
+  const selectedX = selectedPointIndex === null ? 0 : x(selectedPointIndex)
+  const selectedY = selectedPoint ? y(selectedPoint.value) : 0
+  const tooltipWidth = Math.min(WIDTH - 8, Math.max(88, selectedLabel.length * 5.2 + 14))
+  const tooltipX = Math.max(4, Math.min(WIDTH - tooltipWidth - 4, selectedX - tooltipWidth / 2))
+  const tooltipY = Math.max(pad.top, Math.min(height - 43, selectedY <= pad.top + 28 ? selectedY + 11 : selectedY - 26))
 
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${WIDTH} ${height}`} className="w-full h-auto" role="img" aria-label={ariaLabel}>
+      <svg
+        viewBox={`0 0 ${WIDTH} ${height}`}
+        className={`w-full h-auto ${interactivePoints ? 'cursor-pointer' : ''}`}
+        role={interactivePoints ? 'group' : 'img'}
+        aria-label={ariaLabel}
+        onClick={interactivePoints ? handleChartClick : undefined}
+      >
         {!dots && fill && <path d={area} fill={stroke} opacity={0.12} />}
         {!dots && (
           <path d={line} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
         {dots &&
           points.map((p, i) => (
-            <circle key={`${p.label}-${i}`} cx={x(i)} cy={y(p.value)} r={2.6} fill={stroke} />
+            <circle
+              key={`${p.label}-${i}`}
+              data-testid={interactivePoints ? `line-chart-point-${i}` : undefined}
+              cx={x(i)}
+              cy={y(p.value)}
+              r={2.6}
+              fill={stroke}
+              role={interactivePoints ? 'button' : undefined}
+              tabIndex={interactivePoints ? 0 : undefined}
+              aria-label={interactivePoints ? `Show weigh-in on ${p.label}: ${valueLabel?.(p.value) ?? p.value}` : undefined}
+              onFocus={interactivePoints ? () => selectPoint(i) : undefined}
+              onClick={interactivePoints ? (event) => {
+                event.stopPropagation()
+                selectPoint(i)
+              } : undefined}
+              onKeyDown={interactivePoints ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  selectPoint(i)
+                }
+              } : undefined}
+            />
           ))}
         {marks.segments.map((segment, i) => (
           <path
@@ -171,7 +252,37 @@ export function LineChart({
             {valueLabel(last.value)}
           </text>
         )}
+        {interactivePoints && selectedPoint && selectedPointIndex !== null && (
+          <g data-testid="line-chart-point-tooltip" pointerEvents="none">
+            <line
+              x1={selectedX}
+              x2={selectedX}
+              y1={pad.top}
+              y2={baseline}
+              stroke="#2d3436"
+              strokeOpacity={0.2}
+              strokeDasharray="2 3"
+            />
+            <circle cx={selectedX} cy={selectedY} r={5.5} fill={stroke} stroke="#ffffff" strokeWidth={2} />
+            <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={20} rx={5} fill="#2d3436" />
+            <text
+              x={tooltipX + tooltipWidth / 2}
+              y={tooltipY + 13.5}
+              fontSize={9}
+              fill="#ffffff"
+              textAnchor="middle"
+              fontWeight={600}
+            >
+              {selectedLabel}
+            </text>
+          </g>
+        )}
       </svg>
+      {interactivePoints && (
+        <figcaption className="sr-only" role="status" aria-live="polite" data-testid="chart-point-status">
+          {selectedPoint ? `Selected weigh-in: ${selectedLabel}` : ''}
+        </figcaption>
+      )}
     </figure>
   )
 }

@@ -495,3 +495,30 @@ Phase 14 is realistically **several working sessions**, not one; **all six slice
 and installed** (rc27→rc33, delivered to Unraid by the rc34 Force Update on 2026-10-05) — 14.1/14.2 signed
 off on Unraid, and 14.3–14.6 with the rc31/rc32 follow-ups awaiting only their phone road-test. Nothing in it
 needs a decision about cutover, and nothing in it moves the household off `/`.
+
+---
+
+## Metrics follow-up (2026-10-07) — outside the six slices
+
+The owner requested a small Metrics improvement while Phase 16's root-retarget release awaits its phone
+road-test; this is not a seventh Phase 14 slice and does not reopen the published phase. The owner approved
+the follow-up in the phone-size preview and authorized its development release on 2026-10-07; the rc36
+publish loop is underway. Product choices are recorded as [decisions 116–119](../product/vision-and-open-questions.md#metrics-follow-up--decisions-116119-2026-10-07).
+
+- The BodyMap now measures 175 × 350 CSS px on a 393 px phone viewport (30% shorter than the old 250 × 500
+  size), while each 44 × 44 px button target remains distinct. The seven tracked fields are unchanged.
+- Metrics requests all measurement sessions through the additive `GET /api/measurements?all=true`; old
+  sessions beyond the former 400-day React window are no longer hidden. This does **not** establish which
+  records are present in V2: no live appdata was inspected. See the explicit history finding in the decision
+  log and [`data-copy-warning.md`](data-copy-warning.md).
+- The Weight card has a weigh-in sheet with an editable date (today by default), kg or two-part stones/lb
+  input, and the all-time last-entry date. Target entry keeps kg and its unit switcher, defaulting to the
+  saved preference. The chart's points are tappable/clickable and briefly expose date/value; chart panning is
+  retained.
+- The Weight summary is compact on mobile: Current/Target pair stones/lb with kg in parentheses, the
+  30-day change is a paired one-line value, and Add weigh-in plus the latest date occupy two lines with no
+  redundant “Weigh-in” label. Smaller type and less vertical space keep the graph visually prominent.
+
+Implementation is in the approved rc36 development-release loop; no rc36 tag or image has been published
+yet. No schema migration or live-data operation was made. Current status and verification are in
+[`../CURRENT_STATE.md`](../CURRENT_STATE.md).

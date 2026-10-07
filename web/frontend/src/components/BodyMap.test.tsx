@@ -70,6 +70,25 @@ describe('BodyMap (decision 67)', () => {
     expect(dot?.className).toContain('h-3')
   })
 
+  it('reduces the map by 30% without overlapping the invisible 44 px targets', () => {
+    render(<BodyMap outline="female" latest={emptyLatest()} onPick={() => undefined} />)
+    const map = screen.getByTestId('body-map')
+    expect(map.className).toContain('max-w-[175px]')
+    const buttons = [...map.querySelectorAll<HTMLButtonElement>('button')]
+    const centers = buttons.map((button) => ({
+      x: (Number.parseFloat(button.style.left) / 100) * 175,
+      y: (Number.parseFloat(button.style.top) / 100) * 350,
+    }))
+
+    for (let left = 0; left < centers.length; left += 1) {
+      for (let right = left + 1; right < centers.length; right += 1) {
+        const dx = Math.abs(centers[left].x - centers[right].x)
+        const dy = Math.abs(centers[left].y - centers[right].y)
+        expect(dx >= 44 || dy >= 44).toBe(true)
+      }
+    }
+  })
+
   it('hands the picked part back to the page', () => {
     const onPick = vi.fn()
     render(<BodyMap outline="male" latest={emptyLatest()} onPick={onPick} />)

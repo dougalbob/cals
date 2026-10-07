@@ -5,15 +5,17 @@
  * hard-coded 7 (decision 95).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
 import { MetricsRoute } from './MetricsRoute'
 import { pointerDown, pointerMove, pointerUp, withClientWidth } from '../test-support/pointer'
+import { addDays, formatShortDate, stonesPoundsToKg, todayIso } from '../lib/format'
 
 const calls: string[] = []
+const requests: { path: string; method: string; body: unknown }[] = []
 let trendDays = 7
 let holdPannedRangeRequests = false
 const pendingRangeResolves: ((response: Response) => void)[] = []
@@ -35,13 +37,18 @@ function renderMetrics(path = '/metrics') {
 }
 
 beforeEach(() => {
+  seed.resetFixtures()
   calls.length = 0
+  requests.length = 0
   trendDays = 7
   holdPannedRangeRequests = false
   pendingRangeResolves.length = 0
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
+    const method = init?.method ?? 'GET'
+    const body = init?.body ? JSON.parse(String(init.body)) : null
     calls.push(`${url.pathname}${url.search}`)
+    requests.push({ path: `${url.pathname}${url.search}`, method, body })
     const isPannedMetricsRequest =
       (url.pathname === '/api/weight' || url.pathname === '/api/stats/calories') &&
       url.searchParams.has('from') &&
@@ -50,12 +57,13 @@ beforeEach(() => {
       return new Promise<Response>((resolve) => pendingRangeResolves.push(resolve))
     }
     // The user record is the source of the trend window, so the test controls
-    // it here to prove the chart reads the column.
-    if (url.pathname === '/api/users/me') return json({ ...seed.user, weight_trend_days: trendDays })
-    const result = handle(init?.method ?? 'GET', url, init?.body ? JSON.parse(String(init.body)) : null)
+    // it here to prove the chart reads the column. Mutations still go through
+    // the fixture handler so their state changes are observable.
+    if (url.pathname === '/api/users/me' && method === 'GET') return json({ ...seed.user, weight_trend_days: trendDays })
+    const result = handle(method, url, body)
     if (!result) return new Response('not found', { status: 404 })
-    const body = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
-    return new Response(result.status === 204 ? null : body, {
+    const bodyText = typeof result.body === 'string' ? result.body : JSON.stringify(result.body)
+    return new Response(result.status === 204 ? null : bodyText, {
       status: result.status,
       headers: { 'Content-Type': result.contentType ?? 'application/json' },
     })
@@ -78,7 +86,7 @@ describe('MetricsRoute — 14.3 charts', () => {
 
   it('keeps the previous chart data visible while a new panned range is loading', async () => {
     renderMetrics()
-    expect(await screen.findByRole('img', { name: 'Weigh-ins with trend' })).toBeTruthy()
+    expect(await screen.findByRole('group', { name: 'Weigh-ins with trend' })).toBeTruthy()
     expect(await screen.findByRole('img', { name: 'Daily totals' })).toBeTruthy()
 
     // Leave both new-range requests unresolved to inspect the in-between state.
@@ -91,7 +99,7 @@ describe('MetricsRoute — 14.3 charts', () => {
     })
 
     await waitFor(() => expect(pendingRangeResolves).toHaveLength(2))
-    expect(screen.getByRole('img', { name: 'Weigh-ins with trend' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Weigh-ins with trend' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Daily totals' })).toBeTruthy()
     expect(screen.queryByText('Loading…')).toBeNull()
 
@@ -154,5 +162,133 @@ describe('MetricsRoute — 14.3 charts', () => {
 
     await waitFor(() => expect(calls.some((call) => call.startsWith('/api/weight?from='))).toBe(true))
     expect(calls.some((call) => call === '/api/weight?days=90')).toBe(true)
+  })
+})
+
+describe('MetricsRoute — requested weight and history improvements', () => {
+  it('shows an all-time weigh-in date in the card, even when it is outside the summary window', async () => {
+    const oldDate = seed.dateOffset(250)
+    const otherUsers = seed.weightEntries.filter((entry) => entry.user_id !== seed.user.id)
+    seed.weightEntries.splice(0, seed.weightEntries.length, ...otherUsers, {
+      id: Math.max(...seed.weightEntries.map((entry) => entry.id)) + 1,
+      user_id: seed.user.id,
+      date: oldDate,
+      weight_kg: 79.4,
+      created_at: `${oldDate}T12:00:00Z`,
+    })
+    renderMetrics()
+
+    expect(await screen.findByTestId('weigh-in-action')).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.getByTestId('weigh-in-action').textContent).toContain(`Last: ${formatShortDate(oldDate)}`),
+    )
+    expect(calls).toContain('/api/weight/latest')
+    expect(calls).toContain('/api/weight?days=90')
+  })
+
+  it('opens a backdateable stones-and-pounds weigh-in sheet and saves canonical kg', async () => {
+    const entryDate = addDays(todayIso(), -2)
+    seed.weightEntries.splice(
+      0,
+      seed.weightEntries.length,
+      ...seed.weightEntries.filter((entry) => entry.date !== entryDate),
+    )
+    renderMetrics()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add weigh-in' }))
+    expect((await screen.findByLabelText('Weigh-in date') as HTMLInputElement).value).toBe(todayIso())
+    expect(screen.getByLabelText('Weight in stones')).toBeTruthy()
+    expect(screen.getByLabelText('Weight in pounds')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Weigh-in date'), { target: { value: entryDate } })
+    fireEvent.change(screen.getByLabelText('Weight in stones'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('Weight in pounds'), { target: { value: '7.1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save weigh-in' }))
+
+    const expectedKg = stonesPoundsToKg(12, 7.1)
+    await waitFor(() => expect(seed.weightEntries.find((entry) => entry.date === entryDate)?.weight_kg).toBeCloseTo(expectedKg))
+    expect(screen.queryByRole('dialog', { name: 'Add weigh-in' })).toBeNull()
+    expect(requests.find((request) => request.path === '/api/weight' && request.method === 'POST')?.body).toEqual({
+      date: entryDate,
+      weight_kg: expectedKg,
+    })
+  })
+
+  it('uses the account’s kilogram preference for the weigh-in sheet', async () => {
+    seed.user.weight_unit = 'kg'
+    renderMetrics()
+    await screen.findByRole('button', { name: /Edit target weight/ })
+    fireEvent.click(await screen.findByRole('button', { name: 'Add weigh-in' }))
+
+    expect(await screen.findByText('Enter your weight in kilograms.')).toBeTruthy()
+    expect(screen.getByLabelText('Weight in kilograms')).toBeTruthy()
+    expect(screen.queryByLabelText('Weight in stones')).toBeNull()
+  })
+
+  it('uses two numeric fields for a stones-and-pounds target', async () => {
+    renderMetrics()
+    fireEvent.click(await screen.findByRole('button', { name: /Edit target weight/ }))
+
+    const stones = await screen.findByLabelText('Target weight in stones') as HTMLInputElement
+    const pounds = screen.getByLabelText('Target weight in pounds') as HTMLInputElement
+    expect(stones.inputMode).toBe('numeric')
+    expect(pounds.inputMode).toBe('decimal')
+    fireEvent.change(stones, { target: { value: '13' } })
+    fireEvent.change(pounds, { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save target' }))
+
+    const expectedKg = Math.round(stonesPoundsToKg(13, 2) * 10) / 10
+    await waitFor(() => expect(seed.user.target_weight_kg).toBeCloseTo(expectedKg))
+    expect(requests.find((request) => request.path === '/api/users/me' && request.method === 'PUT')?.body).toEqual({
+      target_weight_kg: expectedKg,
+    })
+  })
+
+  it('retains the target unit switcher and carries the entered value across units', async () => {
+    renderMetrics()
+    fireEvent.click(await screen.findByRole('button', { name: /Edit target weight/ }))
+    fireEvent.change(await screen.findByLabelText('Target weight in stones'), { target: { value: '13' } })
+    fireEvent.change(screen.getByLabelText('Target weight in pounds'), { target: { value: '2' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kilograms' }))
+    expect((screen.getByLabelText('Target weight in kilograms') as HTMLInputElement).value).toBe('83.5')
+    fireEvent.click(screen.getByRole('button', { name: 'Stones / lb' }))
+    expect((screen.getByLabelText('Target weight in stones') as HTMLInputElement).value).toBe('13')
+    expect((screen.getByLabelText('Target weight in pounds') as HTMLInputElement).value).toBe('2.1')
+  })
+
+  it('keeps the target editor in kilograms for a kg-preference account', async () => {
+    seed.user.weight_unit = 'kg'
+    renderMetrics()
+    fireEvent.click(await screen.findByRole('button', { name: /Edit target weight/ }))
+
+    expect(await screen.findByLabelText('Target weight in kilograms')).toBeTruthy()
+    expect(screen.queryByLabelText('Target weight in stones')).toBeNull()
+  })
+
+  it('shows old measurement sessions instead of hiding everything before the 400-day window', async () => {
+    const oldDate = '2024-01-15'
+    const id = Math.max(...seed.measurements.map((entry) => entry.id)) + 1
+    seed.measurements.push({
+      id,
+      user_id: seed.user.id,
+      date: oldDate,
+      waist_cm: 77.4,
+      created_at: `${oldDate}T07:10:00Z`,
+    })
+    renderMetrics()
+
+    expect(await screen.findByTestId('measurement-history')).toBeTruthy()
+    expect(screen.getByTestId('measurement-history').textContent).toContain('77.4')
+    expect(calls).toContain('/api/measurements?all=true')
+  })
+
+  it('briefly displays the selected weigh-in dot value on tap', async () => {
+    renderMetrics()
+    const point = await screen.findByTestId('line-chart-point-2')
+    fireEvent.click(point)
+
+    expect(screen.getByTestId('line-chart-point-tooltip').textContent).toMatch(/.+ · \d+ st \d+\.\d lb/)
+    expect(screen.getByTestId('chart-point-status').textContent).toContain('Selected weigh-in:')
   })
 })

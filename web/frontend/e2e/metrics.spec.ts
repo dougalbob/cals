@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
-import { resetFixtures } from './support'
+import { resetFixtures, isoDate, touchTap } from './support'
+import { stonesPoundsToKg } from '../src/lib/format'
 
 /**
  * Phase 14.3 on a phone: the weigh-in and goal-vs-consumed charts pan one
@@ -73,5 +74,95 @@ test.describe('Metrics charts pan on a phone', () => {
     const weightRange = range((await weightCaption.textContent()) as string)
     const goalRange = range((await page.getByTestId('goal-window').textContent()) as string)
     expect(goalRange).toBe(weightRange)
+  })
+
+  test('tapping a chart point briefly reveals its date and weight', async ({ page, request }) => {
+    await resetFixtures(request)
+    await page.goto('/metrics')
+
+    const point = page.getByTestId('line-chart-point-3')
+    await expect(point).toBeVisible()
+    const value = (await point.getAttribute('aria-label')) as string
+    const expected = value.split(': ').slice(1).join(': ')
+    await touchTap(point)
+    await expect(page.getByTestId('chart-point-status')).toContainText(expected)
+    await expect(page.getByTestId('line-chart-point-tooltip')).toContainText(expected)
+    await page.waitForTimeout(2600)
+    await expect(page.getByTestId('line-chart-point-tooltip')).toHaveCount(0)
+  })
+
+  test('records a backdated weigh-in with the preferred stones and pounds fields', async ({ page, request }) => {
+    await resetFixtures(request)
+    await page.goto('/metrics')
+
+    await touchTap(page.getByRole('button', { name: 'Add weigh-in' }))
+    const dateInput = page.getByTestId('weigh-in-date')
+    await expect(dateInput).toHaveValue(isoDate())
+    const delayedDate = isoDate(-125)
+    await dateInput.fill(delayedDate)
+    await page.getByLabel('Weight in stones').fill('12')
+    await page.getByLabel('Weight in pounds').fill('7.1')
+    await touchTap(page.getByTestId('save-weigh-in'))
+    await expect(page.getByRole('dialog', { name: 'Add weigh-in' })).toHaveCount(0)
+
+    const saved = await request.get(`/api/weight?from=${delayedDate}&to=${delayedDate}`)
+    const entries = (await saved.json()) as { date: string; weight_kg: number }[]
+    expect(entries).toHaveLength(1)
+    expect(entries[0].weight_kg).toBeCloseTo(stonesPoundsToKg(12, 7.1))
+    await expect(page.getByTestId('weigh-in-action')).toContainText('Last:')
+  })
+
+  test('keeps the weight summary compact and readable on a narrow phone', async ({ page, request }) => {
+    await resetFixtures(request)
+    await page.setViewportSize({ width: 360, height: 800 })
+    await page.goto('/metrics')
+
+    const current = page.getByTestId('weight-stat-current')
+    const currentValue = page.getByTestId('weight-stat-current-value')
+    await expect(currentValue).toContainText(/\(\d+\.\d kg\)/)
+
+    for (const value of [currentValue, page.getByTestId('weight-stat-delta-value')]) {
+      const dimensions = await value.evaluate((element) => ({
+        width: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        height: element.getBoundingClientRect().height,
+      }))
+      expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1)
+      expect(dimensions.height).toBeLessThanOrEqual(22)
+    }
+    await expect(current).toHaveCSS('height', /5[0-9]px/)
+
+    const target = page.getByTestId('weight-stat-target')
+    const targetButton = target.getByRole('button')
+    const targetDimensions = await targetButton.evaluate((element) => ({
+      width: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      height: element.getBoundingClientRect().height,
+    }))
+    expect(targetDimensions.scrollWidth).toBeLessThanOrEqual(targetDimensions.width + 1)
+    expect(targetDimensions.height).toBeLessThanOrEqual(22)
+
+    const weighIn = page.getByTestId('weigh-in-action')
+    await expect(weighIn.getByText('Weigh-in', { exact: true })).toHaveCount(0)
+    await expect(weighIn.getByRole('button', { name: 'Add weigh-in' })).toBeVisible()
+    await expect(weighIn).toContainText(/Last: \d+ [A-Z][a-z]{2}/)
+    const weighInHeight = await weighIn.evaluate((element) => element.getBoundingClientRect().height)
+    expect(weighInHeight).toBeLessThanOrEqual(60)
+  })
+
+  test('saves a target in kilograms and retains the stones/lb switcher', async ({ page, request }) => {
+    await resetFixtures(request)
+    await page.goto('/metrics')
+
+    await touchTap(page.getByRole('button', { name: /Edit target weight/ }))
+    await page.getByLabel('Target weight in stones').fill('13')
+    await page.getByLabel('Target weight in pounds').fill('2')
+    await touchTap(page.getByRole('button', { name: 'Kilograms' }))
+    await expect(page.getByLabel('Target weight in kilograms')).toHaveValue('83.5')
+    await touchTap(page.getByRole('button', { name: 'Save target' }))
+    await expect(page.getByRole('dialog', { name: 'Target weight' })).toHaveCount(0)
+
+    const user = await (await request.get('/api/users/me')).json()
+    expect(user.target_weight_kg).toBe(83.5)
   })
 })

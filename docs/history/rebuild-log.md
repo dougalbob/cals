@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Metrics follow-up — compact BodyMap, all-time history and weigh-in capture (2026-10-07)
+
+The owner reviewed the phone-size Arena preview, approved the follow-up and authorized publication; the next development checkpoint is in the release loop. The follow-up remains additive: no migration, live-data access or appdata operation.
+
+- **BodyMap:** maximum width reduced from 250 to 175 CSS px, making its proportional height 30% shorter
+  (175 × 350 at a 393 px phone viewport); all 44 × 44 px hit areas remain distinct and non-overlapping.
+- **History investigation:** the schema, handlers and UI still expose the same seven body parts; repository
+  review found no migration that drops a part or deletes measurement rows. The previous React history list
+  fetched a 400-day range, so older rows may have been hidden. `GET /api/measurements?all=true` now exposes
+  all rows while retaining the legacy newest-20 and bounded-window contracts. **No live V1/V2 appdata was
+  inspected, so the household's actual V2 measurement history remains unknown.** The owner accepts starting
+  fresh if the live history is actually unavailable; fixtures are not evidence of live contents.
+- **Weight entry:** the Waist tile becomes an Add weigh-in sheet with today's date as an editable default,
+  user-preferred kg or separate whole-stones / decimal-pounds fields, an all-time last-weigh-in date, and
+  query refresh after save. The target editor also uses the account preference initially, keeps its kg/
+  Stones-lb switcher, and saves canonical kg. New authenticated `GET /api/weight/latest` supplies the
+  all-time date; the existing upsert endpoint stores entries. The mobile summary pairs imperial/metric
+  values on a quieter line and shows Add weigh-in plus the last date in two lines without a redundant label.
+- **Chart:** tapping/clicking or keyboard-selecting a dot briefly exposes that weigh-in's date and value;
+  chart drag-to-pan remains enabled.
+
+**Verification:** `scripts/verify-go-in-sandbox.sh` built the server; `go vet ./...` and `go test ./...`
+passed in its scratch copy. Frontend: **338 Vitest tests / 42 files**, lint, typecheck and `build:go` passed;
+full phone + desktop Playwright suite **80/80**, including the 360 px compact-summary check; doc links clean.
+
+---
+
 ## `v2.0.0-dev-rc35` published — the Phase 16 cutover retarget (2026-10-06)
 
 The owner reviewed the Arena preview and approved publication. PR #79 was merged into `cals-dev` as

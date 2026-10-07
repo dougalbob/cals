@@ -80,6 +80,44 @@ describe('fixture metrics series endpoints', () => {
     expect(windowed.body.length).toBeLessThan(all.length)
   })
 
+  it('records weigh-ins and exposes the latest date even when it is outside the 90-day summary window', () => {
+    seed.weightEntries.length = 0
+    const oldDate = seed.dateOffset(250)
+    const saved = handle('POST', new URL('http://localhost/api/weight'), {
+      date: oldDate,
+      weight_kg: 79.8,
+    })
+
+    expect(saved.status).toBe(201)
+    expect(get('/api/weight?days=90').body).toEqual([])
+    expect(get('/api/weight/latest').body).toMatchObject({ date: oldDate, weight_kg: 79.8 })
+
+    const updated = handle('POST', new URL('http://localhost/api/weight'), {
+      date: oldDate,
+      weight_kg: 79.4,
+    })
+    expect(updated.status).toBe(201)
+    expect(seed.weightEntries).toHaveLength(1)
+    expect(get('/api/weight/latest').body).toMatchObject({ date: oldDate, weight_kg: 79.4 })
+  })
+
+  it('provides all-time measurement history without altering the legacy 20-row contract', () => {
+    const oldDate = '2024-01-15'
+    seed.measurements.push({
+      id: Math.max(...seed.measurements.map((entry) => entry.id)) + 1,
+      user_id: 1,
+      date: oldDate,
+      waist_cm: 77.4,
+      created_at: `${oldDate}T07:10:00Z`,
+    })
+
+    const allHistory = get('/api/measurements?all=true')
+    expect(allHistory.status).toBe(200)
+    expect(allHistory.body.find((entry) => entry.date === oldDate)?.waist_cm).toBe(77.4)
+    expect(get('/api/measurements?all=true&days=7').status).toBe(400)
+    expect(get('/api/measurements').body.some((entry) => entry.date === oldDate)).toBe(true)
+  })
+
   it('clamps a future `to` back to today rather than fabricating empty days', () => {
     const future = seed.nextDate(seed.nextDate(seed.TODAY))
     const { body } = get(`/api/stats/calories?from=${seed.dateOffset(1)}&to=${future}`)

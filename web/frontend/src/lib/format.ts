@@ -69,6 +69,11 @@ export function kgToStonesPounds(kg: number): StonesPounds {
   return { stones, pounds }
 }
 
+/** Convert a whole number of stones plus pounds back to the canonical kg value. */
+export function stonesPoundsToKg(stones: number, pounds: number): number {
+  return (stones * 14 + pounds) / LBS_PER_KG
+}
+
 export function formatStonesPounds(kg: number): string {
   const { stones, pounds } = kgToStonesPounds(kg)
   return `${stones} st ${pounds.toFixed(1)} lb`

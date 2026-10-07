@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render } from '@testing-library/react'
 import { BarChart, LineChart, goalBand } from './charts'
 
 const fills = (container: HTMLElement) =>
@@ -102,6 +102,33 @@ describe('LineChart dots and trend', () => {
     // The isolated average is a point; nothing bridges it to the gap.
     expect(container.querySelectorAll('[data-testid="trend-segment"]')).toHaveLength(0)
     expect(container.querySelectorAll('[data-testid="trend-point"]')).toHaveLength(1)
+  })
+
+  it('shows the tapped weigh-in value briefly, then dismisses it', () => {
+    vi.useFakeTimers()
+    try {
+      const { container } = render(
+        <LineChart
+          dots
+          interactivePoints
+          valueLabel={(value) => `${value.toFixed(1)} kg`}
+          points={[
+            { label: '1 Oct', value: 95.4 },
+            { label: '2 Oct', value: 95.1 },
+            { label: '3 Oct', value: 94.9 },
+          ]}
+        />,
+      )
+
+      fireEvent.click(container.querySelector('[data-testid="line-chart-point-1"]') as Element)
+      expect(container.querySelector('[data-testid="line-chart-point-tooltip"]')?.textContent).toContain('2 Oct · 95.1 kg')
+      expect(container.querySelector('[data-testid="chart-point-status"]')?.textContent).toContain('2 Oct · 95.1 kg')
+
+      act(() => vi.advanceTimersByTime(2500))
+      expect(container.querySelector('[data-testid="line-chart-point-tooltip"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('keeps a small wobble from filling the chart when a minimum span is given', () => {

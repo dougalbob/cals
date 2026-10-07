@@ -5,9 +5,8 @@ import { labelFor } from '../lib/measurements'
 /**
  * The tappable body map (decision 67). An SVG silhouette carries one point
  * per measurement part; the female outline exposes Bust and the male outline
- * Chest (decision 98). Every point is a real button — 44 px invisible hit
- * area around a small red dot, labelled and keyboard-focusable, the same
- * invisible-target technique RecipeTags uses.
+ * Chest (decision 98). The silhouette is 30% shorter on mobile, while every
+ * point keeps its 44 px invisible hit area around the small visible dot.
  */
 
 const VIEW_W = 240
@@ -26,20 +25,20 @@ interface PointPlacement {
 
 const PLACEMENTS: Record<BodyOutline, Partial<Record<MeasurementPartKey, PointPlacement>>> = {
   female: {
-    neck_cm: { x: 120, y: 60, labelSide: 'right', mapLabel: 'Neck' },
-    bust_cm: { x: 120, y: 122, labelSide: 'left', mapLabel: 'Bust' },
-    waist_cm: { x: 120, y: 185, labelSide: 'right', mapLabel: 'Waist' },
-    upper_arm_cm: { x: 76, y: 150, labelSide: 'left', mapLabel: 'Arm' },
-    hips_cm: { x: 120, y: 238, labelSide: 'right', mapLabel: 'Hips' },
-    thigh_cm: { x: 138, y: 320, labelSide: 'right', mapLabel: 'Thigh' },
+    neck_cm: { x: 120, y: 52, labelSide: 'right', mapLabel: 'Neck' },
+    bust_cm: { x: 120, y: 120, labelSide: 'left', mapLabel: 'Bust' },
+    waist_cm: { x: 120, y: 188, labelSide: 'right', mapLabel: 'Waist' },
+    upper_arm_cm: { x: 58, y: 156, labelSide: 'left', mapLabel: 'Arm' },
+    hips_cm: { x: 120, y: 256, labelSide: 'right', mapLabel: 'Hips' },
+    thigh_cm: { x: 138, y: 330, labelSide: 'right', mapLabel: 'Thigh' },
   },
   male: {
-    neck_cm: { x: 120, y: 60, labelSide: 'right', mapLabel: 'Neck' },
+    neck_cm: { x: 120, y: 52, labelSide: 'right', mapLabel: 'Neck' },
     chest_cm: { x: 120, y: 118, labelSide: 'left', mapLabel: 'Chest' },
-    waist_cm: { x: 120, y: 185, labelSide: 'right', mapLabel: 'Waist' },
-    upper_arm_cm: { x: 70, y: 150, labelSide: 'left', mapLabel: 'Arm' },
-    hips_cm: { x: 120, y: 238, labelSide: 'right', mapLabel: 'Hips' },
-    thigh_cm: { x: 136, y: 320, labelSide: 'right', mapLabel: 'Thigh' },
+    waist_cm: { x: 120, y: 188, labelSide: 'right', mapLabel: 'Waist' },
+    upper_arm_cm: { x: 55, y: 156, labelSide: 'left', mapLabel: 'Arm' },
+    hips_cm: { x: 120, y: 256, labelSide: 'right', mapLabel: 'Hips' },
+    thigh_cm: { x: 136, y: 330, labelSide: 'right', mapLabel: 'Thigh' },
   },
 }
 
@@ -121,7 +120,8 @@ export function BodyMap({
     <div
       role="group"
       aria-label={`Body map, ${outline} outline`}
-      className="relative mx-auto w-full max-w-[250px]"
+      data-testid="body-map"
+      className="relative mx-auto w-full max-w-[175px] sm:max-w-[250px]"
       style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}
     >
       <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="h-full w-full" aria-hidden>
@@ -161,8 +161,8 @@ export function BodyMap({
               style={{
                 top: `${(point.y / VIEW_H) * 100}%`,
                 ...(point.labelSide === 'right'
-                  ? { left: `${((point.x + 26) / VIEW_W) * 100}%` }
-                  : { right: `${((VIEW_W - point.x + 26) / VIEW_W) * 100}%` }),
+                  ? { left: `${((point.x + 34) / VIEW_W) * 100}%` }
+                  : { right: `${((VIEW_W - point.x + 34) / VIEW_W) * 100}%` }),
               }}
             >
               {point.mapLabel}

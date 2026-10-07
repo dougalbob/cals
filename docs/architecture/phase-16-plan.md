@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **16.2 BUILT — retargeted on the branch, preview only.** Stage 16.1 (this audit) is done; **16.2 is implemented and verified but not published**: `/` serves React, `/legacy/` is the lifeboat, `/next/*` 308s onto the root, and the worker has the pass-through handler. **16.3 (the cutover release) and 16.4 (legacy deletion) are not started and each still need explicit owner approval.** The owner delegated the §6 decisions on 2026-10-06 ("How you get there and what safety checks you employ … is up to you"); they are recorded in §6 with his stated goal — React at `/`, PWA support — as the requirement they serve. One audit claim was found to be out of date and is corrected in §2.4. |
+| **Status** | 🟢 **16.2 was published as `v2.0.0-dev-rc35` after preview approval, but is not installed; `cals-dev-v2` remains on rc34.** `/` serves React, `/legacy/` is the lifeboat, `/next/*` 308s onto the root, and the worker has the pass-through handler. The Metrics follow-up is approved in the phone preview and its rc36 development release is underway; no rc36 tag exists yet. The Cloudflare phone test after an owner Force Update remains outstanding; 16.4 (legacy deletion) still needs separate explicit approval. The owner delegated the §6 decisions on 2026-10-06 ("How you get there and what safety checks you employ … is up to you"); they are recorded in §6 with his stated goal — React at `/`, PWA support — as the requirement they serve. One audit claim was found to be out of date and is corrected in §2.4. |
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Retarget and retest installability at `/`, make React the default, handle the existing `/next/` install deliberately — in reversible steps, with no legacy deletion and no Cloudflare change |
@@ -200,9 +200,9 @@ If any check shows the root is *not* already covered by an Access application, s
 
 This document, plus the status correction in [`../CURRENT_STATE.md`](../CURRENT_STATE.md). No code, no deployment, no configuration. **Gate:** the owner answers §6 Q1–Q6; 16.2 does not start until he does.
 
-### 16.2 — Retarget on the branch, preview only (no publish) — **BUILT 2026-10-06**
+### 16.2 — Retarget and review (built 2026-10-06, published as rc35)
 
-Everything in §4 plus the test and doc sweep, delivered as a branch and an **Arena preview served at `/`** (the preview's fixture server is switched to the root mount so the review is faithful). Nothing is published, so the household sees no change and `dev-latest` does not move.
+Everything in §4 plus the test and doc sweep was delivered as a branch and an **Arena preview served at `/`** (the preview's fixture server was switched to the root mount so the review was faithful). The owner approved the preview and PR #79 later published `v2.0.0-dev-rc35` (see the release log); it is not yet installed, so rc34 still runs on the household's container. The separate Metrics follow-up has been approved and is now in the rc36 development-release loop.
 
 - **Worker:** the pass-through handler is in, per Q2, with a browser test that a request still reaches the server and that Cache Storage stays empty.
 - **`/next/` handling (policy A):** 308-strip redirect + the one-time in-app unregister, minus the Settings line — see the deviation note in §6. Policies B (keep `/next/` served in parallel for one release) and C (leave it forever) remain rejected: B keeps two installable scopes and two base builds alive for no benefit; C leaves a second scope and a stale manifest permanently.
@@ -231,13 +231,12 @@ run here, so the image build is verified by the PR's `Docker build (validation)`
 workflow — the `Dockerfile` needed no change, since it already copies both
 `web/dist` and the whole `web/` tree.
 
-**Not verified here, and why it does not matter yet:** the phone install test.
-It needs a real device over the Cloudflare hostname, which is 16.3's step 4.
-Nothing in 16.2 is visible to the household, so there is nothing to test on a
-phone until 16.3 is approved.
+**Not verified here:** the phone install test. It needs a real device over the
+Cloudflare hostname, which is tracked in the remaining 16.3 phone check. rc35 is
+published but not installed, so it has not changed the household's live app.
 
-- **Exit:** owner reviews React at `/` at phone size in the preview — **this is the remaining 16.2 gate**; everything else above is green. **No publish.**
-- **Rollback:** nothing to roll back — no published artifact and no deployed change.
+- **Exit:** the owner reviewed React at `/` at phone size, approved the preview and authorized publication; PR #79/rc35 closed the 16.2 preview gate. Force Update and the Cloudflare-hosted phone check remain.
+- **Rollback:** rc35 is published but not installed. Keep rc34 pinned until the owner chooses to update; after an update, re-pin rc34 and restart for an exact rollback.
 
 ### 16.3 — Cutover release and the Cloudflare phone test (owner-gated)
 

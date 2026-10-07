@@ -511,6 +511,13 @@ export function handle(method, url, body, headers = {}) {
     return json(seed.waterFor(date, actingUserId))
   }
 
+  if (pathname === '/api/weight/latest' && method === 'GET') {
+    const latest = weightEntries
+      .filter((entry) => entry.user_id === actingUserId)
+      .sort((a, b) => (b.date === a.date ? b.id - a.id : b.date.localeCompare(a.date)))[0]
+    return json(latest ?? null)
+  }
+
   if (pathname === '/api/weight' && method === 'GET') {
     const range = resolveSeriesRange(searchParams, 90, 0)
     if (range.error) return err(400, range.error)
@@ -521,10 +528,33 @@ export function handle(method, url, body, headers = {}) {
     )
   }
 
+  if (pathname === '/api/weight' && method === 'POST') {
+    const date = String(body?.date ?? '')
+    const weightKg = Number(body?.weight_kg)
+    if (!(weightKg > 0)) return err(400, 'Weight must be positive')
+    if (!date) return err(400, 'Date is required')
+
+    const existing = weightEntries.find((entry) => entry.user_id === actingUserId && entry.date === date)
+    if (existing) {
+      existing.weight_kg = weightKg
+      return json(existing, 201)
+    }
+    const entry = {
+      id: Math.max(0, ...weightEntries.map((item) => item.id)) + 1,
+      user_id: actingUserId,
+      date,
+      weight_kg: weightKg,
+      created_at: new Date().toISOString(),
+    }
+    weightEntries.push(entry)
+    return json(entry, 201)
+  }
+
   // Measurements — mirrors internal/handlers/measurements.go since slice 14.4.
   // No parameters: V1's exact contract, the newest 20 rows whatever their age.
   // A window (from/to or days): every row inside it, same 400-day bound and
-  // strict 400s as the other series endpoints.
+  // strict 400s as the other series endpoints. all=true is an additive,
+  // unbounded history read used by the React Metrics list.
   if (pathname === '/api/measurements' && method === 'GET') {
     const mine = () =>
       [...measurements]
@@ -544,9 +574,12 @@ export function handle(method, url, body, headers = {}) {
           created_at: m.created_at,
         }))
 
-    if (!searchParams.get('from') && !searchParams.get('to') && !searchParams.get('days')) {
-      return json(mine().slice(0, 20))
+    const windowed = searchParams.get('from') || searchParams.get('to') || searchParams.get('days')
+    if (searchParams.get('all') === 'true') {
+      if (windowed) return err(400, 'all=true cannot be combined with a measurement range')
+      return json(mine())
     }
+    if (!windowed) return json(mine().slice(0, 20))
     const range = resolveSeriesRange(searchParams, 20, MAX_SERIES_SPAN)
     if (range.error) return err(400, range.error)
     return json(mine().filter((m) => m.date >= range.from && m.date <= range.to))
