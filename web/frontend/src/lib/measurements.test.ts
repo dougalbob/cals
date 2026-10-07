@@ -89,8 +89,8 @@ describe('latestMeasurementDate', () => {
   })
 })
 
-describe('decision 87 cadence', () => {
-  it('treats more than four weeks as overdue', () => {
-    expect(MEASUREMENT_OVERDUE_DAYS).toBe(28)
+describe('decision 122 cadence', () => {
+  it('treats 14 days as the measurement window, matching the reminders bell', () => {
+    expect(MEASUREMENT_OVERDUE_DAYS).toBe(14)
   })
 })

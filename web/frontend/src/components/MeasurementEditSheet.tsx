@@ -47,6 +47,7 @@ export function MeasurementEditSheet({ entry, onClose }: { entry: MeasurementEnt
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.measurements })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders })
       onClose()
     },
     onError: () => setError('Could not save the changes. Please try again.'),
@@ -56,6 +57,7 @@ export function MeasurementEditSheet({ entry, onClose }: { entry: MeasurementEnt
     mutationFn: () => apiDelete(`/api/measurements/${entry.id}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.measurements })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders })
       onClose()
     },
     onError: () => setError('Could not delete the entry. Please try again.'),

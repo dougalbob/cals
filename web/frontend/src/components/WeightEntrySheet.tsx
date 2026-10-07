@@ -35,6 +35,8 @@ export function WeightEntrySheet({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.weightPrefix })
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutritionPrefix })
+      // The weigh-in may clear the nag (decisions 121–122).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders })
       onClose()
     },
   })

@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
-import { apiGet, queryKeys } from '../api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiGet, apiPost, queryKeys } from '../api/client'
 import { getCalendar } from '../api/calendar'
-import type { CalendarResponse, WeeklyAnalysis, WeightEntry } from '../api/types'
+import type { CalendarResponse, WeeklyAnalysis, WeeklyReportSeenResponse, WeightEntry } from '../api/types'
 import { StatusLight } from './StatusLight'
 import { addDays, formatNumber, formatShortDate, todayIso } from '../lib/format'
 import { formatWeekRangeLabel, weekRange } from '../lib/calendar'
@@ -87,6 +87,27 @@ export function WeeklyReport() {
       }),
     [calendar.data, range.from, range.to, weights.data],
   )
+
+  // Decision 121: a completed period that is actually on screen counts as
+  // viewed — that is what clears the bell's "weekly report ready" advisory,
+  // on every device (the watermark lives server-side). The in-progress week
+  // never posts: a report is complete when its week has finished. The ref
+  // keeps re-renders from repeating the POST, and the endpoint is idempotent
+  // (the watermark only moves forward) regardless.
+  const queryClient = useQueryClient()
+  const markedSeenRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (range.to >= today || markedSeenRef.current === range.to) return
+    markedSeenRef.current = range.to
+    void apiPost<WeeklyReportSeenResponse>('/api/reminders/weekly-report-seen', { week_to: range.to })
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.reminders })
+      })
+      .catch(() => {
+        // Bookkeeping only — on failure the advisory simply waits for the next
+        // view of a completed report.
+      })
+  }, [range.to, today, queryClient])
 
   const setRange = (next: ReportRange) => {
     setCustomError(null)

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPut, queryKeys } from '../api/client'
 import type {
@@ -108,8 +108,7 @@ export function MetricsRoute() {
   const [targetInput, setTargetInput] = useState<WeightInputValues>(emptyWeightInput)
   const [targetUnit, setTargetUnit] = useState<WeightUnit>('stones')
   const [targetInputError, setTargetInputError] = useState<string | null>(null)
-  const [addingWeighIn, setAddingWeighIn] = useState(false)
-  const [weighInUnit, setWeighInUnit] = useState<WeightUnit>('stones')
+  const [weighInDraftOpen, setWeighInDraftOpen] = useState(false)
 
   const chooseOutline = useMutation({
     mutationFn: (outline: BodyOutline) => apiPut<User>('/api/users/me', { body_outline: outline }),
@@ -181,9 +180,50 @@ export function MetricsRoute() {
     saveTarget.mutate(Math.round(kg * 10) / 10)
   }
 
-  const openWeighInEditor = () => {
-    setWeighInUnit(user.data?.weight_unit === 'kg' ? 'kg' : 'stones')
-    setAddingWeighIn(true)
+  // Reminders-bell deep links (decision 121). `?open=weigh-in` opens the
+  // weigh-in sheet straight from the bell — the URL is the state (the
+  // report_* convention) and closing the sheet clears it. `?open=measurements`
+  // is a one-shot jump: it scrolls the body map into view and cleans up after
+  // itself. The sheet's openness is derived from the URL, so no effect has to
+  // push React state around.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openParam = searchParams.get('open')
+  const urlOpensWeighIn = openParam === 'weigh-in'
+  const addingWeighIn = weighInDraftOpen || urlOpensWeighIn
+  // The unit follows the profile (as the target editor's does) rather than
+  // being frozen at open time: the sheet starts empty, so nothing typed can be
+  // reinterpreted.
+  const weighInUnit: WeightUnit = user.data?.weight_unit === 'kg' ? 'kg' : 'stones'
+  const measurementsSectionRef = useRef<HTMLElement | null>(null)
+  const jumpedToMeasurementsRef = useRef(false)
+
+  useEffect(() => {
+    if (openParam !== 'measurements' || jumpedToMeasurementsRef.current) return
+    jumpedToMeasurementsRef.current = true
+    measurementsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setSearchParams(
+      (params) => {
+        const updated = new URLSearchParams(params)
+        updated.delete('open')
+        return updated
+      },
+      { replace: true },
+    )
+  }, [openParam, setSearchParams])
+
+  const openWeighInEditor = () => setWeighInDraftOpen(true)
+
+  const closeWeighInEditor = () => {
+    setWeighInDraftOpen(false)
+    if (!urlOpensWeighIn) return
+    setSearchParams(
+      (params) => {
+        const updated = new URLSearchParams(params)
+        updated.delete('open')
+        return updated
+      },
+      { replace: true },
+    )
   }
 
   // API returns newest-first; charts want oldest-first.
@@ -217,7 +257,9 @@ export function MetricsRoute() {
   const outline = user.data?.body_outline ?? null
   const lastMeasured = measurementLatest.data ? latestMeasurementDate(measurementLatest.data) : null
   const daysSinceMeasured = lastMeasured ? daysBetweenIso(lastMeasured, todayIso()) : null
-  const overdue = daysSinceMeasured !== null && daysSinceMeasured > MEASUREMENT_OVERDUE_DAYS
+  // Decision 122: the amber cue fires at the same 14-day window the reminders
+  // bell nags on, so the two surfaces can never disagree.
+  const overdue = daysSinceMeasured !== null && daysSinceMeasured >= MEASUREMENT_OVERDUE_DAYS
   const weeksSince = daysSinceMeasured === null ? null : Math.floor(daysSinceMeasured / 7)
 
   return (
@@ -370,7 +412,7 @@ export function MetricsRoute() {
         </div>
       </Link>
 
-      <section className="rounded-2xl bg-card p-4 shadow-card">
+      <section ref={measurementsSectionRef} className="rounded-2xl bg-card p-4 shadow-card">
         <h2 className="m-0 mb-1 text-base font-semibold">📏 Measurements</h2>
 
         {lastMeasured === null ? (
@@ -387,7 +429,7 @@ export function MetricsRoute() {
               (weeksSince === 0
                 ? ' · this week'
                 : ` · ${weeksSince} week${weeksSince === 1 ? '' : 's'} ago`)}
-            {overdue && ' — measurements are best taken every 3–4 weeks'}
+            {overdue && ' — measurements are best taken every 2 weeks'}
           </p>
         )}
 
@@ -470,7 +512,7 @@ export function MetricsRoute() {
         <WeightEntrySheet
           unit={weighInUnit}
           latest={latest ?? null}
-          onClose={() => setAddingWeighIn(false)}
+          onClose={closeWeighInEditor}
         />
       )}
       {editingTarget && (

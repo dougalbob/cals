@@ -142,6 +142,8 @@ export const queryKeys = {
   weightRange: (from: string, to: string) => ['weight', 'range', from, to] as const,
   /** Prefix key: invalidating it refreshes every measurement history/latest query. */
   measurements: ['measurements'] as const,
+  /** The bell's active reminder items (decisions 121–122). */
+  reminders: ['reminders'] as const,
   measurementsRange: (from: string, to: string) => ['measurements', 'range', from, to] as const,
   /** All sessions, including dates earlier than the 400-day range contract. */
   measurementsAll: ['measurements', 'all'] as const,

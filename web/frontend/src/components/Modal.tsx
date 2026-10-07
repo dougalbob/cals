@@ -57,13 +57,16 @@ export function Modal({
   if (!open) return null
 
   return (
+    // The dialog panel resets to text-ink: this component does not portal, so
+    // a sheet opened from the header would otherwise inherit its white text
+    // (the reminders bell, decisions 121–122).
     <div
       className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden overscroll-none bg-black/40 sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex w-full min-h-0 max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl bg-card shadow-card sm:max-w-lg sm:rounded-2xl"
+        className="flex w-full min-h-0 max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl bg-card text-ink shadow-card sm:max-w-lg sm:rounded-2xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

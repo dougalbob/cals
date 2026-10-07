@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, queryKeys } from './api/client'
 import type { SessionResponse, VersionResponse } from './api/types'
 import { SwapUserSheet } from './components/SwapUserSheet'
+import { RemindersBell } from './components/RemindersBell'
 import { vibrate } from './lib/preferences'
 
 const NAV = [
@@ -247,6 +248,9 @@ export function AppLayout() {
                 {user.name || user.email} · {user.daily_calorie_goal.toLocaleString('en-GB')} kcal
               </span>
             )}
+            {/* The reminders bell (decisions 121–122) acts for whoever is on
+                screen, including a "Viewing as" identity. */}
+            <RemindersBell />
             {session?.is_admin && (
               <button
                 type="button"

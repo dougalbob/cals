@@ -11,7 +11,8 @@
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/calendar, /api/drinks, /api/weight,
  *          /api/measurements (+ GET latest, POST merge, PUT/DELETE by id),
- *          /api/stats/calories, /api/stats/bank, /api/nutrition/*
+ *          /api/stats/calories, /api/stats/bank, /api/nutrition/*,
+ *          /api/reminders (+ weekly-report-seen)
  * Supported mutations include Diary/drink demos, recipe create/content/favourite/metadata/archive
  * edits, uncropped photo upload/replacement, and dependent nutrition refreshes. Unsupported
  * mutations (including photo cropping) return 501 with a clear message.
@@ -220,6 +221,14 @@ function bandStatus(value, min, max) {
   if (value >= min && value <= max) return 'green'
   const slack = value < min ? (min - value) / min : (value - max) / max
   return slack <= 0.1 ? 'amber' : 'red'
+}
+
+// The most recent completed Monday–Sunday week — mirrors lastCompletedWeek in
+// internal/handlers/reminders.go (decisions 121–122).
+function lastCompletedWeek(todayIso) {
+  const dow = (new Date(`${todayIso}T00:00:00Z`).getUTCDay() + 6) % 7 // Mon=0 … Sun=6
+  const lastMonday = shiftIsoDate(todayIso, -dow - 7)
+  return [lastMonday, shiftIsoDate(lastMonday, 6)]
 }
 
 // ---------------------------------------------------------------------------
@@ -683,6 +692,67 @@ export function handle(method, url, body, headers = {}) {
       measurements.splice(measurements.indexOf(entry), 1)
       return { status: 204, body: '', contentType: 'application/json' }
     }
+  }
+
+  // --- reminders (decisions 121–122) — mirrors internal/handlers/reminders.go
+  // Active items only: the cadence nags are derived from the logged data (so
+  // logging clears them), and the weekly-report advisory resolves against the
+  // per-user seen watermark.
+  if (pathname === '/api/reminders' && method === 'GET') {
+    const cadenceItem = (type, cadenceDays, lastDate) => {
+      const item = {
+        type,
+        last_date: null,
+        days_since: null,
+        cadence_days: cadenceDays,
+        week_from: null,
+        week_to: null,
+      }
+      if (!lastDate) return item
+      const days = seed.daysBetween(lastDate, today)
+      if (days < 0 || days < cadenceDays) return null
+      item.last_date = lastDate
+      item.days_since = days
+      return item
+    }
+    const latestDate = (rows) =>
+      rows
+        .filter((entry) => entry.user_id === actingUserId)
+        .map((entry) => entry.date)
+        .sort()
+        .at(-1) ?? null
+
+    const items = []
+    const weighIn = cadenceItem('weigh_in', 3, latestDate(weightEntries))
+    if (weighIn) items.push(weighIn)
+    const measurementsDue = cadenceItem('body_measurements', 14, latestDate(measurements))
+    if (measurementsDue) items.push(measurementsDue)
+
+    const [weekFrom, weekTo] = lastCompletedWeek(today)
+    const seenThrough = currentUser().report_seen_through ?? null
+    if (!seenThrough || seenThrough < weekTo) {
+      items.push({
+        type: 'weekly_report',
+        last_date: null,
+        days_since: null,
+        cadence_days: 0,
+        week_from: weekFrom,
+        week_to: weekTo,
+      })
+    }
+    return json({ items })
+  }
+
+  if (pathname === '/api/reminders/weekly-report-seen' && method === 'POST') {
+    const weekTo = String(body?.week_to ?? '')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekTo)) return err(400, 'week_to must be a YYYY-MM-DD date')
+    if (weekTo > today) return err(400, 'Cannot mark a report seen before its period has finished')
+    const account = currentUser()
+    const current = account.report_seen_through ?? ''
+    // Monotonic, like the SQL watermark: re-reading an older report cannot
+    // bring the advisory back.
+    if (!current || weekTo > current) account.report_seen_through = weekTo
+    return json({ seen_through: account.report_seen_through })
   }
 
   // Calories are food **and** drink, mirroring internal/handlers/stats.go: a

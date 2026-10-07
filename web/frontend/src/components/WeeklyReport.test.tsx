@@ -92,6 +92,8 @@ function nutritionAnalysis(from: string, to: string): WeeklyAnalysis {
 }
 
 const calls: string[] = []
+/** Bodies of POST /api/reminders/weekly-report-seen, one per viewed completed period (decision 121). */
+const seenPosts: string[] = []
 
 function renderReport(path = '/metrics') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } })
@@ -118,10 +120,16 @@ function json(body: unknown) {
 
 beforeEach(() => {
   calls.length = 0
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+  seenPosts.length = 0
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     calls.push(`${url.pathname}${url.search}`)
 
+    if (url.pathname === '/api/reminders/weekly-report-seen') {
+      const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as { week_to?: string }) : {}
+      seenPosts.push(String(body.week_to ?? ''))
+      return json({ seen_through: String(body.week_to ?? '') })
+    }
     if (url.pathname === '/api/calendar') {
       const from = url.searchParams.get('from') ?? TODAY
       const to = url.searchParams.get('to') ?? TODAY
@@ -165,6 +173,9 @@ describe('WeeklyReport — the current week and the picker (decisions 107–109)
     expect(screen.getByTestId('report-range').textContent).toBe(`${expectedLabel} · so far`)
     // The default view leaves the URL clean — the pannable charts own ?from/to.
     expect(screen.getByTestId('location').textContent).toBe('')
+    // The in-progress week is not a completed report, so viewing it must not
+    // mark anything seen (decision 121).
+    expect(seenPosts).toEqual([])
   })
 
   it('pages back a week, names the unlogged day and keeps the window in report_* params', async () => {
@@ -206,6 +217,12 @@ describe('WeeklyReport — the current week and the picker (decisions 107–109)
     // the last one inside it.
     expect(screen.getByTestId('report-weight').textContent).toContain('-0.6 kg')
     expect(screen.getByTestId('report-weight').textContent).toContain('85.0 → 84.4 kg')
+
+    // Viewing the completed week is what clears the bell's "report ready"
+    // advisory — its end date is posted as the seen watermark (decision 121).
+    await waitFor(() => {
+      expect(seenPosts).toContain(lastWeek.to)
+    })
 
     // Next is live again (the current week is ahead), and it returns to the
     // default URL and window.

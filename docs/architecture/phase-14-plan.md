@@ -48,8 +48,10 @@ Explicitly **not** Phase 14 (it stays where the plan puts it):
   [`../product/metrics-evidence.md`](../product/metrics-evidence.md). `metrics-evidence.md` §5 states plainly that
   target-weight ETA "is a research question, not a Phase 14 acceptance criterion". Phase 14 draws a
   *historical* trend only and never extrapolates a date.
-- **The Issues bell and the measurement reminder (decision 87)** — no channel is approved; the reminder is not
-  built and stays unbuilt.
+- **The Issues bell and the measurement reminder (decisions 87, 121–122)** — built outside Phase 14 as the
+  **reminders bell** (weigh-in / measurements / weekly-report items on the header bell; see
+  [`reminders.md`](reminders.md)). Decision 122 revises the measurement cadence to 14 days. The rest of the
+  Issues vision (unlogged-day items and friends) is still unbuilt.
 - **Steps crediting the bank** — decision 48 says no.
 
 ---

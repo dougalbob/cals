@@ -173,7 +173,7 @@ questions 12–15 changed with them.
 
 20. **Phone-first, or desk-first?** The current design is mobile-first; is that right?
 21. ~~**Do you need offline logging?**~~ **Answered (2026-10-03, decision 53): no.** Neither offline logging nor an offline read requirement is needed — logging happens where there is a connection. Phase 15's PWA work therefore covers **installability and a clean service worker only**: no write queue, no sync-conflict handling, and no cached-data promise. That removes the riskiest part of the phase.
-22. ~~**General notifications and reminders**~~ **Answered (decision 46): none for logging or water; a weekly report is wanted.** No general logging nudges, no water nagging, and no push notifications. Decision 87 later adds a narrow future reminder for body measurements after more than four weeks without an entry; its delivery channel and repeat behavior remain open. The weekly report (what the week's numbers looked like, how the bank moved) belongs in Phase 14 if it fits naturally, otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
+22. ~~**General notifications and reminders**~~ **Answered (decision 46): none for logging or water; a weekly report is wanted.** No general logging nudges, no water nagging, and no push notifications. Decision 87 later adds a narrow future reminder for body measurements after more than four weeks without an entry; its delivery channel and repeat behavior remain open. **Decisions 121–122 (2026-10-07) then settle the channel as the in-app reminders bell and revise the cadence to weigh-ins every 3 days and measurements every 14 days**, adding a weekly-report-ready advisory alongside them. The weekly report (what the week's numbers looked like, how the bank moved) belongs in Phase 14 if it fits naturally, otherwise it is its own small feature set. Note the deliberate contrast with decision 42's future **Issues** bell: that is an in-app, resolve-it item on Home, not a notification to your phone.
 23. **Anything needed on a watch, or via Siri/shortcuts?** *(Still open — no requirement recorded either way.)*
 24. **Do you keep any other trackers** (Apple Health, a smart scale, Strava)? Integration, or complexity you don't need? *(Still open — note Google Fit steps already sync and, per decision 48, do not affect the bank.)*
 25. ~~**How is `appdata/cals` backed up today?**~~ **Answered (2026-10-03, decision 54): it is backed up.** The owner confirms a backup of the household's live data exists, which satisfies the "check before a structural change" rule in [`data-copy-warning.md`](../architecture/data-copy-warning.md). Recording the **location and cadence** in that document is still worth doing so a future session does not have to ask.
@@ -515,6 +515,11 @@ entries, and correcting them, then becomes a couple of taps instead of a scroll 
 
 ### The Issues bell (proposed future feature)
 
+> **Status 2026-10-07:** the first slice exists as the **reminders bell** — decisions 121–122 below
+> build the bell, its header placement and the weigh-in / body-measurement / weekly-report items in
+> [`../architecture/reminders.md`](../architecture/reminders.md). The unlogged-day items and the
+> questions below remain open.
+
 **Owner's idea (2026-10-03), prompted by decision 42:** because an unlogged day is usually oversight
 rather than choice, the app should not silently exclude it. A **bell icon on Home** would open a small
 list of things needing attention — starting with "Wednesday 1 October has no logging" — each with a
@@ -805,7 +810,7 @@ The owner made three forward-looking requests. Decision 86 generalizes the light
 | # | Date | Decision | Source |
 |---|---|---|---|
 | 86 | 2026-10-04 | Where there is sufficient UI space, destructive **Delete** and **Remove** actions should use the Recipes page's low-friction inline two-step confirmation pattern: the first action reveals an explicit confirm and cancel choice; the destructive action happens only after confirmation, and cancel leaves the item unchanged. Apply this selectively where the layout allows; an Edit recipe ingredient **Remove** control is a candidate. | Owner observation |
-| 87 | 2026-10-04 | Body measurements should ideally be logged every **3–4 weeks**. Once more than four weeks have elapsed since the most recent measurement, a future reminders feature may prompt the user to update measurements. This is a narrow exception to decision 46's no-general-reminders direction; no reminder channel, recurrence, or push notification is authorized. | Owner request |
+| 87 | 2026-10-04 | Body measurements should ideally be logged every **3–4 weeks**. Once more than four weeks have elapsed since the most recent measurement, a future reminders feature may prompt the user to update measurements. This is a narrow exception to decision 46's no-general-reminders direction; no reminder channel, recurrence, or push notification is authorized. **Cadence revised by decision 122: at least every 14 days, nagging at 14+, delivered on the reminders bell (decision 121).** | Owner request · revised by decision 122 |
 | 88 | 2026-10-04 | **Next-session priority: move production roles and in-app user switching ahead of Phase 14 Metrics.** The owner is **Admin** and his wife is **Standard**. Keep Cloudflare Access as the authentication provider and allow both identities in its access policy; an authenticated Admin must be able to deliberately switch cals' acting user to an existing household account with decision 45's full read/write behavior, an unmistakable persistent “viewing as” indicator, and a way to return to the Admin's own account. Standard users cannot switch. `DEV_MODE`/`DEV_IDENTITY_SWITCH` remain development-only and are not the production feature. The next session should resolve secure role bootstrap, server-side switch/session behavior, affected API authorization (including making `GET /api/users` Admin-only), and tests as part of the work. This records priority and role assignment, not a settled implementation mechanism. | Owner request |
 | 89 | 2026-10-04 | **Roles are declared in the appdata `.env`, as `ADMIN_EMAILS` and `STANDARD_EMAILS` (comma-separated), and reconciled into `users.is_admin` at every start-up.** Config is the authority, the column is the runtime copy handlers read: a declared Admin is granted on boot, everyone else is set to Standard, and a brand-new account takes its declared role at creation. A malformed address — or one listed as both Admin and Standard — fails start-up rather than granting nothing silently; a configured address with no account is logged, never invented. `STANDARD_EMAILS` is documentation and a typo check, not a grant. Unset `ADMIN_EMAILS` leaves the database untouched, so the capability is opted into. The owner chose this over the `ADMIN=` / `USER=` sketch because `USER` is a standard shell variable that would silently override a `.env` line, and over a namespaced `CALS_`-prefixed name for consistency with the repo's unprefixed settings. | Owner request; shape recommended by the agent and accepted |
 | 90 | 2026-10-04 | **The acting-user switch is a plain server-side cookie, honoured only for an Admin, and authorization always reads the *authenticated* identity.** `cals_acting_user` (HttpOnly, SameSite=Lax, 12 h) holds the target account id; `ActingUserMiddleware` rewrites whose data a request touches and never who is signed in, so every handler keeps working unchanged. The cookie is deliberately **not** signed: it is only honoured when the Cloudflare-verified identity holds the Admin role, so a cookie forged by a Standard user is ignored and cleared — signing would protect against nothing the JWT does not already protect. Because role checks read the authenticated identity, an Admin who is acting as the other person can still list accounts and swap back. Switching clears the whole query cache (all of it is account-scoped), logs the switch in both directions, and shows a persistent "Viewing as …" banner with a way back. Full read/write while swapped: rows written belong to the account being acted as, with no second data model. | Implementation session |
@@ -1154,6 +1159,37 @@ approved scope, and it leaves question 12 (are the traffic-light rules right?) a
 adopted as permanent Nutrition content, reworked, or retired is an open question for the owner after
 the phone road-test — nothing here commits to keeping them, and removing them later is a frontend-only
 change.
+
+## The reminders bell — decisions 121–122 (2026-10-07)
+
+**The gap the owner raised.** The owner asked for the reminder system behind the bell icon: nudge the
+particular user to weigh in (at least once every 3 days), to take body measurements (at least every 14
+days), and to know when a weekly report is complete — with the weigh-in and measurement nags clearing
+themselves as soon as the data for that window is logged. That schedules the first slice of decision
+42's proposed **Issues bell** and revises decision 87's measurement cadence. The owner chose the
+placement (the app header, on every screen), the report-advisory bookkeeping (a server-side per-user
+watermark, so it clears on every device) and the strictness (logging the data is the **only** way to
+clear a cadence nag — no dismiss, no snooze). Design and endpoints:
+[`../architecture/reminders.md`](../architecture/reminders.md).
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 121 | 2026-10-07 | **A reminders bell lives in the app header, acting for whoever is on screen** (including the Admin's "Viewing as" switch), with a badge count and one list of what currently needs attention: the weigh-in nag, the body-measurements nag, and the **weekly-report advisory** — the most recent completed Monday–Sunday period, offered until its report has actually been displayed. The cadence nags are **derived from live data** (they exist only while the gap is open) and clear **only** when the data is logged; there is no dismissal or snooze. The advisory instead resolves against a per-user `users.report_seen_through` watermark written when a completed report is on screen, so it clears on every device. In-app only — no push, no email (decision 46 stands); this is the first slice of the Issues bell (decision 42), whose unlogged-day items are **not** included. | Owner (chose header placement, server-side seen-state and strict nags) |
+| 122 | 2026-10-07 | **The cadences are a weigh-in at least every 3 days and a body-measurement session at least every 14 days** — a nag is due once the gap since the newest entry **reaches** its window (3 / 14 days), or at once for someone who has never recorded the data. This revises decision 87's 3–4 week ideal and decision 100's four-week amber cue: the Metrics staleness line now cues at the same 14 days ("measurements are best taken every 2 weeks"), so the two surfaces can never disagree. | Owner |
+
+**Relationship to earlier decisions.** Decision 46's "no general notifications" survives as the
+in-app-only rule: nothing is pushed, emailed or announced outside the bell. Decision 87 authorised a
+narrow measurement reminder at more than four weeks; decision 122 replaces that timing with the
+owner's 14-day cadence and adds the weigh-in counterpart. Decision 42's full Issues vision (unlogged
+days, missing-nutrient gaps, per-issue resolution) remains future work with its open questions — this
+slice answers the "which conditions raise, which resolve themselves" question for exactly three
+condition types: two resolve from data, one from being read.
+
+**What decisions 121–122 do not settle:** any second surface (a Home summary line, decision 42's
+badge alternatives), snooze/dismiss semantics (declined for now — the owner may revisit), cadence
+configuration in Settings, and the remaining Issues-bell candidates. The open questions in
+[`metrics-evidence.md`](metrics-evidence.md) §3 about reminder timing and channel are answered for
+these three items; the channel question is answered as "in-app bell" only.
 
 ## The cutover to the root — decisions 110–115 (2026-10-06)
 

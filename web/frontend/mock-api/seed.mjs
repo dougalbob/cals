@@ -674,6 +674,9 @@ export const users = [
     target_weight_kg: 85,
     // Decision 89: the Admin role is declared in the server's .env.
     is_admin: true,
+    // Reminders (decision 121): no completed report has been viewed yet, so
+    // both accounts demo the bell's "weekly report ready" advisory.
+    report_seen_through: null,
     created_at: '2025-02-14T09:00:00Z',
     updated_at: `${TODAY}T07:00:00Z`,
   },
@@ -694,6 +697,7 @@ export const users = [
     body_outline: 'female',
     target_weight_kg: 68,
     is_admin: false,
+    report_seen_through: null,
     created_at: '2025-02-14T09:00:00Z',
     updated_at: `${TODAY}T07:00:00Z`,
   },
@@ -744,21 +748,23 @@ for (const back of [2, 1, 0]) {
 weightEntries.push({
   id: weightEntries.length + 1,
   user_id: 2,
-  date: iso(localNoon(2)),
+  date: iso(localNoon(5)),
   weight_kg: 70.4,
-  created_at: `${iso(localNoon(2))}T07:05:00Z`,
+  created_at: `${iso(localNoon(5))}T07:05:00Z`,
 })
 
-// Her measurement sessions (bust rather than chest — decision 98), roughly
-// the 3–4 week cadence decision 87 describes.
+// Her measurement sessions (bust rather than chest — decision 98). The newest
+// is 20 days old on purpose: she is inside decision 87's ideal 3–4 week
+// rhythm but past decision 122's 14-day reminder window, so "Viewing as
+// Sarah" demos all three reminders on the bell while Dougal stays caught up.
 {
   let herMeasurementId = measurements.reduce((max, m) => Math.max(max, m.id), 0)
   for (const [back, bust, waist, hips, thigh] of [
-    [84, 96.0, 84.5, 102.0, 58.0],
-    [63, 95.2, 83.4, 101.2, 57.6],
-    [42, 94.6, 82.2, 100.5, 57.1],
-    [21, 93.8, 81.0, 99.8, 56.8],
-    [3, 93.1, 80.2, 99.2, 56.5],
+    [104, 96.4, 84.9, 102.6, 58.2],
+    [83, 96.0, 84.5, 102.0, 58.0],
+    [62, 95.2, 83.4, 101.2, 57.6],
+    [41, 94.6, 82.2, 100.5, 57.1],
+    [20, 93.8, 81.0, 99.8, 56.8],
   ]) {
     const date = iso(localNoon(back))
     measurements.push({
@@ -896,6 +902,7 @@ const initialUserRingDeficitLimits = users.map((u) => u.bank_ring_deficit_limit_
 const initialUserTrendWindows = users.map((u) => u.weight_trend_days)
 const initialUserOutlines = users.map((u) => u.body_outline ?? null)
 const initialUserTargetWeights = users.map((u) => u.target_weight_kg ?? null)
+const initialUserReportSeen = users.map((u) => u.report_seen_through ?? null)
 const initialDrinkEntryId = drinkEntryId
 const initialDrinkIdSeq = drinkIdSeq
 const initialFoodIdSeq = foodIdSeq
@@ -939,6 +946,7 @@ export function resetFixtures() {
     account.weight_trend_days = initialUserTrendWindows[index]
     account.body_outline = initialUserOutlines[index]
     account.target_weight_kg = initialUserTargetWeights[index]
+    account.report_seen_through = initialUserReportSeen[index]
   })
   recipeIdSeq = initialRecipeIdSeq
   drinkEntryId = initialDrinkEntryId
