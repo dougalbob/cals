@@ -39,12 +39,12 @@ var measurementColumns = map[string]string{
 
 // HandleGetMeasurements returns the user's measurement history.
 //
-// Two contracts live behind one route. With no parameters it keeps exactly the
-// behaviour V1 has always had — the newest 20 rows, newest first, regardless
-// of how far back they reach. With a window (an explicit from/to pair, or a
-// legacy days count) it returns every row inside that window, using the same
-// 400-day span bound and the same strict 400s as the other series endpoints
-// (slice 14.1).
+// Three contracts live behind one route. With no parameters it keeps exactly
+// V1's behaviour — the newest 20 rows, newest first. With a window (an explicit
+// from/to pair, or a legacy days count) it returns every row inside that window,
+// using the same 400-day span bound and strict 400s as the other series
+// endpoints (slice 14.1). The additive all=true option returns all sessions for
+// the React history list without changing either existing contract.
 //
 // Values are plain numbers or null. They used to be raw sql.NullFloat64
 // objects ({"Float64": 98.2, "Valid": true}) — verified against a real server
@@ -68,6 +68,29 @@ func HandleGetMeasurements(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	windowed := query.Get("from") != "" || query.Get("to") != "" || query.Get("days") != ""
+
+	// The React Metrics history list can opt into all-time rows without
+	// changing the old no-parameter V1 contract (newest 20) or the bounded
+	// from/to window contract. Avoid silently ignoring a conflicting range.
+	if query.Get("all") == "true" {
+		if windowed {
+			http.Error(w, "all=true cannot be combined with a measurement range", http.StatusBadRequest)
+			return
+		}
+		rows, err := database.DB.Query(`
+			SELECT id, user_id, date(date) AS day, bust_cm, chest_cm, waist_cm, hips_cm, upper_arm_cm, thigh_cm, neck_cm, created_at
+			FROM measurement_entries
+			WHERE user_id = ?
+			ORDER BY day DESC, id DESC
+		`, userID)
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+		writeMeasurementRows(w, rows)
+		return
+	}
 
 	// date(date) rather than the bare column: measurement_entries.date is
 	// declared DATE, so the driver returns RFC3339 when it is scanned into a

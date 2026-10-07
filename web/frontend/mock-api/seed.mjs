@@ -886,8 +886,11 @@ const initialFoods = foods.map((food) => ({
   servings: food.servings.map((serving) => ({ ...serving })),
 }))
 const initialDiaryEntriesDeep = diaryEntries.map((e) => ({ ...e }))
+const initialWeightEntries = weightEntries.map((entry) => ({ ...entry }))
 const initialMeasurements = measurements.map((m) => ({ ...m }))
 const initialUserWindows = users.map((u) => u.bank_window_days)
+const initialUserWeightUnits = users.map((u) => u.weight_unit)
+const initialUserTargets = users.map((u) => u.target_weight_kg)
 const initialUserRingSurplusLimits = users.map((u) => u.bank_ring_surplus_limit_kcal)
 const initialUserRingDeficitLimits = users.map((u) => u.bank_ring_deficit_limit_kcal)
 const initialUserTrendWindows = users.map((u) => u.weight_trend_days)
@@ -916,6 +919,8 @@ export function resetFixtures() {
     ...food,
     servings: food.servings.map((serving) => ({ ...serving })),
   })))
+  weightEntries.length = 0
+  weightEntries.push(...initialWeightEntries.map((entry) => ({ ...entry })))
   for (let index = recipes.length - 1; index >= 0; index--) {
     if (!initialRecipeIds.has(recipes[index].id)) recipes.splice(index, 1)
   }
@@ -927,6 +932,8 @@ export function resetFixtures() {
   measurements.push(...initialMeasurements.map((m) => ({ ...m })))
   users.forEach((account, index) => {
     account.bank_window_days = initialUserWindows[index]
+    account.weight_unit = initialUserWeightUnits[index]
+    account.target_weight_kg = initialUserTargets[index]
     account.bank_ring_surplus_limit_kcal = initialUserRingSurplusLimits[index]
     account.bank_ring_deficit_limit_kcal = initialUserRingDeficitLimits[index]
     account.weight_trend_days = initialUserTrendWindows[index]

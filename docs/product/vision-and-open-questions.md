@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md), [`metrics-evidence.md`](metrics-evidence.md) (working research for Phase 14 Metrics) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–101). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–119). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -1101,6 +1101,29 @@ Two additive API changes support it, both in the 14.1 style: `GET /api/nutrition
 explicit `from`/`to` pair beside the unchanged legacy `days` parameter (the same strict validation the
 metrics series endpoints share), and the fixture API mirrors it so the Arena preview shows real numbers.
 No schema change, migration, data copy or appdata operation.
+
+## Metrics follow-up — decisions 116–119 (2026-10-07)
+
+A short owner-requested detour from Phase 16 addresses the Metrics/body-map follow-up. The owner approved
+the phone-size Arena preview on 2026-10-07 and authorized its development release; the rc36 publish loop
+is underway from the session branch. This does not authorize an Unraid Force Update or change Phase 16's
+remaining cutover gates.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 116 | 2026-10-07 | **Make the BodyMap about 30% shorter while preserving comfortably tappable points on a 6.2-inch phone, and investigate measurement history rather than assuming it was deleted.** Keep the existing seven fields (bust, chest, waist, hips, upper arm, thigh and neck). Expose all stored sessions in Metrics instead of hiding anything older than the previous 400-day client window. If the household's live history is actually unavailable, starting fresh is acceptable — but source code or fixture data cannot establish what is in V2. | Owner |
+| 117 | 2026-10-07 | **Replace the Weight card's Waist tile with a weigh-in action and use the account's weight-unit preference for entry.** The date defaults to today but is editable for late entries; the card reports the actual all-time latest weigh-in date. Stones/lb uses separate numeric stones and pounds fields (whole stones, pounds to 0.1); kg remains available. Preserve the target editor's kg option and unit switcher, defaulting to the account preference. Values remain canonical kg in storage. | Owner |
+| 118 | 2026-10-07 | **Let a user tap a weigh-in chart point to inspect its date and value briefly**, without taking away the chart's touch/drag panning. | Owner |
+| 119 | 2026-10-07 | **Keep the Weight summary compact and visually secondary to its chart on mobile.** Pair the imperial and metric values on the Current and Target rows (kg in parentheses); use a compact paired-value row for the 30-day change; show the Add weigh-in action and last date in two lines, without a redundant “Weigh-in” label. | Owner |
+
+**History investigation, source-level only.** The schema, handlers and both UI implementations still carry the
+same seven measurement fields; repository review found no migration that drops a body part or deletes measurement
+rows. The earlier React history list queried only the most recent 400 days, so older rows could have been
+hidden from that list. V2 began as a 2026-10-02 database copy and has diverged from V1 since then. **No live
+V1/V2 appdata was accessed** (the repository guardrail forbids it), so whether the household's V2 database
+currently contains older measurement rows remains unknown. The new `GET /api/measurements?all=true` path
+makes them visible if present while leaving the legacy newest-20 and bounded-range contracts unchanged.
+No conclusion about the live row count is drawn from fixtures.
 
 ## The cutover to the root — decisions 110–115 (2026-10-06)
 

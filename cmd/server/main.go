@@ -156,6 +156,7 @@ func main() {
 
 	// Weight routes
 	mux.Handle("GET /api/weight", withAuth(http.HandlerFunc(handlers.HandleGetWeightEntries)))
+	mux.Handle("GET /api/weight/latest", withAuth(http.HandlerFunc(handlers.HandleGetLatestWeightEntry)))
 	mux.Handle("POST /api/weight", withAuth(http.HandlerFunc(handlers.HandleCreateWeightEntry)))
 	mux.Handle("DELETE /api/weight/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteWeightEntry)))
 

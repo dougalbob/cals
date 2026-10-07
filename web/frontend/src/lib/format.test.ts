@@ -3,6 +3,7 @@ import {
   addDays,
   formatStonesPounds,
   kgToStonesPounds,
+  stonesPoundsToKg,
   percentOf,
   relativeDayLabel,
   todayIso,
@@ -41,6 +42,11 @@ describe('kgToStonesPounds', () => {
   it('formats for display', () => {
     // 89.6 kg = 197.53 lb = 14 st 1.53 lb
     expect(formatStonesPounds(89.6)).toBe('14 st 1.5 lb')
+  })
+
+  it('converts explicit stones and pounds back to kg without losing the entered tenth of a pound', () => {
+    const kg = stonesPoundsToKg(12, 7.1)
+    expect(kgToStonesPounds(kg)).toEqual({ stones: 12, pounds: 7.1 })
   })
 })
 

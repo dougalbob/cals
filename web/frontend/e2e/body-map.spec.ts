@@ -122,6 +122,39 @@ test.describe('Body-map measurements on a phone', () => {
     expect(list.some((row: { date: string }) => row.date === isoDate())).toBe(false)
   })
 
+  test('keeps a compact 6.2-inch-phone map with distinct 44px tap targets', async ({ page, request }) => {
+    await resetFixtures(request)
+    await page.setViewportSize({ width: 393, height: 852 })
+    await page.goto('/metrics')
+    await touchTap(page.getByTestId('outline-male'))
+
+    const map = page.getByTestId('body-map')
+    await expect(map).toBeVisible()
+    const mapBox = await map.boundingBox()
+    expect(mapBox?.width).toBe(175)
+    expect(mapBox?.height).toBe(350)
+
+    const hitBoxes = await map.locator('button').evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const { x, y, width, height } = button.getBoundingClientRect()
+        return { x, y, width, height }
+      }),
+    )
+    expect(hitBoxes).toHaveLength(6)
+    for (const box of hitBoxes) {
+      expect(box.width).toBe(44)
+      expect(box.height).toBe(44)
+    }
+    for (let left = 0; left < hitBoxes.length; left += 1) {
+      for (let right = left + 1; right < hitBoxes.length; right += 1) {
+        const a = hitBoxes[left]
+        const b = hitBoxes[right]
+        const overlaps = a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+        expect(overlaps).toBe(false)
+      }
+    }
+  })
+
   test('a row from the history opens for correction and keeps its date', async ({
     page,
     request,

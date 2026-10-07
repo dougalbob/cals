@@ -318,7 +318,7 @@ func TestLatestMeasurementsSurviveTheTwentyRowWindow(t *testing.T) {
 }
 
 // No parameters: exactly V1's contract, the newest 20 rows whatever their
-// age. The body map's table asks for a window instead.
+// age. The React history list uses all=true to include older rows.
 func TestGetMeasurementsLegacyLimitIsUnchanged(t *testing.T) {
 	setupHandlerDB(t)
 	userID := createTestUser(t, "map@example.com", "2025-01-01", 2000)
@@ -360,6 +360,17 @@ func TestGetMeasurementsLegacyLimitIsUnchanged(t *testing.T) {
 	_, windowed := getMeasurements(t, "map@example.com", "?from="+day(520)+"&to="+day(480))
 	if len(windowed) != 1 || windowed[0].Date != day(500) {
 		t.Errorf("windowed = %+v, want the ancient row alone", windowed)
+	}
+
+	_, allHistory := getMeasurements(t, "map@example.com", "?all=true")
+	if len(allHistory) != 23 {
+		t.Fatalf("all-time history returned %d rows, want all 23", len(allHistory))
+	}
+	if allHistory[len(allHistory)-1].Date != day(500) {
+		t.Errorf("oldest all-time row = %s, want %s", allHistory[len(allHistory)-1].Date, day(500))
+	}
+	if code, _ := getMeasurements(t, "map@example.com", "?all=true&days=7"); code != http.StatusBadRequest {
+		t.Errorf("all=true with days status = %d, want 400", code)
 	}
 
 	_, daysWindow := getMeasurements(t, "map@example.com", "?days=7")

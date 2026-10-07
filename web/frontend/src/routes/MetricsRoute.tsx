@@ -17,11 +17,13 @@ import { BodyMap } from '../components/BodyMap'
 import { WeeklyReport } from '../components/WeeklyReport'
 import { MeasurementSheet } from '../components/MeasurementSheet'
 import { MeasurementEditSheet } from '../components/MeasurementEditSheet'
+import { Modal } from '../components/Modal'
+import { WeightEntrySheet } from '../components/WeightEntrySheet'
+import { WeightInputFields } from '../components/WeightInputFields'
 import { usePanWindow } from '../hooks/usePanWindow'
 import { bankWindowPhrase } from '../lib/bank'
 import { movingAverageOverWeighIns } from '../lib/trend'
 import {
-  addDays,
   formatKg,
   formatNumber,
   formatShortDate,
@@ -29,6 +31,15 @@ import {
   kgToStonesPounds,
   todayIso,
 } from '../lib/format'
+import {
+  emptyWeightInput,
+  validateWeightInput,
+  weightInputFromKg,
+  weightInputIsEmpty,
+  weightInputToKg,
+  type WeightInputValues,
+  type WeightUnit,
+} from '../lib/weightInput'
 import {
   MEASUREMENT_OVERDUE_DAYS,
   daysBetweenIso,
@@ -50,6 +61,11 @@ export function MetricsRoute() {
     queryFn: () => apiGet<WeightEntry[]>('/api/weight?days=90'),
   })
 
+  const latestWeight = useQuery<WeightEntry | null>({
+    queryKey: queryKeys.weightLatest,
+    queryFn: () => apiGet<WeightEntry | null>('/api/weight/latest'),
+  })
+
   const weightWindow = useQuery<WeightEntry[]>({
     queryKey: queryKeys.weightRange(pan.from, pan.to),
     queryFn: ({ signal }) => apiGet<WeightEntry[]>(`/api/weight?from=${pan.from}&to=${pan.to}`, { signal }),
@@ -68,13 +84,12 @@ export function MetricsRoute() {
     queryFn: () => apiGet<DailyBank[]>('/api/stats/bank?days=30'),
   })
 
-  // The history table asks for the widest window the endpoint allows; the
-  // body map's pop-up reads the dedicated latest-per-part lookup instead,
-  // which no row limit can defeat (slice 14.4).
-  const historyFrom = addDays(todayIso(), -399)
+  // The history list is all-time: explicit range queries still have the
+  // 400-day cap, while ?all=true exposes older V1 sessions without changing
+  // the endpoint's legacy no-parameter (newest 20) contract.
   const measurements = useQuery<MeasurementEntry[]>({
-    queryKey: queryKeys.measurementsRange(historyFrom, todayIso()),
-    queryFn: () => apiGet<MeasurementEntry[]>(`/api/measurements?from=${historyFrom}&to=${todayIso()}`),
+    queryKey: queryKeys.measurementsAll,
+    queryFn: () => apiGet<MeasurementEntry[]>('/api/measurements?all=true'),
   })
 
   const measurementLatest = useQuery<MeasurementLatest>({
@@ -90,8 +105,11 @@ export function MetricsRoute() {
   const [recordingPart, setRecordingPart] = useState<MeasurementPartKey | null>(null)
   const [editingEntry, setEditingEntry] = useState<MeasurementEntry | null>(null)
   const [editingTarget, setEditingTarget] = useState(false)
-  const [targetInput, setTargetInput] = useState('')
-  const [targetUnit, setTargetUnit] = useState<'st' | 'kg'>('st')
+  const [targetInput, setTargetInput] = useState<WeightInputValues>(emptyWeightInput)
+  const [targetUnit, setTargetUnit] = useState<WeightUnit>('stones')
+  const [targetInputError, setTargetInputError] = useState<string | null>(null)
+  const [addingWeighIn, setAddingWeighIn] = useState(false)
+  const [weighInUnit, setWeighInUnit] = useState<WeightUnit>('stones')
 
   const chooseOutline = useMutation({
     mutationFn: (outline: BodyOutline) => apiPut<User>('/api/users/me', { body_outline: outline }),
@@ -112,43 +130,60 @@ export function MetricsRoute() {
   })
 
   const openTargetEditor = () => {
+    const unit: WeightUnit = user.data?.weight_unit === 'kg' ? 'kg' : 'stones'
     const current = user.data?.target_weight_kg
-    setTargetUnit(user.data?.weight_unit === 'kg' ? 'kg' : 'st')
-    if (current != null) {
-      if (user.data?.weight_unit === 'kg') {
-        setTargetInput(current.toFixed(1))
-      } else {
-        const { stones, pounds } = kgToStonesPounds(current)
-        setTargetInput(`${stones} st ${pounds} lb`)
-      }
-    } else {
-      setTargetInput('')
-    }
+    setTargetUnit(unit)
+    setTargetInput(current == null ? emptyWeightInput() : weightInputFromKg(current, unit))
+    setTargetInputError(null)
+    saveTarget.reset()
     setEditingTarget(true)
   }
 
+  const switchTargetUnit = (unit: WeightUnit) => {
+    if (unit === targetUnit) return
+
+    let nextValue = emptyWeightInput()
+    if (!weightInputIsEmpty(targetInput, targetUnit)) {
+      const error = validateWeightInput(targetInput, targetUnit)
+      if (error) {
+        setTargetInputError(error)
+        return
+      }
+      const kg = weightInputToKg(targetInput, targetUnit)
+      if (kg !== null) nextValue = weightInputFromKg(kg, unit)
+    }
+
+    setTargetUnit(unit)
+    setTargetInput(nextValue)
+    setTargetInputError(null)
+    saveTarget.reset()
+  }
+
   const parseAndSaveTarget = () => {
-    // Accept "11.5" (kg), "78" (kg), "12 st 4" (stones + pounds, lb rounded
-    // to 0.1), "12st4lb", etc. Empty input clears the target.
-    const raw = targetInput.trim()
-    if (raw === '') {
+    // An empty kg field or two empty stone/pound fields clears the target.
+    if (weightInputIsEmpty(targetInput, targetUnit)) {
+      setTargetInputError(null)
       saveTarget.mutate(null)
       return
     }
-    let kg: number
-    const stMatch = raw.match(/(\d+(?:\.\d+)?)\s*st(?:one)?s?\s*(?:(\d+(?:\.\d+)?)\s*(?:lb|pounds?)?)?/i)
-    if (stMatch) {
-      const st = parseFloat(stMatch[1])
-      const lb = stMatch[2] ? parseFloat(stMatch[2]) : 0
-      kg = st * 6.35029 + lb * 0.453592
-    } else {
-      const n = parseFloat(raw)
-      if (!Number.isFinite(n) || n <= 0) return
-      kg = targetUnit === 'kg' ? n : n * 0.453592
+
+    const error = validateWeightInput(targetInput, targetUnit)
+    if (error) {
+      setTargetInputError(error)
+      return
     }
-    if (kg > 20 && kg < 300) {
-      saveTarget.mutate(Math.round(kg * 10) / 10)
+    const kg = weightInputToKg(targetInput, targetUnit)
+    if (kg === null) {
+      setTargetInputError('Enter a valid weight.')
+      return
     }
+    setTargetInputError(null)
+    saveTarget.mutate(Math.round(kg * 10) / 10)
+  }
+
+  const openWeighInEditor = () => {
+    setWeighInUnit(user.data?.weight_unit === 'kg' ? 'kg' : 'stones')
+    setAddingWeighIn(true)
   }
 
   // API returns newest-first; charts want oldest-first.
@@ -158,11 +193,11 @@ export function MetricsRoute() {
     [weightWindow.data],
   )
 
-  const latest = weightAsc.at(-1)
-  const monthAgo = weightAsc.find((entry) => entry.date >= addDaysIso(weightAsc.at(-1)?.date ?? '', -30))
-  const change = latest && monthAgo ? latest.weight_kg - monthAgo.weight_kg : 0
+  const latestIn90Days = weightAsc.at(-1)
+  const latest = latestWeight.data ?? latestIn90Days
+  const monthAgo = weightAsc.find((entry) => entry.date >= addDaysIso(latestIn90Days?.date ?? '', -30))
+  const change = latestIn90Days && monthAgo ? latestIn90Days.weight_kg - monthAgo.weight_kg : 0
 
-  const latestWaist = measurementLatest.data?.waist_cm ?? null
   const target = user.data?.target_weight_kg
   // Every bank figure is a rolling window (decisions 66, 92); this chart prints
   // one per day, so it says which window those balances are computed over.
@@ -190,30 +225,53 @@ export function MetricsRoute() {
       <section className="rounded-2xl bg-card p-4 shadow-card">
         <h2 className="m-0 mb-3 text-base font-semibold">⚖️ Weight</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat label="Current" value={latest ? formatStonesPounds(latest.weight_kg) : '—'} sub={latest ? formatKg(latest.weight_kg) : ''} />
+          <Stat
+            label="Current"
+            value={latest ? formatStonesPounds(latest.weight_kg) : '—'}
+            sub={latest ? formatKg(latest.weight_kg) : ''}
+            testId="weight-stat-current"
+          />
           <Stat
             label="Last 30 days"
             value={`${change <= 0 ? '' : '+'}${kgToStonesPounds(Math.abs(change)).stones === 0 ? `${(Math.abs(change) * 2.2046).toFixed(1)} lb` : `${kgToStonesPounds(Math.abs(change)).stones} st ${kgToStonesPounds(Math.abs(change)).pounds} lb`}`}
             sub={`${change <= 0 ? '' : '+'}${change.toFixed(1)} kg`}
             tone={change <= 0 ? 'success' : 'danger'}
+            testId="weight-stat-delta"
           />
-          <div className="rounded-xl border border-line-light px-3 py-2">
+          <div
+            className="rounded-xl border border-line-light px-2 py-2 sm:px-3"
+            data-testid="weight-stat-target"
+          >
             <p className="m-0 text-xs text-ink-light">Target</p>
             <button
               type="button"
               onClick={openTargetEditor}
-              className="m-0 w-full cursor-pointer bg-transparent p-0 text-left font-semibold text-ink hover:text-primary"
+              className="m-0 w-full cursor-pointer whitespace-nowrap bg-transparent p-0 text-left text-[12px] font-semibold leading-5 text-ink hover:text-primary sm:text-[13px]"
               aria-label={target ? `Edit target weight (currently ${formatStonesPounds(target)})` : 'Set target weight'}
             >
-              {target ? formatStonesPounds(target) : 'Set target'}
+              {target ? (
+                <>
+                  {formatStonesPounds(target)}{' '}
+                  <span className="text-[10px] font-normal text-ink-light sm:text-[11px]">({formatKg(target)})</span>
+                </>
+              ) : (
+                'Set target'
+              )}
             </button>
-            <p className="m-0 text-xs text-ink-light">{target ? formatKg(target) : 'Tap to set'}</p>
           </div>
-          <Stat
-            label="Waist"
-            value={latestWaist ? `${latestWaist.value.toFixed(1)} cm` : '—'}
-            sub={latestWaist ? formatShortDate(latestWaist.date) : ''}
-          />
+          <div className="rounded-xl border border-line-light px-2 py-2 sm:px-3" data-testid="weigh-in-action">
+            <button
+              type="button"
+              onClick={openWeighInEditor}
+              className="m-0 w-full cursor-pointer whitespace-nowrap bg-transparent p-0 text-left text-sm font-semibold leading-5 text-ink hover:text-primary"
+              aria-label="Add weigh-in"
+            >
+              Add weigh-in
+            </button>
+            <p className="m-0 text-xs text-ink-light">
+              {latest ? `Last: ${formatShortDate(latest.date)}` : 'No weigh-ins yet'}
+            </p>
+          </div>
         </div>
 
         <div
@@ -233,12 +291,13 @@ export function MetricsRoute() {
               dots
               trend={trendDrawn ? trend : undefined}
               minSpan={2}
+              interactivePoints
               ariaLabel="Weigh-ins with trend"
             />
           )}
         </div>
         <p data-testid="weight-window" className="m-0 mt-1 text-xs text-ink-muted">
-          Showing {formatShortDate(pan.from)} – {formatShortDate(pan.to)} · drag the chart to move the window.
+          Showing {formatShortDate(pan.from)} – {formatShortDate(pan.to)} · tap a dot for its weight; drag to move the window.
         </p>
         <p data-testid="weight-trend-note" className="m-0 mt-0.5 text-xs text-ink-muted">
           {trendDrawn
@@ -407,61 +466,83 @@ export function MetricsRoute() {
         />
       )}
       {editingEntry && <MeasurementEditSheet entry={editingEntry} onClose={() => setEditingEntry(null)} />}
+      {addingWeighIn && (
+        <WeightEntrySheet
+          unit={weighInUnit}
+          latest={latest ?? null}
+          onClose={() => setAddingWeighIn(false)}
+        />
+      )}
       {editingTarget && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-t-2xl bg-card p-4 shadow-xl sm:rounded-2xl" data-testid="target-weight-editor">
-            <h3 className="m-0 mb-3 text-base font-semibold">Target weight</h3>
-            <p className="m-0 mb-3 text-xs text-ink-light">
-              Enter in {targetUnit === 'st' ? 'stones and pounds (e.g. 12 st 4) or a single number as kg' : 'kilograms'}. Leave empty to clear.
-            </p>
-            <div className="mb-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setTargetUnit('st')}
-                className={`min-h-9 cursor-pointer rounded-lg px-3 py-1 text-sm ${targetUnit === 'st' ? 'bg-primary text-white' : 'border border-line bg-card text-ink'}`}
-              >
-                Stones / lb
-              </button>
-              <button
-                type="button"
-                onClick={() => setTargetUnit('kg')}
-                className={`min-h-9 cursor-pointer rounded-lg px-3 py-1 text-sm ${targetUnit === 'kg' ? 'bg-primary text-white' : 'border border-line bg-card text-ink'}`}
-              >
-                Kilograms
-              </button>
-            </div>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={targetInput}
-              onChange={(e) => setTargetInput(e.target.value)}
-              placeholder={targetUnit === 'st' ? 'e.g. 12 st 4' : 'e.g. 76.2'}
-              aria-label="Target weight"
-              className="w-full rounded-lg border border-line px-3 py-2 text-base"
-              autoFocus
-            />
-            {saveTarget.error instanceof Error && (
-              <p className="m-0 mt-2 text-sm text-danger">{saveTarget.error.message}</p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
+        <Modal
+          open
+          title="Target weight"
+          onClose={() => setEditingTarget(false)}
+          footer={
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setEditingTarget(false)}
-                className="min-h-11 cursor-pointer rounded-xl border border-line px-4 py-2 text-sm"
+                className="min-h-11 flex-1 cursor-pointer rounded-xl border border-line bg-card text-sm font-semibold text-ink"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                data-testid="save-target-weight"
                 onClick={parseAndSaveTarget}
                 disabled={saveTarget.isPending}
-                className="min-h-11 cursor-pointer rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="min-h-11 flex-1 cursor-pointer rounded-xl bg-primary text-sm font-semibold text-white disabled:opacity-60"
               >
-                {saveTarget.isPending ? 'Saving…' : 'Save'}
+                {saveTarget.isPending ? 'Saving…' : 'Save target'}
               </button>
             </div>
+          }
+        >
+          <div data-testid="target-weight-editor" className="flex flex-col gap-3">
+            <p className="m-0 text-xs text-ink-light">
+              Enter your target in {targetUnit === 'kg' ? 'kilograms' : 'stones and pounds'}. Leave the field{targetUnit === 'stones' ? 's' : ''} empty to clear it.
+            </p>
+            <div role="group" aria-label="Target weight units" className="grid grid-cols-2 gap-2">
+              {(['stones', 'kg'] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  aria-pressed={targetUnit === unit}
+                  onClick={() => switchTargetUnit(unit)}
+                  className={`min-h-11 cursor-pointer rounded-lg px-3 text-sm font-semibold ${
+                    targetUnit === unit
+                      ? 'bg-primary text-white'
+                      : 'border border-line bg-card text-ink'
+                  }`}
+                >
+                  {unit === 'stones' ? 'Stones / lb' : 'Kilograms'}
+                </button>
+              ))}
+            </div>
+            <WeightInputFields
+              unit={targetUnit}
+              label="Target weight"
+              value={targetInput}
+              onChange={(next) => {
+                setTargetInput(next)
+                setTargetInputError(null)
+                saveTarget.reset()
+              }}
+              autoFocusFirst
+            />
+            {targetInputError && (
+              <p role="alert" className="m-0 text-sm text-danger">
+                {targetInputError}
+              </p>
+            )}
+            {saveTarget.error instanceof Error && (
+              <p role="alert" className="m-0 text-sm text-danger">
+                {saveTarget.error.message}
+              </p>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
@@ -485,13 +566,35 @@ function addDaysIso(iso: string, delta: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: 'success' | 'danger' }) {
+function Stat({
+  label,
+  value,
+  sub,
+  tone,
+  testId,
+}: {
+  label: string
+  value: string
+  sub: string
+  tone?: 'success' | 'danger'
+  testId?: string
+}) {
   const toneClass = tone === 'success' ? 'text-success' : tone === 'danger' ? 'text-danger' : 'text-ink'
   return (
-    <div className="rounded-xl border border-line-light px-3 py-2">
+    <div className="rounded-xl border border-line-light px-2 py-2 sm:px-3" data-testid={testId}>
       <p className="m-0 text-xs text-ink-light">{label}</p>
-      <p className={`m-0 font-semibold ${toneClass}`}>{value}</p>
-      <p className="m-0 text-xs text-ink-light">{sub}</p>
+      <p
+        className={`m-0 whitespace-nowrap text-[12px] font-semibold leading-5 sm:text-[13px] ${toneClass}`}
+        data-testid={testId ? `${testId}-value` : undefined}
+      >
+        {value}
+        {sub && (
+          <>
+            {' '}
+            <span className="text-[10px] font-normal text-ink-light sm:text-[11px]">({sub})</span>
+          </>
+        )}
+      </p>
     </div>
   )
 }
