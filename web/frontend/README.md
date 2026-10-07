@@ -237,7 +237,9 @@ The tests exercise typed API behavior, domain maths and render the implemented s
 fixture API, including add/edit/delete diary flows and delete confirmation, serving/grams mode, recipe
 portion logging, URL-backed recipe filters including Own creation, hydration-target feedback, separate
 Today/Diary meal-fill alpha, calendar month-cell states and new-recipe creation/validation plus
-recipe-photo upload/replacement flows (249 tests across 32 files as of 2026-10-05).
+recipe-photo upload/replacement flows, the Metrics weigh-in capture and all-time measurement history,
+and the Nutrition prototype's macro-share/density maths and panel rendering
+(346 tests across 44 files as of 2026-10-07).
 
 The **browser suite** (`e2e/`) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, confirmation/cancel behaviour when deleting a meal entry,
@@ -248,8 +250,10 @@ form actions, the portion sheet on a small phone, and — after a phone report a
 taps — the whole recipe area control by control (catalogue search/empty state/favourites/archived, the
 Add tag form, the portion sheet's usual-portion rules, Edit recipe's validation, the Diary meal picker,
 and real touch taps on every tick-box) plus the bottom navigation's arrow and touch swipe, and the 14.3 metrics charts (a real touch drag moves
-one shared window, the URL keeps it across a reload, and the trend names its method) — 62 tests across
-phone and desktop on 2026-10-05. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
+one shared window, the URL keeps it across a reload, and the trend names its method), the Metrics
+weigh-in/body-map journeys, the PWA install prompt and worker registration, and the Nutrition
+prototype's target rails and lazily loaded day details at 360 px with no horizontal overflow —
+81 tests across phone and desktop on 2026-10-07. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
 server, no database and never household data — and, in CI, only for milestones (release tags, or a
 PR labelled `run-e2e`; manual dispatch would need the workflow on `main`, which is production and read-only, so a run is asked for with the label or a tag). Layer-by-layer detail, including the sandbox's browser
 workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).

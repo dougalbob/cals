@@ -14,6 +14,53 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Nutrition insight prototype — approved, adopted from PR #84 and cut as `v2.0.0-dev-rc37` (2026-10-07)
+
+The owner asked for exploratory Nutrition content, reviewed the 360 px phone preview and approved it:
+inline day details, saved-goal macro rails, and the fibre/density context kept separate from the 30 g/day
+reference. The approved scope is recorded as [decision 120](../product/vision-and-open-questions.md#nutrition-insight-prototype--decision-120-2026-10-07).
+
+The work was **adopted, not rebuilt**. A previous session had left it on branch `arena/316e86c3-cals` as
+draft [PR #84](https://github.com/dougalbob/cals/pull/84) (`7e45f85` prototype panels, then `1e7fd28` day
+details and target rails) and lost GitHub access mid-session (a 503 from the API refresh, not an auth
+failure). This session cherry-picked both commits onto its own branch, as
+[`git-workflow.md`](../architecture/git-workflow.md#adopting-a-previous-sessions-unmerged-work) §5 requires,
+credited the original in its PR body and closed PR #84 as included — so no duplicate feature PR stays open
+and nothing was pushed to the previous session's branch.
+
+**What it adds:** two `Prototype`-badged sections on `/nutrition`, between the existing Protein/Fibre charts
+and the daily table. *Macro pattern* shows one bar per day of the existing 7-day window as the share of
+estimated energy from logged protein, carbs and fat, states the recorded-food coverage, gives days without a
+macro split an explicit no-data row, and counts the days meeting each current target. Tapping a macro shows
+**one** target rail at a time, aligned beneath the days it describes and drawn only from the saved goals
+(`protein_goal_per_kg`, `carb_min_percent`/`carb_max_percent`, `fat_max_percent`); the protein rail is
+disabled rather than wrong when no current weight is recorded. Tapping a date **lazily** loads that day's
+diary through the existing read endpoint and lists its foods and recipes in diary order with their recorded
+weight and their **saved** kcal/protein/carbs/fat/fibre snapshots — nothing is recomputed from a definition
+(decisions 55–58). *Nutrient density* keeps the daily fibre and protein amounts primary and shows
+per-1,000-food-kcal density beside them as added context, saying in the UI that density does not replace the
+30 g/day reference or the saved `fibre_goal`.
+
+**What it does not touch:** no endpoint, schema, migration, target-setting, traffic-light or
+nutrient-coverage behaviour; the existing rolling summary, split donut, charts, goals and daily table are
+unchanged. No data copy, appdata operation, Unraid template change or Cloudflare change, and no live V2 data
+was read — the panels are driven by the fixture API in preview and by existing authenticated reads in the app.
+
+**Verification:** 346 Vitest tests over 44 files, `npm run lint`, `npm run typecheck`, `npm run build:go`,
+the new `e2e/nutrition-insights.spec.ts` at 360 px (asserting `scrollWidth` ≤ 361), and the whole phone +
+desktop browser suite at **81 passed** in the sandbox; `node scripts/check-doc-links.mjs` clean. Review
+screenshots are committed at [`../product/nutrition-insights-360.png`](../product/nutrition-insights-360.png)
+and [`../product/nutrition-density-360.png`](../product/nutrition-density-360.png).
+
+The merge into `cals-dev` is tagged **`v2.0.0-dev-rc37`**, which moves `dev-latest`. Publication evidence —
+the publish run, image digest, prerelease link and tagged browser suite — exists only after that workflow
+finishes, so it is recorded in the [release log](../architecture/unraid-image-release.md#release-log) by a
+focused docs-only follow-up PR (the pattern of PR #53, #57 and #63). Publishing does not update the running
+container: **rc34 remains the last reported Unraid installation** until the owner Force Updates, and rc37
+carries rc35's root-route retarget and rc36's Metrics follow-up with it.
+
+---
+
 ## `v2.0.0-dev-rc36` published — Metrics follow-up and phone weigh-in improvements (2026-10-07)
 
 The owner-approved Metrics follow-up (decisions 116–119) shipped in rc36. [PR #81](https://github.com/dougalbob/cals/pull/81) merged the implementation into `cals-dev` as `b7d8abad1002b550ab2dc30d75bce5b99a7f6e5a`; a focused documentation correction, [PR #82](https://github.com/dougalbob/cals/pull/82), merged as `ac58e0cda39cbd9eae4d305c11d53a40bc710068`. The annotated `v2.0.0-dev-rc36` tag points at that exact `cals-dev` commit. It includes the rc35 Phase 16.2 root-route retarget plus the Metrics follow-up; `dev-latest` moved with the tag.
