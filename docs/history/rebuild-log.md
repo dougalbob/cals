@@ -14,6 +14,22 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## `v2.0.0-dev-rc38` published — the reminders bell (2026-10-07)
+
+The owner reviewed the reminders bell at phone size in the Arena preview ("looks good") and directed publication through the full end-to-end loop. [PR #87](https://github.com/dougalbob/cals/pull/87) merged into `cals-dev` as
+`ae856b509ab18361f09d085201e6096d88f71e47`, and the annotated `v2.0.0-dev-rc38` tag points at exactly that commit; `dev-latest` moved with it.
+
+The [publish workflow](https://github.com/dougalbob/cals/actions/runs/37673109348) passed the `cals-dev` ancestry guard, GHCR login, image build, the exact-tag and `dev-latest`
+pushes, digest recording, prerelease creation and the anonymous-pull check (what Unraid does). Digest:
+`sha256:0022b7dc475d70d6fd9659af16c45c5a7b58e963669065676e86c9af0a80faf3`; [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc38). The tag-triggered [browser suite](https://github.com/dougalbob/cals/actions/runs/37673109322) passed 84 tests (82 phone + 2 desktop).
+
+PR #87's own checks passed first — [Docker/runtime](https://github.com/dougalbob/cals/actions/runs/37671090291),
+[Go vet/tests](https://github.com/dougalbob/cals/actions/runs/37671090192) and the `run-e2e`
+[Playwright run](https://github.com/dougalbob/cals/actions/runs/37671373514) — as did the post-merge `cals-dev` Go run
+[37673054690](https://github.com/dougalbob/cals/actions/runs/37673054690) before the tag was created.
+
+The only schema change in this checkpoint is the additive `users.report_seen_through` column, created automatically at startup; no appdata, template or Cloudflare change. rc34 remains the last reported installation; rc38 is not installed — one Force Update carries rc35–rc38 (§3 items 14–16 of [`CURRENT_STATE.md`](../CURRENT_STATE.md)). The evidence row is in the [release log](../architecture/unraid-image-release.md#release-log).
+
 ## The reminders bell — decisions 121–122 (2026-10-07)
 
 The owner asked for the reminder system behind the bell icon: nudge the particular user to weigh in
@@ -40,7 +56,8 @@ Vitest tests over 46 files, lint, typecheck, `build:go`, `check-doc-links` clean
 browser suite at **84 passed** (82 phone + 2 desktop) including the new `e2e/reminders.spec.ts`
 (report advisory clears on view, the bell follows the acting user through Swap user, logging clears
 the nag). Phone-size review screenshots are in `docs/product/reminders-*-360.png`. No appdata,
-template or Cloudflare change. Awaiting owner review on PR #87.
+template or Cloudflare change. Owner reviewed the Arena preview ("looks good") and directed
+publication: merged and published as `v2.0.0-dev-rc38` (see the entry above).
 
 ## `v2.0.0-dev-rc37` published — the Nutrition insight prototype (2026-10-07)
 
