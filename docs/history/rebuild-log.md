@@ -14,9 +14,19 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## `v2.0.0-dev-rc36` published — Metrics follow-up and phone weigh-in improvements (2026-10-07)
+
+The owner-approved Metrics follow-up (decisions 116–119) shipped in rc36. [PR #81](https://github.com/dougalbob/cals/pull/81) merged the implementation into `cals-dev` as `b7d8abad1002b550ab2dc30d75bce5b99a7f6e5a`; a focused documentation correction, [PR #82](https://github.com/dougalbob/cals/pull/82), merged as `ac58e0cda39cbd9eae4d305c11d53a40bc710068`. The annotated `v2.0.0-dev-rc36` tag points at that exact `cals-dev` commit. It includes the rc35 Phase 16.2 root-route retarget plus the Metrics follow-up; `dev-latest` moved with the tag.
+
+The [publish workflow](https://github.com/dougalbob/cals/actions/runs/37603894474) passed the `cals-dev` ancestry guard, image build/push, prerelease creation and anonymous-pull check. Digest: `sha256:6fc9b30f02ce5f401e6c286cfdc67757b98d52bb73ea5c34f1a6cb40d7a0e192`; [GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc36). The tag-triggered [phone + desktop browser suite](https://github.com/dougalbob/cals/actions/runs/37603894785) passed **80/80**. PR #81's final Docker/runtime, Go and Playwright checks passed ([37602895099](https://github.com/dougalbob/cals/actions/runs/37602895099), [37602895089](https://github.com/dougalbob/cals/actions/runs/37602895089), [37602895086](https://github.com/dougalbob/cals/actions/runs/37602895086), respectively; Playwright 80/80). PR #82's docs-only Docker and Go checks also passed ([37603549282](https://github.com/dougalbob/cals/actions/runs/37603549282), [37603548944](https://github.com/dougalbob/cals/actions/runs/37603548944)); post-merge `cals-dev` Go checks passed on [37603283671](https://github.com/dougalbob/cals/actions/runs/37603283671) and [37603818387](https://github.com/dougalbob/cals/actions/runs/37603818387).
+
+No schema migration, data copy, appdata operation, Unraid template change or Cloudflare change. **rc36 is published but not installed**: rc34 remains the last reported Unraid installation until the owner chooses to Force Update. The live V2 measurement rows remain unknown; no appdata was accessed.
+
+---
+
 ## Metrics follow-up — compact BodyMap, all-time history and weigh-in capture (2026-10-07)
 
-The owner reviewed the phone-size Arena preview, approved the follow-up and authorized publication; the next development checkpoint is in the release loop. The follow-up remains additive: no migration, live-data access or appdata operation.
+The owner reviewed the phone-size Arena preview, approved the follow-up and authorized publication. It was subsequently published in rc36 (see the entry above). The follow-up remains additive: no migration, live-data access or appdata operation.
 
 - **BodyMap:** maximum width reduced from 250 to 175 CSS px, making its proportional height 30% shorter
   (175 × 350 at a 393 px phone viewport); all 44 × 44 px hit areas remain distinct and non-overlapping.
@@ -54,10 +64,10 @@ test count could not be read because the Actions log endpoint returned EOF, so t
 the number is not.
 
 Contents are exactly the 16.2 entry below — no schema migration, no data copy, no appdata operation, no
-Unraid template change and no Cloudflare change. **rc35 is not yet installed:** it awaits the owner's
-Force Update, then the cutover check over the Cloudflare hostname and the phone install test. rc34 remains
-what the household runs until then, and rollback is exact (re-pin rc34 and restart), with `/legacy/` as a
-second, independent way back.
+Unraid template change and no Cloudflare change. At the time of publication, rc35 awaited the owner's
+Force Update and Cloudflare phone test. rc36 later superseded it before any install was reported; rc34
+remains the last reported household version, and rollback is exact (re-pin rc34 and restart), with
+`/legacy/` as a second, independent way back.
 
 ---
 
@@ -99,8 +109,7 @@ route-table, lifeboat and redirect tests; `scripts/smoke-app-routes.sh` against 
 run in the sandbox, so the image build is left to the PR's `Docker build (validation)` workflow; the
 `Dockerfile` needed no change.
 
-**Remaining 16.2 gate:** the owner's phone-size preview review of React at `/`. 16.3 (cutover release and
-the Cloudflare phone test) and 16.4 (legacy deletion) each still need explicit approval.
+**The 16.2 preview gate closed:** the owner reviewed React at `/` at phone size and authorized publication; rc35 was published and the retarget is included in rc36. The owner Force Update and Cloudflare phone test remain for 16.3; 16.4 (legacy deletion) still needs separate explicit approval.
 
 ---
 
@@ -118,8 +127,9 @@ the code rather than a handoff. It records what Phase 16 actually has to change:
 side mounts React at exactly one path (`nextFrontendHandler` with six subtests) while the root catch-all
 serves the legacy shell; the legacy UI has no client-side routing and uses absolute asset URLs, so it can
 be served unchanged from `/legacy/` as the lifeboat; the two PWAs have separate identities, and the React
-worker's lack of a fetch handler means **Chromium withholds the Android install prompt** (a Phase 15 goal
-not actually met on Android — a decision for the owner, not an access-policy problem); and the legacy
+worker's lack of a fetch handler meant the in-app Android install prompt was unavailable at rc34; the
+owner later settled Q2 in favor of a network-only handler, shipped in rc35/rc36 (no caching or offline
+promise); and the legacy
 app was never Chromium-installable (its worker's scope is `/public/`, which does not control `/`), so a
 legacy `/` shortcut or iOS home-screen app needs no identity migration — it will simply open React, with
 the old `/public/sw.js` registration cleaned up once. The audit also inventories the test/doc/template
@@ -136,14 +146,15 @@ would expose the SPA shell and bundle unauthenticated and remove Cloudflare's ou
 entry point while `/api/*` still refused household data without a JWT — the defence-in-depth loss the
 earlier advice warned about, for no install benefit. The deferred item stays deferred.
 
-The plan proposes four reversible stages — decisions/audit (this session), a branch-only retarget with an
-Arena preview at `/` and **no publish**, the owner-approved cutover release plus the Cloudflare phone
-test, and legacy deletion only after a **separate** approval — with a `/next/…` 308-strip redirect that
-preserves deep links, an image-tag rollback, and no appdata, template, Cloudflare or schema change in any
-of them. It estimates ~2–3 focused sessions, smaller than any Phase 14/15 slice, and lists six questions
-(including the Android install prompt and the `/next/` install policy) for the owner to answer before
-implementation. **No code, appdata, template or Cloudflare change was made** — documentation only;
-`node scripts/check-doc-links.mjs` passes and the status pages were updated to match.
+At the time of this 2026-10-05 audit, the plan proposed four reversible stages — decisions/audit, a
+branch-only retarget with an Arena preview at `/` and **no publish**, an owner-approved cutover release
+plus the Cloudflare phone test, and legacy deletion only after a **separate** approval — with a `/next/…`
+308-strip redirect, image-tag rollback, and no appdata, template, Cloudflare or schema change. It listed
+six questions for the owner before implementation. **Subsequently**, the owner delegated and settled
+those decisions (110–115), stage 16.2 shipped in rc35 and its root-route retarget is included in rc36;
+rc34 remains the last reported installation. The Force Update and Cloudflare phone test remain owner-gated,
+and legacy deletion still needs separate approval. This audit itself changed no code, appdata, template or
+Cloudflare configuration; it was documentation-only.
 
 ---
 

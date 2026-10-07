@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **16.2 was published as `v2.0.0-dev-rc35` after preview approval, but is not installed; `cals-dev-v2` remains on rc34.** `/` serves React, `/legacy/` is the lifeboat, `/next/*` 308s onto the root, and the worker has the pass-through handler. The Metrics follow-up is approved in the phone preview and its rc36 development release is underway; no rc36 tag exists yet. The Cloudflare phone test after an owner Force Update remains outstanding; 16.4 (legacy deletion) still needs separate explicit approval. The owner delegated the §6 decisions on 2026-10-06 ("How you get there and what safety checks you employ … is up to you"); they are recorded in §6 with his stated goal — React at `/`, PWA support — as the requirement they serve. One audit claim was found to be out of date and is corrected in §2.4. |
+| **Status** | 🟢 **Stage 16.2 was published as `v2.0.0-dev-rc35`; the latest candidate, `v2.0.0-dev-rc36`, also carries that root-route retarget and the Metrics follow-up. Neither candidate is installed; `cals-dev-v2` remains on rc34.** `/` serves React, `/legacy/` is the lifeboat, `/next/*` 308s onto the root, and the worker has the pass-through handler. The rc36 publish run and tagged 80/80 browser suite passed; no schema, data, appdata, template or Cloudflare change. The Cloudflare phone test after an owner Force Update remains outstanding; 16.4 (legacy deletion) still needs separate explicit approval. The owner delegated the §6 decisions on 2026-10-06 ("How you get there and what safety checks you employ … is up to you"); they are recorded in §6 with his stated goal — React at `/`, PWA support — as the requirement they serve. One audit claim was found to be out of date and is corrected in §2.4. |
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Retarget and retest installability at `/`, make React the default, handle the existing `/next/` install deliberately — in reversible steps, with no legacy deletion and no Cloudflare change |
@@ -115,7 +115,7 @@ Bank maths, the API contract, the database, `ADMIN_EMAILS`/`STANDARD_EMAILS`, `D
 
 §9 lists, under *Not built / open*: *"A Cloudflare Access application for the **PWA bypass** path, so the app can be installed on a phone. Deferred by the owner; it is a Zero Trust configuration change, not cals code."*
 
-Read together with the code, §9 records a **deferred idea**, not a prerequisite. Nothing in this repository defines or requires a bypass. `/` (legacy) and `/next/` (React) are both served by the same container behind the same Cloudflare Access application today; the routes deliberately reachable without a cals JWT are `/health`, `/api/version`, `/public/*` and `/static/*` — plus the React shell and its hashed assets under `/next/*`, which carry no API data, are not linked from anywhere unauthenticated, and are behind Cloudflare Access in production.
+Read together with the code, §9 records a **deferred idea**, not a prerequisite. Nothing in this repository defines or requires a bypass. On the last reported installed version (rc34), `/` is the legacy UI and `/next/` is React; the published rc36 candidate moves React to `/` and keeps the legacy UI at `/legacy/`. Both paths remain behind the same Cloudflare Access application. The routes deliberately reachable without a cals JWT are `/health`, `/api/version`, `/public/*` and `/static/*` — plus the React shell and its hashed assets, which carry no API data and are behind Cloudflare Access in production.
 
 ### Can the PWA be tested with the current access rules? Yes — and nothing needs to change
 
@@ -124,7 +124,7 @@ The manifest, icons, worker, shell and assets are all **same-origin requests mad
 Two practical caveats, neither of them an access-policy problem:
 
 1. **Test through the Cloudflare hostname.** The LAN URL is plain HTTP — not a secure context — so a service worker cannot register and no install is possible there (and `/api/*` answers 401 without a JWT anyway). The phone test must run against the Cloudflare-routed hostname.
-2. **On Android Chrome, expect a shortcut rather than the install prompt**, because the React worker has no fetch handler (§2.4). That is the worker question in §6 Q2; it is not fixed by any Cloudflare setting.
+2. **Android install flow:** rc36 includes Q2's network-only pass-through handler, which enables the Settings **Install app** flow without caching. Verify the real prompt on the phone after an owner-authorized Force Update; the browser-menu install is also available without a Cloudflare change.
 
 ### What a bypass would actually expose (why the earlier advice stands)
 
@@ -148,11 +148,11 @@ If any check shows the root is *not* already covered by an Access application, s
 
 ### Phone install test steps (no access change)
 
-1. On the phone, open the Cloudflare hostname while signed in, and reach the React app (`/next/settings` today; `/settings` after cutover).
-2. Android: browser menu → **Add to Home screen** (a shortcut until Q2 is settled). iOS: **Share → Add to Home Screen**.
-3. Launch it, confirm it opens the React app standalone with the right name/icon, and log or view one entry.
+1. After the owner chooses to Force Update to rc36, open the Cloudflare hostname while signed in and reach React at `/settings`.
+2. On Android, test Settings → **Install app** (Q2's network-only handler supports the in-app prompt); record whether Chrome offers the install flow. On iOS, use **Share → Add to Home Screen**.
+3. Launch the installed app, confirm it opens React at `/` standalone with the right name/icon, and log or view one entry.
 4. Let the Access session expire and note what re-authentication looks like from the standalone window.
-5. Record the result in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — this is the outstanding "phone PWA installation untested" item.
+5. Record the result in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — phone PWA installation remains untested until this check is done.
 
 ---
 
@@ -163,7 +163,7 @@ If any check shows the root is *not* already covered by an Access application, s
 | `web/frontend/vite.config.ts` | Production and preview base `/`; manifest `id`/`start_url`/`scope` `/`; icons at `/pwa/…`; keep one mount-point variable so the preview and Go build cannot drift | small (~20–40 lines) |
 | `cmd/server/frontend.go`, `main.go` | Generalise `nextFrontendHandler` into a mountable SPA handler and mount it at `/`; serve the legacy shell at `/legacy/`; redirect `/next` and `/next/*` by **stripping the prefix** (`/next/diary/x` → `/diary/x`, query preserved) so bookmarks and old start URLs keep working; same cache/type rules as today | medium (~120–200 lines) |
 | `src/` one-time cleanup | On React boot, unregister any `/public/sw.js` and `/next/` registration and delete legacy `cals-v*` caches, idempotently (no-op when absent) | small (~20–40 lines) |
-| `src/sw.ts` (optional, Q2) | Network-only pass-through fetch handler, if the owner wants Chromium's real install prompt; no caching, no offline fallback | small |
+| `src/sw.ts` (Q2, selected) | Network-only pass-through fetch handler, included in rc35/rc36 to drive the in-app Android install prompt; no caching, no offline fallback | small |
 | `serve-preview.mjs` + `e2e/**` | Preview serves at `/` and mirrors the `/next/` redirect; re-base 72 specs onto `/`; rewrite `pwa.spec.ts` for root manifest/scope/icons/worker; add a redirect spec and a legacy-shell-alive spec | medium churn (~150–250 changed lines) |
 | `cmd/server/frontend_test.go`, `scripts/smoke-app-routes.sh` | Root handler tests; smoke expectations become `/` React, `/legacy/` legacy, `/next/…` 308 | small |
 | Docs + template note | The ≈75 `/next/` references; `update-version.sh` stays as-is while the legacy UI still exists | mechanical |
@@ -196,13 +196,13 @@ If any check shows the root is *not* already covered by an Access application, s
 
 ## 5. Staged, reversible plan
 
-### 16.1 — This audit and the decisions (audit done, docs-only; decisions pending)
+### 16.1 — This audit and the decisions (complete; decisions settled 2026-10-06)
 
-This document, plus the status correction in [`../CURRENT_STATE.md`](../CURRENT_STATE.md). No code, no deployment, no configuration. **Gate:** the owner answers §6 Q1–Q6; 16.2 does not start until he does.
+This document and the status correction in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) were documentation-only. No code, deployment or configuration changed in 16.1. The owner delegated and settled §6 Q1–Q6 as decisions 110–115; that gate is closed.
 
-### 16.2 — Retarget and review (built 2026-10-06, published as rc35)
+### 16.2 — Retarget and review (built 2026-10-06, published as rc35; included in rc36)
 
-Everything in §4 plus the test and doc sweep was delivered as a branch and an **Arena preview served at `/`** (the preview's fixture server was switched to the root mount so the review was faithful). The owner approved the preview and PR #79 later published `v2.0.0-dev-rc35` (see the release log); it is not yet installed, so rc34 still runs on the household's container. The separate Metrics follow-up has been approved and is now in the rc36 development-release loop.
+Everything in §4 plus the test and doc sweep was delivered as a branch and an **Arena preview served at `/`** (the preview's fixture server was switched to the root mount so the review was faithful). The owner approved the preview and PR #79 published `v2.0.0-dev-rc35`; the current candidate rc36 includes that retarget and the approved Metrics follow-up (decisions 116–119). Neither candidate is installed: rc34 remains on the household's container. The exact rc36 source commit, tag, image digest and CI evidence are in the [release log](unraid-image-release.md#release-log).
 
 - **Worker:** the pass-through handler is in, per Q2, with a browser test that a request still reaches the server and that Cache Storage stays empty.
 - **`/next/` handling (policy A):** 308-strip redirect + the one-time in-app unregister, minus the Settings line — see the deviation note in §6. Policies B (keep `/next/` served in parallel for one release) and C (leave it forever) remain rejected: B keeps two installable scopes and two base builds alive for no benefit; C leaves a second scope and a stale manifest permanently.
@@ -232,19 +232,20 @@ workflow — the `Dockerfile` needed no change, since it already copies both
 `web/dist` and the whole `web/` tree.
 
 **Not verified here:** the phone install test. It needs a real device over the
-Cloudflare hostname, which is tracked in the remaining 16.3 phone check. rc35 is
-published but not installed, so it has not changed the household's live app.
+Cloudflare hostname, which is tracked in the remaining 16.3 phone check. rc36 (which includes rc35) is
+published but not installed, so the household still runs rc34.
 
-- **Exit:** the owner reviewed React at `/` at phone size, approved the preview and authorized publication; PR #79/rc35 closed the 16.2 preview gate. Force Update and the Cloudflare-hosted phone check remain.
-- **Rollback:** rc35 is published but not installed. Keep rc34 pinned until the owner chooses to update; after an update, re-pin rc34 and restart for an exact rollback.
+- **Exit:** the owner reviewed React at `/` at phone size, approved the preview and authorized publication; PR #79/rc35 closed the 16.2 preview gate. The owner Force Update to rc36 and the Cloudflare-hosted phone check remain.
+- **Rollback:** rc36 is published but not installed. Keep rc34 pinned until the owner chooses to update; after an update, re-pin rc34 and restart for an exact rollback.
 
-### 16.3 — Cutover release and the Cloudflare phone test (owner-gated)
+### 16.3 — Owner Force Update and Cloudflare phone test (owner-gated; rc36 already published)
 
-1. Owner approves the preview and the cutover explicitly.
-2. Publish the agreed `v2.0.0-dev-rcNN` (the tag moves `dev-latest`; nothing reaches the household until a Force Update).
-3. Owner Force Updates the existing `cals-dev-v2` container (image tag unchanged; **no template or appdata change**), then checks over the Cloudflare hostname: `/` opens React, a deep link works, `/legacy/` still opens the old UI, `/next/…` redirects to the matching path, the footer reports the new version, and one write round-trips.
-4. The phone test in §3 runs — including any legacy `/` shortcut or iOS home-screen entry opening React (§2.5) — and its result is recorded.
-5. **Rollback at any point:** re-pin the container to `v2.0.0-dev-rc34` and restart. The phase changes no data, so rollback is exact; the legacy UI at `/legacy/` is a second, independent way back.
+Publication is complete: the immutable `v2.0.0-dev-rc36` tag points to `ac58e0cda39cbd9eae4d305c11d53a40bc710068` on `cals-dev`, and `dev-latest` moved with it. **This document does not authorize an Unraid update.** The household remains on rc34 unless and until the owner separately chooses to Force Update.
+
+1. The owner decides whether and when to Force Update the existing `cals-dev-v2` container to the already-published rc36 candidate. Do not recreate or move the tag; no template, appdata or Cloudflare change is part of this step.
+2. If the owner authorizes the update, verify over the Cloudflare hostname: `/` opens React, a deep link works, `/legacy/` still opens the old UI, `/next/…` redirects to the matching path, the footer reports rc36, and one write round-trips.
+3. Run the phone test in §3: verify the Settings install flow and that the installed app opens React at `/`, including any legacy `/` shortcut or iOS home-screen entry (§2.5). Record the result in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
+4. **Rollback at any point:** re-pin the container to `v2.0.0-dev-rc34` and restart. The phase changes no data, so rollback is exact; the legacy UI at `/legacy/` is a second, independent way back.
 
 ### 16.4 — Legacy retirement (separately approved, later)
 
@@ -252,7 +253,7 @@ Only after the owner confirms the cutover has bedded in. Delete `web/static/**`,
 
 ---
 
-## 6. Decisions needed before implementation
+## 6. Decisions recorded before implementation
 
 **All six were settled on 2026-10-06.** The owner delegated them rather than
 answering one by one — *"How you get there and what safety checks you employ to
@@ -266,7 +267,7 @@ so the reasoning survives.
 | # | Question | Recommendation | Decision, 2026-10-06 |
 |---|---|---|---|
 | **Q1** | Is there any `/next/` install on any device (phone or desktop) today? Either way, is "308-strip redirect + in-app cleanup + remove/reinstall guidance" an acceptable policy for one? | **Yes** — no install has been reported, and the residue can only be a shortcut or an iOS entry whose URL follows the redirect | **Policy A**, with one deviation: the 308-strip redirect and the in-app cleanup are built, but the permanent Settings line was **not** added — see the note below the table |
-| **Q2** | Android install prompt: accept shortcut-only installs (inert worker, exactly as shipped in rc34), or add a **network-only pass-through fetch handler** so Chrome offers the real install prompt? | **Add the pass-through handler** — it is what makes "installability" true on Android, caches nothing and does not weaken decision 53 | **Added**, for the corrected reason in §2.4: it is what makes the in-app **Install app** button work at all. Nothing is cached and no offline promise is made |
+| **Q2** | Should the in-app **Install app** button work on Android? Leave rc34's worker inert (the browser-menu install remains available), or add a **network-only pass-through fetch handler** to trigger the in-app prompt? | **Add the pass-through handler** so the in-app Settings button works; it caches nothing and adds no offline promise | **Added**, for the corrected reason in §2.4. Nothing is cached and no offline promise is made |
 | **Q3** | Keep the legacy UI served unlinked at `/legacy/` as the lifeboat until you approve deletion? | **Yes** — reversibility without a rebuild; deletion stays 16.4 | **Yes** — `/legacy/` is served and covered by a Go test and by the smoke script |
 | **Q4** | If a phone has a legacy `/` shortcut or iOS home-screen app, is it fine that it simply opens React from now on, with the old worker and caches cleaned up once? | **Yes** — there is no WebAPK identity to migrate (the legacy worker's scope never controlled `/`); verify it on the phone | **Yes** — the one-time cleanup is built (`src/lib/legacyServiceWorker.ts`); the phone check stays in 16.3 |
 | **Q5** | Anything in the §3 read-only Cloudflare checks you would rather run yourself — or any indication the root is not already covered by the Access application? | **Informational**; if the root is not covered, stop and propose the minimal change for approval | **Owner's to run** — they are Zero Trust dashboard checks, not code. Note the root is definitionally covered today: the household already reaches `/` daily through the Cloudflare hostname. Still to be confirmed, and **no** Cloudflare change is made or proposed |
@@ -298,10 +299,10 @@ icon is found on a device after 16.3, remove it and install again from `/`.**
 |---|---|---|---|
 | 16.1 audit + plan | done (this session, docs-only) | read + answer §6 | zero risk |
 | 16.2 retarget + preview | **~1–1.5 focused sessions** | ~15 minutes at phone size in the preview | a serving-path change plus test/doc re-basing — a few hundred changed lines, **smaller than any Phase 14/15 slice**; the care is in the route/worker/redirect edges, not the volume |
-| 16.3 cutover + phone test | ~1 hour (publish, evidence, any fix loop) | ~1 phone session over Cloudflare | the only household-visible step; image-tag rollback available |
+| 16.3 owner Force Update + phone test | ~1 hour (owner-controlled update, evidence, any fix loop; no new publish) | ~1 phone session over Cloudflare | the only household-visible step; rc34 image-tag rollback available |
 | 16.4 legacy retirement | ~0.5 session | approve deletion; optional template refresh | deletes code; no user-visible surface except a missing lifeboat |
 
-**Bottom line: ~2–3 focused agent sessions in total**, one preview review, one approval before the cutover, one later approval before deleting the legacy UI. No schema, migration, API, appdata, template or Cloudflare work in any of it.
+**Current state:** the preview and publication gates are complete; rc36 is published but not installed. The remaining household-visible step is the owner's separately authorized Force Update and phone check. Legacy deletion (16.4) still needs its own explicit approval. No schema, migration, API, appdata, template or Cloudflare work is part of 16.3.
 
 ---
 
@@ -311,11 +312,11 @@ icon is found on a device after 16.3, remove it and install again from `/`.**
 |---|---|
 | `/` is the household's front door — a routing mistake is an outage | Preview-first; the legacy shell stays served at `/legacy/`; image-tag rollback; the smoke script asserts `/`, `/legacy/`, `/next/…` and every API route before release |
 | Existing devices carry a legacy `/public/sw.js` or an old `/next/` registration | The new worker caches nothing; the one-time cleanup unregisters both idempotently; neither can affect a React page (one is scope-limited to `/public/`, the other has no fetch handler) |
-| The Android install prompt is still absent after cutover | Q2 decides; if the answer is "accept", the Settings copy already sets the shortcut expectation and the phone test records it |
+| The Android install prompt is absent after cutover | Q2's network-only handler is in rc36; verify Settings → **Install app** on a real phone. If the prompt does not appear, record the browser/device and investigate before claiming PWA acceptance |
 | Cloudflare Access session expiry in a standalone window | Test it in 16.3; a narrow, separately approved change is only considered if the experience is genuinely bad |
 | Test re-basing hides a regression (72 specs move paths) | Run the suite before and after; keep the PWA assertions explicit at the new root; add a `/next/` redirect spec and a legacy-alive spec |
 | Doc drift (≈75 `/next/` references, template text, `update-version.sh`) | The sweep is part of 16.2; `node scripts/check-doc-links.mjs` and the review checklist cover the rest |
-| `dev-latest` moves at publish even if the household has not updated | Publish only after explicit cutover approval; the Force Update remains the owner's separate action |
+| Publishing moves `dev-latest` without updating the household | rc36 is already published and `dev-latest` moved; the owner-controlled Force Update remains separate. Do not recreate or move the rc36 tag |
 
 ---
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **ALL SIX SLICES BUILT AND PUBLISHED** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30, the rc31/rc32 follow-ups after them and 14.6 in rc33 — all installed via the rc34 Unraid Force Update on 2026-10-05, with the remaining rc28–rc34 phone road-test unconfirmed in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05, approved in the Arena preview and published as `v2.0.0-dev-rc33` (PR #74)**. Q10 is answered by 14.5 as built. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
+| **Status** | 🟢 **ALL SIX SLICES BUILT AND PUBLISHED** — the owner settled Q1–Q5 on 2026-10-05, recorded as [decisions 91–95](../product/vision-and-open-questions.md#phase-14-planning-pass--decisions-9195-2026-10-05), Q6–Q9 the same day as [decisions 96–100](../product/vision-and-open-questions.md#the-body-map-measurement-picker--decisions-96100-2026-10-05), and Q11 as [decisions 107–109](../product/vision-and-open-questions.md#the-weekly-report--decisions-107109-2026-10-05). **14.1 and 14.2 are built, published as `v2.0.0-dev-rc27` and signed off on Unraid on 2026-10-05**; **14.3 shipped in rc28, 14.4 in rc29, 14.5 in rc30, the rc31/rc32 follow-ups after them and 14.6 in rc33 — all installed via the rc34 Unraid Force Update on 2026-10-05, with the remaining rc28–rc34 phone road-test unconfirmed in CURRENT_STATE §3 item 10**; **14.6 (the weekly report) was built on 2026-10-05, approved in the Arena preview and published as `v2.0.0-dev-rc33` (PR #74)**. Q10 is answered by 14.5 as built. The separate 2026-10-07 Metrics follow-up is published as rc36 but not installed; it has no schema migration. Implementation status lives in [`../CURRENT_STATE.md`](../CURRENT_STATE.md) |
 | **Written** | 2026-10-05 (proposed and approved the same day) |
 | **Owner** | @dougalbob |
 | **Purpose** | Turn the Phase 14 line in the plan into concrete, individually shippable slices, and surface every design decision that has to be made before or during them |
@@ -41,8 +41,9 @@ Explicitly **not** Phase 14 (it stays where the plan puts it):
   — Phase 15. Phase 14 ships the *maths* with hard defaults (14-day bank window, 7-day trend average) and the
   columns to store them; the owner sees the new numbers before any control exists (decision 66's sequencing
   rule, decisions 93 and 95).
-- **Cutover, the `/` route, making React the default, deleting the legacy UI** — Phase 16. Phase 14 review
-  links must say **`/next/`** (e.g. `https://<your cals host>/next/metrics`).
+- **Cutover, the `/` route, making React the default, deleting the legacy UI** — Phase 16. Phase 14's
+  original release notes describe the `/next/` mount; the latest candidate rc36 includes Phase 16.2's
+  retarget, so the current Metrics and Nutrition routes are `/metrics` and `/nutrition`.
 - **Body-measurement raw / %-from-baseline charts, weight-trend ETA and forecast cones** — still research in
   [`../product/metrics-evidence.md`](../product/metrics-evidence.md). `metrics-evidence.md` §5 states plainly that
   target-weight ETA "is a research question, not a Phase 14 acceptance criterion". Phase 14 draws a
@@ -374,10 +375,10 @@ the report both read their numbers.
 |---|---|---|
 | 14.1 | Go handler tests for date format, range params, drink inclusion; V1 metrics screen still renders | None needed — no visible change. Confirm `GET /api/weight` JSON dates read `YYYY-MM-DD` |
 | 14.2 | The seven bank regression tests plus a Calendar-vs-`/api/bank` agreement test | **Read the new bank figure on his and his wife's account at `/next/` and confirm it looks right** before anything builds on it — ✅ **done: owner signed off on Unraid 2026-10-05 ("all looks good")** |
-| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | Charts at `/next/metrics` on a phone: can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good") and rc28 is installed via the rc34 Force Update; the phone road-test remains the gate** |
+| 14.3 | Chart component tests (bands, trend, axis padding); Playwright drag-to-pan at 360×640 — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc28` (PR #65) | On rc34 the chart route is `/next/metrics`; after the rc36 Force Update it is `/metrics`. On a phone, can you reach last year by dragging, and does the trend look honest? **Owner approved the Arena preview 2026-10-05 ("looks good"); the phone road-test remains open** |
 | 14.4 | Go tests that committing one part preserves the others; component tests for both confirmations | Tap every point on the map at phone size, including a part never measured |
-| 14.5 | Component tests for the nutrition sections | Compare `/next/nutrition` with the V1 Nutrition tab side by side |
-| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc33` (PR #74) | Does the report card at `/next/metrics` answer "how did last week go"? **Owner-approved in the Arena preview and installed via the rc34 Force Update; the phone road-test remains the gate (CURRENT_STATE §3 item 10)** |
+| 14.5 | Component tests for the nutrition sections | Compare `/nutrition` on rc36 with the V1 Nutrition tab side by side (rc34 used `/next/nutrition`) |
+| 14.6 | Report maths tests (including excluded-day labelling and best/worst selection); Go handler tests for the `from`/`to` range and the unchanged `days` contract; 2 Playwright phone tests (paging, custom range); the fixture API's range contract — ✅ built 2026-10-05 and published as `v2.0.0-dev-rc33` (PR #74) | Does the report card at `/metrics` on rc36 answer "how did last week go"? **Owner approved the Arena preview; the phone road-test remains open (CURRENT_STATE §3 item 10)** |
 
 ---
 
@@ -502,8 +503,8 @@ needs a decision about cutover, and nothing in it moves the household off `/`.
 
 The owner requested a small Metrics improvement while Phase 16's root-retarget release awaits its phone
 road-test; this is not a seventh Phase 14 slice and does not reopen the published phase. The owner approved
-the follow-up in the phone-size preview and authorized its development release on 2026-10-07; the rc36
-publish loop is underway. Product choices are recorded as [decisions 116–119](../product/vision-and-open-questions.md#metrics-follow-up--decisions-116119-2026-10-07).
+the follow-up in the phone-size preview and authorized its development release on 2026-10-07; it was
+published as `v2.0.0-dev-rc36` (publish run [37603894474](https://github.com/dougalbob/cals/actions/runs/37603894474), digest `sha256:6fc9b30f02ce5f401e6c286cfdc67757b98d52bb73ea5c34f1a6cb40d7a0e192`, [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc36)); it remains uninstalled. Product choices are recorded as [decisions 116–119](../product/vision-and-open-questions.md#metrics-follow-up--decisions-116119-2026-10-07).
 
 - The BodyMap now measures 175 × 350 CSS px on a 393 px phone viewport (30% shorter than the old 250 × 500
   size), while each 44 × 44 px button target remains distinct. The seven tracked fields are unchanged.
@@ -519,6 +520,5 @@ publish loop is underway. Product choices are recorded as [decisions 116–119](
   30-day change is a paired one-line value, and Add weigh-in plus the latest date occupy two lines with no
   redundant “Weigh-in” label. Smaller type and less vertical space keep the graph visually prominent.
 
-Implementation is in the approved rc36 development-release loop; no rc36 tag or image has been published
-yet. No schema migration or live-data operation was made. Current status and verification are in
+Implementation was published as rc36; no Force Update has been recorded. No schema migration or live-data operation was made. Current status and verification are in
 [`../CURRENT_STATE.md`](../CURRENT_STATE.md).

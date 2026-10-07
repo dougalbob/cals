@@ -296,8 +296,8 @@ Decision 27 replaces only the outer-ring behavior in decision 18; the Today land
 > `v2.0.0-dev-rc25` (PR #56). The owner signed off all published RC candidates through rc25 on
 > 2026-10-04, closing Phase 13 acceptance. The last reported Unraid installation is now **rc34**
 > (Force Updated on 2026-10-05; the Settings check is confirmed and behaves as intended, while the
-> rest of the rc28–rc34 phone review and the phone PWA install are not), so every published
-> checkpoint is installed; cropping remains deferred. Current status is tracked in
+> rest of the rc28–rc34 phone review and the phone PWA install are not). rc35 and rc36 are published
+> development candidates but are not installed; cropping remains deferred. Current status is tracked in
 > [`CURRENT_STATE.md`](../CURRENT_STATE.md). See
 > [Adapting an existing recipe](#adapting-an-existing-recipe--decisions-5558-2026-10-03) and
 > [Retiring recipes and correcting foods](#retiring-recipes-and-correcting-foods--decisions-5961-2026-10-03).
@@ -1105,8 +1105,7 @@ No schema change, migration, data copy or appdata operation.
 ## Metrics follow-up — decisions 116–119 (2026-10-07)
 
 A short owner-requested detour from Phase 16 addresses the Metrics/body-map follow-up. The owner approved
-the phone-size Arena preview on 2026-10-07 and authorized its development release; the rc36 publish loop
-is underway from the session branch. This does not authorize an Unraid Force Update or change Phase 16's
+the phone-size Arena preview on 2026-10-07 and authorized its development release; the implementation was published as rc36 on 2026-10-07 (see the [release log](../architecture/unraid-image-release.md#release-log)). This does not authorize an Unraid Force Update or change Phase 16's
 remaining cutover gates.
 
 | # | Date | Decision | Source |
@@ -1132,8 +1131,7 @@ questions for the owner. He delegated them rather than answering one by one — 
 what safety checks you employ to ensure a safe passage is up to you"* — and named the outcome: **the
 React front end at `/` rather than `/next/`, and PWA support.** Each decision below is the
 recommendation the audit already made, taken because it serves that outcome. All of them are
-**stage 16.2** — built and verified on the branch, **not published**; the household keeps running rc34
-until the owner approves the cutover release (16.3).
+**stage 16.2** — built, verified and published as rc35 on 2026-10-06 (and included in rc36); neither candidate has been installed, so the household remains on rc34. The owner Force Update and 16.3 Cloudflare/phone checks remain open.
 
 | # | Date | Decision | Source |
 |---|---|---|---|
@@ -1145,8 +1143,7 @@ until the owner approves the cutover release (16.3).
 | 115 | 2026-10-06 | **`/next/…` redirects are permanent (308), not temporary.** The old scope is genuinely retired rather than temporarily moved, and 308 preserves the method. Asserted in the Go route-table test, the browser suite and the runtime smoke script. | Owner (delegated) · agent recommendation |
 
 **Authorisation boundaries unchanged.** Phase 16 involves **no** schema, migration, API contract, data,
-appdata, Unraid template or Cloudflare change. Nothing in stage 16.2 is visible to the household: no
-image was published and `dev-latest` did not move.
+appdata, Unraid template or Cloudflare change. Stage 16.2 is not visible to the household until a Force Update: rc35 and rc36 are published and `dev-latest` moved, but rc34 remains installed.
 
 ## Known issue, deferred — RFC3339 dates on the metrics endpoints (2026-10-03)
 
