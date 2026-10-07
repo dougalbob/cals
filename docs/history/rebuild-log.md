@@ -14,6 +14,34 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## The reminders bell — decisions 121–122 (2026-10-07)
+
+The owner asked for the reminder system behind the bell icon: nudge the particular user to weigh in
+(at least every 3 days), to take body measurements (at least every 14 days), and to know when a
+weekly report is complete — with the weigh-in and measurement nags clearing themselves as soon as
+that window's data is logged. [PR #87](https://github.com/dougalbob/cals/pull/87) (session branch
+`arena/ab758827-cals`, commit `87d704b`) implements it as the first slice of decision 42's Issues
+bell and records the owner's three choices — header placement, a server-side per-user seen
+watermark for the report advisory, and strict nags with no dismiss or snooze — as
+[decisions 121–122](../product/vision-and-open-questions.md#the-reminders-bell--decisions-121122-2026-10-07).
+Decision 87's 3–4 week measurement ideal is revised to 14 days, and the Metrics staleness cue moves
+with it.
+
+The cadence nags are derived state (`GET /api/reminders` recomputes them from `weight_entries` and
+`measurement_entries`), so logging the data is the only dismissal; the weekly-report advisory
+resolves against the additive `users.report_seen_through` watermark (monotonic, written when a
+completed report is actually displayed), so it clears on every device. Two additive routes, one
+additive column; the fixture API mirrors both endpoints with pinned contract tests on each side.
+One incidental fix found by the screenshot review: the shared `Modal` panel resets to `text-ink`,
+because it does not portal and a sheet opened from the header previously inherited its white text.
+
+Verified: `go build`/`vet`/`test` green in the sandbox toolchain (new `reminders_test.go`), 360
+Vitest tests over 46 files, lint, typecheck, `build:go`, `check-doc-links` clean, and the full
+browser suite at **84 passed** (82 phone + 2 desktop) including the new `e2e/reminders.spec.ts`
+(report advisory clears on view, the bell follows the acting user through Swap user, logging clears
+the nag). Phone-size review screenshots are in `docs/product/reminders-*-360.png`. No appdata,
+template or Cloudflare change. Awaiting owner review on PR #87.
+
 ## `v2.0.0-dev-rc37` published — the Nutrition insight prototype (2026-10-07)
 
 The owner-approved prototype (decision 120) shipped. [PR #85](https://github.com/dougalbob/cals/pull/85) merged into `cals-dev` as
