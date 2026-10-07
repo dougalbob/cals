@@ -246,13 +246,13 @@ export function MetricsRoute() {
             <button
               type="button"
               onClick={openTargetEditor}
-              className="m-0 w-full cursor-pointer whitespace-nowrap bg-transparent p-0 text-left text-[13px] font-semibold leading-5 text-ink hover:text-primary"
+              className="m-0 w-full cursor-pointer whitespace-nowrap bg-transparent p-0 text-left text-[12px] font-semibold leading-5 text-ink hover:text-primary sm:text-[13px]"
               aria-label={target ? `Edit target weight (currently ${formatStonesPounds(target)})` : 'Set target weight'}
             >
               {target ? (
                 <>
                   {formatStonesPounds(target)}{' '}
-                  <span className="text-[11px] font-normal text-ink-light">({formatKg(target)})</span>
+                  <span className="text-[10px] font-normal text-ink-light sm:text-[11px]">({formatKg(target)})</span>
                 </>
               ) : (
                 'Set target'
@@ -584,14 +584,14 @@ function Stat({
     <div className="rounded-xl border border-line-light px-2 py-2 sm:px-3" data-testid={testId}>
       <p className="m-0 text-xs text-ink-light">{label}</p>
       <p
-        className={`m-0 whitespace-nowrap text-[13px] font-semibold leading-5 ${toneClass}`}
+        className={`m-0 whitespace-nowrap text-[12px] font-semibold leading-5 sm:text-[13px] ${toneClass}`}
         data-testid={testId ? `${testId}-value` : undefined}
       >
         {value}
         {sub && (
           <>
             {' '}
-            <span className="text-[11px] font-normal text-ink-light">({sub})</span>
+            <span className="text-[10px] font-normal text-ink-light sm:text-[11px]">({sub})</span>
           </>
         )}
       </p>
