@@ -42,7 +42,7 @@ Explicitly **not** Phase 14 (it stays where the plan puts it):
   columns to store them; the owner sees the new numbers before any control exists (decision 66's sequencing
   rule, decisions 93 and 95).
 - **Cutover, the `/` route, making React the default, deleting the legacy UI** — Phase 16. Phase 14's
-  original release notes describe the `/next/` mount; the latest candidate rc36 includes Phase 16.2's
+  original release notes describe the `/next/` mount; the latest candidate rc37 includes Phase 16.2's
   retarget, so the current Metrics and Nutrition routes are `/metrics` and `/nutrition`.
 - **Body-measurement raw / %-from-baseline charts, weight-trend ETA and forecast cones** — still research in
   [`../product/metrics-evidence.md`](../product/metrics-evidence.md). `metrics-evidence.md` §5 states plainly that

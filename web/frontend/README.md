@@ -2,9 +2,11 @@
 
 **Status: 🟢 Phase 15 (Settings + PWA installability) is published as `v2.0.0-dev-rc34` and installed
 on Unraid**, where the owner checked the Settings work and confirmed it behaves as intended. **Phase 16
-stage 16.2 — the move to `/` — was published as rc35 and is included in rc36; neither candidate is
-installed**, so the household still runs rc34 at `/next/`. The owner-approved Metrics follow-up
-(decisions 116–119) was merged as PR #81 and published as `v2.0.0-dev-rc36` on 2026-10-07. Phase 11's React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's
+stage 16.2 — the move to `/` — was published as rc35 and is included in rc36 and rc37; none of those
+candidates is installed**, so the household still runs rc34 at `/next/`. The owner-approved Metrics follow-up
+(decisions 116–119) was merged as PR #81 and published as `v2.0.0-dev-rc36` on 2026-10-07, and the
+owner-approved **Nutrition insight prototype** (decision 120) was merged as PR #85 and published as
+`v2.0.0-dev-rc37` the same day — the current candidate, which carries both. Phase 11's React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's
 Metrics + Nutrition are all in the development line. Settings saves account-level targets and
 preferences through `/api/users/me`, while themes and haptics stay on the device; the two bank-ring
 display limits are independent and do not change bank arithmetic. **Phone PWA installation is still
@@ -25,8 +27,9 @@ until its deletion is separately approved. **Installation is not offline support
 logging, queued saving, API/data caching or cached-data promise.
 
 The last reported Unraid installation is **`v2.0.0-dev-rc34`** (owner Force Update, 2026-10-05).
-The rc35 root-route retarget and the rc36 Metrics follow-up are both published; the owner's separate
-Force Update to rc36 and its phone review remain outstanding. Release and
+The rc35 root-route retarget, the rc36 Metrics follow-up and the rc37 Nutrition prototype are all
+published in `v2.0.0-dev-rc37`; the owner's separate Force Update to rc37 and its phone review remain
+outstanding. Release and
 acceptance status lives in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the cutover
 plan is [`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) and
 Phase 15's plan is [`../../docs/architecture/phase-15-plan.md`](../../docs/architecture/phase-15-plan.md).
