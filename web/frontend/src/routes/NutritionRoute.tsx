@@ -5,6 +5,7 @@ import type { NutritionSettings, WeeklyAnalysis } from '../api/types'
 import { BarChart, LineChart } from '../components/charts'
 import { DonutChart } from '../components/DonutChart'
 import { Modal } from '../components/Modal'
+import { NutritionInsights } from '../components/NutritionInsights'
 import { StatusLight } from '../components/StatusLight'
 import { formatNumber, formatShortDate } from '../lib/format'
 
@@ -194,6 +195,8 @@ export function NutritionRoute() {
           <p className="text-sm text-ink-muted">No data yet.</p>
         )}
       </section>
+
+      {data && <NutritionInsights analysis={data} />}
 
       <section className="rounded-2xl bg-card p-4 shadow-card">
         <h2 className="m-0 mb-3 text-base font-semibold">Daily table</h2>
