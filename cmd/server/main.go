@@ -168,6 +168,12 @@ func main() {
 	mux.Handle("PUT /api/measurements/{id}", withAuth(http.HandlerFunc(handlers.HandleUpdateMeasurement)))
 	mux.Handle("DELETE /api/measurements/{id}", withAuth(http.HandlerFunc(handlers.HandleDeleteMeasurement)))
 
+	// Reminders (decisions 121–122): the bell's active items, and the per-user
+	// watermark that clears the weekly-report advisory. First slice of the
+	// Issues bell (decision 42).
+	mux.Handle("GET /api/reminders", withAuth(http.HandlerFunc(handlers.HandleGetReminders)))
+	mux.Handle("POST /api/reminders/weekly-report-seen", withAuth(http.HandlerFunc(handlers.HandleWeeklyReportSeen)))
+
 	// Stats routes
 	mux.Handle("GET /api/stats/calories", withAuth(http.HandlerFunc(handlers.HandleGetCalorieStats)))
 	mux.Handle("GET /api/stats/bank", withAuth(http.HandlerFunc(handlers.HandleGetBankStats)))

@@ -18,7 +18,7 @@ function renderApp(devIdentitySwitch: boolean, initialPath = '/') {
 
 /** One identity standing in for both, unless the test asks for a swap. */
 function renderAppWithSession(
-  options: { isAdmin?: boolean; viewingAsOther?: boolean; actingName?: string },
+  options: { isAdmin?: boolean; viewingAsOther?: boolean; actingName?: string; reminders?: unknown },
   devIdentitySwitch = false,
   initialPath = '/',
 ) {
@@ -56,7 +56,9 @@ function renderAppWithSession(
           }
       : path === '/api/users'
         ? [owner, other]
-        : {
+        : path === '/api/reminders'
+          ? { items: options.reminders ?? [] }
+          : {
             version: '2.0.0',
             ...(devIdentitySwitch ? { dev_identity_switch: true } : {}),
           }
@@ -218,5 +220,39 @@ describe('AppLayout acting-user switch (decisions 45 and 88)', () => {
       const back = requests.find((entry) => entry.path === '/api/session/acting-user')
       expect(back?.method).toBe('DELETE')
     })
+  })
+})
+
+describe('AppLayout reminders bell (decisions 121–122)', () => {
+  it('carries the badge in the header, acting for whoever is on screen', async () => {
+    renderAppWithSession({
+      reminders: [
+        {
+          type: 'weigh_in',
+          last_date: null,
+          days_since: null,
+          cadence_days: 3,
+          week_from: null,
+          week_to: null,
+        },
+        {
+          type: 'weekly_report',
+          last_date: null,
+          days_since: null,
+          cadence_days: 0,
+          week_from: '2026-09-28',
+          week_to: '2026-10-04',
+        },
+      ],
+    })
+
+    const bell = await screen.findByTestId('reminders-bell')
+    await waitFor(() => expect(screen.getByTestId('reminders-badge').textContent).toBe('2'))
+    expect(bell.getAttribute('aria-label')).toBe('Reminders, 2 need attention')
+
+    fireEvent.click(bell)
+    const sheet = await screen.findByTestId('reminders-list')
+    expect(within(sheet).getByText('Time to weigh in')).toBeTruthy()
+    expect(within(sheet).getByText('Weekly report ready')).toBeTruthy()
   })
 })

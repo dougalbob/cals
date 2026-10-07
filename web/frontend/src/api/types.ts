@@ -349,6 +349,35 @@ export interface MeasurementPoint {
 /** Per-part latest values; null for a part never measured. */
 export type MeasurementLatest = Record<MeasurementPartKey, MeasurementPoint | null>
 
+/**
+ * One active reminder on the bell (decisions 121–122) — the first slice of
+ * the future Issues bell (decision 42). The wire shape is fully normalised:
+ * every field is always present, with explicit nulls where a type does not use
+ * one (the slice-14.4 convention).
+ *
+ * `weigh_in` and `body_measurements` are cadence nags judged against
+ * `cadence_days` since `last_date`; both are null only when nothing has ever
+ * been recorded. `weekly_report` names the completed Monday–Sunday period
+ * whose report is ready but not yet viewed.
+ */
+export interface ReminderItem {
+  type: 'weigh_in' | 'body_measurements' | 'weekly_report'
+  last_date: string | null
+  days_since: number | null
+  cadence_days: number
+  week_from: string | null
+  week_to: string | null
+}
+
+export interface RemindersResponse {
+  items: ReminderItem[]
+}
+
+/** The per-user watermark after POST /api/reminders/weekly-report-seen. */
+export interface WeeklyReportSeenResponse {
+  seen_through: string
+}
+
 export interface DailyCalories {
   date: string
   calories: number

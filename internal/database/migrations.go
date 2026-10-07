@@ -347,6 +347,15 @@ func RunMigrations() error {
 		// kcal appearance; these values never enter the bank calculation.
 		`ALTER TABLE users ADD COLUMN bank_ring_surplus_limit_kcal INTEGER NOT NULL DEFAULT 2000`,
 		`ALTER TABLE users ADD COLUMN bank_ring_deficit_limit_kcal INTEGER NOT NULL DEFAULT 2000`,
+
+		// Reminders (decision 121): per-user watermark of the last completed
+		// weekly-report period the user has actually viewed, so the bell's
+		// "report ready" advisory clears on every device rather than one
+		// browser's storage. NULL means nothing has been viewed yet. The
+		// watermarks are compared and written as bare YYYY-MM-DD text; the
+		// DATE declaration is read back through isoDate() like every other
+		// date column (see calendar.go).
+		`ALTER TABLE users ADD COLUMN report_seen_through DATE`,
 	}
 
 	for _, migration := range migrations {

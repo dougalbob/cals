@@ -192,6 +192,45 @@ type MeasurementEntry struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+// ReminderItem is one thing the reminders bell asks the acting user to do —
+// the first slice of the future Issues bell (decision 42), delivered as the
+// owner's three reminder types (decisions 121–122).
+//
+// The wire shape is fully normalised: every field is always present, with
+// explicit nulls for what a type does not use (the slice-14.4 convention).
+// Weigh-in and body-measurement items are cadence nags judged against
+// CadenceDays since LastDate; the weekly_report item names the completed
+// Mon–Sun period whose report is ready but not yet viewed.
+type ReminderItem struct {
+	// Type is "weigh_in", "body_measurements" or "weekly_report".
+	Type string `json:"type"`
+	// LastDate is the newest recorded date for the cadence items, or null when
+	// nothing has ever been recorded. DaysSince counts from it to today.
+	LastDate  *string `json:"last_date"`
+	DaysSince *int    `json:"days_since"`
+	// CadenceDays is the window the item was judged against: 3 for a weigh-in
+	// (decision 122), 14 for a body-measurement session (decision 122). 0 for
+	// the weekly_report item, which has no cadence.
+	CadenceDays int `json:"cadence_days"`
+	// WeekFrom and WeekTo bound the completed weekly-report period
+	// (Monday–Sunday); null for the cadence items.
+	WeekFrom *string `json:"week_from"`
+	WeekTo   *string `json:"week_to"`
+}
+
+// RemindersResponse is GET /api/reminders. Items lists only what is currently
+// asking for attention: a cadence nag that is within its window is omitted, and
+// the weekly_report item disappears once the report has been viewed.
+type RemindersResponse struct {
+	Items []ReminderItem `json:"items"`
+}
+
+// WeeklyReportSeenResponse answers POST /api/reminders/weekly-report-seen with
+// the resulting per-user watermark.
+type WeeklyReportSeenResponse struct {
+	SeenThrough string `json:"seen_through"`
+}
+
 // WeightGoal represents a monthly weight loss target
 type WeightGoal struct {
 	ID            int64     `json:"id"`

@@ -58,5 +58,9 @@ export function latestMeasurementDate(latest: MeasurementLatest): string | null 
   return newest
 }
 
-/** Decision 87's cadence: more than four weeks without a measurement. */
-export const MEASUREMENT_OVERDUE_DAYS = 28
+/**
+ * Decision 122's cadence: a measurement session at least every 14 days. This
+ * revises decision 87's 3–4 week ideal and is the same window the reminders
+ * bell judges against, so the Metrics staleness cue and the nag agree.
+ */
+export const MEASUREMENT_OVERDUE_DAYS = 14

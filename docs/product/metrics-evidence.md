@@ -115,21 +115,37 @@ A clinical consensus statement supports waist circumference as useful complement
 
 ---
 
-## 3. Measurement cadence and future reminders
+## 3. Measurement cadence and reminders
 
-**Owner direction (decision 87):** a measurement session should ideally recur in a **21–28 day** window. Once more than four weeks have passed since the most recent measurement, the future reminders feature may prompt the user to update, for example: “Please update measurements — last measurement was X weeks ago.” Reminders are not currently built.
+**Owner direction (decisions 87, then 122):** decision 87 set an ideal **21–28 day** window for a
+measurement session. Decision 122 (2026-10-07) revised it: measurements should be logged **at least
+every 14 days**, and the reminders bell (decision 121) nudges once the gap since the newest session
+reaches 14 days — at once for someone who has never measured. The Metrics staleness line cues at the
+same 14 days. Weigh-ins run on a parallel rule at a 3-day cadence. Delivery is the in-app bell only;
+no push, no email (decision 46 stands). Full semantics in
+[`../architecture/reminders.md`](../architecture/reminders.md).
 
-This is a product cadence, not a claim that 3–4 weeks is a clinically optimal interval. The cited NHS Trust guidance says every two weeks is usually sufficient for circumference measurements; WHO's protocol focuses on standardized technique rather than prescribing a universal home-tracking interval. A 3–4 week reminder is a reasonable lower-friction preference to validate with the household, not a threshold established by those sources.
+This is a product cadence, not a claim that 14 days is a clinically optimal interval. The cited NHS
+Trust guidance says every two weeks is usually sufficient for circumference measurements — the
+owner's revised cadence now matches that guidance; WHO's protocol focuses on standardized technique
+rather than prescribing a universal home-tracking interval.
 
-Decision 87 is a **narrow exception** to decision 46's “no notifications or reminders” rule. It does not authorize general logging/water nudges, push notifications, or any particular reminder delivery channel. Those remain undecided.
+Decision 87 was a **narrow exception** to decision 46's “no notifications or reminders” rule, and so
+remains the reminders bell: it does not authorize general logging/water nudges or push notifications.
 
-**Still to decide before implementing reminders:**
+**Settled by decisions 121–122 (previously open):**
 
-- Does any non-empty measurement entry count as a session, or must the user fill a defined set of body sites?
-- What should happen if the user has never logged a measurement?
-- After day 28, how often should the reminder repeat? Can it be snoozed or dismissed, and for how long?
-- Is this a quiet in-app reminder, part of the future Issues/reminders surface, or another channel? No channel is approved yet.
-- Should the interval be configurable per user, or should 21–28 days be a single household default?
+- *What counts as a session?* Any measurement row: the newest date any part was recorded. Editing or
+  deleting a session moves the date, and the nag follows the data.
+- *Never logged?* The nag is due immediately, worded as an absence (“No measurements recorded yet”).
+- *Repeat / dismiss?* The nag is continuously present while the gap is open and clears **only** when
+  the data is logged — no snooze, no dismiss (owner choice).
+- *Which surface?* The in-app reminders bell in the app header (decision 121).
+
+**Still open:**
+
+- Should the interval be configurable per user, or are 3 / 14 days a single household default?
+- Should a second cue appear before the window elapses (a “due soon” state)?
 
 ---
 
@@ -232,8 +248,8 @@ Sources are evidence for the limited claims described here, not endorsements of 
 5. ~~What trend smoother is understandable and stable for cals' actual weigh-in frequency? How much data is enough to draw it?~~ **Partly answered by decision 95: a moving average over weigh-ins, three points minimum, 7-day window defaulting per user.** Still open: whether a centred or trailing average reads better on sparse data, and whether the household wants the window at 10 or 14 days once the Phase 15 setting exists.
 6. Is a target-weight ETA worth the additional assumptions and risk of false precision? If yes, which published model can be validly parameterized from data cals actually has?
 7. How should uncertainty be communicated and calibrated, not merely illustrated?
-8. What counts as a measurement session for reminder timing, and how should an overdue reminder repeat or be dismissed?
-9. Given decision 87’s narrow measurement-reminder exception, which reminder surface/channel should deliver it?
+8. ~~What counts as a measurement session for reminder timing, and how should an overdue reminder repeat or be dismissed?~~ **Answered by decisions 121–122:** any logged row is a session, the nag is continuous while the gap is open, and only logging the data clears it — no repeat clock, no dismissal.
+9. ~~Given decision 87’s narrow measurement-reminder exception, which reminder surface/channel should deliver it?~~ **Answered by decision 121:** the in-app reminders bell in the app header — never push or email.
 10. Which measurement instructions should appear at entry time to reduce technique drift between sessions?
 
 Append further research and owner observations here. When a proposal becomes a settled product choice, promote it into the numbered decision log and update the Phase 14 plan/current status in the same documentation pass.

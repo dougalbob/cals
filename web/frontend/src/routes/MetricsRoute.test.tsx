@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
@@ -31,9 +31,16 @@ function renderMetrics(path = '/metrics') {
         <Routes>
           <Route path="/metrics" element={<MetricsRoute />} />
         </Routes>
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+/** Reports the URL back to the deep-link assertions (decision 121). */
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location">{`${location.pathname}${location.search}`}</span>
 }
 
 beforeEach(() => {
@@ -290,5 +297,45 @@ describe('MetricsRoute — requested weight and history improvements', () => {
 
     expect(screen.getByTestId('line-chart-point-tooltip').textContent).toMatch(/.+ · \d+ st \d+\.\d lb/)
     expect(screen.getByTestId('chart-point-status').textContent).toContain('Selected weigh-in:')
+  })
+})
+
+describe('MetricsRoute — reminders deep links (decision 121)', () => {
+  it('opens the weigh-in sheet from the bell link and clears the parameter when it closes', async () => {
+    renderMetrics('/metrics?open=weigh-in')
+
+    expect(await screen.findByTestId('weigh-in-sheet')).toBeTruthy()
+    expect(screen.getByTestId('location').textContent).toBe('/metrics?open=weigh-in')
+
+    // Cancel closes the sheet and clears ?open= — the URL stays the state.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByTestId('weigh-in-sheet')).toBeNull())
+    expect(screen.getByTestId('location').textContent).toBe('/metrics')
+  })
+
+  it('still opens the sheet from its own button when no deep link is present', async () => {
+    renderMetrics()
+    fireEvent.click(await screen.findByRole('button', { name: 'Add weigh-in' }))
+
+    expect(await screen.findByTestId('weigh-in-sheet')).toBeTruthy()
+    expect(screen.getByTestId('location').textContent).toBe('/metrics')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByTestId('weigh-in-sheet')).toBeNull())
+  })
+
+  it('scrolls the body map into view for ?open=measurements and cleans the parameter up', async () => {
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    })
+    try {
+      renderMetrics('/metrics?open=measurements')
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/metrics'))
+    } finally {
+      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
   })
 })

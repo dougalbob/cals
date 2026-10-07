@@ -51,6 +51,8 @@ export function MeasurementSheet({
     mutationFn: () => apiPost<{ id: number }>('/api/measurements', { date: todayIso(), [part]: round1(parsed) }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.measurements })
+      // The logged session may clear the measurements nag (decisions 121–122).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders })
       onClose()
     },
     onError: () => setError('Could not save the measurement. Please try again.'),
