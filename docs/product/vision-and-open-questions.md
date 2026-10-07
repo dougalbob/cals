@@ -156,6 +156,12 @@ The owner wants to log a real-world unit such as **“1 bag of Hoops = 25 g”**
 14. **Is the 7-day rolling window right**, or would a 28-day trend be more useful?
 15. **Should targets change with activity** (steps, training), or stay static?
 
+*Added 2026-10-07, without renumbering this list:* the Nutrition screen now carries two additive
+**prototype** panels (day-by-day macro-energy bars with one-at-a-time saved-goal target rails, lazily
+loaded day details, and fibre/protein density as context) — [decision 120](#nutrition-insight-prototype--decision-120-2026-10-07).
+Whether they are adopted permanently, reworked or retired after the phone road-test is open; no rule in
+questions 12–15 changed with them.
+
 ## G. Recipes, Mealie and external data
 
 16. ~~**Is Mealie the long-term home for recipes**, with cals importing one-way?~~ **Answered for the current rebuild (2026-10-03): Mealie import is not being pursued.** The existing search/import code is legacy-only and will not be ported into the React Recipes experience. Importing depends on parsing an external service's recipe payload, which could break if Mealie makes significant changes; imported ingredient lines are also text-only and are not matched to cals foods. The legacy feature may disappear when the old UI is removed unless it is separately reconsidered.
@@ -1123,6 +1129,31 @@ V1/V2 appdata was accessed** (the repository guardrail forbids it), so whether t
 currently contains older measurement rows remains unknown. The new `GET /api/measurements?all=true` path
 makes them visible if present while leaving the legacy newest-20 and bounded-range contracts unchanged.
 No conclusion about the live row count is drawn from fixtures.
+
+## Nutrition insight prototype — decision 120 (2026-10-07)
+
+An owner-requested exploration of the Nutrition screen, built and approved as an **additive prototype**.
+The owner reviewed the 360 px phone preview on 2026-10-07 — inline day details, the saved-goal macro
+rails, and the fibre/density context kept separate from the daily reference — and authorized its
+development release. It is published as `v2.0.0-dev-rc37`; see the
+[release log](../architecture/unraid-image-release.md#release-log). As with every development
+checkpoint, publication does not update the running Unraid container and does not authorize the
+session to touch appdata; the owner's Force Update applies it.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 120 | 2026-10-07 | **Add two clearly labelled prototype panels to Nutrition, changing nothing that is already there.** (1) *Macro pattern*: one bar per day in the existing 7-day window showing the share of estimated energy from logged protein, carbs and fat, with the recorded-food coverage stated and days without a macro split shown as an explicit no-data row. (2) *Day details*: tapping a date lazily loads that day's diary through the existing read endpoint and lists its foods and recipes **in diary order** with their recorded weight and their **saved** kcal/protein/carbs/fat/fibre snapshots — never recomputed from a definition (decisions 55–58). (3) *Target rails*: one macro rail at a time, aligned beneath the days it describes, drawn from the user's **saved goals** only (`protein_goal_per_kg`, `carb_min_percent`/`carb_max_percent`, `fat_max_percent`); the protein rail is unavailable rather than wrong when no current weight is recorded. (4) *Nutrient density*: daily fibre and protein amounts stay primary, with per-1,000-food-kcal density shown beside them as added context. (5) The existing rolling summary, split donut, protein/fibre charts, goals and daily table remain, in place, unchanged. **No API, schema, target-setting, traffic-light or nutrient-coverage change.** | Owner (approved the prototype scope and the 360 px preview) |
+
+**Fibre keeps its own reference.** The 30 g/day general reference and the user's saved `fibre_goal`
+remain distinct from density: the panels say so in the UI, and density is presented as context for the
+calories recorded rather than as a replacement target. That separation was an explicit part of the
+approved scope, and it leaves question 12 (are the traffic-light rules right?) and decision 47
+(which nutrients are tracked) exactly where they were.
+
+**What decision 120 does not settle:** both panels ship labelled **Prototype**. Whether they are
+adopted as permanent Nutrition content, reworked, or retired is an open question for the owner after
+the phone road-test — nothing here commits to keeping them, and removing them later is a frontend-only
+change.
 
 ## The cutover to the root — decisions 110–115 (2026-10-06)
 

@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 311 tests over 40 files (2026-10-05, including Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 346 tests over 44 files (2026-10-07, including the Nutrition prototype's insight maths and panel-rendering tests, the Metrics follow-up and Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
@@ -174,7 +174,7 @@ rest: docs finished in the same PR, no stale claims, and the checks green on the
 - **The Unraid install, template, `.env` loading and Cloudflare routing.** Owner-run, documented in
   [`unraid-image-release.md`](./unraid-image-release.md).
 - **Recipe-photo cropping.** Deliberately deferred by decision 82. Direct upload/replacement shipped in
-  rc25 without cropping; the full 62-test Playwright suite includes create,
+  rc25 without cropping; the full 81-test Playwright suite includes create,
   upload-failure and replacement journeys, the Own creation detail filter on a phone, and Diary
   delete-confirmation flows. Playwright uses the fixture API; Go handler tests cover storage and
   validation, and the route remains behind the existing auth middleware.
