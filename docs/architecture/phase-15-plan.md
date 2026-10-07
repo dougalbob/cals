@@ -6,7 +6,7 @@
 | **Written** | 2026-10-05 |
 | **Owner** | @dougalbob |
 | **Purpose** | Deliver independently reviewable Settings and PWA increments, with the temporary `/next/` path handled explicitly |
-| **Read this first** | This is a **completed phase's record** and describes the app as it was at rc34. Its `/next/` mount, `nextFrontendHandler` and `/next/`-scoped manifest/worker have since been **retargeted to `/`** by Phase 16 stage 16.2 (on the branch, not yet published) — see [`phase-16-plan.md`](phase-16-plan.md). Where this document and the code disagree, the code wins. |
+| **Read this first** | This is a **completed phase's record** and describes the app as it was at rc34. Its `/next/` mount, `nextFrontendHandler` and `/next/`-scoped manifest/worker were retargeted to `/` in Phase 16.2, published as rc35 and included in rc36. Neither candidate is installed; see [`phase-16-plan.md`](phase-16-plan.md) for the current route and owner-gated phone test. Where this document and the code disagree, the code wins. |
 | **Related** | [`frontend-strategy.md`](frontend-strategy.md) §7, [`../product/vision-and-open-questions.md`](../product/vision-and-open-questions.md) decisions 27, 47, 53, 66, 93, 95, 97 and 106; [`testing.md`](testing.md) |
 
 > **Phase 14 is complete in the development line.** Phase 15 can now expose the user controls for preferences whose storage and calculations already landed in Phase 14. The last reported Unraid road-test remains tracked separately in [`../CURRENT_STATE.md`](../CURRENT_STATE.md); Phase 15 must not modify live appdata.
@@ -127,9 +127,11 @@ PWA build.
 **Deployment status (2026-10-05).** The owner Force Updated the existing `cals-dev-v2` container on
 port `8151` to rc34 and checked the Settings work: **it behaves as intended.** That is the only
 confirmed item of the accumulated rc28–rc34 road-test; the rest of the checklist is unconfirmed.
-**Phone PWA installation is still untested** — test through the Cloudflare hostname (LAN HTTP cannot
-register a worker or install), where Android Chrome will offer **Add to Home screen** rather than the
-install prompt while the worker has no fetch handler, and iOS uses **Share → Add to Home Screen**. No
-Cloudflare Access/bypass/Tunnel/DNS/authentication change is needed or proposed
-([`phase-16-plan.md`](phase-16-plan.md) §3, §6 Q2); no template or appdata change was required. Follow
-the accumulated phone-size checklist in [`CURRENT_STATE.md`](../CURRENT_STATE.md) §3 item 10.
+**Phone PWA installation was still untested at rc34** — the rc34 worker had no fetch handler, so the
+then-current Android expectation was a browser-menu shortcut; iOS uses **Share → Add to Home Screen**.
+The published rc36 candidate adds Q2's network-only pass-through handler and retargets React to `/`;
+verify the in-app **Install app** flow on the Cloudflare hostname after the owner chooses to Force Update
+(plain LAN HTTP cannot register a worker or install). No Cloudflare Access/bypass/Tunnel/DNS/authentication
+change is needed or proposed ([`phase-16-plan.md`](phase-16-plan.md) §3, §6 Q2); no template or appdata
+change was required. Follow the accumulated phone-size checklist in [`CURRENT_STATE.md`](../CURRENT_STATE.md)
+§3 item 10.
