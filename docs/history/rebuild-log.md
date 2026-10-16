@@ -14,6 +14,16 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Recipe daily calorie serving guide — issue #91 (2026-10-16; release requested)
+
+Issue #91 asked for a recipe-weight suggestion calculated only after opening a recipe, with no hint on the catalogue. Implemented the guide on recipe detail and in the Diary portion sheet: largest whole-gram portion within the selected date's plain daily calorie goal, counting logged food and drinks, excluding the rolling bank and capped at cooked recipe weight. Changing the sheet date recalculates it; future dates are covered. The guide is advisory and does not constrain logging. The owner then asked for a new development release to test on Unraid.
+
+The feature is frontend-only: no API, schema or migration change. The release loop is pending in this record; rc39 remains the latest published candidate until the tag-triggered workflow completes. The accumulated update from rc34 also includes rc38's `users.report_seen_through` and rc39's `recipes.cuisine` additive migrations; no data copy, appdata, template or Cloudflare operation is planned.
+
+Verified with lint/typecheck, 396 Vitest tests across 49 files, the Go-mode frontend build, and 90 Playwright tests (including two new phone journeys), plus `check-doc-links` and `git diff --check`. The 360 px [detail preview](../product/recipe-daily-serving-guide-360.png) and [portion-sheet preview](../product/recipe-daily-serving-sheet-360.png) are committed. The owner can Force Update the existing `cals-dev-v2` container after publication; this session does not access live appdata or Unraid.
+
+---
+
 ## `v2.0.0-dev-rc39` published — the recipe cuisine selector (2026-10-16)
 
 The owner reviewed the Arena preview of the cuisine selector and chose **“Approve — merge and publish

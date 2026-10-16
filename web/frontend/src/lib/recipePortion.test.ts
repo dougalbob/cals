@@ -3,6 +3,7 @@ import {
   WHOLE_RECIPE_FRACTIONS,
   canLogRecipePortion,
   fractionGrams,
+  maxRecipeGramsWithinDailyCalories,
   matchingFraction,
   recipeNutritionForGrams,
   suggestedMeal,
@@ -68,6 +69,30 @@ describe('canLogRecipePortion', () => {
   it('requires a cooked weight, because zero per-100 g means no nutrition', () => {
     expect(canLogRecipePortion({ total_weight_grams: 780 })).toBe(true)
     expect(canLogRecipePortion({ total_weight_grams: 0 })).toBe(false)
+  })
+})
+
+describe('maxRecipeGramsWithinDailyCalories', () => {
+  const recipe = { total_weight_grams: 812, calories_per_100g: 250 }
+
+  it('rounds down to the largest whole-gram serving under the remaining calories', () => {
+    const grams = maxRecipeGramsWithinDailyCalories(recipe, 245)
+
+    expect(grams).toBe(98)
+    expect((grams as number) * recipe.calories_per_100g / 100).toBeLessThanOrEqual(245)
+    expect(((grams as number) + 1) * recipe.calories_per_100g / 100).toBeGreaterThan(245)
+  })
+
+  it('caps the suggestion at the whole cooked recipe', () => {
+    expect(maxRecipeGramsWithinDailyCalories(recipe, 3000)).toBe(812)
+  })
+
+  it('handles zero-calorie recipes and rejects invalid inputs', () => {
+    expect(maxRecipeGramsWithinDailyCalories({ total_weight_grams: 812, calories_per_100g: 0 }, 0)).toBe(812)
+    expect(maxRecipeGramsWithinDailyCalories({ total_weight_grams: 0, calories_per_100g: 250 }, 245)).toBeNull()
+    expect(maxRecipeGramsWithinDailyCalories(recipe, Number.NaN)).toBeNull()
+    expect(maxRecipeGramsWithinDailyCalories(recipe, -1)).toBeNull()
+    expect(maxRecipeGramsWithinDailyCalories({ ...recipe, calories_per_100g: -1 }, 245)).toBeNull()
   })
 })
 

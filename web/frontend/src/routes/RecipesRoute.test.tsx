@@ -140,12 +140,17 @@ describe('RecipesRoute', () => {
     expect(neverLoggedLink.closest('article')?.querySelector('[data-recipe-log-count]')).toBeNull()
   })
 
-  it('opens a recipe detail page from a catalogue card', async () => {
+  it('shows the daily serving estimate only after opening a recipe, not in the catalogue', async () => {
     renderRoute()
 
-    fireEvent.click(await screen.findByRole('link', { name: 'View Chicken Curry' }))
+    await screen.findByRole('heading', { name: 'Recipes' })
+    expect(screen.queryByTestId('recipe-daily-serving-hint')).toBeNull()
+
+    fireEvent.click(screen.getByRole('link', { name: 'View Chicken Curry' }))
     expect(await screen.findByRole('heading', { name: 'Ingredients' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Chicken Curry' })).toBeTruthy()
+    expect(await screen.findByTestId('recipe-daily-serving-hint')).toBeTruthy()
+    expect(screen.getByTestId('recipe-daily-serving-hint').textContent).toContain('Suggested serving size')
   })
 
   it('filters by separate meal occasion, dish type and known key foods', async () => {
@@ -558,11 +563,13 @@ describe('RecipesRoute', () => {
       const add = await screen.findByRole('button', {
         name: `Add Chicken Curry to Breakfast on ${target}`,
       })
+      expect(screen.queryByTestId('recipe-daily-serving-hint')).toBeNull()
       fireEvent.click(add)
 
       // The portion sheet is the same one as always, with the diary's answers in it.
       const sheet = await screen.findByRole('dialog', { name: 'Add Chicken Curry to Breakfast' })
       expect(within(sheet).getByText(/Going to Breakfast/)).toBeTruthy()
+      expect(await within(sheet).findByTestId('recipe-daily-serving-hint')).toBeTruthy()
 
       // Cancel / Add to diary are pinned outside the scrolling content, so a
       // small phone screen cannot scroll them out of reach (this was measured

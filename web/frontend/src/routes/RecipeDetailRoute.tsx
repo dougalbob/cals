@@ -22,12 +22,14 @@ import {
 } from '../api/types'
 import { RecipeTags } from '../components/RecipeTags'
 import { CuisineSelector } from '../components/CuisineSelector'
+import { RecipeDailyServingHint } from '../components/RecipeDailyServingHint'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeContentEditor } from '../components/RecipeContentEditor'
 import { RecipePhotoPicker } from '../components/RecipePhotoPicker'
 import { parseTagParam, recipesHref, toggleTag } from '../lib/recipeTags'
 import { diaryHrefForPick, mealLabel, parseRecipePick, withRecipePick } from '../lib/recipePick'
 import { todayIso } from '../lib/format'
+import { canLogRecipePortion } from '../lib/recipePortion'
 
 export function RecipeDetailRoute() {
   const { id: idParam } = useParams()
@@ -207,6 +209,12 @@ export function RecipeDetailRoute() {
             {recipe.serves > 0 && <span>Serves {recipe.serves}</span>}
             {recipe.total_time_minutes !== null && <span>{recipe.total_time_minutes} min total</span>}
           </div>
+
+          {!recipe.is_archived && canLogRecipePortion(recipe) && (
+            <div className="pt-4">
+              <RecipeDailyServingHint recipe={recipe} date={pick?.date ?? today} />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 pt-4">
             {!recipe.is_archived && (

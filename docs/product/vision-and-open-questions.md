@@ -8,7 +8,7 @@
 | **Purpose** | Get to a shared understanding of what cals should *become* before deciding what to rebuild and in what order |
 | **Related** | [`../architecture/frontend-strategy.md`](../architecture/frontend-strategy.md), [`../architecture/local-development.md`](../architecture/local-development.md), [`metrics-evidence.md`](metrics-evidence.md) (working research for Phase 14 Metrics) |
 
-**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–119). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
+**How to use this.** Answer in any order, in any level of detail — including "don't know yet" and "that's not important". Sections marked ✅ are settled; the rest are open. Anything answered is recorded in one of the dated decision tables at the end of this document (currently decisions 1–124). This document records *why*; **current status lives in [`CURRENT_STATE.md`](../CURRENT_STATE.md)** and the dated story in [`../history/rebuild-log.md`](../history/rebuild-log.md).
 
 ---
 
@@ -1285,3 +1285,14 @@ It still returns RFC3339 — verified 2026-10-05 against a real server: a direct
 scans as plain `2026-10-05` because `sqlite3_column_decltype` is NULL for an expression. The legacy UI
 tolerates it with `split('T')[0]` and the React app does not display it, so it is cosmetic; changing it
 would let the legacy UI drop that workaround. `GET /api/bank`'s `start_date` has the same shape.
+
+
+## Recipe daily-calorie serving guide — decision 124 (2026-10-16)
+
+[Issue #91](https://github.com/dougalbob/cals/issues/91) asks for a recipe-weight hint only after opening a recipe, so the user can see the largest portion that fits the remaining daily calories. The owner has now directed publication so it can be tested on Unraid.
+
+**What the guide means.** For the date currently selected in the Diary portion sheet, take the user's plain daily calorie goal and subtract food and drink calories logged on that date. Do not include the rolling bank. Divide the remaining kcal by the recipe's kcal per gram, round **down** to the largest whole gram, and cap at the recipe's cooked weight. Show the guide on recipe detail and in the portion sheet (including the Diary picker); keep catalogue cards free of it. The date selection must drive the estimate, including a future planned date with no entries. This is an advisory only — it never limits the portion the user can log.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 124 | 2026-10-16 | **Show a date-aware maximum whole-gram recipe portion against the plain daily calorie goal, only after a recipe is opened.** Subtract same-date food and drink calories, exclude the rolling bank, round down and cap at cooked recipe weight. Mount the guide on recipe detail and in the portion sheet, never on catalogue cards; follow the sheet's selected date. No API, schema or migration change. | Owner (issue #91; requested publication for Unraid testing) |

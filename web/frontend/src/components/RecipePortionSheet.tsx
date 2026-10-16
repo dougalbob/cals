@@ -5,6 +5,7 @@ import { queryKeys } from '../api/client'
 import { MEALS, type Meal, type RecipeDetail } from '../api/types'
 import { formatGrams, formatNumber, relativeDayLabel, todayIso } from '../lib/format'
 import { mealLabel } from '../lib/recipePick'
+import { RecipeDailyServingHint } from './RecipeDailyServingHint'
 import {
   WHOLE_RECIPE_FRACTIONS,
   canLogRecipePortion,
@@ -162,6 +163,8 @@ export function RecipePortionSheet({
             {formatNumber(recipe.calories_per_100g)} kcal per 100 g cooked · {formatNumber(recipe.total_calories)} kcal
             total
           </p>
+
+          <RecipeDailyServingHint recipe={recipe} date={date} />
 
           {fromDiary && (
             <p className="m-0 rounded-xl bg-primary-light/15 px-3 py-2 text-xs leading-relaxed text-primary-dark">
