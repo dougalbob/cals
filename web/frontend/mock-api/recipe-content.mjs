@@ -6,6 +6,24 @@ const round1 = (value) => Math.round(value * 10) / 10
 const supportedMealOccasions = new Set(['breakfast', 'lunch', 'dinner', 'snack'])
 const supportedDishTypes = new Set(['main', 'side', 'soup', 'salad', 'dessert'])
 
+/** Mirrors `maxRecipeCuisineLength` in internal/handlers/recipes.go. */
+export const MAX_RECIPE_CUISINE_LENGTH = 40
+
+/** The mock's cuisine rule, identical to the Go handler's: trim, then a length cap. */
+export function recipeCuisineError(value) {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string') return 'Cuisine must be text'
+  const trimmed = value.trim()
+  if (trimmed.length > MAX_RECIPE_CUISINE_LENGTH) {
+    return `Cuisine must be ${MAX_RECIPE_CUISINE_LENGTH} characters or fewer`
+  }
+  return null
+}
+
+export function normaliseRecipeCuisine(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 /** Build a new recipe in the fixture API using the same content rules as edits. */
 export function buildNewRecipe(body, foods, id, creator) {
   const name = String(body?.name ?? '').trim()
@@ -20,6 +38,7 @@ export function buildNewRecipe(body, foods, id, creator) {
 
   const occasions = body?.meal_occasions ?? []
   const dishType = body?.dish_type ?? ''
+  const cuisine = normaliseRecipeCuisine(body?.cuisine)
   const keyFoodIds = body?.key_food_ids ?? []
   const totalTime = body?.total_time_minutes ?? null
   if (!Array.isArray(occasions) || occasions.some((value) => !supportedMealOccasions.has(value))) {
@@ -29,6 +48,8 @@ export function buildNewRecipe(body, foods, id, creator) {
   if (typeof dishType !== 'string' || (dishType !== '' && !supportedDishTypes.has(dishType))) {
     return { error: 'Unsupported dish type' }
   }
+  const cuisineError = recipeCuisineError(body?.cuisine)
+  if (cuisineError) return { error: cuisineError }
   if (!Array.isArray(keyFoodIds) || keyFoodIds.length > 2) return { error: 'Choose at most two key foods' }
   if (keyFoodIds.some((foodId) => !Number.isInteger(foodId) || foodId <= 0)) {
     return { error: 'Invalid key food ID' }
@@ -56,6 +77,7 @@ export function buildNewRecipe(body, foods, id, creator) {
       is_own_creation: Boolean(body?.is_own_creation),
       meal_occasions: [...occasions],
       dish_type: dishType || undefined,
+      cuisine: cuisine || undefined,
       key_foods: keyFoodIds.map((foodId) => ({
         food_id: foodId,
         food_name: ingredientByFood.get(foodId).food_name,

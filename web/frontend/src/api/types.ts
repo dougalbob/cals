@@ -113,6 +113,29 @@ export const RECIPE_DISH_TYPES = [
 
 export type RecipeDishType = (typeof RECIPE_DISH_TYPES)[number]['value']
 
+/**
+ * Cuisines the recipe editor offers as one-tap chips (issue #90, decision 123).
+ *
+ * They are a starting set, not an enum: the server stores whatever is typed
+ * under “New…” as plain text, and the chip row grows with the cuisines the
+ * household has actually used.
+ */
+export const SUGGESTED_RECIPE_CUISINES = [
+  'Italian',
+  'Indian',
+  'Chinese',
+  'Thai',
+  'Mexican',
+  'English',
+  'Korean',
+] as const
+
+/** A cuisine is free text; the suggestions are only a shortcut. */
+export type RecipeCuisine = string
+
+/** Server-side limit, mirrored from `maxRecipeCuisineLength` in the Go handler. */
+export const MAX_RECIPE_CUISINE_LENGTH = 40
+
 export interface RecipeKeyFood {
   food_id: number
   food_name: string
@@ -157,6 +180,8 @@ export interface Recipe {
   usual_grams: number | null
   meal_occasions: RecipeMealOccasion[]
   dish_type?: RecipeDishType
+  /** Free-text cuisine tag (decision 123); empty or absent means none. */
+  cuisine?: RecipeCuisine
   key_foods: RecipeKeyFood[]
   total_time_minutes: number | null
 }
@@ -192,6 +217,8 @@ export interface RecipeImageUploadResponse {
 export interface RecipeMetadataInput {
   meal_occasions: RecipeMealOccasion[]
   dish_type: RecipeDishType | ''
+  /** Free text; an empty string clears the cuisine. Omitted = leave as is. */
+  cuisine?: RecipeCuisine
   key_food_ids: number[]
   /** Shared recipe-origin marker; optional so older metadata clients can omit it without clearing it. */
   is_own_creation?: boolean
@@ -225,6 +252,7 @@ export interface RecipeContentInput {
 export interface RecipeCreateInput extends RecipeContentInput {
   meal_occasions: RecipeMealOccasion[]
   dish_type: RecipeDishType | ''
+  cuisine?: RecipeCuisine
   key_food_ids: number[]
   is_own_creation: boolean
   total_time_minutes: number | null

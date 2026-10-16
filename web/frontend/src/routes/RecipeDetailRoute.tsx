@@ -3,7 +3,14 @@ import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../api/client'
-import { getRecipe, setRecipeArchived, updateRecipe, updateRecipeMetadata, uploadRecipeImage } from '../api/recipes'
+import {
+  getRecipe,
+  getRecipeCuisines,
+  setRecipeArchived,
+  updateRecipe,
+  updateRecipeMetadata,
+  uploadRecipeImage,
+} from '../api/recipes'
 import {
   RECIPE_DISH_TYPES,
   RECIPE_MEAL_OCCASIONS,
@@ -14,6 +21,7 @@ import {
   type RecipeMetadataInput,
 } from '../api/types'
 import { RecipeTags } from '../components/RecipeTags'
+import { CuisineSelector } from '../components/CuisineSelector'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeContentEditor } from '../components/RecipeContentEditor'
 import { RecipePhotoPicker } from '../components/RecipePhotoPicker'
@@ -54,6 +62,13 @@ export function RecipeDetailRoute() {
     queryKey: queryKeys.recipe(recipeId),
     queryFn: () => getRecipe(recipeId),
     enabled: validId,
+  })
+
+  // Cuisines already in use, for the recipe card's cuisine selector
+  // (decision 123). Read-only: a failure leaves the suggested chips only.
+  const cuisinesQuery = useQuery({
+    queryKey: queryKeys.recipeCuisines,
+    queryFn: getRecipeCuisines,
   })
 
   const photoMutation = useMutation({
@@ -253,6 +268,7 @@ export function RecipeDetailRoute() {
           <RecipeMetadataEditor
             key={`${recipe.id}-${contentRevision}`}
             recipe={recipe}
+            knownCuisines={cuisinesQuery.data ?? []}
             isSaving={metadataMutation.isPending}
             error={metadataMutation.isError ? (metadataMutation.error as Error).message : null}
             onSave={(input) => metadataMutation.mutateAsync(input)}
@@ -359,11 +375,14 @@ function ArchiveRecipeSection({
 
 function RecipeMetadataEditor({
   recipe,
+  knownCuisines = [],
   isSaving,
   error,
   onSave,
 }: {
   recipe: RecipeDetail
+  /** Cuisines in use elsewhere, offered as chips beside the suggested set. */
+  knownCuisines?: readonly string[]
   isSaving: boolean
   error: string | null
   onSave: (input: RecipeMetadataInput) => Promise<RecipeDetail>
@@ -371,6 +390,7 @@ function RecipeMetadataEditor({
   const [isEditing, setIsEditing] = useState(false)
   const [mealOccasions, setMealOccasions] = useState<RecipeMealOccasion[]>(recipe.meal_occasions)
   const [dishType, setDishType] = useState<RecipeDishType | ''>(recipe.dish_type ?? '')
+  const [cuisine, setCuisine] = useState(recipe.cuisine ?? '')
   const [isOwnCreation, setIsOwnCreation] = useState(recipe.is_own_creation)
   const [keyFoodIds, setKeyFoodIds] = useState<number[]>(recipe.key_foods.map((food) => food.food_id))
   const [timeMinutes, setTimeMinutes] = useState(
@@ -396,6 +416,16 @@ function RecipeMetadataEditor({
     })
   }
 
+  /** Abandon the draft: every field goes back to what the recipe actually is. */
+  const resetDraft = () => {
+    setMealOccasions(recipe.meal_occasions)
+    setDishType(recipe.dish_type ?? '')
+    setCuisine(recipe.cuisine ?? '')
+    setIsOwnCreation(recipe.is_own_creation)
+    setKeyFoodIds(recipe.key_foods.map((food) => food.food_id))
+    setTimeMinutes(recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes))
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const minutes = timeMinutes.trim() === '' ? null : Number(timeMinutes)
@@ -406,6 +436,7 @@ function RecipeMetadataEditor({
           .map((item) => item.value)
           .filter((occasion) => mealOccasions.includes(occasion)),
         dish_type: dishType,
+        cuisine: cuisine.trim(),
         key_food_ids: keyFoodIds,
         is_own_creation: isOwnCreation,
         total_time_minutes: minutes,
@@ -427,11 +458,7 @@ function RecipeMetadataEditor({
           <button
             type="button"
             onClick={() => {
-              setMealOccasions(recipe.meal_occasions)
-              setDishType(recipe.dish_type ?? '')
-              setIsOwnCreation(recipe.is_own_creation)
-              setKeyFoodIds(recipe.key_foods.map((food) => food.food_id))
-              setTimeMinutes(recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes))
+              resetDraft()
               setIsEditing(true)
             }}
             className="min-h-11 rounded-xl border border-primary px-4 text-sm font-semibold text-primary-dark hover:bg-primary/5"
@@ -477,6 +504,16 @@ function RecipeMetadataEditor({
               ))}
             </select>
           </label>
+
+          <fieldset className="m-0 flex flex-col gap-2 rounded-xl border border-teal-300 bg-teal-50 p-3">
+            <legend className="px-1 text-sm font-semibold text-teal-950">Cuisine</legend>
+            <CuisineSelector
+              value={cuisine}
+              knownCuisines={knownCuisines}
+              disabled={isSaving}
+              onChange={setCuisine}
+            />
+          </fieldset>
 
           <fieldset className="m-0 rounded-xl border border-orange-300 bg-orange-50 p-3">
             <legend className="px-1 text-sm font-semibold text-orange-950">Recipe origin</legend>
@@ -544,11 +581,7 @@ function RecipeMetadataEditor({
               type="button"
               disabled={isSaving}
               onClick={() => {
-                setMealOccasions(recipe.meal_occasions)
-                setDishType(recipe.dish_type ?? '')
-                setIsOwnCreation(recipe.is_own_creation)
-                setKeyFoodIds(recipe.key_foods.map((food) => food.food_id))
-                setTimeMinutes(recipe.total_time_minutes === null ? '' : String(recipe.total_time_minutes))
+                resetDraft()
                 setIsEditing(false)
               }}
               className="min-h-11 rounded-xl border border-line px-4 text-sm font-medium"

@@ -14,6 +14,33 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Recipe cuisine selector — issue #90, decision 123 (2026-10-16)
+
+The owner opened [issue #90](https://github.com/dougalbob/cals/issues/90): a separate selector on the
+recipe card for an additional tag of type **Cuisine**, suggesting Italian / Indian / Chinese / Thai /
+Mexican / English / Korean with a “New…” escape hatch for cuisines that do not exist yet. Built on
+session branch `arena/f17843e7-cals` as [PR #92](https://github.com/dougalbob/cals/pull/92) against
+`cals-dev` — **not yet merged and not published**, pending the owner's preview review.
+
+Cuisine became the recipe tag vocabulary's fifth facet rather than a field of its own: a chip row in
+the recipe card's *Recipe tags* section and in `/recipes/new`, a **teal** chip on the catalogue and
+detail photos, a **Cuisine** dropdown in *Filter by recipe details*, and search coverage — all
+composing with the existing AND tag filtering through slug keys (`cuisine:north-african`). Stored as
+one additive, nullable `recipes.cuisine` column, written trimmed and 40-character capped by the
+create and metadata routes, and offered back to the editor by a new read-only
+`GET /api/recipes/cuisines`. The metadata route takes `cuisine` as a pointer so a cached bundle
+predating the field cannot blank a household's tagging by editing occasions.
+
+Verified with `go build/vet/test` (new `internal/handlers/recipes_cuisine_test.go`, 5 tests),
+**390 Vitest tests over 49 files**, lint/typecheck/`build:go`, a new fixture-API contract spec, and
+the browser suite at **88 passed** including `e2e/recipes-cuisine.spec.ts` (touch taps, 44 px
+targets, no overflow at 360 px). Review screenshots are committed at
+[`../product/recipe-cuisine-selector-360.png`](../product/recipe-cuisine-selector-360.png) and
+[`../product/recipe-cuisine-catalogue-360.png`](../product/recipe-cuisine-catalogue-360.png).
+
+**Deployment:** the migration is additive, so a Force Update needs no appdata, template or
+Cloudflare work.
+
 ## `v2.0.0-dev-rc38` published — the reminders bell (2026-10-07)
 
 The owner reviewed the reminders bell at phone size in the Arena preview ("looks good") and directed publication through the full end-to-end loop. [PR #87](https://github.com/dougalbob/cals/pull/87) merged into `cals-dev` as

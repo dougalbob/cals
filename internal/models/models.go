@@ -101,6 +101,8 @@ type Recipe struct {
 	UsualGrams            *float64               `json:"usual_grams"`     // signed-in user's remembered portion; null until they first log it
 	MealOccasions         []string               `json:"meal_occasions"`
 	DishType              string                 `json:"dish_type,omitempty"`
+	// Cuisine is free text (issue #90, decision 123): empty means none.
+	Cuisine               string                 `json:"cuisine,omitempty"`
 	KeyFoods              []RecipeKeyFood        `json:"key_foods"`
 	TotalTimeMinutes      *int                   `json:"total_time_minutes"`
 	Ingredients           []RecipeIngredient     `json:"ingredients,omitempty"`

@@ -356,6 +356,15 @@ func RunMigrations() error {
 		// DATE declaration is read back through isoDate() like every other
 		// date column (see calendar.go).
 		`ALTER TABLE users ADD COLUMN report_seen_through DATE`,
+
+		// Recipe cuisine (issue #90, decision 123): a free-text cuisine tag on
+		// the shared recipe definition. NULL (or empty) means "no cuisine", so
+		// every existing recipe is unaffected and the legacy UI, which never
+		// selects the column, keeps working unchanged. The values are not a
+		// fixed enum: the owner's suggested list (Italian, Indian, Chinese,
+		// Thai, Mexican, English, Korean) is a starting set of chips in the
+		// editor, and anything typed under "New…" is stored as written.
+		`ALTER TABLE recipes ADD COLUMN cuisine TEXT`,
 	}
 
 	for _, migration := range migrations {

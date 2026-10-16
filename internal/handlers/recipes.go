@@ -62,7 +62,8 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		       ) AS is_favourite,
 		       COALESCE(log_counts.times_logged, 0) AS times_logged,
 		       r.updated_at, r.dish_type, r.total_time_minutes,
-		       p.grams AS usual_grams, r.is_archived, r.is_own_creation
+		       p.grams AS usual_grams, r.is_archived, r.is_own_creation,
+		       COALESCE(r.cuisine, '') AS cuisine
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		LEFT JOIN recipe_user_portions p ON p.recipe_id = r.id AND p.user_id = ?
@@ -83,14 +84,14 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	var recipes []models.Recipe
 	for rows.Next() {
 		var recipe models.Recipe
-		var desc, img, dishType sql.NullString
+		var desc, img, dishType, cuisine sql.NullString
 		var calcWeight, usualGrams sql.NullFloat64
 		var totalTime sql.NullInt64
 		var isFavourite, isArchived, isOwnCreation int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
 			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
 			&recipe.CreatedByName, &isFavourite, &recipe.TimesLogged, &recipe.UpdatedAt, &dishType,
-			&totalTime, &usualGrams, &isArchived, &isOwnCreation)
+			&totalTime, &usualGrams, &isArchived, &isOwnCreation, &cuisine)
 		if err != nil {
 			rows.Close()
 			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -105,6 +106,9 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		}
 		if dishType.Valid {
 			recipe.DishType = dishType.String
+		}
+		if cuisine.Valid {
+			recipe.Cuisine = cuisine.String
 		}
 		if totalTime.Valid {
 			minutes := int(totalTime.Int64)
@@ -151,6 +155,43 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipes)
+}
+
+// HandleListRecipeCuisines returns every cuisine in use, so the editor's chip row
+// can offer the household's own cuisines next to the suggested starting set
+// (decision 123). Archived recipes are included: a cuisine stays offered while
+// any recipe — even a retired one — still carries it.
+//
+// Read-only, additive, and it never writes: an empty household returns `[]`.
+func HandleListRecipeCuisines(w http.ResponseWriter, r *http.Request) {
+	rows, err := database.DB.Query(`
+		SELECT DISTINCT TRIM(cuisine) AS cuisine
+		FROM recipes
+		WHERE cuisine IS NOT NULL AND TRIM(cuisine) <> ''
+		ORDER BY cuisine COLLATE NOCASE
+	`)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	cuisines := []string{}
+	for rows.Next() {
+		var cuisine string
+		if err := rows.Scan(&cuisine); err != nil {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		cuisines = append(cuisines, cuisine)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cuisines)
 }
 
 func loadRecipeMetadata(recipes []*models.Recipe) error {
@@ -344,7 +385,7 @@ func rememberRecipePortion(userID, recipeID int64, grams float64, makeUsual bool
 
 func getRecipeByID(id int64) (*models.Recipe, error) {
 	var r models.Recipe
-	var desc, instructions, img, dishType sql.NullString
+	var desc, instructions, img, dishType, cuisine sql.NullString
 	var calcWeight sql.NullFloat64
 	var totalTime sql.NullInt64
 	var isArchived, isOwnCreation int
@@ -354,14 +395,16 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 		       r.created_by_user_id, r.calculated_weight_grams, r.total_weight_grams, r.weight_is_manual,
 		       r.total_calories, r.total_protein, r.total_carbs, r.total_fat, r.total_fibre,
 		       r.created_at, r.updated_at, r.dish_type, r.total_time_minutes,
-		       COALESCE(u.name, u.email) as created_by_name, r.is_archived, r.is_own_creation
+		       COALESCE(u.name, u.email) as created_by_name, r.is_archived, r.is_own_creation,
+		       COALESCE(r.cuisine, '') AS cuisine
 		FROM recipes r
 		LEFT JOIN users u ON r.created_by_user_id = u.id
 		WHERE r.id = ?
 	`, id).Scan(&r.ID, &r.Name, &desc, &instructions, &img, &r.Serves,
 		&r.CreatedByUserID, &calcWeight, &r.TotalWeightGrams, &r.WeightIsManual,
 		&r.TotalCalories, &r.TotalProtein, &r.TotalCarbs, &r.TotalFat, &r.TotalFibre,
-		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName, &isArchived, &isOwnCreation)
+		&r.CreatedAt, &r.UpdatedAt, &dishType, &totalTime, &r.CreatedByName, &isArchived, &isOwnCreation,
+		&cuisine)
 	if err != nil {
 		return nil, err
 	}
@@ -373,6 +416,9 @@ func getRecipeByID(id int64) (*models.Recipe, error) {
 	}
 	if dishType.Valid {
 		r.DishType = dishType.String
+	}
+	if cuisine.Valid {
+		r.Cuisine = cuisine.String
 	}
 	if totalTime.Valid {
 		minutes := int(totalTime.Int64)
@@ -474,6 +520,7 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		Serves           int      `json:"serves"`
 		IsOwnCreation    bool     `json:"is_own_creation"`
 		DishType         string   `json:"dish_type"`
+		Cuisine          string   `json:"cuisine"`
 		MealOccasions    []string `json:"meal_occasions"`
 		KeyFoodIDs       []int64  `json:"key_food_ids"`
 		TotalTimeMinutes *int     `json:"total_time_minutes"`
@@ -503,9 +550,13 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		input.Serves = 1
 	}
 
+	// A new recipe has no cuisine to preserve, so the value is always applied
+	// here (trimmed, empty meaning none) rather than left optional.
+	createCuisine := strings.TrimSpace(input.Cuisine)
 	metadata := recipeMetadataInput{
 		MealOccasions:    input.MealOccasions,
 		DishType:         input.DishType,
+		Cuisine:          &createCuisine,
 		KeyFoodIDs:       input.KeyFoodIDs,
 		TotalTimeMinutes: input.TotalTimeMinutes,
 	}
@@ -585,18 +636,22 @@ func HandleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	if input.DishType != "" {
 		dishType = input.DishType
 	}
+	var cuisine interface{}
+	if trimmed := strings.TrimSpace(input.Cuisine); trimmed != "" {
+		cuisine = trimmed
+	}
 	var totalTime interface{}
 	if input.TotalTimeMinutes != nil {
 		totalTime = *input.TotalTimeMinutes
 	}
 	result, err := tx.ExecContext(r.Context(), `
 		INSERT INTO recipes (name, description, instructions, serves, created_by_user_id,
-		                     is_own_creation, dish_type, total_time_minutes,
+		                     is_own_creation, dish_type, cuisine, total_time_minutes,
 		                     calculated_weight_grams, total_weight_grams, weight_is_manual,
 		                     total_calories, total_protein, total_carbs, total_fat, total_fibre)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, input.Name, input.Description, input.Instructions, input.Serves, user.ID, input.IsOwnCreation,
-		dishType, totalTime, calculatedWeight, finalWeight, input.WeightIsManual,
+		dishType, cuisine, totalTime, calculatedWeight, finalWeight, input.WeightIsManual,
 		totalCals, totalProtein, totalCarbs, totalFat, totalFibre)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Database error: "+err.Error())
@@ -969,11 +1024,39 @@ func HandleSetRecipeFavourite(w http.ResponseWriter, r *http.Request) {
 }
 
 type recipeMetadataInput struct {
-	MealOccasions    []string `json:"meal_occasions"`
-	DishType         string   `json:"dish_type"`
+	MealOccasions []string `json:"meal_occasions"`
+	DishType      string   `json:"dish_type"`
+	/**
+	 * Free text (decision 123); trimmed, and empty clears it.
+	 *
+	 * A pointer, like `IsOwnCreation`: a client that does not know about
+	 * cuisines yet (a cached bundle) omits the key, and that must leave the
+	 * saved cuisine alone rather than blank the whole household's tagging.
+	 */
+	Cuisine          *string  `json:"cuisine"`
 	KeyFoodIDs       []int64  `json:"key_food_ids"`
 	IsOwnCreation    *bool    `json:"is_own_creation"`
 	TotalTimeMinutes *int     `json:"total_time_minutes"`
+}
+
+// Cuisines are free text, so the only server-side rule is that they stay short,
+// single-line and printable: they are rendered as a chip on the recipe photo.
+const maxRecipeCuisineLength = 40
+
+func validateRecipeCuisine(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if len(trimmed) > maxRecipeCuisineLength {
+		return "Cuisine must be " + strconv.Itoa(maxRecipeCuisineLength) + " characters or fewer"
+	}
+	for _, character := range trimmed {
+		if character < 0x20 || character == 0x7f {
+			return "Cuisine must not contain control characters"
+		}
+	}
+	return ""
 }
 
 // HandleUpdateRecipeMetadata replaces the shared, structured metadata for one recipe.
@@ -1049,12 +1132,31 @@ func HandleUpdateRecipeMetadata(w http.ResponseWriter, r *http.Request) {
 	if input.IsOwnCreation != nil {
 		ownCreation = *input.IsOwnCreation
 	}
+
+	// Cuisine is only assigned when the caller mentioned it, so an older client
+	// that omits the key keeps whatever is already saved.
+	assignments := []string{
+		"dish_type = ?",
+		"total_time_minutes = ?",
+		"is_own_creation = COALESCE(?, is_own_creation)",
+		"updated_at = CURRENT_TIMESTAMP",
+	}
+	args := []interface{}{dishType, totalTime, ownCreation}
+	if input.Cuisine != nil {
+		var cuisine interface{}
+		if trimmed := strings.TrimSpace(*input.Cuisine); trimmed != "" {
+			cuisine = trimmed
+		}
+		assignments = append(assignments, "cuisine = ?")
+		args = append(args, cuisine)
+	}
+	args = append(args, recipeID)
+
 	if _, err := tx.Exec(`
 		UPDATE recipes
-		SET dish_type = ?, total_time_minutes = ?,
-		    is_own_creation = COALESCE(?, is_own_creation), updated_at = CURRENT_TIMESTAMP
+		SET `+strings.Join(assignments, ", ")+`
 		WHERE id = ?
-	`, dishType, totalTime, ownCreation, recipeID); err != nil {
+	`, args...); err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1108,6 +1210,11 @@ func validateRecipeMetadata(input recipeMetadataInput) string {
 	if input.DishType != "" {
 		if _, ok := supportedRecipeDishTypes[input.DishType]; !ok {
 			return "Unsupported dish type: " + input.DishType
+		}
+	}
+	if input.Cuisine != nil {
+		if message := validateRecipeCuisine(*input.Cuisine); message != "" {
+			return message
 		}
 	}
 	if len(input.KeyFoodIDs) > 2 {

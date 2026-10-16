@@ -37,6 +37,8 @@ export interface SeedRecipe {
   serves: number
   meal_occasions: ('breakfast' | 'lunch' | 'dinner' | 'snack')[]
   dish_type?: 'main' | 'side' | 'soup' | 'salad' | 'dessert'
+  /** Free-text cuisine tag (decision 123); absent when the recipe has none. */
+  cuisine?: string
   key_foods: { food_id: number; food_name: string }[]
   total_time_minutes: number | null
   created_by_user_id: number

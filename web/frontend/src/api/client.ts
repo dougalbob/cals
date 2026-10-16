@@ -132,6 +132,8 @@ export const queryKeys = {
   foodSearchAll: ['foods', 'search'] as const,
   recipes: ['recipes'] as const,
   recipe: (id: number) => ['recipes', 'detail', id] as const,
+  /** Free-text cuisines in use — the editor's chip suggestions (decision 123). */
+  recipeCuisines: ['recipes', 'cuisines'] as const,
   /** Calendar range — keyed by (from, to). */
   calendar: (from: string, to: string) => ['calendar', from, to] as const,
   weightPrefix: ['weight'] as const,

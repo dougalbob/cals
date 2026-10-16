@@ -116,6 +116,82 @@ describe('RecipeDetailRoute', () => {
   })
 })
 
+/** Issue #90, decision 123: cuisine is the recipe card's own selector. */
+describe('RecipeDetailRoute cuisine', () => {
+  it('shows the saved cuisine as a teal tag that opens the filtered catalogue', async () => {
+    renderRoute(1)
+
+    expect(await screen.findByRole('heading', { name: 'Chicken Curry' })).toBeTruthy()
+    const cuisineTag = within(screen.getByRole('group', { name: 'Chicken Curry tags' })).getByRole(
+      'link',
+      { name: 'Show recipes tagged Indian' },
+    )
+    expect(cuisineTag.className).toContain('bg-teal-100')
+    expect(cuisineTag.getAttribute('href')).toBe('/recipes?tags=cuisine%3Aindian')
+  })
+
+  it('changes the cuisine from the recipe card’s selector and clears it again', async () => {
+    renderRoute(1)
+    await screen.findByRole('heading', { name: 'Chicken Curry' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    const cuisineGroup = screen.getByRole('group', { name: 'Cuisine' })
+    // The recipe's own cuisine is already selected, not a blank form.
+    expect(
+      within(cuisineGroup).getByRole('button', { name: 'Remove the Indian cuisine' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+
+    fireEvent.click(within(cuisineGroup).getByRole('button', { name: 'Set the cuisine to Thai' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save tags and time' }))
+
+    await waitFor(() => expect(seedRecipe(1).cuisine).toBe('Thai'))
+    expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Thai')
+    expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).not.toContain('Indian')
+  })
+
+  it('creates a cuisine that does not exist yet with “New…”', async () => {
+    renderRoute(1)
+    await screen.findByRole('heading', { name: 'Chicken Curry' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add a cuisine that is not listed' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'New cuisine' }), {
+      target: { value: 'Peruvian' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add cuisine' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save tags and time' }))
+
+    await waitFor(() => expect(seedRecipe(1).cuisine).toBe('Peruvian'))
+    expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).toContain('Peruvian')
+
+    // Removing it is one tap on the selected chip, and saving that clears the tag.
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Cuisine' })).getByRole('button', {
+        name: 'Remove the Peruvian cuisine',
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save tags and time' }))
+    await waitFor(() => expect(seedRecipe(1).cuisine).toBeUndefined())
+    expect(screen.getByRole('group', { name: 'Chicken Curry tags' }).textContent).not.toContain('Peruvian')
+  })
+
+  it('offers cuisines the household already uses as one-tap chips', async () => {
+    renderRoute(3) // Salmon Traybake has no cuisine of its own.
+    await screen.findByRole('heading', { name: 'Salmon Traybake' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    const cuisineGroup = screen.getByRole('group', { name: 'Cuisine' })
+    // Suggested cuisines come first; English (used by two recipes) follows.
+    const names = within(cuisineGroup)
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names.slice(0, 7)).toEqual(['Italian', 'Indian', 'Chinese', 'Thai', 'Mexican', 'English', 'Korean'])
+    expect(names).not.toContain('Indian ')
+  })
+})
+
 describe('RecipeDetailRoute photo upload', () => {
   it('previews and replaces an existing recipe photo', async () => {
     renderRoute(1)
