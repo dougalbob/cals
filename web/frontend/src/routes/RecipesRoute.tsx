@@ -13,6 +13,7 @@ import {
 } from '../api/types'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeTags } from '../components/RecipeTags'
+import { cuisineOptions } from '../lib/cuisine'
 import { formatShortDate, todayIso } from '../lib/format'
 import {
   diaryHrefForPick,
@@ -22,6 +23,7 @@ import {
   type RecipePickIntent,
 } from '../lib/recipePick'
 import {
+  cuisineTagKey,
   dishTagKey,
   foodTagKey,
   OWN_CREATION_TAG_KEY,
@@ -149,12 +151,23 @@ export function RecipesRoute() {
     return [...foods.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [recipesQuery.data, showArchived])
 
+  /** Cuisines actually in use, offered after the suggested set (decision 123). */
+  const cuisineFilterOptions = useMemo(() => {
+    const inUse: string[] = []
+    for (const recipe of recipesQuery.data ?? []) {
+      if (recipe.is_archived && !showArchived) continue
+      if (recipe.cuisine?.trim()) inUse.push(recipe.cuisine.trim())
+    }
+    return cuisineOptions(inUse)
+  }, [recipesQuery.data, showArchived])
+
   const matchingRecipes = useMemo(() => {
     const term = search.trim().toLocaleLowerCase()
     return (recipesQuery.data ?? []).filter((recipe) => {
       const searchableTags = [
         ...recipe.meal_occasions,
         recipe.dish_type ?? '',
+        recipe.cuisine ?? '',
         ...(recipe.is_own_creation ? ['Own creation'] : []),
         ...recipe.key_foods.map((food) => food.food_name),
       ]
@@ -182,9 +195,11 @@ export function RecipesRoute() {
 
   const occasionTags = selectedTagKeys(selectedTags, 'occasion')
   const dishTags = selectedTagKeys(selectedTags, 'dish')
+  const cuisineTags = selectedTagKeys(selectedTags, 'cuisine')
   const foodTags = selectedTagKeys(selectedTags, 'food')
   const occasionFilter = occasionTags.length === 1 ? tagValue(occasionTags[0]) : ''
   const dishTypeFilter = dishTags.length === 1 ? tagValue(dishTags[0]) : ''
+  const cuisineFilterKey = cuisineTags.length === 1 ? cuisineTags[0] : ''
   const keyFoodFilter = foodTags.length === 1 ? tagValue(foodTags[0]) : ''
   const ownCreationFilter = selectedTags.includes(OWN_CREATION_TAG_KEY)
 
@@ -322,7 +337,7 @@ export function RecipesRoute() {
             Filter by recipe details
           </summary>
           <p className="mb-0 mt-1 text-xs text-ink-light">
-            Choose an occasion, dish type, Own creation or key food below, or tap any tag on a recipe card.
+            Choose an occasion, dish type, cuisine, Own creation or key food below, or tap any tag on a recipe card.
           </p>
           <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
@@ -372,6 +387,20 @@ export function RecipesRoute() {
                 <span className="whitespace-nowrap">Own creation</span>
               </label>
             </div>
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
+              Cuisine
+              <select
+                aria-label="Filter by cuisine"
+                value={cuisineFilterKey}
+                onChange={(event) => setFacetTag(event.target.value, 'cuisine')}
+                className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink"
+              >
+                <option value="">{cuisineTags.length > 1 ? 'Multiple — see tags' : 'Any cuisine'}</option>
+                {cuisineFilterOptions.map((cuisine) => (
+                  <option key={cuisine} value={cuisineTagKey(cuisine)}>{cuisine}</option>
+                ))}
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-light">
               Key food
               <select

@@ -170,6 +170,52 @@ describe('RecipesRoute', () => {
     expect(screen.queryByText('Chicken Curry')).toBeNull()
   })
 
+  it('filters by cuisine, from the dropdown, a card chip and the search box', async () => {
+    renderRoute()
+
+    await screen.findByRole('heading', { name: 'Recipes' })
+    fireEvent.click(screen.getByText('Filter by recipe details'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by cuisine' }), {
+      target: { value: 'cuisine:indian' },
+    })
+    expect(screen.getByText('Chicken Curry')).toBeTruthy()
+    expect(screen.queryByText('Porridge & Berries')).toBeNull()
+    expect(screen.queryByText('Salmon Traybake')).toBeNull()
+    expect(search()).toBe('?tags=cuisine:indian')
+
+    // A cuisine shared by two recipes narrows to both of them.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by cuisine' }), {
+      target: { value: 'cuisine:english' },
+    })
+    expect(screen.getByText('Porridge & Berries')).toBeTruthy()
+    expect(screen.getByText('Chicken & Mushroom Pie')).toBeTruthy()
+    expect(screen.queryByText('Chicken Curry')).toBeNull()
+
+    // Clearing the dropdown leaves the list whole again.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by cuisine' }), {
+      target: { value: '' },
+    })
+    expect(search()).toBe('')
+
+    // The teal chip on a card is the same filter, by the same key.
+    const cuisineChip = tagRow('Chicken Curry').getByRole('button', {
+      name: 'Filter recipes by Indian',
+    })
+    expect(cuisineChip.className).toContain('bg-teal-100')
+    fireEvent.click(cuisineChip)
+    expect(search()).toBe('?tags=cuisine:indian')
+    expect(
+      tagRow('Chicken Curry').getByRole('button', { name: 'Stop filtering by Indian' }).className,
+    ).toContain('bg-teal-700')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search recipes' }), {
+      target: { value: 'indian' },
+    })
+    expect(screen.getByText('Chicken Curry')).toBeTruthy()
+    expect(screen.queryByText('Salmon Traybake')).toBeNull()
+  })
+
   it('filters by the Own creation checkbox and composes with the other recipe-detail tags', async () => {
     renderRoute()
 

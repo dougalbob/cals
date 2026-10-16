@@ -1191,6 +1191,39 @@ configuration in Settings, and the remaining Issues-bell candidates. The open qu
 [`metrics-evidence.md`](metrics-evidence.md) §3 about reminder timing and channel are answered for
 these three items; the channel question is answered as "in-app bell" only.
 
+## Recipe cuisine — decision 123 (2026-10-16)
+
+**The gap the owner raised.** [Issue #90](https://github.com/dougalbob/cals/issues/90) asked for a
+separate selector on the recipe card for an additional tag of type **Cuisine**, with
+Italian / Indian / Chinese / Thai / Mexican / English / Korean offered as one-tap chips and a
+“New…” escape hatch for cuisines that do not exist yet.
+
+**What was decided.** Cuisine becomes the recipe tag vocabulary's fifth facet, alongside meal
+occasion, dish type, Own creation and key foods — not a new screen, a new screen section, or a
+free-text field on its own. It is one value per recipe (tapping the selected chip clears it), it is
+shared household-wide like every other recipe tag, and it composes with the existing AND filtering:
+“Dinner + Italian” shows only the Italian dinners.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 123 | 2026-10-16 | **A recipe carries one free-text cuisine, edited from a chip selector on the recipe card and offered as a filter everywhere the other tags are.** The owner's seven suggested cuisines are a **starting set, not an enum**: `GET /api/recipes/cuisines` returns what the household actually uses and those appear as extra chips, and “New…” stores any typed name. The value is trimmed and capped at 40 characters server-side; empty clears it. It is stored as an additive, nullable `recipes.cuisine` column, so no existing recipe, migration or Diary row changes and the legacy UI — which never selects the column — is untouched. Filter keys are slug-based (`cuisine:north-african`), so two spellings of one cuisine are one filter. | Owner (issue #90) |
+
+**Why free text rather than an enum.** The issue explicitly wants cuisines that do not already
+exist. A closed list would have needed a migration, an admin screen and a decision about who gets to
+add to it, every time the household cooked something new. A chip row that grows from real usage gives
+the same one-tap experience with none of that, and the slug key keeps the spelling variants from
+splitting the filter.
+
+**What decision 123 does not settle:** whether a cuisine should ever be *required* (it is optional
+today), whether cuisines get their own browse screen rather than only a filter, and whether a recipe
+can carry more than one cuisine (it cannot today, and the chip row is single-select by design).
+
+**Review screenshots (360 px, from the Arena preview's fixture data).** The recipe card's selector,
+with the recipe's own cuisine pre-selected and **＋ New…** at the end of the row:
+[`recipe-cuisine-selector-360.png`](recipe-cuisine-selector-360.png). The catalogue filtered to one
+cuisine, showing the teal chip and the new **Cuisine** dropdown:
+[`recipe-cuisine-catalogue-360.png`](recipe-cuisine-catalogue-360.png).
+
 ## The cutover to the root — decisions 110–115 (2026-10-06)
 
 Phase 16's audit ([`../architecture/phase-16-plan.md`](../architecture/phase-16-plan.md) §6) left six

@@ -52,3 +52,12 @@ export function setRecipeArchived(id: number, isArchived: boolean): Promise<Reci
 export function updateRecipeMetadata(id: number, input: RecipeMetadataInput): Promise<RecipeDetail> {
   return apiPut<RecipeDetail>(`/api/recipes/${id}/metadata`, input)
 }
+
+/**
+ * Every cuisine already used by a recipe, so the editor's chip row can offer
+ * the household's own cuisines beside the suggested set (decision 123).
+ * Read-only and cheap; an empty household answers `[]`.
+ */
+export function getRecipeCuisines(): Promise<string[]> {
+  return apiGet<string[]>('/api/recipes/cuisines')
+}

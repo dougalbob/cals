@@ -81,18 +81,23 @@ export function RecipeTags({
   )
 }
 
-function tagChipClass(tag: RecipeTagRef, selected: boolean): string {
-  const colors = tag.kind === 'origin'
-    ? selected
-      ? 'bg-orange-700 text-white ring-2 ring-white/80'
-      : 'bg-orange-200 text-orange-950 hover:bg-orange-100'
-    : selected
-      ? 'bg-primary text-white ring-2 ring-white/80'
-      : 'bg-white/90 text-ink hover:bg-white'
+/**
+ * Chip colours by facet, so the row reads at a glance: Own creation is orange,
+ * cuisine is teal (decision 123) and everything else is neutral.
+ */
+const CHIP_COLORS: Record<RecipeTagRef['kind'], { selected: string; idle: string }> = {
+  occasion: { selected: 'bg-primary text-white ring-2 ring-white/80', idle: 'bg-white/90 text-ink hover:bg-white' },
+  dish: { selected: 'bg-primary text-white ring-2 ring-white/80', idle: 'bg-white/90 text-ink hover:bg-white' },
+  cuisine: { selected: 'bg-teal-700 text-white ring-2 ring-white/80', idle: 'bg-teal-100 text-teal-950 hover:bg-teal-50' },
+  origin: { selected: 'bg-orange-700 text-white ring-2 ring-white/80', idle: 'bg-orange-200 text-orange-950 hover:bg-orange-100' },
+  food: { selected: 'bg-primary text-white ring-2 ring-white/80', idle: 'bg-white/90 text-ink hover:bg-white' },
+}
 
+function tagChipClass(tag: RecipeTagRef, selected: boolean): string {
+  const colors = CHIP_COLORS[tag.kind]
   return [
     'relative rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none shadow-sm',
     "after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
-    colors,
+    selected ? colors.selected : colors.idle,
   ].join(' ')
 }

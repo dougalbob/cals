@@ -140,6 +140,32 @@ describe('RecipeCreateRoute', () => {
     expect(within(tags).getByRole('link', { name: 'Show recipes tagged Main' })).toBeTruthy()
   })
 
+  it('creates a recipe with a cuisine chosen in the card’s selector', async () => {
+    renderRoute('/recipes/new')
+    const form = await screen.findByRole('region', { name: 'New recipe details' })
+
+    fireEvent.change(within(form).getByRole('textbox', { name: 'Recipe name' }), {
+      target: { value: 'Weeknight Thai bowl' },
+    })
+    fireEvent.change(within(form).getByRole('searchbox', { name: 'Search cals Foods to add' }), {
+      target: { value: 'Chicken Breast' },
+    })
+    fireEvent.click(
+      await within(form).findByRole('button', { name: 'Add Chicken Breast, grilled to recipe' }),
+    )
+
+    // The suggested cuisines are one tap; anything else goes through “New…”.
+    const cuisineGroup = within(form).getByRole('group', { name: 'Cuisine' })
+    fireEvent.click(within(cuisineGroup).getByRole('button', { name: 'Set the cuisine to Thai' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Create recipe' }))
+
+    expect(await screen.findByRole('heading', { name: 'Weeknight Thai bowl' })).toBeTruthy()
+    const created = recipes.find((recipe) => recipe.name === 'Weeknight Thai bowl')
+    expect(created?.cuisine).toBe('Thai')
+    const tags = screen.getByRole('group', { name: 'Weeknight Thai bowl tags' })
+    expect(within(tags).getByRole('link', { name: 'Show recipes tagged Thai' })).toBeTruthy()
+  })
+
   it('uploads a selected photo after creating the recipe and displays its versioned image', async () => {
     renderRoute()
     const form = await screen.findByRole('region', { name: 'New recipe details' })

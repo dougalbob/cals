@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../api/types'
 import {
+  cuisineSlug,
+  cuisineTagKey,
   dishTagKey,
   foodTagKey,
   matchesTags,
@@ -65,6 +67,63 @@ describe('recipeTags', () => {
     expect(matchesTags({ ...chickenPie, is_own_creation: true }, [OWN_CREATION_TAG_KEY])).toBe(true)
     expect(matchesTags(chickenPie, [OWN_CREATION_TAG_KEY])).toBe(false)
     expect(matchesTags(porridge, ['occasion:breakfast', 'food:1'])).toBe(true)
+  })
+})
+
+describe('cuisine tags', () => {
+  const curry = { ...chickenPie, cuisine: 'Indian' }
+
+  it('slugs the label so the key is stable and URL-safe', () => {
+    expect(cuisineSlug('  North African  ')).toBe('north-african')
+    expect(cuisineSlug('Fish & Chips')).toBe('fish-chips')
+    expect(cuisineTagKey('North African')).toBe('cuisine:north-african')
+    // Two spellings of one cuisine share a key, so they share a filter.
+    expect(cuisineTagKey('thai')).toBe(cuisineTagKey('  Thai '))
+  })
+
+  it('sits between the dish type and the origin marker in the chip row', () => {
+    const tags = recipeTags({ ...curry, is_own_creation: true })
+    expect(tags.map((tag) => tag.key)).toEqual([
+      'occasion:dinner',
+      'dish:main',
+      'cuisine:indian',
+      'origin:own',
+      'food:5',
+      'food:25',
+    ])
+    expect(tags.find((tag) => tag.kind === 'cuisine')).toEqual({
+      key: 'cuisine:indian',
+      kind: 'cuisine',
+      label: 'Indian',
+    })
+  })
+
+  it('adds no chip for a recipe without a cuisine', () => {
+    expect(recipeTags({ ...chickenPie, cuisine: '   ' }).some((tag) => tag.kind === 'cuisine')).toBe(
+      false,
+    )
+  })
+
+  it('filters by cuisine with the same AND rule as every other tag', () => {
+    expect(matchesTags(curry, ['cuisine:indian'])).toBe(true)
+    expect(matchesTags(curry, ['cuisine:thai'])).toBe(false)
+    expect(matchesTags(curry, ['cuisine:indian', 'dish:main'])).toBe(true)
+    expect(matchesTags(curry, ['cuisine:indian', 'occasion:breakfast'])).toBe(false)
+  })
+
+  it('round-trips through ?tags= and rejects a malformed cuisine key', () => {
+    const raw = 'cuisine:indian,cuisine:,cuisine:Indian!,cuisine:north-african,dish:main'
+    expect(parseTagParam(raw)).toEqual(['cuisine:indian', 'cuisine:north-african', 'dish:main'])
+    expect(selectedTagKeys(parseTagParam(raw), 'cuisine')).toEqual([
+      'cuisine:indian',
+      'cuisine:north-african',
+    ])
+  })
+
+  it('labels a cuisine from the catalogue, or reads it back from its slug', () => {
+    expect(tagLabel('cuisine:indian', [curry])).toBe('Indian')
+    // A cuisine no loaded recipe carries still reads as words, not as a slug.
+    expect(tagLabel('cuisine:north-african', [curry])).toBe('North African')
   })
 })
 

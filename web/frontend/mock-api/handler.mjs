@@ -7,7 +7,7 @@
  * can be pointed at the real Go server (VITE_API_TARGET) without any changes.
  *
  * Mapped:  /api/version, /api/users/me, /api/recipes (GET/POST/detail, content + favourite + metadata + archive PUT),
- *          /api/recipes/{id}/image (POST), /api/images/recipes/{id}/{type} (GET),
+ *          /api/recipes/cuisines (GET), /api/recipes/{id}/image (POST), /api/images/recipes/{id}/{type} (GET),
  *          /api/foods/search, /api/foods/custom (+ POST/PUT/DELETE), /api/diary (+ POST/PUT/DELETE),
  *          /api/bank, /api/calendar, /api/drinks, /api/weight,
  *          /api/measurements (+ GET latest, POST merge, PUT/DELETE by id),
@@ -19,7 +19,13 @@
  */
 
 import * as seed from './seed.mjs'
-import { buildNewRecipe, buildRecipeContentUpdate, recalculateRecipesUsingFood } from './recipe-content.mjs'
+import {
+  buildNewRecipe,
+  buildRecipeContentUpdate,
+  normaliseRecipeCuisine,
+  recipeCuisineError,
+  recalculateRecipesUsingFood,
+} from './recipe-content.mjs'
 
 const {
   foods, recipes, drinks, drinkEntries, weightEntries, measurements,
@@ -386,6 +392,19 @@ export function handle(method, url, body, headers = {}) {
         .filter((recipe) => includeArchived || !recipe.is_archived)
         .map((recipe) => recipeResponse(recipe)),
     )
+  }
+
+  // Cuisines already in use, so the recipe editor can offer them as chips
+  // (decision 123). Read-only and deduplicated, case-insensitively sorted.
+  if (pathname === '/api/recipes/cuisines' && method === 'GET') {
+    const seen = new Map()
+    for (const recipe of recipes) {
+      const cuisine = normaliseRecipeCuisine(recipe.cuisine)
+      if (!cuisine) continue
+      const key = cuisine.toLowerCase()
+      if (!seen.has(key)) seen.set(key, cuisine)
+    }
+    return json([...seen.values()].sort((a, b) => a.localeCompare(b)))
   }
 
   const recipeDetailMatch = pathname.match(/^\/api\/recipes\/(\d+)$/)
@@ -897,6 +916,7 @@ export function handle(method, url, body, headers = {}) {
 
     const occasions = body?.meal_occasions ?? []
     const dishType = body?.dish_type ?? ''
+    const cuisine = normaliseRecipeCuisine(body?.cuisine)
     const keyFoodIds = body?.key_food_ids ?? []
     const totalTime = body?.total_time_minutes ?? null
     const isOwnCreation = body?.is_own_creation
@@ -910,6 +930,8 @@ export function handle(method, url, body, headers = {}) {
     if (typeof dishType !== 'string' || (dishType !== '' && !allowedDishTypes.has(dishType))) {
       return err(400, 'Unsupported dish type')
     }
+    const cuisineError = recipeCuisineError(body?.cuisine)
+    if (cuisineError) return err(400, cuisineError)
     if (!Array.isArray(keyFoodIds) || keyFoodIds.length > 2) return err(400, 'Choose at most two key foods')
     if (keyFoodIds.some((id) => !Number.isInteger(id) || id <= 0)) return err(400, 'Invalid key food ID')
     if (new Set(keyFoodIds).size !== keyFoodIds.length) return err(400, 'Duplicate key food ID')
@@ -926,6 +948,7 @@ export function handle(method, url, body, headers = {}) {
 
     recipe.meal_occasions = [...occasions]
     recipe.dish_type = dishType || undefined
+    recipe.cuisine = cuisine || undefined
     recipe.key_foods = keyFoodIds.map((foodId) => {
       const ingredient = recipe.ingredients.find((item) => item.food_id === foodId)
       return { food_id: foodId, food_name: ingredient.food_name }

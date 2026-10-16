@@ -212,6 +212,10 @@ func main() {
 
 	// Recipes
 	mux.Handle("GET /api/recipes", withAuth(http.HandlerFunc(handlers.HandleListRecipes)))
+	// Literal path, registered ahead of the {id} pattern it would otherwise be
+	// able to match: Go's 1.22 mux prefers the more specific pattern, so
+	// "cuisines" is never parsed as a recipe id.
+	mux.Handle("GET /api/recipes/cuisines", withAuth(http.HandlerFunc(handlers.HandleListRecipeCuisines)))
 	mux.Handle("GET /api/recipes/{id}", withAuth(http.HandlerFunc(handlers.HandleGetRecipe)))
 	mux.Handle("POST /api/recipes", withAuth(http.HandlerFunc(handlers.HandleCreateRecipe)))
 	mux.Handle("PUT /api/recipes/{id}", withAuth(http.HandlerFunc(handlers.HandleUpdateRecipe)))

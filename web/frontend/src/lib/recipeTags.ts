@@ -24,7 +24,7 @@ import {
   type RecipeMealOccasion,
 } from '../api/types'
 
-export type RecipeTagKind = 'occasion' | 'dish' | 'origin' | 'food'
+export type RecipeTagKind = 'occasion' | 'dish' | 'cuisine' | 'origin' | 'food'
 
 /** Stable URL key for the household-shared own-creation marker. */
 export const OWN_CREATION_TAG_KEY = 'origin:own'
@@ -39,13 +39,52 @@ export interface RecipeTagRef {
   foodId?: number
 }
 
-/** The recipe fields tags are derived from. */
-type TaggableRecipe = Pick<Recipe, 'meal_occasions' | 'dish_type' | 'key_foods' | 'is_own_creation'>
+/**
+ * The recipe fields tags are derived from.
+ *
+ * `cuisine` is optional because it is the newest facet (decision 123) and older
+ * fixtures and cached payloads legitimately have no such key.
+ */
+type TaggableRecipe = Pick<
+  Recipe,
+  'meal_occasions' | 'dish_type' | 'key_foods' | 'is_own_creation'
+> &
+  Partial<Pick<Recipe, 'cuisine'>>
 
 const OCCASION_PREFIX = 'occasion:'
 const DISH_PREFIX = 'dish:'
+const CUISINE_PREFIX = 'cuisine:'
 const ORIGIN_PREFIX = 'origin:'
 const FOOD_PREFIX = 'food:'
+
+/**
+ * The stable part of a cuisine tag key.
+ *
+ * Cuisines are free text, so the key cannot be the raw label — "Thai" and
+ * "thai " must be one filter, and a label with a space or an ampersand has to
+ * survive a trip through `?tags=`. Lower-cased words joined by hyphens is
+ * readable and round-trips exactly.
+ */
+export function cuisineSlug(cuisine: string): string {
+  return cuisine
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** A slug readable again as a label: `north-african` → `North African`. */
+function cuisineLabelFromSlug(slug: string): string {
+  return slug
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+export function cuisineTagKey(cuisine: string): string {
+  return `${CUISINE_PREFIX}${cuisineSlug(cuisine)}`
+}
 
 export function occasionTagKey(occasion: RecipeMealOccasion): string {
   return `${OCCASION_PREFIX}${occasion}`
@@ -79,6 +118,13 @@ export function recipeTags(recipe: TaggableRecipe): RecipeTagRef[] {
       key: dishTagKey(recipe.dish_type),
       kind: 'dish',
       label: dishLabel(recipe.dish_type),
+    })
+  }
+  if (recipe.cuisine && recipe.cuisine.trim()) {
+    tags.push({
+      key: cuisineTagKey(recipe.cuisine),
+      kind: 'cuisine',
+      label: recipe.cuisine.trim(),
     })
   }
   if (recipe.is_own_creation) {
@@ -119,6 +165,9 @@ function isKnownTagKey(key: string): boolean {
   if (key.startsWith(DISH_PREFIX)) {
     const value = key.slice(DISH_PREFIX.length)
     return RECIPE_DISH_TYPES.some((item) => item.value === value)
+  }
+  if (key.startsWith(CUISINE_PREFIX)) {
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key.slice(CUISINE_PREFIX.length))
   }
   if (key.startsWith(ORIGIN_PREFIX)) {
     return key === OWN_CREATION_TAG_KEY
@@ -180,6 +229,15 @@ export function tagLabel(key: string, catalogue: readonly TaggableRecipe[] = [])
     return RECIPE_DISH_TYPES.find((item) => item.value === value)?.label ?? value
   }
   if (key === OWN_CREATION_TAG_KEY) return 'Own creation'
+  if (key.startsWith(CUISINE_PREFIX)) {
+    const slug = key.slice(CUISINE_PREFIX.length)
+    // A cuisine the loaded catalogue still carries is named exactly as it was
+    // typed; only a stale key falls back to the readable slug.
+    for (const recipe of catalogue) {
+      if (recipe.cuisine && cuisineSlug(recipe.cuisine) === slug) return recipe.cuisine.trim()
+    }
+    return cuisineLabelFromSlug(slug)
+  }
   if (key.startsWith(FOOD_PREFIX)) {
     const foodId = key.slice(FOOD_PREFIX.length)
     for (const recipe of catalogue) {

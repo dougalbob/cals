@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet, queryKeys } from '../api/client'
 import { getFood } from '../api/foods'
+import { getRecipeCuisines } from '../api/recipes'
+import { CuisineSelector } from './CuisineSelector'
 import type {
   Food,
   RecipeContentInput,
@@ -47,6 +49,8 @@ type AuthoringFieldsProps =
       mode: 'create'
       isSaving: boolean
       error: string | null
+      /** Cuisines already in use, offered as chips beside the suggested set. */
+      knownCuisines?: readonly string[]
       onCreate: (input: RecipeCreateInput, photoFile: File | null) => Promise<RecipeDetail>
       onClose: () => void
     }
@@ -102,11 +106,19 @@ export function RecipeCreationForm({
     if (!isSaving) onCancel()
   }
 
+  // The chip row offers the household's own cuisines alongside the suggested
+  // set; a failure to load them must not block authoring a recipe.
+  const cuisinesQuery = useQuery({
+    queryKey: queryKeys.recipeCuisines,
+    queryFn: getRecipeCuisines,
+  })
+
   return (
     <RecipeAuthoringFields
       mode="create"
       isSaving={isSaving}
       error={error}
+      knownCuisines={cuisinesQuery.data ?? []}
       onCreate={onCreate}
       onClose={cancel}
     />
@@ -116,6 +128,7 @@ export function RecipeCreationForm({
 function RecipeAuthoringFields(props: AuthoringFieldsProps) {
   const recipe = props.mode === 'edit' ? props.recipe : undefined
   const isCreating = props.mode === 'create'
+  const knownCuisines = props.mode === 'create' ? (props.knownCuisines ?? []) : []
 
   const [name, setName] = useState(recipe?.name ?? '')
   const [description, setDescription] = useState(recipe?.description ?? '')
@@ -156,6 +169,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
   // and Edit recipe. These are household recipe fields, not user preferences.
   const [mealOccasions, setMealOccasions] = useState<RecipeMealOccasion[]>([])
   const [dishType, setDishType] = useState<RecipeDishType | ''>('')
+  const [cuisine, setCuisine] = useState('')
   const [isOwnCreation, setIsOwnCreation] = useState(false)
   const [keyFoodIds, setKeyFoodIds] = useState<number[]>([])
   const [timeMinutes, setTimeMinutes] = useState('')
@@ -321,6 +335,7 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
             .map((item) => item.value)
             .filter((occasion) => mealOccasions.includes(occasion)),
           dish_type: dishType,
+          cuisine: cuisine.trim(),
           key_food_ids: keyFoodIds,
           is_own_creation: isOwnCreation,
           total_time_minutes: minutes,
@@ -646,6 +661,15 @@ function RecipeAuthoringFields(props: AuthoringFieldsProps) {
               ))}
             </select>
           </label>
+
+          <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+            <legend className="mb-1 text-sm font-semibold">Cuisine</legend>
+            <CuisineSelector
+              value={cuisine}
+              knownCuisines={knownCuisines}
+              onChange={setCuisine}
+            />
+          </fieldset>
 
           <fieldset className="m-0 rounded-xl border border-orange-300 bg-orange-50 p-3">
             <legend className="px-1 text-sm font-semibold text-orange-950">Recipe origin</legend>
