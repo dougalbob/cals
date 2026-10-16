@@ -7,7 +7,7 @@ import { handle } from '../../mock-api/handler.mjs'
 import * as seed from '../../mock-api/seed.mjs'
 import { resetFixtures } from '../../mock-api/seed.mjs'
 import { RecipeDetailRoute } from './RecipeDetailRoute'
-import { formatGrams } from '../lib/format'
+import { addDays, formatGrams, formatNumber } from '../lib/format'
 import { fractionGrams } from '../lib/recipePortion'
 
 /** The fixture seed is a plain array, so narrow it once for the assertions. */
@@ -369,6 +369,69 @@ describe('Recipe content editing', () => {
     }
     expect(seedRecipe(1).is_archived).toBe(true)
     expect(seed.diaryEntries).toEqual(diaryBefore)
+  })
+})
+
+describe('RecipeDailyServingHint', () => {
+  it('uses the selected day’s remaining goal and includes logged drink calories', async () => {
+    const recipe = seedRecipe(1)
+    const drinkCalories = seed.drinkEntriesFor(seed.TODAY).reduce((total, entry) => total + entry.calories, 0)
+    const remaining = seed.user.daily_calorie_goal - seed.totalsFor(seed.TODAY).calories - drinkCalories
+    const expectedGrams = Math.floor(
+      Math.min(recipe.total_weight_grams, (remaining * 100) / recipe.calories_per_100g),
+    )
+
+    renderRoute()
+
+    const hint = await screen.findByTestId('recipe-daily-serving-hint')
+    await waitFor(() => expect(hint.textContent).toContain(`up to ${formatGrams(expectedGrams)}`))
+    expect(hint.textContent).toContain(`Based on ${formatNumber(remaining)} kcal left`)
+    expect(hint.textContent).toContain('including food and drinks')
+  })
+
+  it('recalculates when the portion sheet date changes', async () => {
+    const recipe = seedRecipe(1)
+    const yesterday = addDays(seed.TODAY, -1)
+    const drinkCalories = seed.drinkEntriesFor(yesterday).reduce((total, entry) => total + entry.calories, 0)
+    const remaining = seed.user.daily_calorie_goal - seed.totalsFor(yesterday).calories - drinkCalories
+    const expectedGrams = Math.floor(
+      Math.min(recipe.total_weight_grams, (remaining * 100) / recipe.calories_per_100g),
+    )
+
+    renderRoute()
+    fireEvent.click(await screen.findByRole('button', { name: /Add to diary/ }))
+    const sheet = screen.getByRole('dialog')
+    const hint = await within(sheet).findByTestId('recipe-daily-serving-hint')
+
+    fireEvent.change(within(sheet).getByLabelText('Day'), { target: { value: yesterday } })
+    await waitFor(() => {
+      expect(hint.textContent).toContain(`up to ${formatGrams(expectedGrams)}`)
+      expect(hint.textContent).toContain(`Based on ${formatNumber(remaining)} kcal left`)
+      expect(hint.textContent).toContain('daily calorie goal yesterday')
+    })
+  })
+
+  it('uses the full daily goal for a selected future date', async () => {
+    const recipe = seedRecipe(1)
+    const tomorrow = seed.nextDate(seed.TODAY)
+    const expectedGrams = Math.floor(
+      Math.min(
+        recipe.total_weight_grams,
+        (seed.user.daily_calorie_goal * 100) / recipe.calories_per_100g,
+      ),
+    )
+
+    renderRoute()
+    fireEvent.click(await screen.findByRole('button', { name: /Add to diary/ }))
+    const sheet = screen.getByRole('dialog')
+    const hint = await within(sheet).findByTestId('recipe-daily-serving-hint')
+
+    fireEvent.change(within(sheet).getByLabelText('Day'), { target: { value: tomorrow } })
+    await waitFor(() => {
+      expect(hint.textContent).toContain(`up to ${formatGrams(expectedGrams)}`)
+      expect(hint.textContent).toContain(`Based on ${formatNumber(seed.user.daily_calorie_goal)} kcal left`)
+      expect(hint.textContent).toContain('daily calorie goal tomorrow')
+    })
   })
 })
 

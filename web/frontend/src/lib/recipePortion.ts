@@ -77,6 +77,34 @@ export function canLogRecipePortion(recipe: { total_weight_grams: number }): boo
   return isValidQuantity(recipe.total_weight_grams)
 }
 
+/**
+ * The largest whole-gram portion that fits within the calories still available
+ * under the plain daily goal. The caller supplies the already-computed
+ * remaining calories (food and drinks included); this intentionally does not
+ * add or subtract the rolling bank. Rounding down keeps the estimate from
+ * crossing the stated calorie limit.
+ */
+export function maxRecipeGramsWithinDailyCalories(
+  recipe: { total_weight_grams: number; calories_per_100g: number },
+  remainingCalories: number,
+): number | null {
+  if (
+    !canLogRecipePortion(recipe) ||
+    !Number.isFinite(recipe.calories_per_100g) ||
+    recipe.calories_per_100g < 0 ||
+    !Number.isFinite(remainingCalories) ||
+    remainingCalories < 0
+  ) {
+    return null
+  }
+
+  const gramsAtLimit = recipe.calories_per_100g === 0
+    ? recipe.total_weight_grams
+    : (remainingCalories * 100) / recipe.calories_per_100g
+
+  return Math.max(0, Math.floor(Math.min(recipe.total_weight_grams, gramsAtLimit)))
+}
+
 /** The meal most likely to be in progress, used as the sheet's initial choice. */
 export function suggestedMeal(hour: number): 'breakfast' | 'lunch' | 'dinner' | 'snacks' {
   if (hour < 11) return 'breakfast'
