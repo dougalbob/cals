@@ -14,13 +14,32 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## `v2.0.0-dev-rc39` published — the recipe cuisine selector (2026-10-16)
+
+The owner reviewed the Arena preview of the cuisine selector and chose **“Approve — merge and publish
+rc39.”** [PR #92](https://github.com/dougalbob/cals/pull/92) was merged into `cals-dev` as
+`ef04f20db749115817cc7ea4cbff2cfeab7de9f9`, and the annotated `v2.0.0-dev-rc39` tag points at exactly
+that commit; `dev-latest` moved with it.
+
+Publish run [38951943480](https://github.com/dougalbob/cals/actions/runs/38951943480) passed the
+`cals-dev` ancestry guard, image build/push, prerelease creation and the anonymous-pull gate; image
+`ghcr.io/dougalbob/cals-dev-v2:v2.0.0-dev-rc39`, digest
+`sha256:4ae65ac89fb464d487bdbabf537862023604a36bed73228a41e16efaad878c87`;
+[GitHub prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc39). The tagged
+[browser suite 38951943479](https://github.com/dougalbob/cals/actions/runs/38951943479) passed.
+
+The only schema change is the additive, nullable `recipes.cuisine` column, created automatically at
+start-up; no appdata, template or Cloudflare change. **rc34 remains the last reported installation;
+rc39 is not installed** — one Force Update carries rc35–rc39.
+
 ## Recipe cuisine selector — issue #90, decision 123 (2026-10-16)
 
 The owner opened [issue #90](https://github.com/dougalbob/cals/issues/90): a separate selector on the
 recipe card for an additional tag of type **Cuisine**, suggesting Italian / Indian / Chinese / Thai /
 Mexican / English / Korean with a “New…” escape hatch for cuisines that do not exist yet. Built on
 session branch `arena/f17843e7-cals` as [PR #92](https://github.com/dougalbob/cals/pull/92) against
-`cals-dev` — **not yet merged and not published**, pending the owner's preview review.
+`cals-dev` — **merged and published as `v2.0.0-dev-rc39`** after the owner approved the Arena preview
+(see the entry above).
 
 Cuisine became the recipe tag vocabulary's fifth facet rather than a field of its own: a chip row in
 the recipe card's *Recipe tags* section and in `/recipes/new`, a **teal** chip on the catalogue and
