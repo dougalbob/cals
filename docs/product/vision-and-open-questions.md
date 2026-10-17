@@ -1321,3 +1321,50 @@ independent. No backend, API, schema, migration, appdata or deployment change.
 | # | Date | Decision | Source |
 |---|---|---|---|
 | 125 | 2026-10-17 | **Add a user-entered calorie target with an equivalent cooked-weight label to Edit recipe and Add to diary.** The owner approved the calculation and placement in the live preview and authorized a new development release for Unraid testing. | Owner (issue #95 and preview-before-publish request) |
+
+## Recipe nutrition rating guides — decision 126 (2026-10-17)
+
+**🟡 Built and verified in the Arena preview (Go, vitest and Playwright all green);
+awaiting the owner's review before publication as an RC.**
+
+[Issue #97](https://github.com/dougalbob/cals/issues/97) revisits the "Goodness rating"
+that decision 38 deferred, and answers it the way decision 38 asked for: not one opaque
+score but **four independent 1–5 guides — Fat, Fibre, Carbs and grams/kcal** — each
+computed from a published, fixed band table, plus an **additional overall star** (the
+plain mean of the four) for a quick overview. The four guides remain visible individually;
+the aggregate never replaces them.
+
+**The method.** Every guide compares a per-100 g density (grams per kcal for volume), so
+recipes compare fairly regardless of batch size. Lower is better for fat and carbs;
+higher is better for fibre and volume.
+
+| Guide | 5 (excellent) | 4 | 3 | 2 | 1 (poor) |
+|---|---|---|---|---|---|
+| Fat g/100 g | ≤3 | ≤6 | ≤10 | ≤15 | >15 |
+| Fibre g/100 g | ≥6 | ≥4.5 | ≥3 | ≥1.5 | <1.5 |
+| Carbs g/100 g | ≤5 | ≤10 | ≤20 | ≤30 | >30 |
+| Volume g/kcal | ≥2.0 | ≥1.5 | ≥1.0 | ≥0.6 | <0.6 |
+
+The fat and fibre bands anchor to NHS per-100 g thresholds (low fat ≤3 g, high fibre
+≥6 g); the carb and volume bands are the owner-approved judgement calls from the
+discussion. A recipe without a cooked weight or calorie information is **withheld** —
+never scored from zeros, which would read a missing value as "excellent".
+
+**Display** (the owner's words): a label above a star, with the score inside the star.
+Stars are coloured by band (green 4–5, amber 3, orange-red 1–2) but the numeral is always
+present, so colour is never the only signal (decision 28's rule). The catalogue card
+carries the **compact hint** — overall plus the four small stars — and recipe detail
+carries the **full guide**: each measured value, its star and its band words. This puts
+a hint on catalogue cards where decision 124 had deliberately kept them clean; that was
+the owner's explicit direction for this feature, and it is advisory only — ratings never
+write, filter, sort or block logging.
+
+**Implementation.** Pure client scoring in `web/frontend/src/lib/recipeRatings.ts`
+(issue #97's maths) with a `RecipeRatingGuides` component; the catalogue list endpoint
+now also returns the macro totals and their per-100 g densities — additive SQL mirroring
+exactly what the detail endpoint already computed. No schema, migration, appdata or
+deployment change.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 126 | 2026-10-17 | **Show four independent 1–5 nutrition guides — Fat, Fibre, Carbs and grams/kcal — plus their mean as an additional overall star.** Fixed published bands on per-100 g densities (table above); compact hint (label above a star, score inside) on catalogue cards, full guide with values and band words on recipe detail. Withheld, never zero-scored, without cooked weight or calories. Additive list-endpoint fields only; no schema, migration, appdata or deployment change. | Owner (issue #97; thresholds, card-hint/detail-guide placement, star-with-number visual and the additional aggregate all approved in discussion) |

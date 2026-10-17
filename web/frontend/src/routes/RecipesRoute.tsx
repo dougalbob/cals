@@ -12,6 +12,7 @@ import {
   type RecipeDetail,
 } from '../api/types'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
+import { RecipeRatingHint } from '../components/RecipeRatingGuides'
 import { RecipeTags } from '../components/RecipeTags'
 import { cuisineOptions } from '../lib/cuisine'
 import { formatShortDate, todayIso } from '../lib/format'
@@ -679,6 +680,7 @@ function RecipeCard({
           {recipe.total_weight_grams > 0 && <span>{Math.round(recipe.total_weight_grams)} g cooked</span>}
           {recipe.total_time_minutes !== null && <span>{recipe.total_time_minutes} min</span>}
         </div>
+        <RecipeRatingHint recipe={recipe} />
         {recipe.is_archived && onRestore && (
           <button
             type="button"

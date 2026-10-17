@@ -55,6 +55,7 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 	rows, err := database.DB.Query(`
 		SELECT r.id, r.name, r.description, r.image_filename, r.serves,
 		       r.calculated_weight_grams, r.total_weight_grams, r.total_calories,
+		       r.total_carbs, r.total_fat, r.total_fibre,
 		       r.created_by_user_id, COALESCE(u.name, u.email) as created_by_name,
 		       EXISTS (
 		           SELECT 1 FROM recipe_favourites rf
@@ -89,7 +90,8 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 		var totalTime sql.NullInt64
 		var isFavourite, isArchived, isOwnCreation int
 		err := rows.Scan(&recipe.ID, &recipe.Name, &desc, &img, &recipe.Serves,
-			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories, &recipe.CreatedByUserID,
+			&calcWeight, &recipe.TotalWeightGrams, &recipe.TotalCalories,
+			&recipe.TotalCarbs, &recipe.TotalFat, &recipe.TotalFibre, &recipe.CreatedByUserID,
 			&recipe.CreatedByName, &isFavourite, &recipe.TimesLogged, &recipe.UpdatedAt, &dishType,
 			&totalTime, &usualGrams, &isArchived, &isOwnCreation, &cuisine)
 		if err != nil {
@@ -124,9 +126,15 @@ func HandleListRecipes(w http.ResponseWriter, r *http.Request) {
 			recipe.CalculatedWeightGrams = calcWeight.Float64
 		}
 
-		// Calculate per-100g based on final cooked weight.
+		// Calculate per-100g based on final cooked weight. The macro
+		// densities feed the recipe rating guides (issue #97, decision 126),
+		// so the catalogue response carries the same per-100g values the
+		// detail endpoint computes.
 		if recipe.TotalWeightGrams > 0 {
 			recipe.CaloriesPer100g = (recipe.TotalCalories / recipe.TotalWeightGrams) * 100
+			recipe.CarbsPer100g = (recipe.TotalCarbs / recipe.TotalWeightGrams) * 100
+			recipe.FatPer100g = (recipe.TotalFat / recipe.TotalWeightGrams) * 100
+			recipe.FibrePer100g = (recipe.TotalFibre / recipe.TotalWeightGrams) * 100
 		}
 
 		recipes = append(recipes, recipe)

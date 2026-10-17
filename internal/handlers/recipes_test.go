@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -293,5 +294,61 @@ func TestRecipeMetadataRejectsInvalidFacetAndKeyFoodValues(t *testing.T) {
 
 	if recorder := updateRecipeMetadataForTest(t, recipeID+100, "wife@example.com", `{}`); recorder.Code != http.StatusNotFound {
 		t.Errorf("unknown recipe status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestRecipeListCarriesMacroDensitiesForRatingGuides(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	recipeID := createTestRecipe(t, "Chicken Curry", userID)
+
+	// A saved recipe: cooked weight plus macro totals, exactly as the
+	// editor writes them. The catalogue response must carry the same
+	// per-100 g densities the detail endpoint computes (issue #97).
+	if _, err := database.DB.Exec(`
+		UPDATE recipes
+		SET total_weight_grams = 1050, total_calories = 1710.6,
+		    total_carbs = 126.8, total_fat = 38.6, total_fibre = 6.8
+		WHERE id = ?
+	`, recipeID); err != nil {
+		t.Fatalf("seeding recipe totals: %v", err)
+	}
+
+	recipe := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID)
+	for field, want := range map[string]float64{
+		"calories_per_100g": 1710.6 / 1050 * 100,
+		"carbs_per_100g":    126.8 / 1050 * 100,
+		"fat_per_100g":      38.6 / 1050 * 100,
+		"fibre_per_100g":    6.8 / 1050 * 100,
+	} {
+		var got float64
+		switch field {
+		case "calories_per_100g":
+			got = recipe.CaloriesPer100g
+		case "carbs_per_100g":
+			got = recipe.CarbsPer100g
+		case "fat_per_100g":
+			got = recipe.FatPer100g
+		case "fibre_per_100g":
+			got = recipe.FibrePer100g
+		}
+		if math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s = %v, want %v", field, got, want)
+		}
+	}
+}
+
+func TestRecipeListLeavesDensitiesZeroWithoutCookedWeight(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	recipeID := createTestRecipe(t, "Rough Notes", userID)
+
+	// No cooked weight and no macro totals: every density stays zero so
+	// the client can withhold the rating guides rather than score a
+	// zero-fat, zero-carb recipe as excellent.
+	recipe := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID)
+	if recipe.TotalWeightGrams != 0 || recipe.FatPer100g != 0 ||
+		recipe.CarbsPer100g != 0 || recipe.FibrePer100g != 0 || recipe.CaloriesPer100g != 0 {
+		t.Errorf("recipe without cooked weight should carry zero densities, got %+v", recipe)
 	}
 }
