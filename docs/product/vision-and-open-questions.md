@@ -1296,3 +1296,28 @@ would let the legacy UI drop that workaround. `GET /api/bank`'s `start_date` has
 | # | Date | Decision | Source |
 |---|---|---|---|
 | 124 | 2026-10-16 | **Show a date-aware maximum whole-gram recipe portion against the plain daily calorie goal, only after a recipe is opened.** Subtract same-date food and drink calories, exclude the rolling bank, round down and cap at cooked recipe weight. Mount the guide on recipe detail and in the portion sheet, never on catalogue cards; follow the sheet's selected date. No API, schema or migration change. | Owner (issue #91; requested publication for Unraid testing) |
+
+
+## Recipe calorie-target calculator — decision 125 (2026-10-17)
+
+**🟢 Adopted — owner approved the live preview on 2026-10-17 and requested publication for Unraid testing.**
+
+[Issue #95](https://github.com/dougalbob/cals/issues/95) extends the daily-calorie guide with a
+user-entered target, such as 375 kcal, in **Edit recipe** and **Add to diary**. The approved implementation places
+“Calories to spend” at the top of Edit recipe and to the right of the fraction buttons in the
+portion sheet where space allows (stacked below on a phone).
+
+The calculator uses `target kcal / saved kcal per 100 g × 100`. The displayed cooked weight is
+approximate, rounded only for display. Unlike the daily-allowance maximum, this is an equivalence:
+it is not capped at one batch; a target requiring more than the whole recipe has an explicit warning.
+Empty input clears the result; non-positive/non-finite input or missing/zero-calorie nutrition cannot
+produce an equivalence. Edit recipe explicitly says the guide uses the **saved** recipe, not unsaved
+ingredient/cooked-weight edits. The target is temporary local UI state, outside the recipe form.
+
+This is advisory only: it does not select grams, change a usual portion, submit the edit form, log
+anything, or alter recorded diary nutrition. The existing daily guide remains date-aware and
+independent. No backend, API, schema, migration, appdata or deployment change.
+
+| # | Date | Decision | Source |
+|---|---|---|---|
+| 125 | 2026-10-17 | **Add a user-entered calorie target with an equivalent cooked-weight label to Edit recipe and Add to diary.** The owner approved the calculation and placement in the live preview and authorized a new development release for Unraid testing. | Owner (issue #95 and preview-before-publish request) |

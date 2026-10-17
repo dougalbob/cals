@@ -105,6 +105,27 @@ export function maxRecipeGramsWithinDailyCalories(
   return Math.max(0, Math.floor(Math.min(recipe.total_weight_grams, gramsAtLimit)))
 }
 
+/**
+ * Equivalent cooked weight for a user-entered calorie target (issue #95).
+ * Unlike the daily allowance guide, this is an equivalence, not a maximum:
+ * do not cap at one batch or round the underlying calculation.
+ */
+export function recipeGramsForCalories(
+  recipe: { total_weight_grams: number; calories_per_100g: number },
+  calories: number,
+): number | null {
+  if (
+    !canLogRecipePortion(recipe) ||
+    !Number.isFinite(recipe.calories_per_100g) ||
+    recipe.calories_per_100g <= 0 ||
+    !Number.isFinite(calories) ||
+    calories <= 0
+  ) return null
+
+  const grams = (calories / recipe.calories_per_100g) * 100
+  return Number.isFinite(grams) && grams > 0 ? grams : null
+}
+
 /** The meal most likely to be in progress, used as the sheet's initial choice. */
 export function suggestedMeal(hour: number): 'breakfast' | 'lunch' | 'dinner' | 'snacks' {
   if (hour < 11) return 'breakfast'

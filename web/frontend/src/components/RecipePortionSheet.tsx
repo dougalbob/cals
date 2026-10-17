@@ -5,6 +5,7 @@ import { queryKeys } from '../api/client'
 import { MEALS, type Meal, type RecipeDetail } from '../api/types'
 import { formatGrams, formatNumber, relativeDayLabel, todayIso } from '../lib/format'
 import { mealLabel } from '../lib/recipePick'
+import { RecipeCalorieTarget } from './RecipeCalorieTarget'
 import { RecipeDailyServingHint } from './RecipeDailyServingHint'
 import {
   WHOLE_RECIPE_FRACTIONS,
@@ -173,35 +174,40 @@ export function RecipePortionSheet({
             </p>
           )}
 
-          <fieldset className="m-0 border-0 p-0">
+          <fieldset className="m-0 min-w-0 border-0 p-0">
             <legend className="mb-1 text-sm font-semibold">How much of the whole recipe?</legend>
-            <div className="flex flex-wrap gap-2">
-              {WHOLE_RECIPE_FRACTIONS.map((option) => {
-                const amount = fractionGrams(recipe.total_weight_grams, option.fraction)
-                return (
-                  <button
-                    key={option.label}
-                    type="button"
-                    aria-pressed={activeFraction?.fraction === option.fraction}
-                    onClick={() => {
-                      if (amount !== null) {
-                        setGramsText(String(amount))
-                        log.reset()
-                      }
-                    }}
-                    className={`min-h-11 rounded-xl border px-3 text-sm ${
-                      activeFraction?.fraction === option.fraction
-                        ? 'border-primary bg-primary/10 font-semibold text-primary-dark'
-                        : 'border-line bg-card text-ink'
-                    }`}
-                  >
-                    {option.label}
-                    <span className="block text-xs font-normal text-ink-light">
-                      {amount === null ? '—' : formatGrams(amount)}
-                    </span>
-                  </button>
-                )
-              })}
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="flex max-w-full flex-wrap gap-2">
+                {WHOLE_RECIPE_FRACTIONS.map((option) => {
+                  const amount = fractionGrams(recipe.total_weight_grams, option.fraction)
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      aria-pressed={activeFraction?.fraction === option.fraction}
+                      onClick={() => {
+                        if (amount !== null) {
+                          setGramsText(String(amount))
+                          log.reset()
+                        }
+                      }}
+                      className={`min-h-11 rounded-xl border px-3 text-sm ${
+                        activeFraction?.fraction === option.fraction
+                          ? 'border-primary bg-primary/10 font-semibold text-primary-dark'
+                          : 'border-line bg-card text-ink'
+                      }`}
+                    >
+                      {option.label}
+                      <span className="block text-xs font-normal text-ink-light">
+                        {amount === null ? '—' : formatGrams(amount)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="min-w-0 flex-[1_1_11rem]">
+                <RecipeCalorieTarget recipe={recipe} />
+              </div>
             </div>
           </fieldset>
 

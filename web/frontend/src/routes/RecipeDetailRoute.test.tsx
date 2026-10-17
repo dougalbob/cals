@@ -393,6 +393,9 @@ describe('RecipeDailyServingHint', () => {
     const recipe = seedRecipe(1)
     const yesterday = addDays(seed.TODAY, -1)
     const drinkCalories = seed.drinkEntriesFor(yesterday).reduce((total, entry) => total + entry.calories, 0)
+    // Seeded past-day totals vary with the calendar. Guarantee a positive
+    // allowance for this date-change test rather than expecting negative grams.
+    seed.user.daily_calorie_goal = seed.totalsFor(yesterday).calories + drinkCalories + 500
     const remaining = seed.user.daily_calorie_goal - seed.totalsFor(yesterday).calories - drinkCalories
     const expectedGrams = Math.floor(
       Math.min(recipe.total_weight_grams, (remaining * 100) / recipe.calories_per_100g),
@@ -506,5 +509,54 @@ describe('RecipePortionSheet', () => {
     await within(sheet).findByRole('status')
     expect(seed.usualGramsFor(3)).toBe(usual)
     expect(seed.entriesFor(seed.TODAY).length).toBe(before + 1)
+  })
+})
+
+
+describe('Recipe calorie target calculator', () => {
+  it('calculates in Edit recipe without saving changes or rewriting diary history', async () => {
+    const original = JSON.stringify(seedRecipe(1))
+    const history = JSON.stringify(seed.entriesFor(seed.TODAY))
+    renderRoute()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit recipe' }))
+    const sheet = screen.getByRole('dialog')
+    const calculator = within(sheet).getByRole('complementary', { name: 'Calorie target calculator' })
+    const input = within(calculator).getByLabelText('Calories to spend')
+    expect(calculator.textContent).toContain('Based on the saved recipe')
+    fireEvent.change(input, { target: { value: '375' } })
+    const grams = 375 / seedRecipe(1).calories_per_100g * 100
+    expect(calculator.textContent).toContain(`375 kcal ≈ ${formatGrams(grams)}`)
+    fireEvent.change(input, { target: { value: '-1' } })
+    expect(calculator.textContent).toContain('greater than zero')
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    expect(JSON.stringify(seedRecipe(1))).toBe(original)
+    expect(JSON.stringify(seed.entriesFor(seed.TODAY))).toBe(history)
+  })
+
+  it('leaves fractions, grams, usual portion and the logged nutrition snapshot unchanged', async () => {
+    renderRoute()
+    const recipe = seedRecipe(1)
+    const existingIds = new Set(seed.entriesFor(seed.TODAY).map((entry) => entry.id))
+    fireEvent.click(await screen.findByRole('button', { name: /Add to diary/ }))
+    const sheet = screen.getByRole('dialog')
+    const calculator = within(sheet).getByRole('complementary', { name: 'Calorie target calculator' })
+    const input = within(calculator).getByLabelText('Calories to spend')
+    const weight = within(sheet).getByLabelText('Weight (grams)') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '375' } })
+    expect(weight.value).toBe('')
+    expect((within(sheet).getByRole('button', { name: 'Add to diary' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(within(sheet).getByRole('button', { name: /½/ }))
+    const half = fractionGrams(recipe.total_weight_grams, 0.5) as number
+    fireEvent.change(input, { target: { value: '150' } })
+    expect(weight.value).toBe(String(half))
+    fireEvent.change(input, { target: { value: '' } })
+    expect(calculator.textContent).toContain('Enter a calorie target')
+    expect(calculator.textContent).not.toContain('≈')
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to diary' }))
+    await within(sheet).findByRole('status')
+    const logged = seed.entriesFor(seed.TODAY).find((entry) => !existingIds.has(entry.id))
+    expect(logged?.quantity_grams).toBe(half)
+    expect(logged?.calories).toBeCloseTo(recipe.calories_per_100g * half / 100)
+    expect(seed.usualGramsFor(1)).toBe(half)
   })
 })

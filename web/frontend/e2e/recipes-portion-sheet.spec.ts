@@ -18,7 +18,7 @@ function sheetButton(page: Page, name: string) {
 }
 
 function feedback(page: Page) {
-  return page.locator('[data-modal-scroll] p[aria-live="polite"]')
+  return page.locator('[data-modal-scroll] p[aria-live="polite"]').filter({ hasText: / g = / })
 }
 
 test.describe('Recipe portion sheet', () => {

@@ -6,6 +6,7 @@ import {
   maxRecipeGramsWithinDailyCalories,
   matchingFraction,
   recipeNutritionForGrams,
+  recipeGramsForCalories,
   suggestedMeal,
 } from './recipePortion'
 
@@ -102,5 +103,26 @@ describe('suggestedMeal', () => {
     expect(suggestedMeal(12)).toBe('lunch')
     expect(suggestedMeal(19)).toBe('dinner')
     expect(suggestedMeal(22)).toBe('snacks')
+  })
+})
+
+
+describe('recipeGramsForCalories', () => {
+  const recipe = { total_weight_grams: 800, calories_per_100g: 150 }
+
+  it('converts targets using cooked nutrition without rounding or capping at a batch', () => {
+    expect(recipeGramsForCalories(recipe, 375)).toBe(250)
+    expect(recipeGramsForCalories(recipe, 100)).toBeCloseTo(200 / 3)
+    expect(recipeGramsForCalories(recipe, 37.5)).toBe(25)
+    expect(recipeGramsForCalories(recipe, 1500)).toBe(1000)
+  })
+
+  it('rejects invalid targets and missing, zero or invalid nutrition', () => {
+    for (const value of [0, -1, NaN, Infinity]) {
+      expect(recipeGramsForCalories(recipe, value)).toBeNull()
+      expect(recipeGramsForCalories({ ...recipe, total_weight_grams: value }, 375)).toBeNull()
+      expect(recipeGramsForCalories({ ...recipe, calories_per_100g: value }, 375)).toBeNull()
+    }
+    expect(recipeGramsForCalories({ ...recipe, calories_per_100g: Number.MIN_VALUE }, 375)).toBeNull()
   })
 })
