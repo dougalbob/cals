@@ -14,6 +14,29 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Nutrition rating guides built — decision 126, PR open (2026-10-17)
+
+[Issue #97](https://github.com/dougalbob/cals/issues/97) revisited decision 38's
+deferred "Goodness rating". The owner settled the design in discussion: four
+**independent** 1–5 guides (Fat, Fibre, Carbs, grams/kcal) on fixed, published
+per-100 g bands, plus an **additional overall star** (their mean) for a quick
+overview — never one opaque score. Visual language: a label above a star with
+the score inside it; colour reinforces but the numeral always shows
+(decision 28's rule). Compact hint on catalogue cards, full guide with values
+and band words on recipe detail — a deliberate, owner-directed exception to
+decision 124's clean-card rule.
+
+Scoring lives in `web/frontend/src/lib/recipeRatings.ts` (pure, vitest-covered
+including every band edge); `RecipeRatingGuides.tsx` renders both views. The
+only backend change is additive: `GET /api/recipes` now also selects and
+derives `total_carbs/total_fat/total_fibre` and their per-100 g densities,
+exactly as the detail endpoint already did — no schema, migration, appdata or
+deployment change. A recipe without cooked weight or calories is withheld,
+never zero-scored. Verified in the Arena sandbox: `go vet` + `go test ./...`,
+vitest 415/415, Playwright 96/96 (three new phone specs). Awaiting the owner's
+preview review; publication as `v2.0.0-dev-rc42` and Unraid road-test are the
+owner's next actions (CURRENT_STATE §3 item 19).
+
 ## rc41 published — calorie-target serving calculator (2026-10-17)
 
 [PR #96](https://github.com/dougalbob/cals/pull/96) merged to `cals-dev` as `767245b5ecae5adc74ac1685c0d1cd472c71f0a0` after

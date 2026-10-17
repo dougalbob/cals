@@ -23,6 +23,7 @@ import {
 import { RecipeTags } from '../components/RecipeTags'
 import { CuisineSelector } from '../components/CuisineSelector'
 import { RecipeDailyServingHint } from '../components/RecipeDailyServingHint'
+import { RecipeRatingGuide } from '../components/RecipeRatingGuides'
 import { RecipePortionSheet } from '../components/RecipePortionSheet'
 import { RecipeContentEditor } from '../components/RecipeContentEditor'
 import { RecipePhotoPicker } from '../components/RecipePhotoPicker'
@@ -272,6 +273,8 @@ export function RecipeDetailRoute() {
               </ul>
             )}
           </section>
+
+          <RecipeRatingGuide recipe={recipe} />
 
           <RecipeMetadataEditor
             key={`${recipe.id}-${contentRevision}`}
