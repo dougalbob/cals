@@ -14,6 +14,27 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## rc41 published — calorie-target serving calculator (2026-10-17)
+
+[PR #96](https://github.com/dougalbob/cals/pull/96) merged to `cals-dev` as `767245b5ecae5adc74ac1685c0d1cd472c71f0a0` after
+[Docker/runtime](https://github.com/dougalbob/cals/actions/runs/39008650121),
+[Go](https://github.com/dougalbob/cals/actions/runs/39008650108) and
+[Playwright](https://github.com/dougalbob/cals/actions/runs/39008656491) passed. The
+[post-merge Go run](https://github.com/dougalbob/cals/actions/runs/39008814014) passed before the
+annotated rc41 release tag was created on that exact merge.
+
+[Publish run](https://github.com/dougalbob/cals/actions/runs/39008841603) passed the ancestry guard, image build/push, prerelease creation and anonymous
+pull. [Tagged browser suite](https://github.com/dougalbob/cals/actions/runs/39008841563) passed. [Release](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc41); digest `sha256:1161b86df5eb9edde2ba58efc0a988cf4a8679f92a6ff6f47ccffecc3e5e12bd`.
+`dev-latest` moved to rc41. No new migration, appdata, template or Cloudflare change; Unraid update
+and full household testing remain the owner's actions. The issue-close command and REST fallback
+both failed with GitHub “Resource not accessible by integration” (HTTP 403); **issue #95 remains open**.
+This focused release-evidence follow-up records values that did not exist before the feature PR merged.
+
+The previous rc40 evidence was also reconciled from GitHub: publish run 38957764307 and tagged browser
+run 38957764522 both succeeded on 2026-10-16; the earlier release-request entry below is historical.
+
+---
+
 ## Calorie-target calculator approved for release — issue #95 (2026-10-17)
 
 The owner reviewed the live preview and said “That’s all good”, requesting a new development
