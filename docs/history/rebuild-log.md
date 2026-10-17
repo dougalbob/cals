@@ -14,6 +14,26 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## rc42 published — nutrition rating guides (2026-10-17)
+
+[PR #99](https://github.com/dougalbob/cals/pull/99) merged into `cals-dev` as
+`bdbc8957fa40b37776ea626f5fe4e87c6468d5f7` after the PR's Docker/runtime, Go and
+Playwright gates passed; the post-merge Go run passed before the annotated
+`v2.0.0-dev-rc42` tag was created on that exact merge. [Publish run
+39015082379](https://github.com/dougalbob/cals/actions/runs/39015082379) passed the
+ancestry guard, image build/push, prerelease creation and anonymous pull;
+[tagged browser suite 39015082394](https://github.com/dougalbob/cals/actions/runs/39015082394)
+passed **96/96** (three new phone specs for the guides). [Release](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc42);
+digest `sha256:26147befc5636f1ce432e2d8d853f4b39707cf120d29382230a7aba7b057debd`.
+`dev-latest` moved to rc42. The owner approved the Arena preview (“Looks great and
+should be a very useful feature”) and requested publication for Unraid testing. The
+feature adds the four 1–5 nutrition guides plus their mean as an overall star
+(decision 126); the list endpoint's new macro-density fields are the only backend
+change and are additive. No appdata, template or Cloudflare work. The owner's
+Force Update and phone check are the remaining acceptance gate (CURRENT_STATE §3
+item 19); issue closure needs the owner, as the integration lacks issue-write
+permission (issues #95 and #97 both remain open).
+
 ## Nutrition rating guides built — decision 126, PR open (2026-10-17)
 
 [Issue #97](https://github.com/dougalbob/cals/issues/97) revisited decision 38's

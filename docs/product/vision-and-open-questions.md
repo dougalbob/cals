@@ -1324,8 +1324,10 @@ independent. No backend, API, schema, migration, appdata or deployment change.
 
 ## Recipe nutrition rating guides — decision 126 (2026-10-17)
 
-**🟡 Built and verified in the Arena preview (Go, vitest and Playwright all green);
-awaiting the owner's review before publication as an RC.**
+**🟢 Adopted — the owner approved the Arena preview on 2026-10-17 (“Looks great and
+should be a very useful feature”) and asked for publication. Merged to `cals-dev` as
+PR #99 (`bdbc895`) and published as `v2.0.0-dev-rc42` the same day; the tagged browser
+suite passed 96/96. Unraid Force Update and road-test remain the owner's actions.**
 
 [Issue #97](https://github.com/dougalbob/cals/issues/97) revisits the "Goodness rating"
 that decision 38 deferred, and answers it the way decision 38 asked for: not one opaque
