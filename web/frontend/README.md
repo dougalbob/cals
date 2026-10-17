@@ -6,7 +6,7 @@ stage 16.2 — the move to `/` — was published as rc35 and is included in rc36
 candidates is installed**, so the household still runs rc34 at `/next/`. The owner-approved Metrics follow-up
 (decisions 116–119) was merged as PR #81 and published as `v2.0.0-dev-rc36` on 2026-10-07, and the
 owner-approved **Nutrition insight prototype** (decision 120) was merged as PR #85 and published as
-`v2.0.0-dev-rc37` the same day — the current candidate, which carries both. Phase 11's React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's
+`v2.0.0-dev-rc37` the same day — later candidates carry both (current release status is in `docs/CURRENT_STATE.md`). Phase 11's React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's
 Metrics + Nutrition are all in the development line. Settings saves account-level targets and
 preferences through `/api/users/me`, while themes and haptics stay on the device; the two bank-ring
 display limits are independent and do not change bank arithmetic. **Phone PWA installation is still
@@ -225,6 +225,13 @@ so the user is not asked to create it again. Upload/replacement shipped in rc25;
 Bank maths in `mock-api/handler.mjs` is transcribed from `internal/handlers/bank.go` on purpose —
 the demo should show the same numbers the Go server would produce, including its quirks (see below).
 
+**Calorie-target calculator (issue #95, decision 125):** Edit recipe and Add to diary offer
+“Calories to spend” with the equivalent cooked weight. The portion sheet places it next to fractions
+where space allows and below on a phone. It uses saved recipe nutrition, not unsaved edits, and warns
+if the equivalent exceeds a batch. It is advisory only: selected grams, usual portions and diary
+snapshots are unchanged. Owner preview approved 2026-10-17; release status lives in
+[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+
 ## Checks
 
 ```bash
@@ -243,7 +250,7 @@ Today/Diary meal-fill alpha, calendar month-cell states and new-recipe creation/
 recipe-photo upload/replacement flows, the Metrics weigh-in capture and all-time measurement history,
 the Nutrition prototype's macro-share/density maths and panel rendering, and the reminders bell's
 copy, deep links and weekly-report mark-seen flow
-(360 tests across 46 files as of 2026-10-07).
+(400 tests across 49 files as of 2026-10-17).
 
 The **browser suite** (`e2e/`) covers what jsdom cannot: Diary logging/editing and the Edit
 sheet's pinned actions on a short screen, confirmation/cancel behaviour when deleting a meal entry,
@@ -258,7 +265,7 @@ one shared window, the URL keeps it across a reload, and the trend names its met
 weigh-in/body-map journeys, the PWA install prompt and worker registration, the Nutrition
 prototype's target rails and lazily loaded day details at 360 px with no horizontal overflow, and the
 reminders bell's report-ready/clear-on-log/acting-user journeys —
-84 tests across phone and desktop on 2026-10-07. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
+93 tests across phone and desktop on 2026-10-17. It runs against the built bundle served by `serve-preview.mjs` with the fixture API — no Go
 server, no database and never household data — and, in CI, only for milestones (release tags, or a
 PR labelled `run-e2e`; manual dispatch would need the workflow on `main`, which is production and read-only, so a run is asked for with the label or a tag). Layer-by-layer detail, including the sandbox's browser
 workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testing.md).

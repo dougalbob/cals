@@ -14,6 +14,23 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Calorie-target calculator approved for release — issue #95 (2026-10-17)
+
+The owner reviewed the live preview and said “That’s all good”, requesting a new development
+release for Unraid testing and closure of issue #95. Decision 125 adds “Calories to spend” to Edit
+recipe and beside the Add-to-diary fraction choices (stacked on a phone). It shows equivalent cooked
+grams from saved nutrition, warns above one batch and never changes the selected portion or history.
+
+Local verification: 400 Vitest tests, all 93 Playwright tests (including 360 px phone and desktop),
+lint/typecheck and the Go-mode frontend build. A pre-existing calendar-dependent daily-guide test
+was made deterministic by supplying a positive remaining allowance; production guide maths is unchanged.
+Approved 360 px screenshots: [Add to diary](../product/recipe-calorie-target-phone.png) and
+[Edit recipe](../product/recipe-calorie-target-edit.png).
+No API, schema, migration, live appdata, template or Cloudflare change. Release CI and publication
+are the next steps; the owner, not this session, will update Unraid. See CURRENT_STATE for current status.
+
+---
+
 ## Recipe daily calorie serving guide — issue #91 (2026-10-16; release requested)
 
 Issue #91 asked for a recipe-weight suggestion calculated only after opening a recipe, with no hint on the catalogue. Implemented the guide on recipe detail and in the Diary portion sheet: largest whole-gram portion within the selected date's plain daily calorie goal, counting logged food and drinks, excluding the rolling bank and capped at cooked recipe weight. Changing the sheet date recalculates it; future dates are covered. The guide is advisory and does not constrain logging. The owner then asked for a new development release to test on Unraid.

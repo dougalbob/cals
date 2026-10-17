@@ -17,6 +17,7 @@ import { RECIPE_DISH_TYPES, RECIPE_MEAL_OCCASIONS } from '../api/types'
 import { useDebounced } from '../hooks/useDebounced'
 import { formatNumber } from '../lib/format'
 import { Modal } from './Modal'
+import { RecipeCalorieTarget } from './RecipeCalorieTarget'
 import { RecipePhotoPicker } from './RecipePhotoPicker'
 
 interface FoodIngredientDraft {
@@ -78,6 +79,9 @@ export function RecipeContentEditor({
 
   return (
     <Modal open title={`Edit ${recipe.name}`} onClose={close}>
+      <div className="mb-4">
+        <RecipeCalorieTarget recipe={recipe} savedRecipeNotice />
+      </div>
       <RecipeAuthoringFields
         mode="edit"
         recipe={recipe}

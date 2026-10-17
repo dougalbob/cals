@@ -13,7 +13,7 @@
 
 | Layer | Command | Runs… | Covers |
 |---|---|---|---|
-| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 360 tests over 46 files (2026-10-07, including the reminders bell's copy/deep links and mark-seen flow, the Nutrition prototype's insight maths and panel-rendering tests, the Metrics follow-up and Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
+| **Vitest + jsdom** | `cd web/frontend && npm test` | every PR (inside the Docker build too) | Domain maths (bank, portions, servings, calendar dates, drink catalogue, the weekly report's period maths), API client behaviour, and screen rendering with user events against the fixture API — 400 tests over 49 files (2026-10-17, including the reminders bell's copy/deep links and mark-seen flow, the Nutrition prototype's insight maths and panel-rendering tests, the Metrics follow-up and Phase 15's Settings persistence/validation and device-local preference tests), including the fixture API's own contract tests (`mock-api/*.test.mjs`) which pin that it mirrors the Go handlers |
 | **Frontend lint + typecheck** | `npm run lint && npm run typecheck && npm run build:go` | every PR | ESLint (app, browser suite and configs), strict `tsc`, and that the production bundle still builds |
 | **Go build, vet, test** | `go build ./... && go vet ./... && go test ./...` | every PR (`Go tests (validation)`) | Handlers against a real in-memory SQLite database, including the bank, recipe and calendar regressions |
 | **Docker build** | `docker build` | every PR (`Docker build (validation)`) | The image the publish workflow builds, including the Node stage's lint/test/build |
@@ -132,6 +132,12 @@ they can still be *run*, is answered by the environment rather than the repo:
 
 So a later session runs `./scripts/run-playwright-in-sandbox.sh` and gets the same suite; the only
 thing that is ever rebuilt is the toolchain, never the tests.
+
+**Issue #95 regression coverage (2026-10-17):** `recipePortion.test.ts` checks calorie-to-grams
+conversion and invalid values; `RecipeDetailRoute.test.tsx` checks both calculator contexts and that
+selected grams, usual portions and diary snapshots remain independent. `recipes-calorie-target.spec.ts`
+covers Edit recipe, Add to diary and the Diary picker, zero/empty/over-batch targets, 360 px layout,
+pinned logging actions and desktop side-by-side placement. The full browser suite has 93 tests.
 
 ## 3. CI behaviour, and why failures are diagnosable
 
