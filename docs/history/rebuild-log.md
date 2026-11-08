@@ -40,10 +40,10 @@ The release ran as three separate, deliberate steps, exactly as
    `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940` — **byte-identical to
    rc44**. The household changed channel without changing a byte of running code.
 
-That leaves one field on Unraid for the owner (⏳ pending as this entry is written): the
-`cals-dev-identity` container's **Repository**, from `…:dev-latest` to
-`ghcr.io/dougalbob/cals-dev-v2:latest`. Nothing else — same name, same port `8151`, same appdata
-mount `/mnt/user/appdata/cals-dev-identity`. No migration runs, because the image is the one already
+Then the owner changed one field on Unraid: the `cals-dev-identity` container's **Repository**, from
+`…:dev-latest` to `ghcr.io/dougalbob/cals-dev-v2:latest`, and confirmed the app came back up on
+`latest`. Nothing else — same name, same port `8151`, same appdata mount
+`/mnt/user/appdata/cals-dev-identity`. No migration ran, because the image was the one already
 running.
 
 **What changed in practice.** The family is now on a stable channel: development candidates stop
