@@ -107,25 +107,8 @@ func main() {
 	// Debug endpoint (temporary; protected like every non-public API route)
 	mux.Handle("GET /api/debug/fatsecret", withAuth(http.HandlerFunc(handlers.HandleTestFatSecret)))
 
-	// Public files (unprotected - PWA assets)
-	publicFS := http.FileServer(http.Dir("web/public"))
-	mux.Handle("GET /public/", http.StripPrefix("/public/", publicFS))
-
-	// Static files with no-cache for JS
-	mux.HandleFunc("GET /static/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, ".js") {
-			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
-		}
-		http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))).ServeHTTP(w, r)
-	})
-
-	// Frontend serving: the React app at /, the legacy vanilla UI as an unlinked
-	// lifeboat at /legacy/, and the retired /next/ mount redirecting onto the
-	// root. Registered in one place so the route table that decides which UI owns
-	// which path is under test — see cmd/server/frontend.go.
-	registerFrontendRoutes(mux, "web/dist", "web/templates/index.html")
+	// React frontend at /; /next/ redirects for existing bookmarks.
+	registerFrontendRoutes(mux, "web/dist")
 
 	// API routes (protected)
 	// Users

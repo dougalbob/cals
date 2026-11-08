@@ -450,7 +450,7 @@ describe('DiaryRoute', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(document.documentElement.style.overflow).toBe('')
     expect(document.body.style.overflow).toBe('')
-    expect(await screen.findByText(new RegExp(`^${formatNumber(originalGrams * 2)} g`))).toBeTruthy()
+    expect(await screen.findByText(new RegExp(`^${formatNumber(originalGrams * 2)} g · ${formatNumber(Math.round(originalCalories * 2))} kcal$`))).toBeTruthy()
   })
 
   it('refuses a zero or negative quantity instead of saving one', async () => {

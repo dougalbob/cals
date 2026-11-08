@@ -82,7 +82,7 @@ echo
 # Unprotected routes: both modes must serve these.
 #
 # Since the Phase 16 cutover the React app owns /, the legacy vanilla UI is the
-# unlinked lifeboat at /legacy/, and the retired /next/ mount redirects onto the
+# retired legacy paths return 404, and the retired /next/ mount redirects onto the
 # root with its prefix stripped. curl is deliberately not given -L: the 308s are
 # the contract, and following them would hide a redirect that had gone wrong.
 check 'GET /health'                    '/health'                    200 'OK'
@@ -92,7 +92,9 @@ check 'GET /diary (React deep link)'   '/diary'                     200 '/assets
 check 'GET /manifest.webmanifest'      '/manifest.webmanifest'      200 '"start_url":"/"'
 check 'GET /sw.js (worker)'            '/sw.js'                     200 'addEventListener'
 check 'GET /pwa/icon-192.png'          '/pwa/icon-192.png'          200
-check 'GET /legacy/ (lifeboat)'        '/legacy/'                   200 '<html'
+check 'GET /legacy/ (retired)'         '/legacy/'                   404
+check 'GET /public/sw.js (retired)'   '/public/sw.js'              404
+check 'GET /static/js/app.js (retired)' '/static/js/app.js'        404
 check 'GET /next (retired -> 308)'     '/next'                      308
 check 'GET /next/ (retired -> 308)'    '/next/'                     308
 check 'GET /next/diary (308, stripped)' '/next/diary'               308

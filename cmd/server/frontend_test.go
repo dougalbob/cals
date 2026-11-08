@@ -11,12 +11,11 @@ import (
 )
 
 const reactShellBody = "react-shell"
-const legacyShellBody = "legacy-shell"
 
-// newFrontendTestTree writes a realistic web/dist tree plus a legacy shell into
+// newFrontendTestTree writes a realistic web/dist tree into
 // a temp directory, so the handlers are tested against the file layout the
 // Docker image actually produces.
-func newFrontendTestTree(t *testing.T) (distDir string, legacyShell string) {
+func newFrontendTestTree(t *testing.T) (distDir string) {
 	t.Helper()
 
 	distDir = t.TempDir()
@@ -30,13 +29,13 @@ func newFrontendTestTree(t *testing.T) (distDir string, legacyShell string) {
 	}
 
 	files := map[string]string{
-		filepath.Join(distDir, "index.html"):             reactShellBody,
-		filepath.Join(distDir, "manifest.webmanifest"):   `{"id":"/","start_url":"/","scope":"/"}`,
-		filepath.Join(distDir, "sw.js"):                  "network-only-worker",
-		filepath.Join(distDir, "workbox-abcd.js"):        "workbox-runtime",
-		filepath.Join(assetsDir, "app-abc123.js"):        "hashed-bundle",
-		filepath.Join(assetsDir, "app-abc123.css"):       "hashed-css",
-		filepath.Join(pwaDir, "icon-192.png"):            "react-pwa-icon",
+		filepath.Join(distDir, "index.html"):           reactShellBody,
+		filepath.Join(distDir, "manifest.webmanifest"): `{"id":"/","start_url":"/","scope":"/"}`,
+		filepath.Join(distDir, "sw.js"):                "network-only-worker",
+		filepath.Join(distDir, "workbox-abcd.js"):      "workbox-runtime",
+		filepath.Join(assetsDir, "app-abc123.js"):      "hashed-bundle",
+		filepath.Join(assetsDir, "app-abc123.css"):     "hashed-css",
+		filepath.Join(pwaDir, "icon-192.png"):          "react-pwa-icon",
 	}
 	for path, body := range files {
 		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
@@ -44,16 +43,12 @@ func newFrontendTestTree(t *testing.T) (distDir string, legacyShell string) {
 		}
 	}
 
-	legacyShell = filepath.Join(t.TempDir(), "index.html")
-	if err := os.WriteFile(legacyShell, []byte(legacyShellBody), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return distDir, legacyShell
+	return distDir
 }
 
 // TestSpaHandlerAtRoot covers the handler at its post-cutover mount point.
 func TestSpaHandlerAtRoot(t *testing.T) {
-	distDir, _ := newFrontendTestTree(t)
+	distDir := newFrontendTestTree(t)
 	handler := spaHandler("/", distDir)
 
 	t.Run("PWA files are served from the root instead of the SPA shell", func(t *testing.T) {
@@ -159,45 +154,6 @@ func TestSpaHandlerAtRoot(t *testing.T) {
 	})
 }
 
-func TestLegacyShellHandler(t *testing.T) {
-	_, legacyShell := newFrontendTestTree(t)
-	handler := legacyShellHandler(legacyShell)
-
-	t.Run("serves the unchanged legacy shell", func(t *testing.T) {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/legacy/", nil))
-
-		if recorder.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", recorder.Code)
-		}
-		if recorder.Body.String() != legacyShellBody {
-			t.Fatalf("body = %q, want the legacy shell", recorder.Body.String())
-		}
-		if strings.Contains(recorder.Body.String(), reactShellBody) {
-			t.Fatal("the lifeboat served the React shell")
-		}
-		if got := recorder.Header().Get("Cache-Control"); got != "no-store, must-revalidate" {
-			t.Fatalf("Cache-Control = %q, want no-store", got)
-		}
-	})
-
-	t.Run("a file-like URL under the lifeboat is a 404, not the shell", func(t *testing.T) {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/legacy/app.js", nil))
-		if recorder.Code != http.StatusNotFound {
-			t.Fatalf("status = %d, want 404", recorder.Code)
-		}
-	})
-
-	t.Run("unsupported methods are rejected", func(t *testing.T) {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/legacy/", nil))
-		if recorder.Code != http.StatusMethodNotAllowed {
-			t.Fatalf("status = %d, want 405", recorder.Code)
-		}
-	})
-}
-
 func TestRetiredPrefixTarget(t *testing.T) {
 	for _, test := range []struct {
 		raw       string
@@ -238,7 +194,7 @@ func TestRetiredPrefixTarget(t *testing.T) {
 // offline, so it is asserted against an actual ServeMux rather than described in
 // a document.
 func TestRegisterFrontendRoutes(t *testing.T) {
-	distDir, legacyShell := newFrontendTestTree(t)
+	distDir := newFrontendTestTree(t)
 
 	mux := http.NewServeMux()
 	// Stand in for the API routes main.go registers, to prove the shell cannot
@@ -246,7 +202,7 @@ func TestRegisterFrontendRoutes(t *testing.T) {
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"version":"2.0.0"}`))
 	})
-	registerFrontendRoutes(mux, distDir, legacyShell)
+	registerFrontendRoutes(mux, distDir)
 
 	serve := func(method, target string) *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
@@ -347,19 +303,12 @@ func TestRegisterFrontendRoutes(t *testing.T) {
 		}
 	})
 
-	t.Run("the legacy lifeboat still serves the old UI", func(t *testing.T) {
-		if recorder := serve(http.MethodGet, "/legacy"); recorder.Code != http.StatusPermanentRedirect {
-			t.Errorf("GET /legacy status = %d, want 308", recorder.Code)
-		} else if got := recorder.Header().Get("Location"); !strings.HasSuffix(got, "/legacy/") {
-			t.Errorf("GET /legacy Location = %q, want /legacy/", got)
-		}
-
-		recorder := serve(http.MethodGet, "/legacy/")
-		if recorder.Code != http.StatusOK {
-			t.Fatalf("GET /legacy/ status = %d, want 200", recorder.Code)
-		}
-		if recorder.Body.String() != legacyShellBody {
-			t.Fatalf("GET /legacy/ body = %q, want the legacy shell", recorder.Body.String())
+	t.Run("retired UI and assets return 404, not the React shell", func(t *testing.T) {
+		for _, path := range []string{"/legacy", "/legacy/", "/legacy/foo", "/static/", "/static/js/app.js", "/public/", "/public/sw.js"} {
+			recorder := serve(http.MethodGet, path)
+			if recorder.Code != http.StatusNotFound || strings.Contains(recorder.Body.String(), reactShellBody) {
+				t.Errorf("GET %s = %d %q, want 404", path, recorder.Code, recorder.Body.String())
+			}
 		}
 	})
 
