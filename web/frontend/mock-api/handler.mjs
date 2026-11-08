@@ -1159,11 +1159,96 @@ export function handle(method, url, body, headers = {}) {
     return { status: 204, body: '', contentType: 'application/json' }
   }
 
+  // ---- Backups (Admin-only preview fixtures) --------------------------------
+  // In-memory list that demonstrates the UI without writing any files.
+  if (pathname === '/api/backups' && method === 'GET') {
+    return json(backupList)
+  }
+  if (pathname === '/api/backups/create' && method === 'POST') {
+    const now = new Date()
+    const stamp = formatBackupStamp(now)
+    const item = {
+      filename: `cals-${stamp}.zip`,
+      created_at: now.toISOString(),
+      size_bytes: 1_234_567 + Math.floor(Math.random() * 500_000),
+      kind: 'manual',
+    }
+    backupList.unshift(item)
+    return json(item)
+  }
+  const backupFileMatch = pathname.match(/^\/api\/backups\/([^/]+)$/)
+  if (backupFileMatch && method === 'GET') {
+    // Download: return a small placeholder blob so the click isn't silent.
+    const content = new TextEncoder().encode(`cals fixture backup placeholder (${backupFileMatch[1]})`)
+    return {
+      status: 200,
+      body: content,
+      contentType: 'application/zip',
+      headers: {
+        'Content-Disposition': `attachment; filename="${backupFileMatch[1]}"`,
+      },
+    }
+  }
+  if (backupFileMatch && method === 'DELETE') {
+    const name = decodeURIComponent(backupFileMatch[1])
+    const idx = backupList.findIndex((b) => b.filename === name)
+    if (idx === -1) return err(404, 'Backup not found')
+    backupList.splice(idx, 1)
+    return { status: 204, body: '', contentType: 'application/json' }
+  }
+  const restoreMatch = pathname.match(/^\/api\/backups\/([^/]+)\/restore$/)
+  if (restoreMatch && method === 'POST') {
+    const name = decodeURIComponent(restoreMatch[1])
+    const now = new Date()
+    const beforeName = `cals-before-restore-${formatBackupStamp(now)}.zip`
+    backupList.unshift({
+      filename: beforeName,
+      created_at: now.toISOString(),
+      size_bytes: 1_200_000,
+      kind: 'before-restore',
+    })
+    return json({ ok: true, before_restore_backup: beforeName, restored_from: name })
+  }
+  if (pathname === '/api/backups/upload-restore' && method === 'POST') {
+    // Fixture: treat any upload as a successful restore for UI demonstration.
+    const now = new Date()
+    const beforeName = `cals-before-restore-${formatBackupStamp(now)}.zip`
+    backupList.unshift({
+      filename: beforeName,
+      created_at: now.toISOString(),
+      size_bytes: 1_200_000,
+      kind: 'before-restore',
+    })
+    return json({ ok: true, before_restore_backup: beforeName, restored_from: '(uploaded file)' })
+  }
+
   if (pathname.startsWith('/api/')) {
     return err(501, `Fixture API: ${method} ${pathname} is not implemented in the spike`)
   }
 
   return null
+}
+
+// Fixture backup list — seeded with a couple of recent entries so the UI isn't
+// empty when it first loads in the Arena preview.
+const backupList = [
+  {
+    filename: 'cals-auto-20261108-020000.zip',
+    created_at: new Date(Date.UTC(2026, 10, 8, 2, 0, 0)).toISOString(),
+    size_bytes: 1_205_432,
+    kind: 'auto',
+  },
+  {
+    filename: 'cals-20261101-183045.zip',
+    created_at: new Date(Date.UTC(2026, 10, 1, 18, 30, 45)).toISOString(),
+    size_bytes: 1_118_203,
+    kind: 'manual',
+  },
+]
+
+function formatBackupStamp(date) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`
 }
 
 // Mirrors resolveSeriesRange in internal/handlers/stats.go: an explicit

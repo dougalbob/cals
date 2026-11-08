@@ -100,10 +100,12 @@ opted into, never drifted into.
 | Own diary, goals, recipes, bank, settings | ✅ | ✅ |
 | `GET /api/users` (the account list) | ❌ `403` | ✅ |
 | Swap the acting user | ❌ | ✅ |
+| Backup: list / create / download / delete | ❌ `403` | ✅ |
+| Restore (server file or uploaded file) | ❌ `403` | ✅ |
 
-`GET /api/users` was previously answered for **any** authenticated request, which exposed both
-household email addresses for no product reason. It is now Admin-only. Nothing in either UI called it,
-so no screen changed.
+Backups are Admin-only because a backup file contains every family member's diary, photos, weights
+and goals. Restoring replaces the household's data, so it must never be open to a Standard account
+or someone with a swapped identity. See [`backup-restore.md`](./backup-restore.md).
 
 ## 6. The acting-user switch
 

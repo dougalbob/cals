@@ -42,17 +42,35 @@ func main() {
 		authenticate = cfAuth.Middleware
 	}
 
-	// Every authenticated request then passes through the Admin acting-user
-	// switch, which may replace *whose data* the request touches. It never
-	// replaces the authenticated identity, so role checks stay trustworthy.
+	// Every authenticated request then passes through:
+	//   - RefuseMutationsDuringRestore: briefly pauses writes while a backup
+	//     restore is in progress, so we don't interleave new writes with a
+	//     database replacement.
+	//   - ActingUserMiddleware: lets an Admin swap to another household
+	//     account's data. It never replaces the authenticated identity, so
+	//     role checks stay trustworthy.
 	withAuth := func(next http.Handler) http.Handler {
-		return authenticate(handlers.ActingUserMiddleware(next))
+		return authenticate(handlers.RefuseMutationsDuringRestore(handlers.ActingUserMiddleware(next)))
 	}
+
+	// Tell the backup/restore handler where the live database file lives so
+	// it can safely replace it during a restore.
+	handlers.SetLiveDBPath(cfg.DBPath)
 
 	if err := database.Initialize(cfg.DBPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer database.Close()
+
+	// Ensure the backups directory exists inside /app/data so the Unraid
+	// appdata backup captures it (handlers/backup.go). Run a daily automatic
+	// backup if one hasn't been taken today; this is best-effort and must
+	// not prevent the container from starting.
+	if err := handlers.EnsureBackupsDir(); err != nil {
+		log.Printf("Warning: could not create backups directory: %v", err)
+	} else {
+		handlers.RunAutoBackupIfDue(AppVersion)
+	}
 
 	// Roles are declared in /app/data/.env (ADMIN_EMAILS / STANDARD_EMAILS) and
 	// reconciled into users.is_admin here, so the running container always
@@ -210,6 +228,16 @@ func main() {
 	// Recipe images
 	mux.Handle("POST /api/recipes/{id}/image", withAuth(http.HandlerFunc(handlers.HandleUploadRecipeImage)))
 	mux.Handle("GET /api/images/recipes/{id}/{type}", withAuth(http.HandlerFunc(handlers.HandleGetRecipeImage)))
+
+	// Backups (Admin-only; list, create, download, delete, restore from server
+	// file or uploaded file). Mutations are briefly refused while a restore
+	// runs via RefuseMutationsDuringRestore.
+	mux.Handle("GET /api/backups", withAuth(http.HandlerFunc(handlers.HandleListBackups)))
+	mux.Handle("POST /api/backups/create", withAuth(http.HandlerFunc(handlers.HandleCreateBackup)))
+	mux.Handle("GET /api/backups/{name}", withAuth(http.HandlerFunc(handlers.HandleDownloadBackup)))
+	mux.Handle("DELETE /api/backups/{name}", withAuth(http.HandlerFunc(handlers.HandleDeleteBackup)))
+	mux.Handle("POST /api/backups/{name}/restore", withAuth(http.HandlerFunc(handlers.HandleRestoreBackup)))
+	mux.Handle("POST /api/backups/upload-restore", withAuth(http.HandlerFunc(handlers.HandleUploadRestore)))
 
 	// Mealie integration
 	mux.Handle("GET /api/mealie/search", withAuth(http.HandlerFunc(handlers.HandleMealieSearch)))

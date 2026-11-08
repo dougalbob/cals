@@ -101,8 +101,11 @@ reconciled into the additive `users.is_admin` column at every start-up (decision
 for an Admin, with an amber **Viewing as …** banner and **Return to my account** (decision 90). Mechanism,
 threat model and the operational rule (edit `.env`, restart): [`admin-roles.md`](architecture/admin-roles.md).
 
-The previously requested reliable server-local backup/restore of the database and all recipe images **remains
-an outstanding deployment-safety requirement**. The role work did not satisfy it and Phase 14 does not either.
+The previously requested reliable server-local backup/restore of the database and all recipe images **is
+built in this session** (Admin-only, Settings screen, database + photos together, automatic daily with 7 kept,
+download and upload supported, before-restore safety copy on every restore). Design and safety guarantees
+live in [`architecture/backup-restore.md`](architecture/backup-restore.md). It is the precondition in the
+stable-release plan for promoting V2 to `main`.
 
 1. ~~**Decision 40 — `+ Add recipe` on each Diary meal card**, opening the portion sheet with that meal preselected.~~ **Built 2026-10-03 (rc15); owner-approved in the Arena preview.** Each meal card now has `+ Add food` and `🍽 Add recipe` side by side; recipe logging keeps decisions 29–32 behaviour unchanged. **Follow-up built, owner-accepted and published 2026-10-03 as rc17 (decision 64):** the meal card now hands over to the Recipes tab instead of opening a modal picker, carrying the meal and date into the portion sheet.
 2. ~~**The calendar for historic dates** (decision 49's follow-up) — a month view opened from the Diary's date header, tap a day and land on `/diary/:date`, with markers on days that have data.~~ **Built 2026-10-03 (rc15):** `/calendar` route with Month (compact 6×7 grid: calorie bar, hydration pip, signed bank figure, today ringed) and Week (larger phone-friendly cards with per-meal kcal, 💧 Hydration `x / y ml` and the bank), toggled by a Month/Week segmented control; URL-is-state for reload/deep-link; tapping any day hard-links to `/diary/:date`; a 📅 button in the Diary header opens it (Calendar joins the bottom nav). The new additive read-only endpoint `GET /api/calendar?from=&to=` returns per-day meal totals, hydration ml and the end-of-day bank balance; no schema migration. The Fluids card label is now **💧 Hydration** instead of "Water", since all water-counting drinks contribute (owner request, 2026-10-03).
@@ -147,7 +150,7 @@ that actually block upcoming work:
 | Watch/Siri, other trackers | No requirement recorded either way | H |
 | Timescale and how involved you want to be | Sizes the plan and the review gates | I |
 | **What is the single most annoying thing about cals today?** | Asked at the start, never answered — the best prompt for work the plan hasn't anticipated | I |
-| Record the backup's location and cadence | The backup exists (decision 54) but nobody has written down where it is | H |
+| ~~Record the backup's location and cadence~~ | ✅ Settled 2026-11-08 — `/app/data/backups/` (captured by the Unraid appdata backup); automatic daily, last 7 kept; Admin can make additional manual backups, download and restore from Settings. | H |
 | Should Today be the last loggable day **everywhere**? | The Calendar clamps at Today (decision 63) but the Diary's › arrow and `POST /api/diary` still accept tomorrow, so pre-logging a planned meal works | I |
 
 **Settled on 2026-10-03 (decisions 42–54), so stop asking:** unlogged days are **excluded** from the

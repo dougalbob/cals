@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPut, queryKeys } from '../api/client'
-import type { BodyOutline, SessionResponse, User, VersionResponse } from '../api/types'
+import { apiDelete, apiGet, apiGetBlob, apiPost, apiPostForm, apiPut, queryKeys } from '../api/client'
+import type { BackupItem, BodyOutline, RestoreResponse, SessionResponse, User, VersionResponse } from '../api/types'
 import { getInstallPrompt, startInstallPromptCapture, subscribeToInstallPrompt, type InstallPromptEvent } from '../lib/pwaInstall'
 import {
   applyTheme,
@@ -381,9 +381,223 @@ export function SettingsRoute() {
         </p>
       </Section>
 
+      {user.data?.is_admin ? <BackupsSection /> : null}
+
       <footer className="pb-2 text-center text-xs text-ink-light">
         cals {version.data?.version ? `· v${version.data.version}` : ''}
       </footer>
     </div>
+  )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatBackupDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function backupLabel(kind: BackupItem['kind']): string {
+  switch (kind) {
+    case 'auto': return 'Automatic'
+    case 'before-restore': return 'Before restore'
+    default: return 'Manual'
+  }
+}
+
+function BackupsSection() {
+  const queryClient = useQueryClient()
+  const backups = useQuery<BackupItem[]>({
+    queryKey: queryKeys.backups,
+    queryFn: () => apiGet<BackupItem[]>('/api/backups'),
+  })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [restoreConfirmName, setRestoreConfirmName] = useState<string | null>(null)
+  const [confirmText, setConfirmText] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [lastRestore, setLastRestore] = useState<string | null>(null)
+
+  const createBackup = useMutation({
+    mutationFn: () => apiPost<BackupItem>('/api/backups/create'),
+    onMutate: () => { setActionError(null); setActionBusy(true) },
+    onSettled: () => setActionBusy(false),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.backups }) },
+    onError: (e: Error) => setActionError(e.message),
+  })
+  const deleteBackup = useMutation({
+    mutationFn: (filename: string) => apiDelete<void>(`/api/backups/${encodeURIComponent(filename)}`),
+    onMutate: () => { setActionError(null); setActionBusy(true) },
+    onSettled: () => setActionBusy(false),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.backups }),
+    onError: (e: Error) => setActionError(e.message),
+  })
+  const downloadBackup = useMutation({
+    mutationFn: async (item: BackupItem) => {
+      const blob = await apiGetBlob(`/api/backups/${encodeURIComponent(item.filename)}`)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = item.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    },
+    onMutate: () => { setActionError(null) },
+    onError: (e: Error) => setActionError(e.message),
+  })
+  const restoreFromServer = useMutation({
+    mutationFn: async (filename: string) => {
+      return apiPost<RestoreResponse>(`/api/backups/${encodeURIComponent(filename)}/restore`)
+    },
+    onMutate: () => { setActionError(null); setActionBusy(true) },
+    onSettled: () => setActionBusy(false),
+    onSuccess: (resp) => {
+      setLastRestore(`Restored. A safety copy was saved as ${resp.before_restore_backup}. The page will reload in a moment.`)
+      setRestoreConfirmName(null)
+      setConfirmText('')
+      queryClient.invalidateQueries()
+      setTimeout(() => window.location.reload(), 3000)
+    },
+    onError: (e: Error) => setActionError(e.message),
+  })
+  const restoreFromUpload = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('backup', file)
+      return apiPostForm<RestoreResponse>('/api/backups/upload-restore', form)
+    },
+    onMutate: () => { setActionError(null); setActionBusy(true) },
+    onSettled: () => { setActionBusy(false); if (fileInputRef.current) fileInputRef.current.value = '' },
+    onSuccess: (resp) => {
+      setLastRestore(`Restored from uploaded file. A safety copy was saved as ${resp.before_restore_backup}. The page will reload in a moment.`)
+      queryClient.invalidateQueries()
+      setTimeout(() => window.location.reload(), 3000)
+    },
+    onError: (e: Error) => setActionError(e.message),
+  })
+
+  const handleUploadFile = (file: File | null | undefined) => {
+    if (!file) return
+    const word = 'RESTORE'
+    const typed = window.prompt(
+      `This will REPLACE ALL diary data, foods, weights and recipe photos for everyone on cals with the contents of "${file.name}".\n\nA safety copy will be saved first, but you should be sure.\n\nType ${word} to continue.`,
+    )
+    if (typed !== word) return
+    restoreFromUpload.mutate(file)
+  }
+
+  const confirmPhrase = 'REPLACE ALL DATA'
+  const canConfirm = confirmText === confirmPhrase
+
+  return (
+    <Section title="Backups (Admin only)">
+      <p className="m-0 text-sm text-ink-light">
+        Backups save the diary database and all recipe photos into a single file inside your Unraid appdata folder, so your existing Unraid backup also catches them. cals also keeps one automatic backup each day for the last week.
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => createBackup.mutate()}
+          disabled={actionBusy || createBackup.isPending}
+          className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
+        >
+          {createBackup.isPending ? 'Backing up…' : 'Back up now'}
+        </button>
+        <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-surface">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".zip,application/zip"
+            className="hidden"
+            onChange={(e) => handleUploadFile(e.target.files?.[0])}
+            disabled={actionBusy}
+          />
+          Upload &amp; restore…
+        </label>
+      </div>
+      {actionError && <p role="alert" className="m-0 rounded-xl bg-red-50 p-3 text-sm text-danger">{actionError}</p>}
+      {createBackup.isSuccess && !lastRestore && <p role="status" className="m-0 text-sm font-medium text-success">Backup created.</p>}
+      {lastRestore && <p role="status" className="m-0 rounded-xl bg-green-50 p-3 text-sm text-success">{lastRestore}</p>}
+
+      {restoreConfirmName && (
+        <div className="rounded-xl border border-danger/40 bg-red-50 p-3 text-sm">
+          <p className="m-0 font-semibold text-danger">Replace all data?</p>
+          <p className="mt-1 mb-0 text-danger">
+            This replaces EVERYONE'S diary, foods, weights and recipe photos with the backup from <strong>{restoreConfirmName}</strong>. A safety copy will be saved first so you can undo this.
+          </p>
+          <label className="mt-3 block font-medium text-danger">
+            Type <code className="rounded bg-white px-1 py-0.5 font-mono text-[13px]">{confirmPhrase}</code> to confirm:
+            <input
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-white px-3 py-2"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoFocus
+            />
+          </label>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              disabled={!canConfirm || actionBusy}
+              onClick={() => restoreFromServer.mutate(restoreConfirmName)}
+              className="min-h-11 rounded-xl bg-danger px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {restoreFromServer.isPending ? 'Restoring…' : 'Yes, replace all data'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setRestoreConfirmName(null); setConfirmText('') }}
+              className="min-h-11 rounded-xl border border-line px-4 py-2 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {backups.isError && !restoreConfirmName && (
+        <p role="alert" className="m-0 rounded-xl bg-red-50 p-3 text-sm text-danger">
+          Could not load backups: {(backups.error as Error).message}
+        </p>
+      )}
+      {backups.isSuccess && backups.data.length === 0 && !restoreConfirmName && (
+        <p className="m-0 text-sm text-ink-light">No backups yet. Tap <strong>Back up now</strong> to make the first one.</p>
+      )}
+      {backups.isSuccess && backups.data.length > 0 && !restoreConfirmName && (
+        <ul className="m-0 flex flex-col gap-2 p-0 list-none">
+          {backups.data.map((item) => (
+            <li key={item.filename} className="flex flex-col gap-2 rounded-xl border border-line p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">{formatBackupDate(item.created_at)}</span>
+                  <span className={
+                    'rounded-full px-2 py-0.5 text-[11px] font-medium ' +
+                    (item.kind === 'before-restore' ? 'bg-amber-100 text-amber-900'
+                      : item.kind === 'auto' ? 'bg-slate-100 text-slate-700'
+                        : 'bg-primary/10 text-primary')
+                  }>{backupLabel(item.kind)}</span>
+                </div>
+                <div className="text-xs text-ink-light">{formatBytes(item.size_bytes)} · {item.filename}</div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="rounded-lg border border-line px-3 py-1.5 text-sm" onClick={() => downloadBackup.mutate(item)} disabled={actionBusy}>Download</button>
+                {item.kind !== 'before-restore' && (
+                  <button type="button" className="rounded-lg border border-danger px-3 py-1.5 text-sm text-danger" onClick={() => { setRestoreConfirmName(item.filename); setConfirmText('') }} disabled={actionBusy}>Restore</button>
+                )}
+                <button type="button" className="rounded-lg px-3 py-1.5 text-sm text-danger/80 hover:bg-red-50" onClick={() => { if (window.confirm(`Delete backup ${item.filename}?`)) deleteBackup.mutate(item.filename) }} disabled={actionBusy}>Delete</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
   )
 }

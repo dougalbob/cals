@@ -73,9 +73,12 @@ warning, and never for `cals-dev-v2` as it stands today.
    directory, start it again. A copy taken from a running container can be inconsistent.
 3. **A copy is not a backup.** Keep a real backup (e.g. Unraid's appdata backup) separate
    from these directories, and check that it exists before any structural change.
-   **Confirmed by the owner on 2026-10-03 (decision 54): a backup exists.** Its location and cadence
-   are not yet recorded here — a future session should write them down so nobody has to ask again,
-   and should verify a restore has been tried at least once.
+   **Confirmed by the owner on 2026-10-03 (decision 54): a backup exists.** As of 2026-11-08 cals
+   also keeps its own backups inside `/app/data/backups/` (which lives at
+   `/mnt/user/appdata/cals-dev-identity/backups/` on Unraid, so the existing Unraid appdata backup
+   captures them too). One automatic backup is taken each day and the last 7 are kept; the Admin can
+   make additional manual backups, download them, upload them, and restore them from Settings. See
+   [`backup-restore.md`](./backup-restore.md) for the full guarantees and the restore safety net.
 4. **The dev container is the only container allowed to lose data.** Anything entered at
    `8152` is expected to be thrown away.
 5. **Migrations must assume V2's data is real.** Additive migrations only (see

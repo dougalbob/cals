@@ -116,6 +116,27 @@ export const apiPostForm = <T>(path: string, body: FormData) => request<T>('POST
 export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)
 export const apiDelete = <T>(path: string) => request<T>('DELETE', path)
 
+/**
+ * GET a file (e.g. a backup ZIP) as a Blob. Bypasses the JSON parsing in
+ * `request` so non-JSON responses don't throw.
+ */
+export async function apiGetBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const response = await fetch(path, { method: 'GET', ...(signal ? { signal } : {}) })
+  if (response.status === 204) return new Blob()
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    let message = text.trim() || `Request failed (${response.status})`
+    try {
+      const data = JSON.parse(text) as { error?: unknown }
+      if (data && typeof data.error === 'string' && data.error) message = data.error
+    } catch {
+      // keep the raw text as the message
+    }
+    throw new ApiError(message, response.status)
+  }
+  return response.blob()
+}
+
 /** Query keys — one place, so mutations always invalidate the right things. */
 export const queryKeys = {
   version: ['version'] as const,
@@ -159,4 +180,6 @@ export const queryKeys = {
   nutrition: (days: number) => ['nutrition', 'weekly', days] as const,
   /** The report's chosen range — keyed by the range it is showing (slice 14.6). */
   nutritionRange: (from: string, to: string) => ['nutrition', 'range', from, to] as const,
+  /** Backups stored on the server (Admin-only). */
+  backups: ['backups'] as const,
 }
