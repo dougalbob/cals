@@ -1,41 +1,8 @@
 # cals React frontend — app rebuild and UI notes
 
-**Status: 🟢 Phase 15 (Settings + PWA installability) is published as `v2.0.0-dev-rc34` and installed
-on Unraid**, where the owner checked the Settings work and confirmed it behaves as intended. **Phase 16
-stage 16.2 — the move to `/` — was published as rc35 and is included in rc36 and rc37; none of those
-candidates is installed**, so the household still runs rc34 at `/next/`. The owner-approved Metrics follow-up
-(decisions 116–119) was merged as PR #81 and published as `v2.0.0-dev-rc36` on 2026-10-07, and the
-owner-approved **Nutrition insight prototype** (decision 120) was merged as PR #85 and published as
-`v2.0.0-dev-rc37` the same day — later candidates carry both (current release status is in `docs/CURRENT_STATE.md`). Phase 11's React shell, Phase 12's Diary, Phase 13's Foods + Recipes and Phase 14's
-Metrics + Nutrition are all in the development line. Settings saves account-level targets and
-preferences through `/api/users/me`, while themes and haptics stay on the device; the two bank-ring
-display limits are independent and do not change bank arithmetic. **Phone PWA installation is still
-untested** — it needs a real device over the Cloudflare hostname, which is a step of the cutover (16.3),
-not of this branch. The audit in [`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md)
-found that no Cloudflare change is needed to install or test. Its §2.4 claim that Chromium withholds the
-Android install prompt without a fetch handler is **out of date** (menu install has not needed one since
-Chrome 109/112); the fetch handler matters because it drives the in-app **Install app** button, and
-16.2 adds one. Decision 47's tracked-nutrient controls and missing-data audit are deferred by the owner.
+**Status:** The owner reports rc42 installed on Unraid and confirms the React app works through Cloudflare and on a phone. See [current state](../../docs/CURRENT_STATE.md). The Phase 16.4 legacy frontend removal is proposed in this branch, not yet deployed.
 
-The Go production build and the fixture preview both mount React at **`/`**. One constant
-(`APP_BASE` in [`vite.config.ts`](vite.config.ts)) drives Vite's base and the manifest's
-`id`/`start_url`/`scope` and icon URLs, and `spaHandler("/", …)` in
-[`../../cmd/server/frontend.go`](../../cmd/server/frontend.go) derives the matching worker scope, so the
-preview bundle and the production bundle cannot drift. `/next/*` 308s onto the same path with the prefix
-stripped, and the legacy vanilla app is served unchanged and unlinked at **`/legacy/`** as a lifeboat
-until its deletion is separately approved. **Installation is not offline support:** there is no offline
-logging, queued saving, API/data caching or cached-data promise.
-
-The last reported Unraid installation is **`v2.0.0-dev-rc34`** (owner Force Update, 2026-10-05).
-The rc35 root-route retarget, the rc36 Metrics follow-up and the rc37 Nutrition prototype are all
-published in `v2.0.0-dev-rc37`; the owner's separate Force Update to rc37 and its phone review remain
-outstanding. Release and
-acceptance status lives in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md); the cutover
-plan is [`../../docs/architecture/phase-16-plan.md`](../../docs/architecture/phase-16-plan.md) and
-Phase 15's plan is [`../../docs/architecture/phase-15-plan.md`](../../docs/architecture/phase-15-plan.md).
-The broader frontend proposal is [`../../docs/architecture/frontend-strategy.md`](../../docs/architecture/frontend-strategy.md).
-
----
+The Go production build and fixture preview mount React at `/`. `/next/*` redirects to the corresponding root path. Retired `/legacy/`, `/static/` and `/public/` paths return 404 in the cleanup; the narrowly scoped old service-worker and cache removal remains for returning devices. Installation does not imply offline support.
 
 ## What's implemented
 
@@ -274,11 +241,11 @@ workaround: [`../../docs/architecture/testing.md`](../../docs/architecture/testi
 
 `npm run build:go` writes the production bundle to the git-ignored `web/dist/` with `/` as its asset
 and router base. The Go server serves that shell and client-side deep links at `/`, gives hashed assets
-immutable caching, and uses `no-store` for the shell; the legacy UI is served unchanged at `/legacy/`
+immutable caching, and uses `no-store` for the shell; `/legacy/` is retired
 and `/next/*` redirects onto the root. Docker builds this bundle in a Node 22 stage and copies only the
 built files into the Go image.
 
-In the Arena sandbox the Go server was built and run against a **disposable** database in `/tmp`, and
+In the earlier Phase 16.2 audit the Go server was built and run against a **disposable** database in `/tmp`, and
 `scripts/smoke-app-routes.sh` passed against it: `/` and a Diary deep link served the React shell,
 `/manifest.webmanifest`, `/sw.js` and `/pwa/icon-192.png` resolved, `/legacy/` served the legacy shell,
 and the three `/next` paths answered 308 — in both dev-mode and production-like runs, the latter

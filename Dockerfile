@@ -17,7 +17,7 @@ RUN apk add --no-cache gcc musl-dev
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source and the built React shell (served at /next/ during the migration)
+# Copy source and the built React shell (served at /)
 COPY . .
 COPY --from=frontend-builder /build/web/dist ./web/dist
 
@@ -40,7 +40,7 @@ RUN apk add --no-cache sqlite ca-certificates tzdata
 COPY --from=builder /build/cals .
 
 # Copy web files
-COPY --from=builder /build/web ./web
+COPY --from=builder /build/web/dist ./web/dist
 
 # Create data directory
 RUN mkdir -p /app/data

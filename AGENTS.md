@@ -41,7 +41,7 @@ A personal calorie and nutrition tracking PWA.
 | Layer | Tech |
 |---|---|
 | Backend | Go 1.22, `net/http`, SQLite (`mattn/go-sqlite3`, CGO), ~5k LOC in `internal/**` |
-| Frontend | Production remains vanilla JS + CSS + `web/templates/index.html`; the React/TypeScript foundation under `web/frontend/` includes Phases 11–12 and Phase 13 Foods/Recipes features for metadata, servings/portions, tag filtering, archive/restore, safe editing, food-correction recalculation and recipe authoring with uncropped photo upload/replacement. Cropping is deferred by decision 82. The React app is retargeted to `/` on the branch (Phase 16 stage 16.2 — **built and verified, not yet released**; `/next/*` 308s onto it and the legacy UI is an unlinked lifeboat at `/legacy/`) — see `docs/architecture/frontend-strategy.md` and `docs/CURRENT_STATE.md` for review status |
+| Frontend | React 19 + TypeScript + Vite + Tailwind under `web/frontend/`; served at `/`, with `/next/*` redirects. Legacy frontend removed in the Phase 16.4 cleanup; see `docs/CURRENT_STATE.md` for deployment status. |
 | Auth | Cloudflare Zero Trust JWT middleware on every non-public route |
 | Integrations | FatSecret (food search), Mealie (legacy recipe import; not pursued in React Phase 13), Google Fit (steps) |
 | Deploy | V1 remains on Unraid at host/container port `8150` (legacy Compose deployment — kept running as-is, never the install method for anything new); V2 is a prebuilt GHCR image installed from the `cals-dev-v2.xml` Unraid template at `8151:8151`, with its own appdata mounted at `/app/data` — see `docs/architecture/unraid-image-release.md`. **V2 is now the Cloudflare-routed app the household sees**, running on a database copy taken 2026-10-02: `/mnt/user/appdata/cals-dev-v2` holds live household data and must not be treated as disposable — read `docs/architecture/data-copy-warning.md` before copying, migrating or deleting anything |
@@ -76,16 +76,7 @@ internal/handlers/        HTTP handlers, one file per resource
 internal/models/          all structs (the API contract lives here)
 internal/fatsecret/       FatSecret OAuth2 client
 internal/mealie/          Mealie API client
-web/templates/index.html  SPA shell
-web/static/js/            vanilla JS SPA (app.js, api.js, components/, utils/)
-web/static/css/           style.css + themes.css (CSS custom properties = theme tokens)
-web/public/               PWA assets: manifest.json, sw.js, icons (unprotected paths)
-web/frontend/             React 19 + TS + Vite + Tailwind rebuild (Phase 11 foundation, Phase 12 screens,
-                          Phase 13 Foods/Recipes features including metadata, servings/portions,
-                          tag filtering, archive/restore, safe editing, food-correction recalculation,
-                          and recipe authoring with uncropped photo upload/replacement; cropping is
-                          deferred by decision 82); production bundle retargeted to /
-                          (Phase 16.2, not yet released) — see its README and docs/CURRENT_STATE.md
+web/frontend/             React frontend and PWA
 docs/                     documentation (see docs/README.md)
 ai_contextual_docs/       LEGACY historic build log — read-only, not a source of truth
  docs/                     canonical documentation: product/ and architecture/
@@ -150,8 +141,8 @@ rather than finding out there.
 Notes:
 - There is no volume mount for code: **code changes require a rebuild**.
 - Env vars: `PORT`, `BIND_ADDRESS`, `LOG_LEVEL`, `DB_PATH`, `DEV_MODE`, `DEV_USER_EMAIL`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET`, `CF_TEAM_DOMAIN`, `CF_POLICY_AUD`, `MEALIE_BASE_URL`, `MEALIE_API_KEY`, `GOOGLE_FIT_CLIENT_ID`, `GOOGLE_FIT_CLIENT_SECRET`.
-- Version bumping: `./update-version.sh X.Y.Z` updates `cmd/server/main.go`, `web/static/js/app.js` and `web/public/sw.js`.
-- Unprotected routes: `/health`, `/public/*`, `/api/version`. Everything else requires a valid Cloudflare Access JWT in production; guarded `DEV_MODE` is the local-development exception.
+- Version bumping: `./update-version.sh X.Y.Z` updates `cmd/server/main.go`.
+- Unprotected routes: `/health`, `/api/version` and React assets. Everything else requires a valid Cloudflare Access JWT in production; guarded `DEV_MODE` is the local-development exception.
 - `DEV_MODE` is only for local development against a copy of the data in `appdata/cals-dev`; never use it against production data or behind a public proxy/tunnel. It requires `DEV_USER_EMAIL`, defaults to a loopback bind, and rejects public/wildcard binds. See [`docs/architecture/local-development.md`](docs/architecture/local-development.md).
 
 ## 4. Conventions
@@ -159,7 +150,7 @@ Notes:
 - **Go:** standard library first; handlers in `internal/handlers/<resource>.go`; keep route registration centralised in `cmd/server/main.go`; new tables go through `internal/database/migrations.go` (additive migrations only — never drop or rewrite user data).
 - **API:** JSON in/out; errors as `{"error": "..."}` with a correct status code; `404` for missing rows, `409` for conflicts (e.g. duplicate recipe name), `503` for unconfigured integrations.
 - **DB:** dates as `YYYY-MM-DD` strings; nutrition stored per 100 g; weights in kg; portions in grams. Round only at the presentation layer.
-- **Frontend (current):** the global objects (`App`, `API`, `Modal`, …) communicate through `web/static/js/api.js`; do not scatter raw `fetch` calls. Never cache JS or HTML in the service worker.
+- **Frontend:** React uses the typed API client; never cache JS or HTML in the service worker.
 - **Frontend (new):** see §6 of `docs/architecture/frontend-strategy.md`.
 - **UI improvement is a headline product requirement.** A new framework, a passing build, or functional parity alone is not success. User-facing phases must show a concrete improvement in the mobile-first daily experience and include a preview/screenshots for owner review before merge or cutover. Phase 11 may be foundation-only; it does not waive this later acceptance gate.
 - **Quick drinks:** the Diary must retain a familiar quick-add selector for Tea, Coffee and Water, using user-specific drink records rather than hard-coded nutrition values. Drink calories must count toward the bank; see the product decisions and Phase 12 plan.

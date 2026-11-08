@@ -137,14 +137,11 @@ const server = createServer(async (req, res) => {
     return
   }
 
-  // The legacy vanilla UI lives in web/templates + web/static + web/public and
-  // is served by the Go handler at /legacy/, which this fixture server does not
-  // emulate: cmd/server/frontend_test.go covers that handler instead, because a
-  // test against an emulation would not test the code that ships.
-  if (pathname === '/legacy' || pathname.startsWith('/legacy/')) {
+  // Match the Go server: retired UI and asset paths must not serve the SPA.
+  if (['/legacy', '/static', '/public'].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     res.statusCode = 404
     res.setHeader('Content-Type', MIME['.txt'])
-    res.end('The legacy lifeboat is served by the Go server, not this fixture preview.')
+    res.end('Not found')
     return
   }
 

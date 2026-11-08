@@ -1,5 +1,7 @@
 # Current state — where the cals project is right now
 
+> **2026-11-08 owner update / cleanup in this branch:** The owner confirms Unraid runs `v2.0.0-dev-rc42` via `dev-latest`, React works at the Cloudflare address and on a phone, and approved retiring the old UI despite Mealie import not being ported. The Phase 16.4 removal is proposed in this branch, not yet merged, published or installed. `/next/*` redirects and old-worker/cache retirement remain for existing devices. No live data, Unraid configuration or Cloudflare change was made. The entries below are historical status as recorded on 2026-10-17 and may refer to rc34 as installed; this update supersedes those deployment claims, but does not imply separate detailed feature road-tests were completed.
+
 | Field | Value |
 |---|---|
 | **Status** | 🟢 **ADOPTED — living document. This is the single source of truth for "where are we now".** |

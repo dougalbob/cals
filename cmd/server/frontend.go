@@ -38,8 +38,7 @@ func spaHandler(mountPath string, distDir string) http.Handler {
 
 		// The React PWA's generated manifest, worker, icons and any Workbox
 		// runtime are real files at the mount point. They must never fall
-		// through to the SPA shell, and they are separate from the legacy
-		// lifeboat's own manifest and worker under /public/.
+		// through to the SPA shell.
 		if relativePath == "manifest.webmanifest" || relativePath == "sw.js" ||
 			strings.HasPrefix(relativePath, "pwa/") || strings.HasPrefix(relativePath, "workbox-") {
 			w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
@@ -76,37 +75,9 @@ func spaHandler(mountPath string, distDir string) http.Handler {
 	})
 }
 
-// legacyShellHandler serves the retired vanilla-JS UI from shellPath.
-//
-// It exists only as a lifeboat while the owner decides whether to delete the
-// legacy code (phase-16-plan.md §5, stage 16.4). The legacy shell is a single
-// page with no client-side routing and every asset reference absolute
-// (/static/..., /public/...), so the same file works from any path and needs no
-// change to be served from /legacy/ — see phase-16-plan.md §2.3.
-func legacyShellHandler(shellPath string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.Header().Set("Allow", "GET, HEAD")
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Nothing under /legacy/ is a file: the shell's assets live at /static/
-		// and /public/. A file-like URL here is a mistake, not a route.
-		if filepath.Ext(r.URL.Path) != "" {
-			http.NotFound(w, r)
-			return
-		}
-
-		w.Header().Set("Cache-Control", "no-store, must-revalidate")
-		http.ServeFile(w, r, shellPath)
-	})
-}
-
 // registerFrontendRoutes wires up which UI owns which path:
 //
 //	/                the React app — the default UI since the Phase 16 cutover
-//	/legacy/         the unchanged legacy vanilla-JS UI, an unlinked lifeboat
 //	/next, /next/*   308 onto the same path with the /next prefix stripped
 //
 // This is a function rather than inline registrations in main() because this
@@ -117,7 +88,7 @@ func legacyShellHandler(shellPath string) http.Handler {
 //
 // The API routes registered in main() are all more specific than "/", so they
 // always win over the app shell.
-func registerFrontendRoutes(mux *http.ServeMux, distDir string, legacyShell string) {
+func registerFrontendRoutes(mux *http.ServeMux, distDir string) {
 	// Root: the React app.
 	//
 	// Registered for GET only. The previous catch-all answered every method with
@@ -130,7 +101,7 @@ func registerFrontendRoutes(mux *http.ServeMux, distDir string, legacyShell stri
 	// shell with a 200, which is what the previous catch-all did.
 	root := spaHandler("/", distDir)
 	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/legacy" || strings.HasPrefix(r.URL.Path, "/legacy/") || r.URL.Path == "/static" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/public" || strings.HasPrefix(r.URL.Path, "/public/") {
 			http.NotFound(w, r)
 			return
 		}
@@ -146,14 +117,6 @@ func registerFrontendRoutes(mux *http.ServeMux, distDir string, legacyShell stri
 	}
 	mux.HandleFunc("GET /next", redirectRetiredNext)
 	mux.HandleFunc("GET /next/", redirectRetiredNext)
-
-	// The legacy vanilla-JS UI, served unlinked as a lifeboat until the owner
-	// approves deleting it (phase-16-plan.md §5, stage 16.4). Its assets are
-	// absolute, so the unchanged shell works from here.
-	mux.HandleFunc("GET /legacy", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/legacy/", http.StatusPermanentRedirect)
-	})
-	mux.Handle("GET /legacy/", legacyShellHandler(legacyShell))
 }
 
 // retiredPrefixTarget maps a URL under a retired mount point onto its

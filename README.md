@@ -7,7 +7,7 @@ A personal calorie and nutrition tracking application.
 | Document | What it covers |
 |---|---|
 | [`docs/`](docs/README.md) | Documentation index and conventions |
-| [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | 🟡 Proposed overall; **Phase 11 authorized**. React 19 + TypeScript + Vite + Tailwind; UI/UX improvement is a headline requirement. Frontend only — Go API, database, auth and deployment stay unchanged |
+| [`docs/architecture/frontend-strategy.md`](docs/architecture/frontend-strategy.md) | Rebuild strategy and historical phases. React 19 + TypeScript + Vite + Tailwind; UI/UX improvement is a headline requirement. Frontend only — Go API, database, auth and deployment stay unchanged |
 | [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) | Branch strategy: `main` is production, `cals-dev` is integration, all work arrives via PR |
 | [`docs/architecture/unraid-image-release.md`](docs/architecture/unraid-image-release.md) | **How cals is installed and updated**: the `cals-dev-v2.xml` Unraid template + prebuilt GHCR image (Compose is retired as an install method) |
 | [`AGENTS.md`](AGENTS.md) | Working rules for AI agents and contributors — **never push to `main`** |
@@ -17,7 +17,7 @@ A personal calorie and nutrition tracking application.
 
 ## Branching (short version)
 
-- **`main`** — live production. Protected by convention and (where the plan allows) GitHub branch protection. Never push directly.
+- **`main`** — V1 source, awaiting a deliberate V2 release promotion. Protected by convention and (where the plan allows) GitHub branch protection. Never push directly.
 - **`cals-dev`** — integration branch. All pull requests target this.
 - **topic / session branches** — one per change (`arena/*`, `feat/*`, `fix/*`).
 
@@ -27,7 +27,7 @@ A personal calorie and nutrition tracking application.
 
 ## Configuration
 
-Copy `.env.example` (or create `/app/data/.env`) with your environment variables.
+Create `/app/data/.env` with your environment variables.
 
 ### Required
 
@@ -60,9 +60,7 @@ Copy `.env.example` (or create `/app/data/.env`) with your environment variables
 
 ## Legacy Mealie Integration (v1; not part of React Phase 13)
 
-The current vanilla-JavaScript Recipes view has a legacy search/import integration for recipes stored in a separately hosted [Mealie](https://mealie.io) container. The owner is **not pursuing this importer now**, so it will not be ported into the React Recipes experience in Phase 13. Importing requires parsing Mealie's external recipe payload, which could break after significant Mealie changes; the current importer also stores ingredient lines as text rather than matching them to known cals Foods. If the legacy UI is removed at Phase 16 cutover, the Mealie search/import feature will disappear unless it is separately reconsidered.
-
-The configuration and endpoint notes below describe the existing legacy implementation, not a commitment to maintain or expand it.
+The V1 vanilla Recipes view offered Mealie search/import. It was not ported to React; the owner has approved retiring that UI. The backend endpoints remain for compatibility and have not been removed. The notes below describe those endpoints, not a feature available in the React UI.
 
 ### Reaching Mealie from cals
 
@@ -77,9 +75,9 @@ In both cases `MEALIE_API_KEY` is the Mealie API key.
 
 All endpoints are protected by Cloudflare Access middleware.
 
-### Recipes view behaviour
+### Historical V1 Recipes view behaviour
 
-In the **legacy Recipes** tab, the `Search recipes...` box searches both:
+In the removed **legacy Recipes** tab, the `Search recipes...` box searches both:
 
 - local cals recipes (shown under **In cals**)
 - Mealie recipes (shown under **From Mealie** when you type a query)
