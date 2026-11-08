@@ -71,6 +71,7 @@ check that compiles and runs the Go test files; `go build` never touches `_test.
 | **Go tests (validation)** | `go-validate.yml` | every pull request targeting `cals-dev` or `main`, every push to `cals-dev` | `go vet ./...` and `go test ./...` with `CGO_ENABLED=1` on the Go version from `go.mod` — the gate that catches a failing or non-compiling backend test | `contents: read` |
 | **Playwright browser suite (milestone)** | `web-e2e.yml` | a `v*-dev*` tag, or a PR carrying the `run-e2e` label | builds the bundle and drives it in a real Chromium at phone size (84 tests on the current branch): Diary flows, the Today/Diary hydration split, the recipe area including no-photo creation, control by control, the reminders bell journeys, and the phone tap behaviour. Failure evidence (traces, screenshots, HTML report) is uploaded even when the job fails — see [`testing.md`](./testing.md) | `contents: read` |
 | **Publish V2 image (development)** | `publish-dev-image.yml` | pushing a Git tag matching `v*-dev*` (for example `v2.0.0-dev-rc1`) | guards that the tagged commit is on `cals-dev`, logs in to GHCR, builds, pushes the exact tag and moves `dev-latest`, creates the GitHub prerelease with the image digest in its notes, then logs out and verifies the image pulls **anonymously** (the test Unraid depends on) | `contents: write`, `packages: write` |
+| **Publish V2 image (stable)** | `publish-stable-image.yml` (added 2026-11-08, not yet used) | the owner pushing an **annotated** tag matching `vX.Y.Z` on `main` with a `Promotes: vX.Y.Z-dev-rcN` line; a manual run is a dry run that pushes nothing | **builds nothing**. It runs [`stable-release-guard.sh`](../../.github/scripts/stable-release-guard.sh): the tag is on `main`, `AppVersion` matches, the RC is an ancestor, and only docs/CI changed since it. It also checks that the RC's recorded digest still matches the registry and that its browser suite passed. Then it copies that digest unchanged to `:vX.Y.Z` and `:latest`, creates the GitHub release and verifies an anonymous pull. See [`stable-release-plan.md`](./stable-release-plan.md) | `contents: write`, `packages: write`, `actions: read` |
 
 **Why `main` appears in two of those triggers (kept deliberately, owner decision 2026-10-04).** The
 `main` entry in `docker-validate.yml` and `go-validate.yml` exists so that a *deliberate* release PR
@@ -92,7 +93,7 @@ is live production and read-only, is never a PR base for this work, and is never
 promotion to `main` would be a separate, deliberate owner decision and is not authorized by
 “Lets publish”.
 
-Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. Stable publishing is still to be designed; plain `latest` remains reserved for a release promoted to `main`.
+Nothing is published without a human action. The validation workflow never pushes, and the publish workflow only runs for a tag: **pushing the tag is the approval step.** The trigger deliberately matches development tags only (`v*-dev*`), so a stable `vX.Y.Z` tag — for example on `main` — does not publish from this pipeline. A stable `vX.Y.Z` tag on `main` triggers the separate **`Publish V2 image (stable)`** workflow instead ([`publish-stable-image.yml`](../../.github/workflows/publish-stable-image.yml), added 2026-11-08, not yet used). It rebuilds nothing: it copies a road-tested RC's digest to `:vX.Y.Z` and `:latest`. See [`stable-release-plan.md`](./stable-release-plan.md).
 
 ### Publishing a development checkpoint
 
@@ -168,7 +169,7 @@ This is the documented installation. There is no Compose step and no source buil
 
 1. The publishing workflow moves `dev-latest` to the new candidate (and pushes the exact RC tag).
 2. In Unraid, apply the container update for `cals-dev-v2` — Unraid pulls the image now behind `dev-latest` and restarts the container. No XML change is needed per RC; the template itself only changes when the XML changes (then refresh it via its `TemplateURL` / CA, or copy the new file over).
-3. After the owner chooses to Force Update to the current candidate (see `docs/CURRENT_STATE.md`), re-run the verification steps above (health, the app shell, persistence); also check `/legacy/` still opens the old UI and `/next/…` redirects onto the matching path.
+3. After the owner chooses to Force Update to the current candidate (see `docs/CURRENT_STATE.md`), re-run the verification steps above (health, the app shell, persistence); also check that `/next/…` redirects onto the matching path. Since rc43, `/legacy/` returns 404 by design (the vanilla UI was removed in PR #101).
 
 ## GHCR visibility
 
@@ -286,7 +287,7 @@ recorded in the historical rc33 row; older owner-review wording records the stat
 ## Not implemented yet
 
 - ~~The first end-to-end Unraid run has not been verified.~~ **Verified (owner, 2026-10-02): V2 was installed from `cals-dev-v2.xml` and the Cloudflare route was moved to `8151`.** The anonymous-pull gate has passed on every publish since rc2; Docker still cannot run in the Arena sandbox, so the *image build* is verified by CI and the *container run* by the owner.
-- Stable publishing is not implemented: there is no workflow for a `latest` image after promotion to `main`, and none for `cals-dev-v2.xml` updates.
+- ~~Stable publishing is not implemented.~~ **Designed 2026-11-08, not yet used:** `Publish V2 image (stable)` promotes an RC's digest to `:vX.Y.Z` and `:latest` when the owner pushes an annotated stable tag on `main`. See [`stable-release-plan.md`](./stable-release-plan.md). Switching the container to `:latest` and any `cals-dev-v2.xml` default change are still owner steps (plan §4 step 6, decision D4).
 - The publish workflow cannot fix package visibility itself: GitHub does not expose package administration to `GITHUB_TOKEN`. If the anonymous-pull check fails, only the owner (who has admin on the package) can flip it, and the failure message says exactly where.
 
 ### 2026-10-03 — rc5 dashboard checkpoint

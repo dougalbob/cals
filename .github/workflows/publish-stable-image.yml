@@ -1,0 +1,290 @@
+# Promote a road-tested V2 development image to a stable release.
+#
+# Nothing is rebuilt. A stable release is the exact image the household has
+# already been running, copied digest-for-digest to two more tags:
+#
+#   ghcr.io/<owner>/cals-dev-v2:vX.Y.Z    exact stable tag (immutable by convention)
+#   ghcr.io/<owner>/cals-dev-v2:latest    moving stable tag
+#
+# `dev-latest` and the candidate's own tag are not touched.
+#
+# The approval step is an annotated Git tag that the OWNER pushes on `main`,
+# after the release PR (cals-dev -> main, merged with a merge commit) lands:
+#
+#   git tag -a v2.0.0 -m "cals 2.0.0" -m "Promotes: v2.0.0-dev-rc43" <main merge commit>
+#   git push origin v2.0.0
+#
+# Guards, all of which must pass before anything is pushed:
+#   - the tag is exactly vX.Y.Z (X >= 2), annotated, and names the candidate
+#     it promotes on a `Promotes: vX.Y.Z-dev-rcN` line;
+#   - the tagged commit is on main and the app reports AppVersion X.Y.Z;
+#   - the candidate is an ancestor of the tagged commit and nothing that goes
+#     into the image changed in between (.github/scripts/stable-release-guard.sh);
+#   - the candidate has a GitHub prerelease whose recorded digest matches the
+#     registry today, and its tagged browser suite passed.
+#
+# A manual run (workflow_dispatch, offered once this file is on `main`) is a
+# DRY RUN: it checks main's tip against the same guards and pushes nothing.
+#
+# Plan, procedure and rollback: docs/architecture/stable-release-plan.md.
+
+name: Publish V2 image (stable)
+
+on:
+  push:
+    tags:
+      # Matches v2.0.0 but not v2.0.0-dev-rc43 (filters match the whole name).
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      stable_tag:
+        description: 'Stable version to check, e.g. v2.0.0 (dry run: nothing is pushed)'
+        required: true
+        type: string
+      promotes:
+        description: 'Road-tested candidate it would promote, e.g. v2.0.0-dev-rc43'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-stable-image
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/cals-dev-v2
+  DRY_RUN: ${{ github.event_name != 'push' }}
+
+jobs:
+  promote:
+    name: ${{ github.event_name == 'push' && format('Promote {0}', github.ref_name) || format('Dry run {0}', inputs.stable_tag) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release
+      packages: write # add tags to the existing GHCR image
+      actions: read # confirm the candidate's browser suite passed
+    steps:
+      - name: Check out the tagged commit (or main's tip for a dry run)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || 'refs/heads/main' }}
+          fetch-depth: 0
+
+      - name: Fetch main and all tags
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          git fetch --force --tags origin
+
+      - name: Resolve what is being released
+        id: req
+        env:
+          INPUT_STABLE_TAG: ${{ inputs.stable_tag }}
+          INPUT_PROMOTES: ${{ inputs.promotes }}
+        run: |
+          if [[ "$DRY_RUN" == "true" ]]; then
+            STABLE_TAG="$INPUT_STABLE_TAG"
+            PROMOTES="$INPUT_PROMOTES"
+            COMMIT="$(git rev-parse origin/main)"
+            echo "Dry run: checking main's tip $COMMIT as $STABLE_TAG; nothing will be pushed."
+          else
+            STABLE_TAG="$GITHUB_REF_NAME"
+            if [[ "$(git cat-file -t "refs/tags/$STABLE_TAG")" != "tag" ]]; then
+              echo "::error::$STABLE_TAG is a lightweight tag. Use an annotated tag with a 'Promotes: $STABLE_TAG-dev-rcN' line: git tag -a $STABLE_TAG -m \"cals ${STABLE_TAG#v}\" -m \"Promotes: $STABLE_TAG-dev-rcN\" <commit>"
+              exit 1
+            fi
+            PROMOTES="$(git for-each-ref --format='%(contents)' "refs/tags/$STABLE_TAG" \
+              | sed -n 's/^Promotes:[[:space:]]*\([^[:space:]]*\).*/\1/p' | head -n1)"
+            COMMIT="$(git rev-parse HEAD)"
+          fi
+          {
+            echo "stable_tag=$STABLE_TAG"
+            echo "promotes=$PROMOTES"
+            echo "commit=$COMMIT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Guard - on main, right version, nothing image-affecting since the candidate
+        id: guard
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          PROMOTES: ${{ steps.req.outputs.promotes }}
+          COMMIT: ${{ steps.req.outputs.commit }}
+          MAIN_REF: origin/main
+        run: .github/scripts/stable-release-guard.sh
+
+      - name: Ensure skopeo is available
+        run: |
+          if ! command -v skopeo >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq skopeo
+          fi
+          skopeo --version
+
+      - name: Guard - the candidate was published, unchanged, and passed its browser suite
+        id: candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RC_TAG: ${{ steps.guard.outputs.rc_tag }}
+        run: |
+          # The digest the publish workflow recorded when the candidate was built.
+          if ! gh release view "$RC_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body > rc-release.md; then
+            echo "::error::$RC_TAG has no GitHub release, so it was not published by the development workflow."
+            exit 1
+          fi
+          RECORDED="$(grep -oE 'sha256:[0-9a-f]{64}' rc-release.md | head -n1 || true)"
+          if [[ -z "$RECORDED" ]]; then
+            echo "::error::The $RC_TAG release notes do not record an image digest; cannot prove which image was road-tested."
+            exit 1
+          fi
+
+          # What the registry serves for that tag today (anonymously, as Unraid would).
+          CURRENT="sha256:$(skopeo inspect --raw "docker://$IMAGE:$RC_TAG" | sha256sum | cut -d' ' -f1)"
+          if [[ "$CURRENT" != "$RECORDED" ]]; then
+            echo "::error::$IMAGE:$RC_TAG now resolves to $CURRENT, but its release recorded $RECORDED. Refusing to promote an image that differs from the one published."
+            exit 1
+          fi
+
+          # The candidate's tagged browser suite (web-e2e.yml) must have passed.
+          RC_COMMIT="$(git rev-parse "refs/tags/$RC_TAG^{commit}")"
+          E2E_URL="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/web-e2e.yml/runs?head_sha=$RC_COMMIT&event=push&status=success&per_page=20" \
+            --jq "[.workflow_runs[] | select(.head_branch == \"$RC_TAG\")][0].html_url // empty")"
+          if [[ -z "$E2E_URL" ]]; then
+            echo "::error::No successful tagged browser suite run found for $RC_TAG ($RC_COMMIT)."
+            exit 1
+          fi
+
+          echo "Candidate $RC_TAG: digest $RECORDED matches its release; browser suite passed: $E2E_URL"
+          {
+            echo "digest=$RECORDED"
+            echo "e2e_url=$E2E_URL"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Guard - the stable tag is not already published elsewhere
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          # Hash the raw manifest bytes from a file: command substitution would
+          # strip trailing newlines and change the digest.
+          if skopeo inspect --raw "docker://$IMAGE:$STABLE_TAG" > existing-manifest.json 2>/dev/null; then
+            EXISTING="sha256:$(sha256sum existing-manifest.json | cut -d' ' -f1)"
+            if [[ "$EXISTING" != "$DIGEST" ]]; then
+              echo "::error::$IMAGE:$STABLE_TAG already exists with a different digest ($EXISTING). Stable tags are never moved; release a new version instead."
+              exit 1
+            fi
+            echo "$IMAGE:$STABLE_TAG already points at $DIGEST (re-run); continuing."
+          else
+            echo "$IMAGE:$STABLE_TAG does not exist yet."
+          fi
+
+      - name: Copy the candidate's digest to the stable tag and latest
+        if: env.DRY_RUN != 'true'
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for TAG in "$STABLE_TAG" latest; do
+            # --preserve-digests fails rather than re-encode, so the stable tags
+            # are byte-for-byte the manifest the household has been running.
+            skopeo copy --all --preserve-digests "docker://$IMAGE@$DIGEST" "docker://$IMAGE:$TAG"
+            GOT="sha256:$(skopeo inspect --raw "docker://$IMAGE:$TAG" | sha256sum | cut -d' ' -f1)"
+            if [[ "$GOT" != "$DIGEST" ]]; then
+              echo "::error::$IMAGE:$TAG resolves to $GOT after the copy, expected $DIGEST."
+              exit 1
+            fi
+            echo "$IMAGE:$TAG -> $DIGEST"
+          done
+          skopeo logout ghcr.io || true
+
+      - name: Write the release notes
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+          COMMIT: ${{ steps.guard.outputs.commit }}
+          RC_TAG: ${{ steps.guard.outputs.rc_tag }}
+          RC_COMMIT: ${{ steps.guard.outputs.rc_commit }}
+          E2E_URL: ${{ steps.candidate.outputs.e2e_url }}
+        run: |
+          cat > release-notes.md <<NOTES
+          Stable release of cals V2. This image was not rebuilt: it is the road-tested
+          development candidate $RC_TAG, promoted digest-for-digest.
+
+          | Field | Value |
+          |---|---|
+          | Exact image tag | $IMAGE:$STABLE_TAG |
+          | Moving stable tag | $IMAGE:latest |
+          | Digest | $IMAGE@$DIGEST |
+          | Promotes | $RC_TAG ($RC_COMMIT on cals-dev) — [release]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$RC_TAG), [browser suite]($E2E_URL) |
+          | Source commit | $COMMIT on main |
+          | Workflow run | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID |
+
+          Installing or updating does not happen automatically: on Unraid, the cals-dev-v2
+          container follows whichever tag its Repository field names. Rollback is a
+          Repository change to an earlier exact tag; never reset or replace appdata.
+          See docs/architecture/stable-release-plan.md.
+          NOTES
+          sed -i 's/^ *//' release-notes.md
+          cat release-notes.md
+
+      - name: Create the GitHub release
+        if: env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+        run: |
+          if gh release view "$STABLE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $STABLE_TAG already exists (re-run); leaving it as is."
+          else
+            gh release create "$STABLE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --latest \
+              --title "cals $STABLE_TAG" \
+              --notes-file release-notes.md
+          fi
+
+      # Unraid pulls with no credentials: prove `latest` is public and is the
+      # promoted digest, exactly as a stranger would see it.
+      - name: Verify latest pulls anonymously and is the promoted image
+        if: env.DRY_RUN != 'true'
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          docker logout ghcr.io || true
+          docker pull "$IMAGE:latest"
+          for TAG in "$STABLE_TAG" latest; do
+            GOT="sha256:$(skopeo inspect --raw "docker://$IMAGE:$TAG" | sha256sum | cut -d' ' -f1)"
+            [[ "$GOT" == "$DIGEST" ]] || { echo "::error::Anonymous $IMAGE:$TAG resolves to $GOT, expected $DIGEST."; exit 1; }
+          done
+          echo "Anonymous pull OK; $STABLE_TAG and latest are $DIGEST."
+
+      - name: Summarise
+        if: always()
+        env:
+          STABLE_TAG: ${{ steps.req.outputs.stable_tag }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+          COMMIT: ${{ steps.guard.outputs.commit }}
+          RC_TAG: ${{ steps.guard.outputs.rc_tag }}
+          E2E_URL: ${{ steps.candidate.outputs.e2e_url }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          {
+            if [[ "$DRY_RUN" == "true" ]]; then
+              echo "### Dry run for ${STABLE_TAG:-?}: $OUTCOME (nothing was pushed)"
+            else
+              echo "### Stable release ${STABLE_TAG:-?}: $OUTCOME"
+            fi
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Promotes | ${RC_TAG:-not resolved} |"
+            echo "| Digest | ${DIGEST:-not resolved} |"
+            echo "| Commit on main | ${COMMIT:-not resolved} |"
+            echo "| Candidate browser suite | ${E2E_URL:-not resolved} |"
+            echo ""
+            echo "Publishing does not update Unraid. See docs/architecture/stable-release-plan.md"
+            echo "for switching the cals-dev-v2 container to :latest and for rollback."
+          } >> "$GITHUB_STEP_SUMMARY"

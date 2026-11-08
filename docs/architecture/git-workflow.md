@@ -96,7 +96,7 @@ Reference: [About protected branches — GitHub Docs](https://docs.github.com/en
 | Dismiss stale approvals | ✅ | — |
 | Require status checks to pass | ✅ | `Docker build (validation)` runs on every PR now; front-end phases add `tsc`, lint, tests |
 | Require conversation resolution | ✅ | — |
-| Require linear history | ✅ (optional) | Keeps `main` history readable |
+| Require linear history | ❌ | A stable release must reach `main` through a **merge commit** so the promoted RC stays in `main`'s history ([`stable-release-plan.md`](./stable-release-plan.md) §2 check 5). Withdrawn 2026-11-08 |
 | Allow force pushes | ❌ | Non-negotiable |
 | Allow deletions | ❌ | Non-negotiable |
 | Do not allow bypassing the above settings | ✅ | Applies the rule to administrators too |
@@ -110,7 +110,7 @@ gh api -X PUT repos/dougalbob/cals/branches/main/protection \
   -H "Accept: application/vnd.github+json" \
   -f 'required_pull_request_reviews[required_approving_review_count]=0' \
   -f 'required_pull_request_reviews[dismiss_stale_reviews]=true' \
-  -F 'enforce_admins=true' -F 'required_linear_history=true' \
+  -F 'enforce_admins=true' -F 'required_linear_history=false' \
   -F 'allow_force_pushes=false' -F 'allow_deletions=false'
 ```
 
@@ -271,18 +271,23 @@ not part of this loop and is not authorized by “Lets publish”.
 
 ### Releases (`cals-dev` → `main`)
 
-1. Confirm the Unraid deployment has been running the `cals-dev` build cleanly.
-2. Open the release PR: `gh pr create --base main --head cals-dev --title "release: <summary>"`.
+The full procedure, its guards and the open decisions are in
+[`stable-release-plan.md`](./stable-release-plan.md). In short:
+
+1. Confirm the Unraid deployment has been running the release candidate (`vX.Y.Z-dev-rcN`) cleanly for a few days.
+2. The owner opens the release PR: `gh pr create --base main --head cals-dev --title "release: <summary>"`.
 3. Review the *whole* diff (`gh pr diff`) — this is the last gate before production.
-4. Merge (squash or merge commit, whichever you prefer — keep it consistent).
-5. Tag it: `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`.
-6. Deploy it. Compose is retired as an installation method, so:
-   - **V2 line (going forward):** publish the image per [`unraid-image-release.md`](./unraid-image-release.md) and apply the update to the `cals-dev-v2` Unraid container — no server-side build. Development checkpoints are tagged `vX.Y.Z-dev-rcN` on `cals-dev` and publish to `dev-latest`; a stable `vX.Y.Z` tag does **not** publish from that workflow, so stable publishing is still the owner's manual step/procedure until a stable workflow exists.
-   - **Legacy V1 server (only if it is still in use):** it predates the template method and is rebuilt manually on the Unraid box from its existing checkout (`docker compose build && docker compose up -d` there, using the kept-for-legacy `docker-compose.yml`). New installs never use Compose.
+4. Merge with **Create a merge commit** — not squash, not rebase. The stable workflow requires the promoted RC to be an ancestor of the tagged commit on `main`.
+5. Optionally dry-run *Publish V2 image (stable)* from the Actions tab, then tag the merge commit with an **annotated** tag that names the RC:
+   `git tag -a vX.Y.Z -m "cals X.Y.Z" -m "Promotes: vX.Y.Z-dev-rcN" origin/main && git push origin vX.Y.Z`.
+6. Deploy it:
+   - **V2 line:** `Publish V2 image (stable)` copies the RC's digest, unchanged, to `ghcr.io/dougalbob/cals-dev-v2:vX.Y.Z` and `:latest` and creates the GitHub release. Nothing is rebuilt, and `dev-latest` is untouched. A merge to `main` publishes nothing by itself, and publishing does not update Unraid: the owner points the `cals-dev-v2` container's Repository at `:latest` (or an exact tag) and applies.
+   - **Legacy V1 server:** it predates the template method and was rebuilt from its own checkout with the kept-for-legacy `docker-compose.yml`. **After V2 reaches `main`, do not pull or rebuild that checkout.** Compose builds whatever is checked out and mounts the stale V1 appdata, so it would start V2 on the V1 database ([`stable-release-plan.md`](./stable-release-plan.md) §3 H1).
 
 ### Rollback
 
-- Fastest: redeploy the previous tag/commit (`git checkout vX.Y.Z` → rebuild the image, or for V2 roll the GHCR tag back and re-apply the Unraid container update), or `git revert -m 1 <merge-sha>` on `main` via a PR.
+- Fastest for V2: edit the `cals-dev-v2` container's Repository to an earlier **exact** tag (`vX.Y.Z-dev-rcN` or a previous `vX.Y.Z`) and apply. Never move a stable tag by hand, and never reset or replace appdata to roll back.
+- Source: `git revert -m 1 <merge-sha>` on `main` via a PR (owner). This does not change any image.
 - `main` has no protection rules applied yet (they are available — §4.2), so it is still protected only by convention. Always know the last-good tag before merging a release.
 
 ---

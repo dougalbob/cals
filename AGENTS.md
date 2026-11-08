@@ -30,7 +30,7 @@ Instructions for AI agents (Arena sessions, GitHub Copilot, Claude Code, Codex, 
    just been tagged**: the digest and run IDs exist only after the tag has been built, so they land in a focused
    docs-only follow-up PR. It cannot strand work — every value it records is already on GitHub the moment the
    publish workflow finishes. See [`docs/architecture/git-workflow.md`](docs/architecture/git-workflow.md) §5.
-8. **Never touch live appdata.** V2 (`/mnt/user/appdata/cals-dev-v2`) is the household's live data since 2026-10-02 even though it began as a copy; the V1 directory (`/mnt/user/appdata/cals`) is stale, and neither may be used as a development data directory. The only disposable data is the `cals-dev-identity` copy. See `docs/architecture/data-copy-warning.md`.
+8. **Never touch live appdata.** ⚠️ **Owner report, 2026-11-08:** the only cals container on Unraid is named `cals-dev-identity` and mounts `/mnt/user/appdata/cals-dev-identity`. **That directory is the family's live data**, despite the template calling it disposable. Until the owner says otherwise, treat *every* cals appdata directory (`cals-dev-identity`, `cals-dev-v2`, `cals`) as precious. See the warning at the top of `docs/architecture/data-copy-warning.md`. The older wording follows: V2 (`/mnt/user/appdata/cals-dev-v2`) is the household's live data since 2026-10-02 even though it began as a copy; the V1 directory (`/mnt/user/appdata/cals`) is stale, and neither may be used as a development data directory. The only disposable data is the `cals-dev-identity` copy. See `docs/architecture/data-copy-warning.md`.
 
 The local `pre-push` hook (`.githooks/pre-push`, installed with `./scripts/setup-git-hooks.sh`) blocks pushes to `main` as a backstop. Do not circumvent it with `--no-verify` or `ALLOW_MAIN_PUSH=1`.
 
@@ -101,8 +101,12 @@ docker run --rm -p 8150:8150 \
 # cals-dev-v2.xml template — see docs/architecture/unraid-image-release.md
 ```
 
-Container images are published only by the tag-triggered `Publish V2 image (development)` workflow —
-never by hand, never from `main`, and never with `latest` for a development candidate. The
+Container images are built and published only by the tag-triggered `Publish V2 image (development)`
+workflow. They are never built or pushed by hand, never built from `main`, and a development
+candidate never gets `latest`. The one exception is `Publish V2 image (stable)`, which runs when the
+**owner** pushes an annotated `vX.Y.Z` tag on `main`. It builds nothing: it copies an already
+road-tested RC's digest to `:vX.Y.Z` and `:latest`. Agents do not push stable tags unless the owner
+explicitly asks. See `docs/architecture/stable-release-plan.md`. The
 `Docker build (validation)` workflow builds the image on every pull request without pushing, which
 is how the container build is verified if you cannot run Docker locally.
 

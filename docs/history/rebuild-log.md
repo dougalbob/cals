@@ -14,6 +14,49 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Owner report: the family's app is `cals-dev-identity` (2026-11-08)
+
+The owner checked the Unraid Docker tab and reported one cals container, named `cals-dev-identity`.
+It mounts `/mnt/user/appdata/cals-dev-identity` and is the family's daily app. The documentation had
+called that directory the only disposable one. The warnings in `data-copy-warning.md`, `AGENTS.md`,
+`CURRENT_STATE.md` and the stable release plan were corrected the same day. The owner then
+confirmed that Dev mode is off, each family member sees their own diary, and the Unraid backup
+covers all of appdata. The port, the image tag and the history of the switch are still unconfirmed. No container,
+template or appdata was touched.
+
+---
+
+## Stable release planned — V2 to `main` (2026-11-08)
+
+After rc43 was confirmed on Unraid, the owner asked to make V2 the version on `main`. They chose
+the stable image scheme: the same package, `ghcr.io/dougalbob/cals-dev-v2:vX.Y.Z` plus `:latest`.
+They also asked for the plan and a stable-publish workflow. This session adopted the unmerged
+rc43 handoff docs of [PR #102](https://github.com/dougalbob/cals/pull/102) (cherry-picked from
+`362b047`) and added:
+
+- [`architecture/stable-release-plan.md`](../architecture/stable-release-plan.md): the
+  `cals-dev` → `main` diff review, the release procedure, rollback, and open decisions D3–D7.
+- `Publish V2 image (stable)`. It **promotes a road-tested RC's digest unchanged**, with no
+  rebuild. It runs on an owner-pushed annotated `vX.Y.Z` tag on `main` that carries
+  `Promotes: vX.Y.Z-dev-rcN`. The tag is checked by `.github/scripts/stable-release-guard.sh` and by
+  the recorded digest and browser-suite run. A manual run of the workflow is a dry run.
+
+The review found two hazards:
+
+- After promotion, the V1 server's Compose rebuild would build V2 onto the stale V1 database.
+- The suggested linear-history protection would block the merge commit that a release requires.
+  That suggestion was withdrawn in `git-workflow.md`.
+
+Nothing was released. `main`, the GHCR tags, Unraid and appdata were not touched.
+
+---
+
+## rc43 published — legacy frontend retirement (2026-11-08)
+
+The owner confirmed rc42 installed and approved removing the legacy UI. [PR #101](https://github.com/dougalbob/cals/pull/101) merged as `729ec15fa4d78770d758dcc339f639092cedeebe` and was published as [v2.0.0-dev-rc43](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc43). The [publish run](https://github.com/dougalbob/cals/actions/runs/42454428724) including anonymous pull succeeded; the [tagged browser suite](https://github.com/dougalbob/cals/actions/runs/42454428736) passed 96/96. Image digest: `sha256:a257dcd40e8e50aeae69b841d34b9237bacb7d6f38f5de98372ec6704594d476`. The owner subsequently confirmed a Force Update on Unraid and that the app works and `/legacy` returns 404. The agent made no appdata or deployment changes.
+
+---
+
 ## rc42 published — nutrition rating guides (2026-10-17)
 
 [PR #99](https://github.com/dougalbob/cals/pull/99) merged into `cals-dev` as
