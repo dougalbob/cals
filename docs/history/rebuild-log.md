@@ -16,7 +16,7 @@ at the decision numbers and PRs rather than restating the documents.
 
 ## rc43 published — legacy frontend retirement (2026-11-08)
 
-The owner confirmed rc42 installed and approved removing the legacy UI. [PR #101](https://github.com/dougalbob/cals/pull/101) merged as `729ec15fa4d78770d758dcc339f639092cedeebe` and was published as [v2.0.0-dev-rc43](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc43). The [publish run](https://github.com/dougalbob/cals/actions/runs/42454428724) including anonymous pull succeeded; the [tagged browser suite](https://github.com/dougalbob/cals/actions/runs/42454428736) passed 96/96. Image digest: `sha256:a257dcd40e8e50aeae69b841d34b9237bacb7d6f38f5de98372ec6704594d476`. The owner will update and test on Unraid; no appdata or deployment changes were made by this session.
+The owner confirmed rc42 installed and approved removing the legacy UI. [PR #101](https://github.com/dougalbob/cals/pull/101) merged as `729ec15fa4d78770d758dcc339f639092cedeebe` and was published as [v2.0.0-dev-rc43](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc43). The [publish run](https://github.com/dougalbob/cals/actions/runs/42454428724) including anonymous pull succeeded; the [tagged browser suite](https://github.com/dougalbob/cals/actions/runs/42454428736) passed 96/96. Image digest: `sha256:a257dcd40e8e50aeae69b841d34b9237bacb7d6f38f5de98372ec6704594d476`. The owner subsequently confirmed a Force Update on Unraid and that the app works and `/legacy` returns 404. The agent made no appdata or deployment changes.
 
 ---
 
