@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟢 **V2 remains live and Cloudflare-routed as `cals-dev-v2` on port `8151`; rc43 is the last reported installation** (owner 2026-11-08 — confirms Force Update worked and `/legacy` is 404). **Newest published: `v2.0.0-dev-rc44`** (2026-11-08, [publish run 42463702455](https://github.com/dougalbob/cals/actions/runs/42463702455), source `0cc69fe84e44fce580daa86807c2b474e897df1a` on `cals-dev`, digest `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940`, [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc44)) — Admin-only in-app backup & restore (database + recipe photos, automatic daily with 7 kept, download/upload, before-restore safety copies). `dev-latest` moved; the publish run passed the ancestry guard, image build/push, prerelease creation and the anonymous-pull gate; the tagged browser suite passed 96/96. **rc44 awaits the owner's Force Update and phone review.** No schema migration, data copy, appdata operation (new `/app/data/backups/` folder is created inside appdata), Unraid template change or Cloudflare change. This is the precondition checkpoint for the stable-release promotion. |
+| **Status** | 🟢 **V2 is the stable release. `v2.0.0` was published on 2026-11-08** ([release](https://github.com/dougalbob/cals/releases/tag/v2.0.0), [run 42476850664](https://github.com/dougalbob/cals/actions/runs/42476850664)) by promoting `v2.0.0-dev-rc44` digest-for-digest to `:v2.0.0` and `:latest` — **nothing was rebuilt**, so the stable image is byte-identical (`sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940`) to the rc the household was already running. `main` now carries the V2 source (merge `318b9955e1e5b5625d6c7530e10597b2093a4a9d`, [PR #106](https://github.com/dougalbob/cals/pull/106)). The live container is **`cals-dev-identity`** on port `8151`; switching it from `dev-latest` to the stable **`:latest`** is the owner's remaining step (⏳ pending at the time of writing), after which it no longer receives development candidates automatically. See [`stable-release-plan.md`](./stable-release-plan.md) §4.1 for the full release record. Previous status: **`v2.0.0-dev-rc44`** (2026-11-08, [publish run 42463702455](https://github.com/dougalbob/cals/actions/runs/42463702455), source `0cc69fe84e44fce580daa86807c2b474e897df1a` on `cals-dev`, digest `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940`, [prerelease](https://github.com/dougalbob/cals/releases/tag/v2.0.0-dev-rc44)) — Admin-only in-app backup & restore (database + recipe photos, automatic daily with 7 kept, download/upload, before-restore safety copies). `dev-latest` moved; the publish run passed the ancestry guard, image build/push, prerelease creation and the anonymous-pull gate; the tagged browser suite passed 96/96. **rc44 awaits the owner's Force Update and phone review.** No schema migration, data copy, appdata operation (new `/app/data/backups/` folder is created inside appdata), Unraid template change or Cloudflare change. This is the precondition checkpoint for the stable-release promotion. |
 | **Updated** | 2026-11-08 |
 
 > ⚠️ **Data copy warning — read [`data-copy-warning.md`](./data-copy-warning.md) before
@@ -167,6 +167,15 @@ This is the documented installation. There is no Compose step and no source buil
 
 ## Updating V2
 
+> **From 2026-11-08 the household container follows the stable channel `:latest`, not
+> `dev-latest`** (⏳ the Repository-field change is the owner's pending step). A new RC therefore
+> **no longer reaches the family automatically** — that is the point of having two channels. Steps 1–3 below describe the development channel, which now applies
+> only to a container deliberately pointed at `dev-latest` or at an exact RC tag. The household
+> container moves when a new stable `vX.Y.Z` is released (see
+> [`stable-release-plan.md`](./stable-release-plan.md)) and the owner applies the update.
+>
+> Where future RCs get road-tested is open decision **D3** in that plan.
+
 1. The publishing workflow moves `dev-latest` to the new candidate (and pushes the exact RC tag).
 2. In Unraid, apply the container update for `cals-dev-v2` — Unraid pulls the image now behind `dev-latest` and restarts the container. No XML change is needed per RC; the template itself only changes when the XML changes (then refresh it via its `TemplateURL` / CA, or copy the new file over).
 3. After the owner chooses to Force Update to the current candidate (see `docs/CURRENT_STATE.md`), re-run the verification steps above (health, the app shell, persistence); also check that `/next/…` redirects onto the matching path. Since rc43, `/legacy/` returns 404 by design (the vanilla UI was removed in PR #101).
@@ -225,6 +234,31 @@ files — `Docker build (validation)` runs `go build ./cmd/server`, which does n
 This first image is a **development smoke-test image**, not a completed UI redesign or authorization to cut over V1. The `/next/` frontend is still a foundation; keep the UI improvement and owner-review gate for later user-facing phases.
 
 ## Release log
+
+### Stable releases
+
+Stable tags are written **only** by `Publish V2 image (stable)`, which runs when the owner pushes an
+annotated `vX.Y.Z` tag on `main`. It builds nothing: it copies a road-tested candidate's digest to
+`:vX.Y.Z` and `:latest`. Procedure and the full release record:
+[`stable-release-plan.md`](./stable-release-plan.md).
+
+| Tag | Released | Promotes | Source commit on `main` | Image digest | GitHub release | Workflow run |
+|---|---|---|---|---|---|---|
+| `v2.0.0` | 2026-11-08 | `v2.0.0-dev-rc44` (`0cc69fe84e44fce580daa86807c2b474e897df1a`) | `318b9955e1e5b5625d6c7530e10597b2093a4a9d` ([PR #106](https://github.com/dougalbob/cals/pull/106), merge commit) | `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940` — **identical to rc44** | [v2.0.0](https://github.com/dougalbob/cals/releases/tag/v2.0.0) | [42476850664](https://github.com/dougalbob/cals/actions/runs/42476850664) |
+
+**v2.0.0 notes.** The first stable release of the V2 line, and the first use of the promotion
+workflow. All guards passed: tag shape and `Promotes:` line, tagged commit on `main`, `AppVersion`
+`2.0.0`, candidate an ancestor of the tag, only two image-neutral files (`docs/CURRENT_STATE.md`,
+`docs/architecture/unraid-image-release.md`) changed since rc44, the registry digest matching rc44's
+recorded prerelease digest, the candidate's [tagged browser suite](https://github.com/dougalbob/cals/actions/runs/42463702360)
+(96/96), and `:v2.0.0` not already present with different bytes. `skopeo copy --all
+--preserve-digests` then wrote both tags, and the run verified that `:latest` pulls **anonymously**
+the way Unraid pulls it. `dev-latest` and rc44's own tag were untouched. Pre-flight: the owner had
+Force Updated to rc44 and exercised **both backup and restore** from Settings against the live
+household database. No schema migration, no data copy, no appdata operation, no template change, no
+Cloudflare change.
+
+### Development candidates
 
 The owner signed off the published RC candidates through rc25 on 2026-10-04, tested rc26 on Unraid,
 Force Updated to **rc27** and road-tested the windowed bank on both accounts on 2026-10-05
