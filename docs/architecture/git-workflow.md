@@ -271,6 +271,17 @@ not part of this loop and is not authorized by “Lets publish”.
 
 ### Releases (`cals-dev` → `main`)
 
+> **⚠️ `cals-dev` is permanent. Never delete it — not after a release, not ever.** A release does
+> not "finish" or "use up" the branch. `main` is only a published snapshot of the last release;
+> `cals-dev` is where *all* work continues to land, and every PR is still opened against it. The two
+> branches are expected to diverge again as soon as the next change merges — `cals-dev` being ahead
+> of `main` is the normal, healthy state, not something to tidy up.
+>
+> GitHub offers a **Delete branch** button after a release PR merges. Do not click it. (Only the
+> short-lived `arena/*`, `feat/*` and `fix/*` branches are safe to delete once merged.) If it is
+> ever deleted by accident, recreate it immediately from the release merge commit:
+> `git branch cals-dev <merge-sha> && git push origin cals-dev`.
+
 The full procedure, its guards and the open decisions are in
 [`stable-release-plan.md`](./stable-release-plan.md). In short:
 

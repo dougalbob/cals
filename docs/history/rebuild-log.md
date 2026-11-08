@@ -14,6 +14,53 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## 🎉 V2 released as `v2.0.0` — `main` is now V2 (2026-11-08)
+
+The rebuild that began on 2026-10-02 became the official version. The owner decided not to wait the
+several-day road-test window the plan allowed for, because the thing that window was protecting
+against — having no way back — had just been solved: rc44 shipped in-app backup and restore, he
+Force Updated to it, and he exercised **both** backup and restore against the live household
+database before giving the go-ahead.
+
+The release ran as three separate, deliberate steps, exactly as
+[`stable-release-plan.md`](../architecture/stable-release-plan.md) specifies:
+
+1. **Source.** [PR #106](https://github.com/dougalbob/cals/pull/106) promoted `cals-dev` into `main`
+   — 261 commits, 315 files, +63,193 / −10,336. The owner merged it himself with **Create a merge
+   commit** (`318b9955e1e5b5625d6c7530e10597b2093a4a9d`, parents `d65812c` V1 and `d777539`), which
+   the promotion guard requires: a squash or rebase would have rewritten the commits and the
+   candidate would no longer have been an ancestor. Docker validation and Go tests passed on the PR.
+   `main` had been V1 (`AppVersion 1.7.0`) since the project began.
+2. **Tag.** Annotated `v2.0.0` carrying `Promotes: v2.0.0-dev-rc44`, pushed with the owner's explicit
+   authorisation (AGENTS.md rule 7 reserves stable tags to him).
+3. **Image.** [Run 42476850664](https://github.com/dougalbob/cals/actions/runs/42476850664) passed
+   all nine guards and copied rc44's digest **unchanged** to `:v2.0.0` and `:latest` with
+   `skopeo copy --all --preserve-digests`, created the (non-pre-) release and verified an anonymous
+   pull. Released digest
+   `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940` — **byte-identical to
+   rc44**. The household changed channel without changing a byte of running code.
+
+Then the owner changed one field on Unraid: the `cals-dev-identity` container's **Repository**, from
+`…:dev-latest` to `ghcr.io/dougalbob/cals-dev-v2:latest`, and confirmed the app came back up on
+`latest`. Nothing else — same name, same port `8151`, same appdata mount
+`/mnt/user/appdata/cals-dev-identity`. No migration ran, because the image was the one already
+running.
+
+**What changed in practice.** The family is now on a stable channel: development candidates stop
+arriving on their phones automatically, which is the whole point of the split. Where future RCs get
+road-tested is open decision D3 — `cals-dev-identity` is *not* a test container, despite its name.
+
+**Two things to remember.** First, the old V1 checkout must be left alone (hazard H1): if anything
+ever ran `git pull && docker compose build && docker compose up -d` there, it would now build V2
+against the stale 2023-era V1 database at `/mnt/user/appdata/cals`. Decision D5 is still open.
+Second, the dry run was skipped — the agent's token returned HTTP 403 on workflow dispatch
+(`actions: write` not granted), so the Git-level guard was run locally and the registry guards ran
+for real during the tagged run, before any write. Next time, either grant that scope or have the
+owner click *Run workflow*.
+
+Day-to-day work continues on `cals-dev` unchanged. The next line bumps `AppVersion` and publishes
+`v2.x.y-dev-rcN` as before.
+
 ## In-app backup & restore built (2026-11-08)
 
 The pre-stable-release safety net. A new **Backups (Admin only)** section on Settings lets the owner

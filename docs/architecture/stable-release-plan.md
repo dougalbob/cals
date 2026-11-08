@@ -2,8 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | 🟡 **Proposed — the procedure and the workflow exist, but nothing has been released.** The owner decided D1–D2 on 2026-11-08; D3–D7 are still open (§8) |
+| **Status** | 🟢 **Released — `v2.0.0` shipped on 2026-11-08 by this procedure.** The release PR ([#106](https://github.com/dougalbob/cals/pull/106)) merged `cals-dev` into `main` with a merge commit (`318b9955e1e5b5625d6c7530e10597b2093a4a9d`), the annotated tag `v2.0.0` (`Promotes: v2.0.0-dev-rc44`) was pushed, and [run 42476850664](https://github.com/dougalbob/cals/actions/runs/42476850664) copied rc44's digest `sha256:531eb68f…7940` to `:v2.0.0` and `:latest`. D7 is answered (rc44). D1–D2 were decided on 2026-11-08; D3–D6 remain open (§8) |
 | **Raised** | 2026-11-08 |
+| **Released** | 2026-11-08 — [`v2.0.0`](https://github.com/dougalbob/cals/releases/tag/v2.0.0) |
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md) (branches, release PRs), [`unraid-image-release.md`](./unraid-image-release.md) (development channel, Unraid template), [`data-copy-warning.md`](./data-copy-warning.md) (**read before any container or appdata step**), [`../CURRENT_STATE.md`](../CURRENT_STATE.md) (what is deployed today), workflow [`publish-stable-image.yml`](../../.github/workflows/publish-stable-image.yml) and its guard [`stable-release-guard.sh`](../../.github/scripts/stable-release-guard.sh) |
 
@@ -157,6 +158,28 @@ merges `main`, and pushes a stable tag only if the owner explicitly asks.
 7. **Record the evidence** in a docs-only PR to `cals-dev`: the release log, `CURRENT_STATE.md` and
    the rebuild log. The release PR itself stays owner-controlled.
 
+### 4.1 Release record — `v2.0.0`, 2026-11-08
+
+The first run of this procedure, end to end, in order:
+
+| Step | What happened | Evidence |
+|---|---|---|
+| 0. Pre-flight | Owner Force Updated to rc44, then exercised **both** backup and restore from Settings → Backups against the live household database. Unraid's appdata backup covers `/mnt/user/appdata/cals-dev-identity` | Owner report |
+| 2. Release PR | `cals-dev` → `main`, merged by @dougalbob with **Create a merge commit** (two parents: `d65812c` V1 and `d777539` cals-dev). Docker validation and Go tests green | [PR #106](https://github.com/dougalbob/cals/pull/106), merge `318b9955e1e5b5625d6c7530e10597b2093a4a9d` |
+| 3. Dry run | **Skipped.** The agent's token could not dispatch the workflow (HTTP 403, `actions: write` not granted). The Git-level guard was instead run locally against `origin/main` and the tag, and the candidate's prerelease digest and tagged browser suite were confirmed through the API. Safe because every guard in the workflow runs **before** the first registry write, which is gated on `DRY_RUN != 'true'` | `stable-release-guard.sh` passed locally |
+| 4. Tag | Annotated `v2.0.0` on `318b9955…`, body `cals 2.0.0` + `Promotes: v2.0.0-dev-rc44`. Pushed by the agent **with the owner's explicit authorisation** (AGENTS.md rule 7) | `git tag -a v2.0.0` |
+| 5. Workflow | All 13 steps green in 18s. rc44's digest copied unchanged to `:v2.0.0` and `:latest`; GitHub release created (not a prerelease); anonymous pull of `:latest` verified | [run 42476850664](https://github.com/dougalbob/cals/actions/runs/42476850664), [release](https://github.com/dougalbob/cals/releases/tag/v2.0.0) |
+| 6. Unraid switch | ✅ Done. `cals-dev-identity` Repository field changed from `…:dev-latest` to `ghcr.io/dougalbob/cals-dev-v2:latest`; nothing else altered. Owner confirmed the container restarted and the app is running on `latest`. No migration ran — the image was the one already running | Owner report, 2026-11-08 |
+| 7. Evidence | This record, plus `CURRENT_STATE.md`, `unraid-image-release.md` and the rebuild log | This PR |
+
+**The released digest is `sha256:531eb68fc882af1e5b80bc25905e2f86e63f179b2d1dfcbca747d76c09cf7940` —
+byte-identical to `v2.0.0-dev-rc44`.** Nothing was rebuilt, so the household moved channel without
+changing a single byte of the running application.
+
+**Lesson for the next release:** grant the agent token `actions: write`, or plan for the owner to
+click *Run workflow* for the dry run. The dry run is still the recommended order; it was skipped
+here only because the button was not available to the agent.
+
 ## 5. After the first stable release
 
 - **Development continues on `cals-dev`.** The next line bumps `AppVersion` (to `2.0.1` or `2.1.0`)
@@ -199,4 +222,4 @@ decision:
 | D4 | Should `cals-dev-v2.xml` default to `:latest`? | Change it in a later docs/template PR; or leave it on `dev-latest` | Change it after 2.0.0 ships, so fresh installs get stable. The existing container is switched by hand in §4 step 6 either way |
 | D5 | What protects the V1 checkout (H1)? | (a) never pull it again and retire it later; (b) pin that checkout to `v1.9.0`; (c) replace `docker-compose.yml` on `cals-dev` with a refusing stub before the release PR | (a) or (b) now. (c) only with the V1 retirement decision |
 | D6 | Apply `main` branch protection before the release PR? | Yes, with no linear history; or keep the convention only | Yes |
-| D7 | When, and which RC? | rc43 after a few clean days, or a later RC | rc43 after a few days, unless more code lands first |
+| ~~D7~~ | ~~When, and which RC?~~ | **Answered 2026-11-08: rc44.** The owner chose to release as soon as the backup/restore safety net was installed and exercised, rather than waiting the full road-test window. rc44 was Force Updated, and backup *and* restore were both tested successfully against the live household database before the release PR merged | — |
