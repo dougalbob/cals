@@ -1,6 +1,6 @@
 # Phase 16 — Cutover: audit, estimate and staged plan
 
-> **2026-11-08 update:** The owner reports rc42 installed and confirms React works through Cloudflare and on a phone, and approves legacy UI removal. Stage 16.4 is proposed in this working branch; it is not yet deployed. The dated audit and steps below describe the earlier state. Preserve the legacy worker/cache cleanup for returning devices and `/next/*` redirects. Template changes remain separate. See [`CURRENT_STATE`](../CURRENT_STATE.md).
+> **2026-11-08 update:** The owner reports rc42 installed and confirms React works through Cloudflare and on a phone, and approves legacy UI removal. Stage 16.4 merged in PR #101 and was published as rc43; it is not yet reported deployed. The dated audit and steps below describe the earlier state. Preserve the legacy worker/cache cleanup for returning devices and `/next/*` redirects. Template changes remain separate. See [`CURRENT_STATE`](../CURRENT_STATE.md).
 
 | Field | Value |
 |---|---|
