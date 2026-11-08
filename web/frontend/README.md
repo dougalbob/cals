@@ -1,6 +1,6 @@
 # cals React frontend — app rebuild and UI notes
 
-**Status:** The owner reports rc42 installed on Unraid and confirms the React app works through Cloudflare and on a phone. See [current state](../../docs/CURRENT_STATE.md). The Phase 16.4 legacy frontend removal is proposed in this branch, not yet deployed.
+**Status:** The owner reports rc42 installed on Unraid and confirms the React app works through Cloudflare and on a phone. See [current state](../../docs/CURRENT_STATE.md). The Phase 16.4 legacy frontend removal was published as rc43, not yet reported deployed.
 
 The Go production build and fixture preview mount React at `/`. `/next/*` redirects to the corresponding root path. Retired `/legacy/`, `/static/` and `/public/` paths return 404 in the cleanup; the narrowly scoped old service-worker and cache removal remains for returning devices. Installation does not imply offline support.
 
