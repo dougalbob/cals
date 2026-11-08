@@ -41,10 +41,6 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-type contextKey string
-
-const UserEmailKey contextKey = "user_email"
-
 func NewCloudflareAuth(teamDomain, policyAUD string) *CloudflareAuth {
 	return &CloudflareAuth{
 		TeamDomain: teamDomain,
@@ -178,13 +174,11 @@ func (ca *CloudflareAuth) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Add email to context
-		ctx := context.WithValue(r.Context(), UserEmailKey, strings.ToLower(claims.Email))
+		// The verified identity is both the authenticated and the acting user
+		// until the Admin acting-user switch overrides the latter.
+		email := strings.ToLower(claims.Email)
+		ctx := context.WithValue(r.Context(), UserEmailKey, email)
+		ctx = WithAuthenticatedEmail(ctx, email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func GetUserEmail(ctx context.Context) string {
-	email, _ := ctx.Value(UserEmailKey).(string)
-	return email
 }

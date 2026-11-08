@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -24,20 +26,23 @@ func HandleGetWeightEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get optional days parameter
-	days := 90 // default
-	if d := r.URL.Query().Get("days"); d != "" {
-		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
-			days = parsed
-		}
+	// Window: an explicit from/to pair, or the legacy `days` parameter counting
+	// back from today (90 by default, uncapped as before).
+	from, to, ok := resolveSeriesRange(w, r, 90, 0, false)
+	if !ok {
+		return
 	}
 
+	// date(date) rather than the bare column: weight_entries.date is declared
+	// DATE, so mattn/go-sqlite3 hands back RFC3339 when it is scanned into a
+	// string. The legacy Metrics screen compares that against a plain
+	// YYYY-MM-DD, so today's weigh-in never pre-filled.
 	rows, err := database.DB.Query(`
-		SELECT id, user_id, date, weight_kg, created_at 
-		FROM weight_entries 
-		WHERE user_id = ? AND date >= date('now', '-' || ? || ' days')
-		ORDER BY date DESC
-	`, userID, days)
+		SELECT id, user_id, date(date) AS day, weight_kg, created_at
+		FROM weight_entries
+		WHERE user_id = ? AND date >= date(?) AND date <= date(?)
+		ORDER BY day DESC
+	`, userID, from, to)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -50,6 +55,7 @@ func HandleGetWeightEntries(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&e.ID, &e.UserID, &e.Date, &e.WeightKG, &e.CreatedAt); err != nil {
 			continue
 		}
+		e.Date = isoDate(e.Date)
 		entries = append(entries, e)
 	}
 
@@ -59,6 +65,46 @@ func HandleGetWeightEntries(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entries)
+}
+
+// HandleGetLatestWeightEntry returns the user's most recent weigh-in across all
+// history. The chart and summary list are deliberately windowed; the Metrics
+// card still needs the actual last-entry date when the user has not weighed in
+// during the last 90 days.
+func HandleGetLatestWeightEntry(w http.ResponseWriter, r *http.Request) {
+	email := auth.GetUserEmail(r.Context())
+	if email == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var userID int64
+	if err := database.DB.QueryRow(`SELECT id FROM users WHERE email = ?`, email).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	var entry models.WeightEntry
+	err := database.DB.QueryRow(`
+		SELECT id, user_id, date(date) AS day, weight_kg, created_at
+		FROM weight_entries
+		WHERE user_id = ?
+		ORDER BY day DESC, id DESC
+		LIMIT 1
+	`, userID).Scan(&entry.ID, &entry.UserID, &entry.Date, &entry.WeightKG, &entry.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(nil)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	entry.Date = isoDate(entry.Date)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entry)
 }
 
 func HandleCreateWeightEntry(w http.ResponseWriter, r *http.Request) {

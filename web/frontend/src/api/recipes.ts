@@ -1,0 +1,63 @@
+import { apiGet, apiPost, apiPostForm, apiPut } from './client'
+import type {
+  Recipe,
+  RecipeContentInput,
+  RecipeCreateInput,
+  RecipeDetail,
+  RecipeImageUploadResponse,
+  RecipeMetadataInput,
+} from './types'
+
+/**
+ * The catalogue omits archived recipes unless asked. The Recipes page asks, so its
+ * "Show archived" toggle can reveal them without another round trip; pickers that log a
+ * recipe must keep the default and never offer an archived one (decision 59).
+ */
+export function getRecipes(options: { includeArchived?: boolean } = {}): Promise<Recipe[]> {
+  return apiGet<Recipe[]>(options.includeArchived ? '/api/recipes?include_archived=true' : '/api/recipes')
+}
+
+export function getRecipe(id: number): Promise<RecipeDetail> {
+  return apiGet<RecipeDetail>(`/api/recipes/${id}`)
+}
+
+/** Create a shared recipe definition with its classification in one API write. */
+export function createRecipe(input: RecipeCreateInput): Promise<RecipeDetail> {
+  return apiPost<RecipeDetail>('/api/recipes', input)
+}
+
+/** Upload or replace the shared recipe photo without setting a JSON Content-Type. */
+export function uploadRecipeImage(id: number, file: File): Promise<RecipeImageUploadResponse> {
+  const body = new FormData()
+  body.append('image', file, file.name)
+  return apiPostForm<RecipeImageUploadResponse>(`/api/recipes/${id}/image`, body)
+}
+
+/** Update shared recipe content in place; the server rejects any name change. */
+export function updateRecipe(id: number, input: RecipeContentInput): Promise<RecipeDetail> {
+  return apiPut<RecipeDetail>(`/api/recipes/${id}`, input)
+}
+
+export function setRecipeFavourite(id: number, isFavourite: boolean): Promise<{ is_favourite: boolean }> {
+  return apiPut<{ is_favourite: boolean }>(`/api/recipes/${id}/favourite`, {
+    is_favourite: isFavourite,
+  })
+}
+
+/** Archive (hide, keep history) or restore a shared recipe. Household-wide; idempotent. */
+export function setRecipeArchived(id: number, isArchived: boolean): Promise<RecipeDetail> {
+  return apiPut<RecipeDetail>(`/api/recipes/${id}/archive`, { is_archived: isArchived })
+}
+
+export function updateRecipeMetadata(id: number, input: RecipeMetadataInput): Promise<RecipeDetail> {
+  return apiPut<RecipeDetail>(`/api/recipes/${id}/metadata`, input)
+}
+
+/**
+ * Every cuisine already used by a recipe, so the editor's chip row can offer
+ * the household's own cuisines beside the suggested set (decision 123).
+ * Read-only and cheap; an empty household answers `[]`.
+ */
+export function getRecipeCuisines(): Promise<string[]> {
+  return apiGet<string[]>('/api/recipes/cuisines')
+}

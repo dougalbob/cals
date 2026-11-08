@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!--
+  Unraid template for the LAN-only DEV identity-switch container.
+
+  This is NOT the container the household uses. It runs the same image as
+  cals-dev-v2 with DEV_MODE=true and DEV_IDENTITY_SWITCH=true so either user
+  can be selected from a browser at /dev/identity without editing variables.
+
+  Requirements, in order:
+    1. It uses HOST networking. DEV_MODE rejects 0.0.0.0 and requires a
+       private BIND_ADDRESS, so a bridge container with a published port
+       cannot work. Set BIND_ADDRESS to the Unraid LAN IP below.
+    2. It mounts its OWN COPY of the database, never V1
+       (/mnt/user/appdata/cals) and never the live V2 appdata
+       (/mnt/user/appdata/cals-dev-v2). Read
+       docs/architecture/data-copy-warning.md before creating the copy:
+       stop the source container, then `cp -a` the whole directory.
+    3. It is reachable on the LAN only. Never route it through Cloudflare
+       Tunnel or expose it to the internet.
+
+  See docs/architecture/dev-identity-switch.md for the full manual.
+-->
+<Container version="2">
+  <Name>cals-dev-identity</Name>
+  <Repository>ghcr.io/dougalbob/cals-dev-v2:dev-latest</Repository>
+  <Registry>https://github.com/dougalbob/cals/pkgs/container/cals-dev-v2</Registry>
+  <Network>host</Network>
+  <MyIP/>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/dougalbob/cals/issues</Support>
+  <Project>https://github.com/dougalbob/cals</Project>
+  <Overview>DEV-ONLY, LAN-ONLY cals container for testing as either household user. Runs the same image as cals-dev-v2 with DEV_MODE=true and DEV_IDENTITY_SWITCH=true, host networking, and its own COPY of the database at /mnt/user/appdata/cals-dev-identity. Open http://[Unraid LAN IP]:8152/dev/identity to switch identity, or ?as=email to override once. Never expose through Cloudflare Tunnel; never mount production appdata. See docs/architecture/dev-identity-switch.md and docs/architecture/data-copy-warning.md.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8152]/dev/identity</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/dougalbob/cals/cals-dev/cals-dev-identity.xml</TemplateURL>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <DateInstalled>0</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <DonateImg/>
+  <MinVer/>
+  <Description>Cals DEV identity-switch container (LAN only, disposable data copy).</Description>
+  <Networking>
+    <Mode>host</Mode>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/cals-dev-identity</HostDir>
+      <ContainerDir>/app/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment/>
+  <Labels/>
+  <Config Name="Port" Target="PORT" Default="8152" Description="Port the app listens on. Host networking, so this must be free on the Unraid host (V1 uses 8150, V2 uses 8151)." Type="Variable" Display="always" Required="true" Mask="false">8152</Config>
+  <Config Name="Bind address (Unraid LAN IP)" Target="BIND_ADDRESS" Default="" Description="REQUIRED. The Unraid host's LAN IP, e.g. 192.168.1.10. DEV_MODE rejects 0.0.0.0, ::, hostnames and public addresses." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="Dev mode" Target="DEV_MODE" Default="true" Description="Enables local development auth (loopback/private peers only). Do not change." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
+  <Config Name="Dev identity switch" Target="DEV_IDENTITY_SWITCH" Default="true" Description="Enables /dev/identity and ?as=email identity switching. Requires DEV_MODE=true and never works on the Cloudflare-routed container. Do not change." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
+  <Config Name="Default dev user email" Target="DEV_USER_EMAIL" Default="" Description="The identity used before a user is picked, e.g. you@example.com. The user must exist in the copy; the switch only lists existing users." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="Dev appdata (disposable data copy)" Target="/app/data" Default="/mnt/user/appdata/cals-dev-identity" Mode="rw" Description="A COPY of the database, made with the source container stopped. Never point this at V1 (/mnt/user/appdata/cals) or the live V2 appdata (/mnt/user/appdata/cals-dev-v2)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/cals-dev-identity</Config>
+  <Config Name="Time zone" Target="TZ" Default="Europe/London" Description="Container time zone" Type="Variable" Display="always" Required="false" Mask="false">Europe/London</Config>
+</Container>

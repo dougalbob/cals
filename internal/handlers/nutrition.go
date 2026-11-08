@@ -3,11 +3,20 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"cals/internal/auth"
 	"cals/internal/database"
 )
+
+// maxNutritionWindow bounds the legacy `days` parameter for
+// GET /api/nutrition/weekly so the endpoint cannot be asked to compute
+// arbitrarily large ranges. It matches the cap already used on the stats
+// endpoints (slice 14.1). An explicit from/to pair is bounded by
+// resolveSeriesRange's maxSeriesSpan (400 days) instead, exactly as the stats
+// series endpoints are (slice 14.6).
+const maxNutritionWindow = 90
 
 // NutritionSettings represents user's nutrition goals
 type NutritionSettings struct {
@@ -18,10 +27,16 @@ type NutritionSettings struct {
 	CarbMaxPercent   float64 `json:"carb_max_percent"`
 }
 
-// DailyNutrition represents a single day's nutritional data
+// DailyNutrition represents a single day's nutritional data.
+//
+// Calories include drink entries so the figure agrees with the ring/bank
+// (decisions 1, 14.1 — drinks count towards the bank); macros stay food-only
+// because the drink schema carries no protein/carbs/fat/fibre breakdown.
 type DailyNutrition struct {
 	Date           string  `json:"date"`
 	Calories       float64 `json:"calories"`
+	FoodCalories   float64 `json:"food_calories"`
+	DrinkCalories  float64 `json:"drink_calories"`
 	Protein        float64 `json:"protein"`
 	Carbs          float64 `json:"carbs"`
 	Fat            float64 `json:"fat"`
@@ -179,10 +194,10 @@ func HandleGetDailyNutrition(w http.ResponseWriter, r *http.Request) {
 	// Get current weight
 	weightKg := getCurrentWeightKg(userID)
 
-	// Get daily totals
-	var calories, protein, carbs, fat, fibre float64
+	// Get daily food totals
+	var foodCal, protein, carbs, fat, fibre float64
 	err = database.DB.QueryRow(`
-		SELECT 
+		SELECT
 			COALESCE(SUM(calories), 0),
 			COALESCE(SUM(protein), 0),
 			COALESCE(SUM(carbs), 0),
@@ -190,20 +205,31 @@ func HandleGetDailyNutrition(w http.ResponseWriter, r *http.Request) {
 			COALESCE(SUM(fibre), 0)
 		FROM diary_entries
 		WHERE user_id = ? AND date = ?
-	`, userID, date).Scan(&calories, &protein, &carbs, &fat, &fibre)
+	`, userID, date).Scan(&foodCal, &protein, &carbs, &fat, &fibre)
 
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
+	// Drinks contribute calories (decision 1; 14.1 precedent) but no macros
+	// because the drink schema has no protein/carbs/fat/fibre columns.
+	var drinkCal float64
+	database.DB.QueryRow(`
+		SELECT COALESCE(SUM(calories), 0)
+		FROM drink_entries
+		WHERE user_id = ? AND date = ?
+	`, userID, date).Scan(&drinkCal)
+
 	daily := DailyNutrition{
-		Date:     date,
-		Calories: calories,
-		Protein:  protein,
-		Carbs:    carbs,
-		Fat:      fat,
-		Fibre:    fibre,
+		Date:          date,
+		Calories:      foodCal + drinkCal,
+		FoodCalories:  foodCal,
+		DrinkCalories: drinkCal,
+		Protein:       protein,
+		Carbs:         carbs,
+		Fat:           fat,
+		Fibre:         fibre,
 	}
 
 	// Calculate percentages
@@ -250,10 +276,39 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 	// Get current weight
 	weightKg := getCurrentWeightKg(userID)
 
-	// Get last 7 days of data
-	endDate := time.Now()
-	startDate := endDate.AddDate(0, 0, -6)
+	// Window: an explicit `from`/`to` pair wins (slice 14.6 — the weekly report's
+	// date-range picker), otherwise the legacy `days` parameter counts back from
+	// today exactly as before, so V1 and the Nutrition screen are untouched.
+	//
+	// The from/to path is strict and shared with the metrics series endpoints
+	// (a malformed or half-given range is a 400, `to` is clamped to today so a
+	// future row cannot be fabricated); `days` keeps its old contract, where an
+	// out-of-range value is still a 400 rather than a silent fallback.
+	var startISO, endISO string
+	if r.URL.Query().Get("from") != "" || r.URL.Query().Get("to") != "" {
+		from, to, ok := resolveSeriesRange(w, r, 7, maxNutritionWindow, true)
+		if !ok {
+			return
+		}
+		startISO, endISO = from, to
+	} else {
+		days := 7
+		if ds := r.URL.Query().Get("days"); ds != "" {
+			n, err := strconv.Atoi(ds)
+			if err != nil || n < 1 || n > maxNutritionWindow {
+				http.Error(w, "days must be between 1 and 90", http.StatusBadRequest)
+				return
+			}
+			days = n
+		}
+		endDate := time.Now()
+		startDate := endDate.AddDate(0, 0, -(days - 1))
+		startISO, endISO = startDate.Format("2006-01-02"), endDate.Format("2006-01-02")
+	}
 
+	// Food entries contribute calories + macros; drink entries contribute
+	// calories only (drink schema has no macro columns) — decisions 1 and
+	// 14.1, so Nutrition's calorie total agrees with the ring/bank above.
 	rows, err := database.DB.Query(`
 		WITH RECURSIVE dates(date) AS (
 			SELECT date(?)
@@ -261,19 +316,34 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 			SELECT date(date, '+1 day')
 			FROM dates
 			WHERE date < date(?)
+		),
+		food_totals AS (
+			SELECT date,
+				COALESCE(SUM(calories), 0) AS food_cal,
+				COALESCE(SUM(protein), 0) AS protein,
+				COALESCE(SUM(carbs), 0) AS carbs,
+				COALESCE(SUM(fat), 0) AS fat,
+				COALESCE(SUM(fibre), 0) AS fibre
+			FROM diary_entries WHERE user_id = ? GROUP BY date
+		),
+		drink_totals AS (
+			SELECT date, COALESCE(SUM(calories), 0) AS drink_cal
+			FROM drink_entries WHERE user_id = ? GROUP BY date
 		)
-		SELECT 
+		SELECT
 			d.date,
-			COALESCE(SUM(e.calories), 0) as calories,
-			COALESCE(SUM(e.protein), 0) as protein,
-			COALESCE(SUM(e.carbs), 0) as carbs,
-			COALESCE(SUM(e.fat), 0) as fat,
-			COALESCE(SUM(e.fibre), 0) as fibre
+			COALESCE(f.food_cal, 0) + COALESCE(dr.drink_cal, 0) AS calories,
+			COALESCE(f.food_cal, 0) AS food_cal,
+			COALESCE(dr.drink_cal, 0) AS drink_cal,
+			COALESCE(f.protein, 0) AS protein,
+			COALESCE(f.carbs, 0) AS carbs,
+			COALESCE(f.fat, 0) AS fat,
+			COALESCE(f.fibre, 0) AS fibre
 		FROM dates d
-		LEFT JOIN diary_entries e ON e.date = d.date AND e.user_id = ?
-		GROUP BY d.date
+		LEFT JOIN food_totals f ON f.date = d.date
+		LEFT JOIN drink_totals dr ON dr.date = d.date
 		ORDER BY d.date ASC
-	`, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), userID)
+	`, startISO, endISO, userID, userID)
 
 	if err != nil {
 		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -289,7 +359,7 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var d DailyNutrition
-		if err := rows.Scan(&d.Date, &d.Calories, &d.Protein, &d.Carbs, &d.Fat, &d.Fibre); err != nil {
+		if err := rows.Scan(&d.Date, &d.Calories, &d.FoodCalories, &d.DrinkCalories, &d.Protein, &d.Carbs, &d.Fat, &d.Fibre); err != nil {
 			continue
 		}
 
@@ -337,8 +407,8 @@ func HandleGetWeeklyAnalysis(w http.ResponseWriter, r *http.Request) {
 	status := calculateStatus(averages, settings)
 
 	analysis := WeeklyAnalysis{
-		StartDate:       startDate.Format("2006-01-02"),
-		EndDate:         endDate.Format("2006-01-02"),
+		StartDate:       startISO,
+		EndDate:         endISO,
 		DailyData:       dailyData,
 		Averages:        averages,
 		Status:          status,

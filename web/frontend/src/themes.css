@@ -1,0 +1,164 @@
+/* Device-local palettes for the React app. Kept in the React bundle so the
+   legacy root app's theme stylesheet and tokens are never required at /next/. */
+:root[data-theme='default'] {
+  color-scheme: light;
+}
+
+:root[data-theme='ocean'] {
+  color-scheme: light;
+  --color-primary: #0984e3;
+  --color-primary-dark: #0770c2;
+  --color-primary-light: #74b9ff;
+  --color-accent: #00cec9;
+  --color-accent-secondary: #81ecec;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-danger: #d63031;
+  --color-bg: #dfe6e9;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-ink: #2d3436;
+  --color-ink-light: #636e72;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #0984e3;
+  --color-meal-dinner: #6c5ce7;
+  --color-meal-snacks: #b2bec3;
+}
+
+:root[data-theme='forest'] {
+  color-scheme: light;
+  --color-primary: #00b894;
+  --color-primary-dark: #009975;
+  --color-primary-light: #55efc4;
+  --color-accent: #fdcb6e;
+  --color-accent-secondary: #ffeaa7;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-danger: #e17055;
+  --color-bg: #f0f5f0;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-ink: #2d3436;
+  --color-ink-light: #636e72;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #00b894;
+  --color-meal-dinner: #e17055;
+  --color-meal-snacks: #b2bec3;
+}
+
+:root[data-theme='sunset'] {
+  color-scheme: light;
+  --color-primary: #e17055;
+  --color-primary-dark: #d35843;
+  --color-primary-light: #fab1a0;
+  --color-accent: #fdcb6e;
+  --color-accent-secondary: #ffeaa7;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-danger: #d63031;
+  --color-bg: #fef9f3;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-ink: #2d3436;
+  --color-ink-light: #636e72;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #00cec9;
+  --color-meal-dinner: #e17055;
+  --color-meal-snacks: #b2bec3;
+}
+
+:root[data-theme='berry'] {
+  color-scheme: light;
+  --color-primary: #a55eea;
+  --color-primary-dark: #8e44ad;
+  --color-primary-light: #d4a5ff;
+  --color-accent: #fd79a8;
+  --color-accent-secondary: #fab1a0;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-danger: #d63031;
+  --color-bg: #f8f5fa;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-ink: #2d3436;
+  --color-ink-light: #636e72;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #6c5ce7;
+  --color-meal-dinner: #e84393;
+  --color-meal-snacks: #b2bec3;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-primary: #74b9ff;
+  --color-primary-dark: #5a9fd4;
+  --color-primary-light: #a4d4ff;
+  --color-accent: #fd79a8;
+  --color-accent-secondary: #fab1a0;
+  --color-success: #55efc4;
+  --color-warning: #ffeaa7;
+  --color-danger: #ff7675;
+  --color-bg: #1e272e;
+  --color-card: #2d3436;
+  --color-surface: #353b48;
+  --color-ink: #f5f6fa;
+  --color-ink-light: #b2bec3;
+  --color-ink-muted: #636e72;
+  --color-line: #4a5568;
+  --color-line-light: #3d4852;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #00cec9;
+  --color-meal-dinner: #e17055;
+  --color-meal-snacks: #b2bec3;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='midnight'] {
+  color-scheme: dark;
+  --color-primary: #a29bfe;
+  --color-primary-dark: #8c7ae6;
+  --color-primary-light: #c8c4ff;
+  --color-accent: #fd79a8;
+  --color-accent-secondary: #ffeaa7;
+  --color-success: #55efc4;
+  --color-warning: #ffeaa7;
+  --color-danger: #ff7675;
+  --color-bg: #0c0c1e;
+  --color-card: #1a1a2e;
+  --color-surface: #25254a;
+  --color-ink: #edf2f7;
+  --color-ink-light: #a0aec0;
+  --color-ink-muted: #718096;
+  --color-line: #4a5568;
+  --color-line-light: #2d3748;
+  --color-meal-breakfast: #fdcb6e;
+  --color-meal-lunch: #00cec9;
+  --color-meal-dinner: #e17055;
+  --color-meal-snacks: #a0aec0;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='matrix'] {
+  color-scheme: dark;
+  --color-primary: #008f11;
+  --color-primary-dark: #003b00;
+  --color-primary-light: #00ff41;
+  --color-accent: #00ff41;
+  --color-accent-secondary: #008f11;
+  --color-success: #00ff41;
+  --color-warning: #bfff00;
+  --color-danger: #ff3131;
+  --color-bg: #0d0208;
+  --color-card: #0f0f0f;
+  --color-surface: #1a1a1a;
+  --color-ink: #00ff41;
+  --color-ink-light: #008f11;
+  --color-ink-muted: #005f0b;
+  --color-line: #003b00;
+  --color-line-light: #002200;
+  --color-meal-breakfast: #00ff41;
+  --color-meal-lunch: #008f11;
+  --color-meal-dinner: #00ff41;
+  --color-meal-snacks: #008f11;
+  --shadow-card: 0 2px 8px rgba(0, 255, 65, 0.15);
+}

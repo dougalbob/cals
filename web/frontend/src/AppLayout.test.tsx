@@ -1,0 +1,258 @@
+// @vitest-environment jsdom
+/** Requests the layout made through the fixture stub, newest last. */
+let requests: { method: string; path: string; body: string | null }[] = []
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import { AppLayout } from './AppLayout'
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+function renderApp(devIdentitySwitch: boolean, initialPath = '/') {
+  return renderAppWithSession({ isAdmin: false, viewingAsOther: false }, devIdentitySwitch, initialPath)
+}
+
+/** One identity standing in for both, unless the test asks for a swap. */
+function renderAppWithSession(
+  options: { isAdmin?: boolean; viewingAsOther?: boolean; actingName?: string; reminders?: unknown },
+  devIdentitySwitch = false,
+  initialPath = '/',
+) {
+  const owner = {
+    id: 1,
+    email: 'owner@example.com',
+    name: 'Owner',
+    daily_calorie_goal: 2000,
+    is_admin: options.isAdmin ?? false,
+  }
+  const other = {
+    id: 2,
+    email: 'sarah@example.com',
+    name: options.actingName ?? 'Sarah',
+    daily_calorie_goal: 1600,
+    is_admin: false,
+  }
+  const acting = options.viewingAsOther ? other : owner
+
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(input), 'http://localhost').pathname
+    requests.push({
+      method: init?.method ?? 'GET',
+      path,
+      body: typeof init?.body === 'string' ? init.body : null,
+    })
+    const body = path === '/api/session' || path === '/api/users/me'
+      ? path === '/api/users/me'
+        ? acting
+        : {
+            authenticated_user: owner,
+            acting_user: acting,
+            is_admin: options.isAdmin ?? false,
+            viewing_as_other: options.viewingAsOther ?? false,
+          }
+      : path === '/api/users'
+        ? [owner, other]
+        : path === '/api/reminders'
+          ? { items: options.reminders ?? [] }
+          : {
+            version: '2.0.0',
+            ...(devIdentitySwitch ? { dev_identity_switch: true } : {}),
+          }
+
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+  })
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Routes>
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<div>Diary content</div>} />
+            <Route path="recipes" element={<div>Recipe content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('AppLayout development identity link', () => {
+  it('shows the switch-user link only when the server enables the DEV identity switch', async () => {
+    const { unmount } = renderApp(true)
+    const link = await screen.findByRole('link', { name: 'Switch user' })
+    expect(link.getAttribute('href')).toBe('/dev/identity')
+    expect(screen.getByRole('link', { name: 'Recipes' })).toBeTruthy()
+
+    unmount()
+    cleanup()
+    renderApp(false)
+    expect(await screen.findByText('Diary content')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Switch user' })).toBeNull()
+  })
+})
+
+describe('AppLayout primary navigation', () => {
+  it('lays out nav links in equal fifths and haptically signals swipe paging when supported', async () => {
+    const vibrate = vi.fn()
+    vi.stubGlobal('navigator', { vibrate })
+    renderApp(false)
+
+    const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
+    const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
+    // 8 destinations (Settings joins the existing overflow items). On page 1, Metrics slides
+    // under the left Back overlay as peek context, so no spacer slot is
+    // needed — Foods, Recipes and Settings land in the remaining visible slots.
+    const links = within(scroller).getAllByRole('link')
+    expect(links.length).toBe(8)
+    expect(links.every((link) => link.className.includes('w-1/5'))).toBe(true)
+    expect(nav.className).toContain('z-40')
+    expect(nav.textContent).toContain('Swipe horizontally or use the arrow to reveal Foods, Recipes and Settings')
+
+    // Overlay controls sit outside the scroller — More on the right when on
+    // page 0 (owner niggle, 2026-10-05: the Back arrow must always be at the
+    // far left when visible, never in the middle of the bar).
+    expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
+
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
+    // 8 destinations @ w-1/5 each = 8 * 100px = 800px. Page 1 scrolls by
+    // three slots so Metrics sits under the Back overlay and Foods/Recipes/Settings
+    // land ≥50% in the visible slots.
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
+    scroller.scrollLeft = 80 // past half-an-item → page 1 (Back visible)
+    fireEvent.scroll(scroller)
+    expect(vibrate).toHaveBeenCalledTimes(1)
+    expect(vibrate).toHaveBeenCalledWith(10)
+
+    fireEvent.scroll(scroller)
+    expect(vibrate).toHaveBeenCalledTimes(1)
+
+    scroller.scrollLeft = 0
+    fireEvent.scroll(scroller)
+    expect(vibrate).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses an overlay › More on the far right to reveal overflow routes and a ‹ Back on the far left to return', async () => {
+    renderApp(false)
+
+    const nav = await screen.findByRole('navigation', { name: 'Primary navigation' })
+    const scroller = within(nav).getByTestId('primary-navigation-scroll') as HTMLDivElement
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 500 })
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 })
+
+    const links = within(scroller).getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual(expect.arrayContaining(['🥗Nutrition', '🍲Foods', '🍽️Recipes', '⚙️Settings']))
+
+    // Page 0: More sits at the far right, no Back button.
+    const moreButton = within(nav).getByTestId('primary-navigation-more')
+    expect(within(nav).queryByTestId('primary-navigation-back')).toBeNull()
+    fireEvent.click(moreButton)
+    // Scroll to page 1 shifts by three item widths so Metrics sits under the
+    // Back overlay and Foods/Recipes/Settings land ≥50% in viewport (matching the e2e
+    // toBeInViewport({ratio:0.5}) expectations).
+    expect(scroller.scrollLeft).toBe(300)
+    // After scrolling, Back is on the far left.
+    const backButton = within(nav).getByTestId('primary-navigation-back')
+    expect(backButton).toBeTruthy()
+    expect(within(nav).queryByTestId('primary-navigation-more')).toBeNull()
+
+    fireEvent.click(backButton)
+    expect(scroller.scrollLeft).toBe(0)
+    expect(within(nav).getByTestId('primary-navigation-more')).toBeTruthy()
+  })
+})
+
+describe('AppLayout acting-user switch (decisions 45 and 88)', () => {
+  it('hides the swap control from a Standard user', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: false })
+    expect(await screen.findByText('Diary content')).toBeTruthy()
+    expect(screen.queryByTestId('swap-user-button')).toBeNull()
+    expect(screen.queryByTestId('viewing-as-banner')).toBeNull()
+  })
+
+  it('lets an Admin swap to another account, sending the chosen id to the server', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: true })
+
+    fireEvent.click(await screen.findByTestId('swap-user-button'))
+
+    const sheet = await screen.findByRole('dialog', { name: 'Swap user' })
+    expect(within(sheet).getByText(/Anything you log while swapped belongs to them/)).toBeTruthy()
+
+    // Both household accounts are offered, and the Admin's own is labelled.
+    expect(await within(sheet).findByText('Your own account')).toBeTruthy()
+    expect(within(sheet).getByText('sarah@example.com')).toBeTruthy()
+
+    fireEvent.click(within(sheet).getByRole('button', { name: /Sarah/ }))
+
+    await waitFor(() => {
+      const swap = requests.find((entry) => entry.path === '/api/session/acting-user')
+      expect(swap?.method).toBe('POST')
+      expect(JSON.parse(swap?.body ?? '{}')).toEqual({ user_id: 2 })
+    })
+  })
+
+  it('names the account being viewed and always offers a way back', async () => {
+    requests = []
+    renderAppWithSession({ isAdmin: true, viewingAsOther: true, actingName: 'Sarah' })
+
+    const banner = await screen.findByTestId('viewing-as-banner')
+    expect(banner.textContent).toContain('Viewing as Sarah')
+
+    // The Admin keeps the swap control while swapped, or the way back would be
+    // unreachable.
+    expect(screen.getByTestId('swap-user-button')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('return-to-own-account'))
+
+    await waitFor(() => {
+      const back = requests.find((entry) => entry.path === '/api/session/acting-user')
+      expect(back?.method).toBe('DELETE')
+    })
+  })
+})
+
+describe('AppLayout reminders bell (decisions 121–122)', () => {
+  it('carries the badge in the header, acting for whoever is on screen', async () => {
+    renderAppWithSession({
+      reminders: [
+        {
+          type: 'weigh_in',
+          last_date: null,
+          days_since: null,
+          cadence_days: 3,
+          week_from: null,
+          week_to: null,
+        },
+        {
+          type: 'weekly_report',
+          last_date: null,
+          days_since: null,
+          cadence_days: 0,
+          week_from: '2026-09-28',
+          week_to: '2026-10-04',
+        },
+      ],
+    })
+
+    const bell = await screen.findByTestId('reminders-bell')
+    await waitFor(() => expect(screen.getByTestId('reminders-badge').textContent).toBe('2'))
+    expect(bell.getAttribute('aria-label')).toBe('Reminders, 2 need attention')
+
+    fireEvent.click(bell)
+    const sheet = await screen.findByTestId('reminders-list')
+    expect(within(sheet).getByText('Time to weigh in')).toBeTruthy()
+    expect(within(sheet).getByText('Weekly report ready')).toBeTruthy()
+  })
+})

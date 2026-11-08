@@ -7,16 +7,38 @@ import (
 
 // User represents an authenticated user
 type User struct {
-	ID               int64     `json:"id"`
-	Email            string    `json:"email"`
-	Name             string    `json:"name"`
-	DailyCalorieGoal int       `json:"daily_calorie_goal"`
-	DailyWaterGoalML int       `json:"daily_water_goal_ml"`
-	WeightUnit       string    `json:"weight_unit"`
-	BankStartDate    string    `json:"bank_start_date"`
-	TargetWeightKG   *float64  `json:"target_weight_kg,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               int64  `json:"id"`
+	Email            string `json:"email"`
+	Name             string `json:"name"`
+	DailyCalorieGoal int    `json:"daily_calorie_goal"`
+	DailyWaterGoalML int    `json:"daily_water_goal_ml"`
+	WeightUnit       string `json:"weight_unit"`
+	BankStartDate    string `json:"bank_start_date"`
+	// BankWindowDays is the rolling window the calorie bank is computed over:
+	// the previous N completed calendar days (decisions 66, 92). 0 means "all
+	// time" — no length limit, still excluding unlogged days (decision 91). The
+	// column defaults to 14 (decision 93) and has no UI until Phase 15.
+	BankWindowDays int `json:"bank_window_days"`
+	// BankRingSurplusLimitKcal and BankRingDeficitLimitKcal are independent
+	// per-user display scales for the outer calorie-bank ring. They only change
+	// where the arc saturates; they never affect bank arithmetic (decision 27).
+	BankRingSurplusLimitKcal int `json:"bank_ring_surplus_limit_kcal"`
+	BankRingDeficitLimitKcal int `json:"bank_ring_deficit_limit_kcal"`
+	// WeightTrendDays is the moving-average window for the weigh-in chart's
+	// trend line, counted in weigh-ins rather than calendar days (decision 95).
+	// The column defaults to 7 and has no UI until Phase 15; the handler
+	// rejects windows below 3 because a trend over fewer than three weigh-ins
+	// is never drawn.
+	WeightTrendDays int `json:"weight_trend_days"`
+	// BodyOutline is which silhouette the Metrics body map draws: "female" or
+	// "male" (decision 97). NULL until the user picks one the first time they
+	// open the map — the column landed in slice 14.4 as the narrow exception
+	// the plan's Q7 recommended, written through PUT /api/users/me.
+	BodyOutline    *string   `json:"body_outline"`
+	TargetWeightKG *float64  `json:"target_weight_kg,omitempty"`
+	IsAdmin        bool      `json:"is_admin"` // Admin/Standard role (decisions 45, 88); Standard by default
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // Food represents a food item
@@ -72,8 +94,25 @@ type Recipe struct {
 	FibrePer100g          float64                `json:"fibre_per_100g"`
 	CreatedAt             time.Time              `json:"created_at"`
 	UpdatedAt             time.Time              `json:"updated_at"`
+	IsFavourite           bool                   `json:"is_favourite"`
+	TimesLogged           int64                  `json:"times_logged"`    // signed-in user's diary-entry count for this recipe
+	IsArchived            bool                   `json:"is_archived"`     // household-wide (decision 59): hidden from the catalogue and not loggable, history untouched
+	IsOwnCreation         bool                   `json:"is_own_creation"` // shared recipe-origin tag, editable by either household user
+	UsualGrams            *float64               `json:"usual_grams"`     // signed-in user's remembered portion; null until they first log it
+	MealOccasions         []string               `json:"meal_occasions"`
+	DishType              string                 `json:"dish_type,omitempty"`
+	// Cuisine is free text (issue #90, decision 123): empty means none.
+	Cuisine               string                 `json:"cuisine,omitempty"`
+	KeyFoods              []RecipeKeyFood        `json:"key_foods"`
+	TotalTimeMinutes      *int                   `json:"total_time_minutes"`
 	Ingredients           []RecipeIngredient     `json:"ingredients,omitempty"`
 	TextIngredients       []RecipeTextIngredient `json:"text_ingredients,omitempty"`
+}
+
+// RecipeKeyFood is a known cals Food selected as a recipe's key ingredient.
+type RecipeKeyFood struct {
+	FoodID   int64  `json:"food_id"`
+	FoodName string `json:"food_name"`
 }
 
 // RecipeIngredient represents a food ingredient in a recipe
@@ -133,19 +172,65 @@ type WeightEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// MeasurementEntry represents body measurements
+// MeasurementEntry represents body measurements.
+//
+// The part values are pointers so the JSON carries a plain number or null.
+// They were sql.NullFloat64 until slice 14.4, which serialised them as
+// {"Float64": 98.2, "Valid": true} — a shape no client type ever declared, and
+// the one that crashed the React Metrics screen on real data. Scanning a NULL
+// column into *float64 yields nil, so the wire shape is now exactly what
+// web/frontend/src/api/types.ts says.
 type MeasurementEntry struct {
-	ID         int64           `json:"id"`
-	UserID     int64           `json:"user_id"`
-	Date       string          `json:"date"`
-	BustCM     sql.NullFloat64 `json:"bust_cm,omitempty"`
-	ChestCM    sql.NullFloat64 `json:"chest_cm,omitempty"`
-	WaistCM    sql.NullFloat64 `json:"waist_cm,omitempty"`
-	HipsCM     sql.NullFloat64 `json:"hips_cm,omitempty"`
-	UpperArmCM sql.NullFloat64 `json:"upper_arm_cm,omitempty"`
-	ThighCM    sql.NullFloat64 `json:"thigh_cm,omitempty"`
-	NeckCM     sql.NullFloat64 `json:"neck_cm,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`
+	Date       string    `json:"date"`
+	BustCM     *float64  `json:"bust_cm"`
+	ChestCM    *float64  `json:"chest_cm"`
+	WaistCM    *float64  `json:"waist_cm"`
+	HipsCM     *float64  `json:"hips_cm"`
+	UpperArmCM *float64  `json:"upper_arm_cm"`
+	ThighCM    *float64  `json:"thigh_cm"`
+	NeckCM     *float64  `json:"neck_cm"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// ReminderItem is one thing the reminders bell asks the acting user to do —
+// the first slice of the future Issues bell (decision 42), delivered as the
+// owner's three reminder types (decisions 121–122).
+//
+// The wire shape is fully normalised: every field is always present, with
+// explicit nulls for what a type does not use (the slice-14.4 convention).
+// Weigh-in and body-measurement items are cadence nags judged against
+// CadenceDays since LastDate; the weekly_report item names the completed
+// Mon–Sun period whose report is ready but not yet viewed.
+type ReminderItem struct {
+	// Type is "weigh_in", "body_measurements" or "weekly_report".
+	Type string `json:"type"`
+	// LastDate is the newest recorded date for the cadence items, or null when
+	// nothing has ever been recorded. DaysSince counts from it to today.
+	LastDate  *string `json:"last_date"`
+	DaysSince *int    `json:"days_since"`
+	// CadenceDays is the window the item was judged against: 3 for a weigh-in
+	// (decision 122), 14 for a body-measurement session (decision 122). 0 for
+	// the weekly_report item, which has no cadence.
+	CadenceDays int `json:"cadence_days"`
+	// WeekFrom and WeekTo bound the completed weekly-report period
+	// (Monday–Sunday); null for the cadence items.
+	WeekFrom *string `json:"week_from"`
+	WeekTo   *string `json:"week_to"`
+}
+
+// RemindersResponse is GET /api/reminders. Items lists only what is currently
+// asking for attention: a cadence nag that is within its window is omitted, and
+// the weekly_report item disappears once the report has been viewed.
+type RemindersResponse struct {
+	Items []ReminderItem `json:"items"`
+}
+
+// WeeklyReportSeenResponse answers POST /api/reminders/weekly-report-seen with
+// the resulting per-user watermark.
+type WeeklyReportSeenResponse struct {
+	SeenThrough string `json:"seen_through"`
 }
 
 // WeightGoal represents a monthly weight loss target

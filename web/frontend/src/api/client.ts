@@ -1,0 +1,185 @@
+/**
+ * Thin typed fetch wrapper over the cals API.
+ *
+ * Deliberately small: every call goes through `apiGet`/`apiPost`/`apiPut`/`apiDelete`, so the
+ * Cloudflare Access behaviour (and any future auth handling) lives in one place
+ * rather than being re-implemented per screen. GET requests can forward a
+ * TanStack Query AbortSignal so obsolete range reads stop when a chart pans on.
+ *
+ * Cloudflare Access note: when the Access session expires, requests come back
+ * as an HTML login page with a 200/302 rather than a JSON 401. Detecting that
+ * and reloading to re-authenticate is much friendlier than a JSON parse error.
+ */
+
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+export class AuthExpiredError extends Error {
+  constructor() {
+    super('Cloudflare Access session expired — reloading to sign in again')
+    this.name = 'AuthExpiredError'
+  }
+}
+
+let authReloadRequested = false
+
+function reloadForAuthentication() {
+  if (typeof window === 'undefined' || authReloadRequested) return
+  authReloadRequested = true
+  window.location.reload()
+}
+
+export interface ApiRequestOptions {
+  /** TanStack Query supplies this so an obsolete range request can be aborted. */
+  signal?: AbortSignal
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  bodyFormat: 'json' | 'form' = 'json',
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    ...(signal ? { signal } : {}),
+    headers: body === undefined || bodyFormat === 'form'
+      ? undefined
+      : { 'Content-Type': 'application/json' },
+    // The browser must set multipart/form-data's boundary itself. JSON writes
+    // continue to use one consistent Content-Type through this client.
+    body: body === undefined
+      ? undefined
+      : bodyFormat === 'form'
+        ? body as BodyInit
+        : JSON.stringify(body),
+  })
+
+  if (response.status === 204) return undefined as T
+
+  const contentType = response.headers.get('Content-Type') ?? ''
+  const normalizedContentType = contentType.toLowerCase()
+  const isJson =
+    normalizedContentType.includes('application/json') || normalizedContentType.includes('+json')
+
+  // Cloudflare Access served us a login page instead of JSON. Keep this check
+  // ahead of parsing: a 200 HTML login page is not a successful API response.
+  if (response.ok && normalizedContentType.includes('text/html')) {
+    reloadForAuthentication()
+    throw new AuthExpiredError()
+  }
+
+  const text = await response.text()
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`
+    if (isJson) {
+      let data: { error?: unknown } | null = null
+      try {
+        data = JSON.parse(text) as { error?: unknown }
+      } catch {
+        // Keep the generic status message for malformed JSON error responses.
+      }
+      if (data && typeof data.error === 'string' && data.error.trim()) message = data.error
+    } else if (text.trim()) {
+      message = text.trim()
+    }
+    throw new ApiError(message, response.status)
+  }
+
+  // A successful mutation may legitimately have no body. Likewise, accept
+  // valid JSON from a 2xx response even if a handler forgot its JSON header;
+  // this prevents a false client-side failure after the server already wrote.
+  if (text.trim() === '') return undefined as T
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    if (!isJson) {
+      throw new ApiError(`Unexpected response type: ${contentType || 'unknown'}`, response.status)
+    }
+    throw new ApiError('Invalid JSON response', response.status)
+  }
+}
+
+export const apiGet = <T>(path: string, options?: ApiRequestOptions) =>
+  request<T>('GET', path, undefined, 'json', options?.signal)
+export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', path, body)
+export const apiPostForm = <T>(path: string, body: FormData) => request<T>('POST', path, body, 'form')
+export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)
+export const apiDelete = <T>(path: string) => request<T>('DELETE', path)
+
+/**
+ * GET a file (e.g. a backup ZIP) as a Blob. Bypasses the JSON parsing in
+ * `request` so non-JSON responses don't throw.
+ */
+export async function apiGetBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const response = await fetch(path, { method: 'GET', ...(signal ? { signal } : {}) })
+  if (response.status === 204) return new Blob()
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    let message = text.trim() || `Request failed (${response.status})`
+    try {
+      const data = JSON.parse(text) as { error?: unknown }
+      if (data && typeof data.error === 'string' && data.error) message = data.error
+    } catch {
+      // keep the raw text as the message
+    }
+    throw new ApiError(message, response.status)
+  }
+  return response.blob()
+}
+
+/** Query keys — one place, so mutations always invalidate the right things. */
+export const queryKeys = {
+  version: ['version'] as const,
+  user: ['user'] as const,
+  session: ['session'] as const,
+  diary: (date: string) => ['diary', date] as const,
+  bank: (date: string) => ['bank', date] as const,
+  drinks: (date: string) => ['drinks', date] as const,
+  drinkDefinitions: ['drink-definitions'] as const,
+  water: (date: string) => ['water', date] as const,
+  customFoods: ['foods', 'custom'] as const,
+  foodSearch: (q: string) => ['foods', 'search', q] as const,
+  /** Prefix key: invalidating it refreshes every food search. */
+  foodSearchAll: ['foods', 'search'] as const,
+  recipes: ['recipes'] as const,
+  recipe: (id: number) => ['recipes', 'detail', id] as const,
+  /** Free-text cuisines in use — the editor's chip suggestions (decision 123). */
+  recipeCuisines: ['recipes', 'cuisines'] as const,
+  /** Calendar range — keyed by (from, to). */
+  calendar: (from: string, to: string) => ['calendar', from, to] as const,
+  weightPrefix: ['weight'] as const,
+  weight: (days: number) => ['weight', days] as const,
+  /** One all-time value for the current-weight tile and last-weigh-in date. */
+  weightLatest: ['weight', 'latest'] as const,
+  /** Panned window — keyed by the range the chart is showing (decision 69). */
+  weightRange: (from: string, to: string) => ['weight', 'range', from, to] as const,
+  /** Prefix key: invalidating it refreshes every measurement history/latest query. */
+  measurements: ['measurements'] as const,
+  /** The bell's active reminder items (decisions 121–122). */
+  reminders: ['reminders'] as const,
+  measurementsRange: (from: string, to: string) => ['measurements', 'range', from, to] as const,
+  /** All sessions, including dates earlier than the 400-day range contract. */
+  measurementsAll: ['measurements', 'all'] as const,
+  /** Per-part latest values for the body map's pop-up (slice 14.4). */
+  measurementsLatest: ['measurements', 'latest'] as const,
+  nutritionPrefix: ['nutrition'] as const,
+  calorieStats: (days: number) => ['stats', 'calories', days] as const,
+  /** Panned window — keyed by the range the chart is showing (decision 69). */
+  calorieStatsRange: (from: string, to: string) => ['stats', 'calories', 'range', from, to] as const,
+  bankStats: (days: number) => ['stats', 'bank', days] as const,
+  nutrition: (days: number) => ['nutrition', 'weekly', days] as const,
+  /** The report's chosen range — keyed by the range it is showing (slice 14.6). */
+  nutritionRange: (from: string, to: string) => ['nutrition', 'range', from, to] as const,
+  /** Backups stored on the server (Admin-only). */
+  backups: ['backups'] as const,
+}

@@ -163,16 +163,19 @@ func HandleGetSteps(w http.ResponseWriter, r *http.Request) {
 	// Try to refresh data if needed
 	go refreshStepsIfNeeded(userID)
 
-	days := 14
-	if d := r.URL.Query().Get("days"); d != "" {
-		fmt.Sscanf(d, "%d", &days)
+	// Window: an explicit from/to pair, or the legacy `days` parameter counting
+	// back from today (14 by default). date(date) keeps the JSON at plain
+	// YYYY-MM-DD instead of the RFC3339 the driver returns for a DATE column.
+	from, to, ok := resolveSeriesRange(w, r, 14, 0, false)
+	if !ok {
+		return
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT date, steps FROM step_entries
-		WHERE user_id = ? AND date >= date('now', '-' || ? || ' days')
-		ORDER BY date ASC
-	`, userID, days)
+		SELECT date(date) AS day, steps FROM step_entries
+		WHERE user_id = ? AND date >= date(?) AND date <= date(?)
+		ORDER BY day ASC
+	`, userID, from, to)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -187,7 +190,7 @@ func HandleGetSteps(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		entries = append(entries, map[string]interface{}{
-			"date":  date,
+			"date":  isoDate(date),
 			"steps": steps,
 		})
 	}

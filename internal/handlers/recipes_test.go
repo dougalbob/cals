@@ -1,0 +1,354 @@
+package handlers
+
+import (
+	"encoding/json"
+	"math"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"testing"
+
+	"cals/internal/database"
+	"cals/internal/models"
+)
+
+func createTestRecipe(t *testing.T, name string, creatorID int64) int64 {
+	t.Helper()
+	result, err := database.DB.Exec(`
+		INSERT INTO recipes (name, created_by_user_id) VALUES (?, ?)
+	`, name, creatorID)
+	if err != nil {
+		t.Fatalf("inserting recipe: %v", err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("reading recipe id: %v", err)
+	}
+	return id
+}
+
+func listRecipesForTest(t *testing.T, email string) []models.Recipe {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	HandleListRecipes(recorder, authedRequest(t, http.MethodGet, "/api/recipes", "", email))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET /api/recipes status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var recipes []models.Recipe
+	if err := json.NewDecoder(recorder.Body).Decode(&recipes); err != nil {
+		t.Fatalf("decoding recipe list: %v", err)
+	}
+	return recipes
+}
+
+func createNamedFoodForRecipeTest(t *testing.T, name string) int64 {
+	t.Helper()
+	result, err := database.DB.Exec(`INSERT INTO foods (name, calories_per_100g) VALUES (?, 150)`, name)
+	if err != nil {
+		t.Fatalf("inserting food %q: %v", name, err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("reading food id: %v", err)
+	}
+	return id
+}
+
+func addRecipeFoodForTest(t *testing.T, recipeID, foodID int64) {
+	t.Helper()
+	if _, err := database.DB.Exec(`
+		INSERT INTO recipe_ingredients (recipe_id, food_id, quantity_grams, sort_order)
+		VALUES (?, ?, 100, 0)
+	`, recipeID, foodID); err != nil {
+		t.Fatalf("adding recipe food: %v", err)
+	}
+}
+
+func updateRecipeMetadataForTest(t *testing.T, recipeID int64, email, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := authedRequest(t, http.MethodPut,
+		"/api/recipes/"+strconv.FormatInt(recipeID, 10)+"/metadata", body, email)
+	req.SetPathValue("id", strconv.FormatInt(recipeID, 10))
+	recorder := httptest.NewRecorder()
+	HandleUpdateRecipeMetadata(recorder, req)
+	return recorder
+}
+
+func setRecipeFavouriteForTest(t *testing.T, recipeID int64, email string, favourite bool) *httptest.ResponseRecorder {
+	t.Helper()
+	req := authedRequest(t, http.MethodPut,
+		"/api/recipes/"+strconv.FormatInt(recipeID, 10)+"/favourite",
+		`{"is_favourite":`+strconv.FormatBool(favourite)+`}`, email)
+	req.SetPathValue("id", strconv.FormatInt(recipeID, 10))
+	recorder := httptest.NewRecorder()
+	HandleSetRecipeFavourite(recorder, req)
+	return recorder
+}
+
+func findRecipe(t *testing.T, recipes []models.Recipe, id int64) models.Recipe {
+	t.Helper()
+	for _, recipe := range recipes {
+		if recipe.ID == id {
+			return recipe
+		}
+	}
+	t.Fatalf("recipe %d not found in list", id)
+	return models.Recipe{}
+}
+
+func TestRecipeFavouriteIsPrivateToSignedInUser(t *testing.T) {
+	setupHandlerDB(t)
+	wifeID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	createTestUser(t, "husband@example.com", "2026-09-28", 2000)
+	recipeID := createTestRecipe(t, "Chicken Curry", wifeID)
+
+	if got := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID).IsFavourite; got {
+		t.Fatal("new recipe should not start as a favourite")
+	}
+
+	recorder := setRecipeFavouriteForTest(t, recipeID, "wife@example.com", true)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("setting favourite status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response map[string]bool
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decoding favourite response: %v", err)
+	}
+	if !response["is_favourite"] {
+		t.Fatal("favourite response should be true")
+	}
+
+	if got := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID).IsFavourite; !got {
+		t.Error("favourite should be visible to the user who set it")
+	}
+	if got := findRecipe(t, listRecipesForTest(t, "husband@example.com"), recipeID).IsFavourite; got {
+		t.Error("favourite must not leak to another user of the shared recipe")
+	}
+
+	// Repeating a set is idempotent, and the user can later clear it.
+	if recorder := setRecipeFavouriteForTest(t, recipeID, "wife@example.com", true); recorder.Code != http.StatusOK {
+		t.Fatalf("repeating favourite status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if recorder := setRecipeFavouriteForTest(t, recipeID, "wife@example.com", false); recorder.Code != http.StatusOK {
+		t.Fatalf("clearing favourite status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if got := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID).IsFavourite; got {
+		t.Error("cleared favourite should be false")
+	}
+}
+
+func TestSetRecipeFavouriteRejectsInvalidRequests(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	recipeID := createTestRecipe(t, "Chicken Curry", userID)
+
+	req := authedRequest(t, http.MethodPut, "/api/recipes/1/favourite", `{}`, "wife@example.com")
+	req.SetPathValue("id", strconv.FormatInt(recipeID, 10))
+	recorder := httptest.NewRecorder()
+	HandleSetRecipeFavourite(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("missing is_favourite status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+
+	if recorder := setRecipeFavouriteForTest(t, recipeID+100, "wife@example.com", true); recorder.Code != http.StatusNotFound {
+		t.Errorf("unknown recipe status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestRecipeMetadataIsSharedAndUsesKnownRecipeFoods(t *testing.T) {
+	setupHandlerDB(t)
+	creatorID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	createTestUser(t, "husband@example.com", "2026-09-28", 2000)
+	chickenID := createNamedFoodForRecipeTest(t, "Chicken breast")
+	riceID := createNamedFoodForRecipeTest(t, "Basmati rice")
+	recipeID := createTestRecipe(t, "Chicken Bowl", creatorID)
+	addRecipeFoodForTest(t, recipeID, chickenID)
+	addRecipeFoodForTest(t, recipeID, riceID)
+
+	recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com",
+		`{"meal_occasions":["lunch","dinner"],"dish_type":"main","key_food_ids":[`+
+			strconv.FormatInt(chickenID, 10)+`, `+strconv.FormatInt(riceID, 10)+`],"total_time_minutes":45,"is_own_creation":true}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("PUT metadata status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var updated models.Recipe
+	if err := json.NewDecoder(recorder.Body).Decode(&updated); err != nil {
+		t.Fatalf("decoding metadata response: %v", err)
+	}
+	if updated.DishType != "main" || updated.TotalTimeMinutes == nil || *updated.TotalTimeMinutes != 45 || !updated.IsOwnCreation {
+		t.Errorf("metadata response = %+v, want main / 45 minutes / own creation", updated)
+	}
+	if len(updated.MealOccasions) != 2 || updated.MealOccasions[0] != "lunch" || updated.MealOccasions[1] != "dinner" {
+		t.Errorf("meal occasions = %v, want [lunch dinner]", updated.MealOccasions)
+	}
+	if len(updated.KeyFoods) != 2 || updated.KeyFoods[0].FoodID != chickenID || updated.KeyFoods[1].FoodID != riceID {
+		t.Errorf("key foods = %+v, want chicken and rice IDs", updated.KeyFoods)
+	}
+
+	for _, email := range []string{"wife@example.com", "husband@example.com"} {
+		listed := findRecipe(t, listRecipesForTest(t, email), recipeID)
+		if listed.DishType != "main" || listed.TotalTimeMinutes == nil || *listed.TotalTimeMinutes != 45 || !listed.IsOwnCreation {
+			t.Errorf("shared metadata for %s = %+v", email, listed)
+		}
+		if len(listed.MealOccasions) != 2 || len(listed.KeyFoods) != 2 {
+			t.Errorf("shared tags for %s = %+v", email, listed)
+		}
+	}
+
+	// The detail endpoint returns the same shared metadata while favourites remain personal.
+	if recorder := setRecipeFavouriteForTest(t, recipeID, "wife@example.com", true); recorder.Code != http.StatusOK {
+		t.Fatalf("setting favourite status = %d", recorder.Code)
+	}
+	wifeRecipe := getRecipeForTest(t, recipeID, "wife@example.com")
+	husbandRecipe := getRecipeForTest(t, recipeID, "husband@example.com")
+	if !wifeRecipe.IsFavourite || husbandRecipe.IsFavourite {
+		t.Errorf("favourite state should remain user-scoped: wife=%v husband=%v", wifeRecipe.IsFavourite, husbandRecipe.IsFavourite)
+	}
+	if wifeRecipe.DishType != husbandRecipe.DishType || len(wifeRecipe.MealOccasions) != len(husbandRecipe.MealOccasions) {
+		t.Errorf("shared metadata differs across users: wife=%+v husband=%+v", wifeRecipe, husbandRecipe)
+	}
+
+	// Clients predating this field may still replace the old metadata shape;
+	// omitting the additive marker must not clear a value saved by a newer client.
+	legacyBody := `{"meal_occasions":[],"dish_type":"","key_food_ids":[],"total_time_minutes":null}`
+	if recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com", legacyBody); recorder.Code != http.StatusOK {
+		t.Fatalf("legacy metadata update status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !getRecipeForTest(t, recipeID, "wife@example.com").IsOwnCreation {
+		t.Error("legacy metadata update without is_own_creation should preserve the shared marker")
+	}
+
+	if recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com",
+		`{"meal_occasions":[],"dish_type":"","key_food_ids":[],"total_time_minutes":null,"is_own_creation":false}`); recorder.Code != http.StatusOK {
+		t.Fatalf("clearing recipe metadata status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	cleared := getRecipeForTest(t, recipeID, "wife@example.com")
+	if len(cleared.MealOccasions) != 0 || len(cleared.KeyFoods) != 0 || cleared.DishType != "" || cleared.TotalTimeMinutes != nil || cleared.IsOwnCreation {
+		t.Errorf("metadata did not clear: %+v", cleared)
+	}
+}
+
+func TestCreateRecipeCanSetOwnCreationMarker(t *testing.T) {
+	setupHandlerDB(t)
+	createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	foodID := createNutritionFoodForTest(t, "Tomatoes", 18, 0.9, 3.9, 0.2, 1.2)
+	input := recipeInput("Tomato Soup", foodID, 300, 0, false)
+	input["is_own_creation"] = true
+
+	created := createRecipeThroughAPIForTest(t, "wife@example.com", input)
+	if !created.IsOwnCreation {
+		t.Fatal("created recipe response did not keep is_own_creation=true")
+	}
+	if listed := findRecipe(t, listRecipesForTest(t, "wife@example.com"), created.ID); !listed.IsOwnCreation {
+		t.Error("created recipe marker was not returned in the catalogue")
+	}
+}
+
+func getRecipeForTest(t *testing.T, recipeID int64, email string) models.Recipe {
+	t.Helper()
+	req := authedRequest(t, http.MethodGet,
+		"/api/recipes/"+strconv.FormatInt(recipeID, 10), "", email)
+	req.SetPathValue("id", strconv.FormatInt(recipeID, 10))
+	recorder := httptest.NewRecorder()
+	HandleGetRecipe(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET recipe status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var recipe models.Recipe
+	if err := json.NewDecoder(recorder.Body).Decode(&recipe); err != nil {
+		t.Fatalf("decoding recipe detail: %v", err)
+	}
+	return recipe
+}
+
+func TestRecipeMetadataRejectsInvalidFacetAndKeyFoodValues(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	ingredientID := createNamedFoodForRecipeTest(t, "Chicken")
+	otherFoodID := createNamedFoodForRecipeTest(t, "Spinach")
+	recipeID := createTestRecipe(t, "Chicken Bowl", userID)
+	addRecipeFoodForTest(t, recipeID, ingredientID)
+
+	invalidBodies := []struct {
+		name string
+		body string
+	}{
+		{"unknown occasion", `{"meal_occasions":["brunch"]}`},
+		{"duplicate occasion", `{"meal_occasions":["lunch","lunch"]}`},
+		{"unknown dish type", `{"dish_type":"casserole"}`},
+		{"more than two key foods", `{"key_food_ids":[1,2,3]}`},
+		{"food not in recipe", `{"key_food_ids":[` + strconv.FormatInt(otherFoodID, 10) + `]}`},
+		{"zero minutes", `{"total_time_minutes":0}`},
+		{"fractional minutes", `{"total_time_minutes":1.5}`},
+		{"non-boolean own creation marker", `{"is_own_creation":"true"}`},
+	}
+	for _, test := range invalidBodies {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := updateRecipeMetadataForTest(t, recipeID, "wife@example.com", test.body)
+			if recorder.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, body = %s; want %d", recorder.Code, recorder.Body.String(), http.StatusBadRequest)
+			}
+		})
+	}
+
+	if recorder := updateRecipeMetadataForTest(t, recipeID+100, "wife@example.com", `{}`); recorder.Code != http.StatusNotFound {
+		t.Errorf("unknown recipe status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestRecipeListCarriesMacroDensitiesForRatingGuides(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	recipeID := createTestRecipe(t, "Chicken Curry", userID)
+
+	// A saved recipe: cooked weight plus macro totals, exactly as the
+	// editor writes them. The catalogue response must carry the same
+	// per-100 g densities the detail endpoint computes (issue #97).
+	if _, err := database.DB.Exec(`
+		UPDATE recipes
+		SET total_weight_grams = 1050, total_calories = 1710.6,
+		    total_carbs = 126.8, total_fat = 38.6, total_fibre = 6.8
+		WHERE id = ?
+	`, recipeID); err != nil {
+		t.Fatalf("seeding recipe totals: %v", err)
+	}
+
+	recipe := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID)
+	for field, want := range map[string]float64{
+		"calories_per_100g": 1710.6 / 1050 * 100,
+		"carbs_per_100g":    126.8 / 1050 * 100,
+		"fat_per_100g":      38.6 / 1050 * 100,
+		"fibre_per_100g":    6.8 / 1050 * 100,
+	} {
+		var got float64
+		switch field {
+		case "calories_per_100g":
+			got = recipe.CaloriesPer100g
+		case "carbs_per_100g":
+			got = recipe.CarbsPer100g
+		case "fat_per_100g":
+			got = recipe.FatPer100g
+		case "fibre_per_100g":
+			got = recipe.FibrePer100g
+		}
+		if math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s = %v, want %v", field, got, want)
+		}
+	}
+}
+
+func TestRecipeListLeavesDensitiesZeroWithoutCookedWeight(t *testing.T) {
+	setupHandlerDB(t)
+	userID := createTestUser(t, "wife@example.com", "2026-09-28", 1500)
+	recipeID := createTestRecipe(t, "Rough Notes", userID)
+
+	// No cooked weight and no macro totals: every density stays zero so
+	// the client can withhold the rating guides rather than score a
+	// zero-fat, zero-carb recipe as excellent.
+	recipe := findRecipe(t, listRecipesForTest(t, "wife@example.com"), recipeID)
+	if recipe.TotalWeightGrams != 0 || recipe.FatPer100g != 0 ||
+		recipe.CarbsPer100g != 0 || recipe.FibrePer100g != 0 || recipe.CaloriesPer100g != 0 {
+		t.Errorf("recipe without cooked weight should carry zero densities, got %+v", recipe)
+	}
+}

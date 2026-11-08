@@ -1,3 +1,9 @@
+# LEGACY — existing V1 server only. Compose is retired as cals' installation
+# method (2026-10-02): new installs use the cals-dev-v2.xml Unraid template
+# with the prebuilt GHCR image. This file is kept so the current V1 server
+# (container cals-counter, port 8150) can still be rebuilt on the box where
+# it already runs. Do not use it for anything new — see
+# docs/architecture/unraid-image-release.md.
 version: '3.8'
 
 services:
