@@ -101,8 +101,12 @@ docker run --rm -p 8150:8150 \
 # cals-dev-v2.xml template — see docs/architecture/unraid-image-release.md
 ```
 
-Container images are published only by the tag-triggered `Publish V2 image (development)` workflow —
-never by hand, never from `main`, and never with `latest` for a development candidate. The
+Container images are built and published only by the tag-triggered `Publish V2 image (development)`
+workflow. They are never built or pushed by hand, never built from `main`, and a development
+candidate never gets `latest`. The one exception is `Publish V2 image (stable)`, which runs when the
+**owner** pushes an annotated `vX.Y.Z` tag on `main`. It builds nothing: it copies an already
+road-tested RC's digest to `:vX.Y.Z` and `:latest`. Agents do not push stable tags unless the owner
+explicitly asks. See `docs/architecture/stable-release-plan.md`. The
 `Docker build (validation)` workflow builds the image on every pull request without pushing, which
 is how the container build is verified if you cannot run Docker locally.
 
