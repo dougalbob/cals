@@ -22,12 +22,14 @@
 > - **No appdata directory is disposable today.** It is not known what `/mnt/user/appdata/cals-dev-v2`
 >   and `/mnt/user/appdata/cals` now contain, which one is newest, or whether they still exist. Treat all
 >   three as precious until the owner says otherwise.
-> - Still unconfirmed:
->   - the container's settings: `DEV_MODE`, `DEV_IDENTITY_SWITCH`, port, network and image tag;
->   - when and how the switch from `cals-dev-v2` happened;
->   - whether the backup covers this directory.
+> - **Confirmed by the owner the same day:**
+>   - The container's **Dev mode is `false`**, so it uses normal Cloudflare login.
+>   - **Each family member sees their own diary.**
+>   - **The Unraid backup covers all of appdata**, including this directory.
 >
->   Do not assume them. Ask the owner, in plain language.
+>   It is a normally configured household container that happens to be named `cals-dev-identity`.
+> - **Still unconfirmed:** its port, network and image tag, and when and how the switch from
+>   `cals-dev-v2` happened. Do not assume them. Ask the owner, in plain language.
 > - The `cals-dev-identity.xml` template still describes its data as a "disposable data copy". Until
 >   the owner approves a template change, do not trust that wording.
 

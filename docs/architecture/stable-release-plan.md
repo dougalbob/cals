@@ -7,7 +7,7 @@
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md) (branches, release PRs), [`unraid-image-release.md`](./unraid-image-release.md) (development channel, Unraid template), [`data-copy-warning.md`](./data-copy-warning.md) (**read before any container or appdata step**), [`../CURRENT_STATE.md`](../CURRENT_STATE.md) (what is deployed today), workflow [`publish-stable-image.yml`](../../.github/workflows/publish-stable-image.yml) and its guard [`stable-release-guard.sh`](../../.github/scripts/stable-release-guard.sh) |
 
-> **⚠️ Owner report, 2026-11-08:** the family's container is **`cals-dev-identity`**, not `cals-dev-v2`, and its live data is in `/mnt/user/appdata/cals-dev-identity`. It is the only cals container. §4 step 6 and D3 below need revisiting once its settings are confirmed. **Do not switch anything on Unraid until then.** See [`data-copy-warning.md`](./data-copy-warning.md).
+> **⚠️ Owner report, 2026-11-08:** the family's container is **`cals-dev-identity`**, not `cals-dev-v2`, and its live data is in `/mnt/user/appdata/cals-dev-identity`. It is the only cals container. The owner confirmed that it is configured normally: Dev mode is off, each person has their own diary, and the backup covers appdata. **In §4 step 6, read `cals-dev-identity` wherever it says `cals-dev-v2`.** Before step 6, still confirm the container's image tag (the Repository field). Do not switch anything on Unraid until then. See [`data-copy-warning.md`](./data-copy-warning.md).
 
 This page sets out how V2 gets onto `main` and how a **stable image** is published. It replaces the
 old note that "stable publishing is the owner's manual step". **Status is not tracked here.**

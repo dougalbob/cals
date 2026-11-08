@@ -19,8 +19,9 @@ at the decision numbers and PRs rather than restating the documents.
 The owner checked the Unraid Docker tab and reported one cals container, named `cals-dev-identity`.
 It mounts `/mnt/user/appdata/cals-dev-identity` and is the family's daily app. The documentation had
 called that directory the only disposable one. The warnings in `data-copy-warning.md`, `AGENTS.md`,
-`CURRENT_STATE.md` and the stable release plan were corrected the same day. The container's
-settings, the history of the switch and backup coverage are still to be confirmed. No container,
+`CURRENT_STATE.md` and the stable release plan were corrected the same day. The owner then
+confirmed that Dev mode is off, each family member sees their own diary, and the Unraid backup
+covers all of appdata. The port, the image tag and the history of the switch are still unconfirmed. No container,
 template or appdata was touched.
 
 ---
