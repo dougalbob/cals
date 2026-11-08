@@ -14,6 +14,17 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## Owner report: the family's app is `cals-dev-identity` (2026-11-08)
+
+The owner checked the Unraid Docker tab and reported one cals container, named `cals-dev-identity`.
+It mounts `/mnt/user/appdata/cals-dev-identity` and is the family's daily app. The documentation had
+called that directory the only disposable one. The warnings in `data-copy-warning.md`, `AGENTS.md`,
+`CURRENT_STATE.md` and the stable release plan were corrected the same day. The container's
+settings, the history of the switch and backup coverage are still to be confirmed. No container,
+template or appdata was touched.
+
+---
+
 ## Stable release planned — V2 to `main` (2026-11-08)
 
 After rc43 was confirmed on Unraid, the owner asked to make V2 the version on `main`. They chose

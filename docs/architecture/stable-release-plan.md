@@ -7,6 +7,8 @@
 | **Decision owner** | @dougalbob |
 | **Related** | [`git-workflow.md`](./git-workflow.md) (branches, release PRs), [`unraid-image-release.md`](./unraid-image-release.md) (development channel, Unraid template), [`data-copy-warning.md`](./data-copy-warning.md) (**read before any container or appdata step**), [`../CURRENT_STATE.md`](../CURRENT_STATE.md) (what is deployed today), workflow [`publish-stable-image.yml`](../../.github/workflows/publish-stable-image.yml) and its guard [`stable-release-guard.sh`](../../.github/scripts/stable-release-guard.sh) |
 
+> **⚠️ Owner report, 2026-11-08:** the family's container is **`cals-dev-identity`**, not `cals-dev-v2`, and its live data is in `/mnt/user/appdata/cals-dev-identity`. It is the only cals container. §4 step 6 and D3 below need revisiting once its settings are confirmed. **Do not switch anything on Unraid until then.** See [`data-copy-warning.md`](./data-copy-warning.md).
+
 This page sets out how V2 gets onto `main` and how a **stable image** is published. It replaces the
 old note that "stable publishing is the owner's manual step". **Status is not tracked here.**
 [`CURRENT_STATE.md`](../CURRENT_STATE.md) records what has actually happened.
@@ -160,8 +162,8 @@ merges `main`, and pushes a stable tag only if the owner explicitly asks.
 - **Development continues on `cals-dev`.** The next line bumps `AppVersion` (to `2.0.1` or `2.1.0`)
   and publishes `v2.1.0-dev-rcN` to `dev-latest`, exactly as now. A household container on `:latest`
   **no longer receives RCs automatically**. That is the point of having a stable channel.
-- **Where RCs get road-tested** is open (D3). `cals-dev-identity` already follows `dev-latest` on
-  its disposable data. Alternatively, the household container can be pointed at an exact RC tag for
+- **Where RCs get road-tested** is open (D3). ~~`cals-dev-identity` already follows `dev-latest` on
+  its disposable data.~~ That container is now known to be the family's live app (2026-11-08), so it is not a test option. Alternatively, the household container can be pointed at an exact RC tag for
   a trial and then back to `:latest`.
 - **The next stable release** follows the same loop: release PR → tag `vX.Y.Z` with
   `Promotes: vX.Y.Z-dev-rcN` → switch only if the container is pinned to an exact tag.
@@ -193,7 +195,7 @@ decision:
 
 | # | Question | Options | Recommendation |
 |---|---|---|---|
-| D3 | Where are future RCs road-tested once the household is on `:latest`? | (a) `cals-dev-identity` on disposable data; (b) point the household container at the exact RC tag for a trial, then back to `:latest` | (b) for changes that need real data, (a) otherwise. Decide before the first post-2.0.0 RC |
+| D3 | Where are future RCs road-tested once the household is on `:latest`? | (a) a *new*, separate test container with its own fresh data (`cals-dev-identity` is the live app, 2026-11-08); (b) point the household container at the exact RC tag for a trial, then back to `:latest` | (b) for changes that need real data, (a) otherwise. Decide before the first post-2.0.0 RC |
 | D4 | Should `cals-dev-v2.xml` default to `:latest`? | Change it in a later docs/template PR; or leave it on `dev-latest` | Change it after 2.0.0 ships, so fresh installs get stable. The existing container is switched by hand in §4 step 6 either way |
 | D5 | What protects the V1 checkout (H1)? | (a) never pull it again and retire it later; (b) pin that checkout to `v1.9.0`; (c) replace `docker-compose.yml` on `cals-dev` with a refusing stub before the release PR | (a) or (b) now. (c) only with the V1 retirement decision |
 | D6 | Apply `main` branch protection before the release PR? | Yes, with no linear history; or keep the convention only | Yes |

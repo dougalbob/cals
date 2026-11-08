@@ -7,6 +7,30 @@
 | **Decision owner** | @dougalbob |
 | **Related** | [`unraid-image-release.md`](./unraid-image-release.md), [`local-development.md`](./local-development.md), [`dev-identity-switch.md`](./dev-identity-switch.md), [`../../AGENTS.md`](../../AGENTS.md) |
 
+> ## ⚠️ Owner report, 2026-11-08: the household's live data is in `cals-dev-identity`
+>
+> The owner checked the Unraid Docker tab on 2026-11-08 and reported these three facts:
+>
+> - There is **one** cals container.
+> - It is named **`cals-dev-identity`**.
+> - It mounts **`/mnt/user/appdata/cals-dev-identity`** at `/app/data`, and it is the app the family uses every day on their phones.
+>
+> **This overrides the rest of this page wherever they disagree.** Specifically:
+>
+> - **`/mnt/user/appdata/cals-dev-identity` holds live household data. It is NOT disposable.**
+>   Never delete, reset, overwrite or copy over it, and never use it as scratch data.
+> - **No appdata directory is disposable today.** It is not known what `/mnt/user/appdata/cals-dev-v2`
+>   and `/mnt/user/appdata/cals` now contain, which one is newest, or whether they still exist. Treat all
+>   three as precious until the owner says otherwise.
+> - Still unconfirmed:
+>   - the container's settings: `DEV_MODE`, `DEV_IDENTITY_SWITCH`, port, network and image tag;
+>   - when and how the switch from `cals-dev-v2` happened;
+>   - whether the backup covers this directory.
+>
+>   Do not assume them. Ask the owner, in plain language.
+> - The `cals-dev-identity.xml` template still describes its data as a "disposable data copy". Until
+>   the owner approves a template change, do not trust that wording.
+
 ## What happened
 
 On **2026-10-02** the V2 container (`cals-dev-v2`, host port `8151`) was started from a
@@ -72,6 +96,10 @@ warning, and never for `cals-dev-v2` as it stands today.
   identify each checkpoint, so you can tell which build wrote a database.
 
 ## History
+
+- 2026-11-08: The owner reported that the only cals container is `cals-dev-identity`. It mounts
+  `/mnt/user/appdata/cals-dev-identity` and is the family's daily app. That directory is therefore
+  live data, not disposable; see the warning at the top of this page.
 
 - 2026-10-02: V2 installed, data copied that morning, Cloudflare route moved to `8151`.
   This document created the same day because no record of the copy existed anywhere in
