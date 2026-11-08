@@ -14,6 +14,31 @@ at the decision numbers and PRs rather than restating the documents.
 
 ---
 
+## In-app backup & restore built (2026-11-08)
+
+The pre-stable-release safety net. A new **Backups (Admin only)** section on Settings lets the owner
+create a live, WAL-safe snapshot (`VACUUM INTO` + integrity-check, bundled with every recipe photo
+into one ZIP), see a list, download, delete and restore. The app also takes one automatic daily
+backup at startup (keeping the last 7) into `/app/data/backups/`, which is inside the Unraid appdata
+mount so the existing Unraid backup catches them. Restores always save a `cals-before-restore-…`
+safety copy first, validate the candidate (SQLite, integrity + foreign-key + expected tables, no
+forward-schema surprises), pause incoming writes with a 503, replace the database file atomically,
+run additive migrations, swap the recipe images directory, then reload the UI. Two-step confirmation
+is required (typed "REPLACE ALL DATA" for server files, typed "RESTORE" for uploads). Uploads are
+capped at 200 MiB. Non-admin users get 403 from the server — the section is not shown in the UI.
+
+Go tests cover: valid zip creation, integrity rejection of bad files, concurrent writes succeeding
+during backup, auto-backup retention, non-admin 403, end-to-end round-trip restore (data + images
+return after a wipe) and invalid-upload rejection. Documentation: new `architecture/backup-restore.md`,
+updates to `CURRENT_STATE.md`, `data-copy-warning.md` and `admin-roles.md`. Frontend lint,
+typecheck, 415 Vitest tests and `build:preview` pass. The fixture preview server was extended with
+in-memory backup endpoints so the Arena preview shows the new section at phone size.
+
+Owner answers settled before building (per the handoff): backup **database + photos together**,
+**Admin only**, **daily automatic with 7 kept**, **download and upload supported**.
+
+---
+
 ## Owner report: the family's app is `cals-dev-identity` (2026-11-08)
 
 The owner checked the Unraid Docker tab and reported one cals container, named `cals-dev-identity`.

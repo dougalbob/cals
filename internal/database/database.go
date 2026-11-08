@@ -9,6 +9,8 @@ import (
 
 var DB *sql.DB
 
+
+
 func Initialize(dbPath string) error {
 	var err error
 	DB, err = sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_journal_mode=WAL")

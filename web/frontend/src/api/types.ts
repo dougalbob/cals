@@ -562,3 +562,19 @@ export interface VersionResponse {
   version: string
   dev_identity_switch?: boolean
 }
+
+/** One backup file stored on the server (GET /api/backups). */
+export interface BackupItem {
+  filename: string
+  /** ISO UTC timestamp the backup was taken. */
+  created_at: string
+  size_bytes: number
+  /** 'manual' = tapped the button, 'auto' = daily automatic, 'before-restore' = safety copy taken just before a restore. */
+  kind: 'manual' | 'auto' | 'before-restore'
+}
+
+export interface RestoreResponse {
+  ok: true
+  before_restore_backup: string
+  restored_from: string
+}
